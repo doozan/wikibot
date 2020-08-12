@@ -160,10 +160,17 @@ class NymSectionToTag():
 
         res = tuple( a if a else b for a,b in zip(item,item2) )
 
+        if not res[0] or res[0] == "":
+            raise ValueError("No link found", text)
+
         return res
 
 
     def get_item_from_text(self, text):
+        """
+        Parse a string containing [[Link]] and (qualifier) text
+        Returns a tuple with ( {"1":"LANG_ID", "2": "Link"}, ["qualifier"], None )
+        """
         clean_text = self.strip_templates(text).strip()
 
         link,qualifier,gloss=None,None,None
@@ -172,7 +179,7 @@ class NymSectionToTag():
         res = re.search(pattern, clean_text)
         if res:
             link = { "1": self.LANG_ID, "2": res.group(1) }
-            clean_text = re.sub(pattern, "", clean_text)
+            clean_text = re.sub(pattern, "", clean_text, 1)
 
         pattern = r"\(([^)]+)\)"
         res = re.search(pattern, clean_text)
@@ -180,10 +187,10 @@ class NymSectionToTag():
             # Strip out '', ''', '''', etc markups (does not check that they're balanced)
             no_markup = re.sub(r"''*", "", res.group(1))
             qualifier = [ x.strip() for x in no_markup.split(",") ]
-            clean_text = re.sub(pattern, "", clean_text)
+            clean_text = re.sub(pattern, "", clean_text, 1)
 
-        unhandled = re.sub(r"[\s;,:']", "", clean_text)
-        if unhandled != "":
+        res = re.match(r"^\s*$", clean_text)
+        if not res:
             raise ValueError("Unexpected text found", clean_text)
 
         return(link, qualifier, gloss)

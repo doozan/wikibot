@@ -1,3 +1,4 @@
+import pytest
 from nym_sections_to_tags import NymSectionToTag
 
 synfixer = NymSectionToTag("Spanish", "es")
@@ -38,6 +39,18 @@ def test_parse_word():
     for test,value in tests.items():
         assert value == synfixer.parse_word(test)
 
+def test_parse_word_fails():
+
+    tests = [
+        "{{l|es|calala|g=f}} [[blah]]",  # Multiple Links
+        "{{q|blah}", # Missing Link
+        "{{l|es|calala|g=f}} {{q|blah}} (blah2)",  # Multiple Qualifiers
+    ]
+
+    for test in tests:
+        with pytest.raises(Exception):
+            print(test)
+            assert synfixer.parse_word(test)
 
 def test_strip_templates():
     tests = {
@@ -49,25 +62,42 @@ def test_strip_templates():
 
 
 def test_get_item_from_text():
+    print("XXXX")
     tests = {
         "(Mexico, colloquial)": (None, ["Mexico", "colloquial"], None),
         "[[Mexico]] (colloquial)": ({ "1": "es", "2": "Mexico" }, ["colloquial"], None),
+        "(colloquial) [[Mexico]]": ({ "1": "es", "2": "Mexico" }, ["colloquial"], None),
     }
 
     for test,value in tests.items():
         assert value == synfixer.get_item_from_text(test)
 
-def test_get_item_from_text_failures():
+def test_get_item_from_text_fails():
+
     tests = [
         "[[Cuiudad]] de [[Mexico]]",
         "blah [[Mexico]]",
         "blah",
-        "[[Mexico]], [[Korea]]"
-        "[[Mexico]] (blah) (blah)"
+        "[[Mexico]], [[Korea]]",
+        "[[Mexico]] (blah) (blah)",
+        "[[Mexico]] [[Mexico2]]",
+        "(blah) (blah)",
     ]
 
-    with pytest.raises(Exception):
-        for test in tests:
-            assert synfixer.get_item_from_text(text)
+    for test in tests:
+        with pytest.raises(Exception):
+            print(test)
+            assert synfixer.get_item_from_text(test)
 
+def test_get_item_from_templates_fails():
+
+    tests = [
+        "{{l|es|calala|g=f}} {{q|blah}} {{q|blah2}}",
+        "de {{l|es|calala|g=f}} {{q|blah}} {{q|blah2}}",
+    ]
+
+    for test in tests:
+        with pytest.raises(Exception):
+            print(test)
+            assert synfixer.get_item_from_templates(test)
 
