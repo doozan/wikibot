@@ -418,7 +418,7 @@ class NymSectionToTag():
     def run_fix(self, text, title=None):
 
         new_text = text
-        for nym_name, nym_tag in [ ["Hypernyms", "hyper"], ["Hyponyms", "hypo"], ["Antonyms", "ant"], ["Synonyms", "syn"] ]:
+        for nym_name, nym_tag in [ ["Troponyms", "troponyms"], ["Holonyms", "holonyms"], ["Meronyms", "meronyms"], ["Hyponyms", "hyper"], ["Hyperyms", "hypo"], ["Antonyms", "ant"], ["Synonyms", "syn"] ]:
             prev_text = new_text
             new_text = self.nym_section_to_tag(prev_text, nym_name, nym_tag, title)
             if not new_text:
