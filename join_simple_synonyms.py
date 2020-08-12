@@ -140,8 +140,8 @@ class NymSectionToTag():
 
     def parse_word(self, text):
         """
-        Parses a word defined in {{l}} {{q}} and {{gloss}} tags while ignoring {{g}} tags
-        Raises an error if unexpected tags or text are found or if a tag is used twice
+        Parses a word defined with [[link]] or {{l}}, {{q}} or (qualifier) and {{gloss}} tags while ignoring {{g}} tags
+        Raises an error if unexpected tags or text are found or if an item is defined twice
         """
 
         # Special handling for "See [[Thesaurus:entry]]." items
@@ -199,12 +199,18 @@ class NymSectionToTag():
             if template.name in [ "link", "l" ]:
                 if template.params[0] != self.LANG_ID:
                     raise ValueError("Word is not in the expected language", text)
+                if link:
+                    raise ValueError("More than one {{link}} detected", text)
                 link = { str(p.name):str(p.value) for p in template.params if str(p.name) in [ "1", "2", "3", "tr" ] }
 
             elif template.name in [ "qualifier", "qual", "q", "i" ]:
+                if qualifier:
+                    raise ValueError("More than one {{qualifier}} detected", text)
                 qualifier = [ p.value for p in template.params if p.can_hide_key ]
 
             elif template.name in [ "gloss", "gl" ]:
+                if qualifier:
+                    raise ValueError("More than one {{gloss}} detected", text)
                 if len(template.params) != 1:
                     raise ValueError(f"Unexpected number of parameters for {template.name}", template.params)
                 gloss = str(template.params[0])
@@ -454,6 +460,8 @@ def main():
     lang_fixable=0
 
     for entry in parser:
+#        if count>=10000:
+#            break
         count+=1
 
         if ":" in entry.title:
@@ -477,15 +485,15 @@ def main():
         lang_fixable += 1
 
         prefile.write(f"\nPage: {entry.title}\n")
-        prefile.write(fixed)
+        prefile.write(lang_entry)
 
         postfile.write(f"\nPage: {entry.title}\n")
-        postfile.write(lang_entry)
+        postfile.write(fixed)
 
 
-    print("Total articles: {count}")
-    print("Total in {lang_name}: {lang_count}")
-    print("Total fixes: {lang_fixable}")
+    print(f"Total articles: {count}")
+    print(f"Total in {args.lang_section}: {lang_count}")
+    print(f"Total fixes: {lang_fixable}")
 
     prefile.close()
     postfile.close()
