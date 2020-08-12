@@ -460,8 +460,8 @@ def main():
     lang_fixable=0
 
     for entry in parser:
-#        if count>=10000:
-#            break
+        if count>=10000:
+            break
         count+=1
 
         if ":" in entry.title:

@@ -1,6 +1,6 @@
-from join_simple_synonyms import SynFixer
+from nym_sections_to_tags import NymSectionToTag
 
-synfixer = SynFixer("Spanish", "es")
+synfixer = NymSectionToTag("Spanish", "es")
 
 def test_parse_section_items():
 
@@ -56,4 +56,18 @@ def test_get_item_from_text():
 
     for test,value in tests.items():
         assert value == synfixer.get_item_from_text(test)
+
+def test_get_item_from_text_failures():
+    tests = [
+        "[[Cuiudad]] de [[Mexico]]",
+        "blah [[Mexico]]",
+        "blah",
+        "[[Mexico]], [[Korea]]"
+        "[[Mexico]] (blah) (blah)"
+    ]
+
+    with pytest.raises(Exception):
+        for test in tests:
+            assert synfixer.get_item_from_text(text)
+
 

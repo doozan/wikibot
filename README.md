@@ -8,7 +8,7 @@ It can be called directly from the command line to generate files with the pre/p
 It can be used with the pywikibot replace.py script to actually make the changes with the following user-fixes.py:
 
 ```
-from nym_secitions_to_tags import NymSectionToTag
+from nym_sections_to_tags import NymSectionToTag
 nym_fixer = NymSectionToTag("Spanish", "es")
 
 def nym_sections_to_tags(text):
