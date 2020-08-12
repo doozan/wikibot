@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-This will search all entries with a specified language with (Syn|Ant|Homo|Hyper)nym categories
+This will search all entries with a specified language with (Syn|Ant|*)nym categories
 For all parts of speech having exactly one definition and containing a *nym category,
 the category will be converted into an appropriate tag and added to the definition
 """
@@ -57,8 +57,11 @@ class NymSectionToTag():
                 params.append( f"q{idx}={v}" )
 
             if gloss:
-                raise ValueError("Item has gloss, needs manual review", link, qualifier, gloss)
-#                params.append( f"q{idx}={gloss}" )
+                self.require_confirmation("has_gloss", gloss)
+                if qualifier:
+                    self.require_confirmation("has_gloss_and_qualifier", gloss, qualifier)
+                else:
+                    params.append( f"q{idx}={gloss}" )
 
         if "|" in "_".join(params):
             raise ValueError("Item has | character in paramaters", items)
@@ -104,13 +107,13 @@ class NymSectionToTag():
                 if line.startswith("#:") or line.startswith("#*") or line.startswith("##"): # or line.startswith("#|passage"):
                     continue
                 elif line.startswith("{{es-") or line.startswith("{{head"): # Fix for code folding: }}}}
-                    raise ValueError("Multiple word declarations found", line)
+                    self.require_confirmation("multiple_words", line)
                 else:
-                    raise ValueError("Unexpected definition subline", line)
+                    self.require_confirmation("unexpected_def_subline", line)
 
             # Fail if we encounter an unexpected item
             else:
-                raise ValueError("Unexpected definition line", line)
+                self.require_confirmation("unexpected_def_line", line)
 
         return defs
 
@@ -156,7 +159,7 @@ class NymSectionToTag():
 
         for a,b in zip(item, item2):
             if a and b:
-                raise ValueError("Duplicated value in template and text", item, item2)
+                self.require_confirmation("duplicate_text_and_template", item, item2)
 
         res = tuple( a if a else b for a,b in zip(item,item2) )
 
@@ -191,7 +194,7 @@ class NymSectionToTag():
 
         res = re.match(r"^\s*$", clean_text)
         if not res:
-            raise ValueError("Unexpected text found", clean_text)
+            self.require_confirmation("unexpected_text", clean_text)
 
         return(link, qualifier, gloss)
 
@@ -207,17 +210,17 @@ class NymSectionToTag():
                 if template.params[0] != self.LANG_ID:
                     raise ValueError("Word is not in the expected language", text)
                 if link:
-                    raise ValueError("More than one {{link}} detected", text)
+                    self.require_confirmation("multi_link", text)
                 link = { str(p.name):str(p.value) for p in template.params if str(p.name) in [ "1", "2", "3", "tr" ] }
 
             elif template.name in [ "qualifier", "qual", "q", "i" ]:
                 if qualifier:
-                    raise ValueError("More than one {{qualifier}} detected", text)
+                    self.require_confirmation("multi_qualifier", text)
                 qualifier = [ p.value for p in template.params if p.can_hide_key ]
 
             elif template.name in [ "gloss", "gl" ]:
-                if qualifier:
-                    raise ValueError("More than one {{gloss}} detected", text)
+                if gloss:
+                    self.require_confirmation("multi_gloss", text)
                 if len(template.params) != 1:
                     raise ValueError(f"Unexpected number of parameters for {template.name}", template.params)
                 gloss = str(template.params[0])
@@ -226,12 +229,11 @@ class NymSectionToTag():
             elif template.name in [ "g" ]:
                 continue
 
-            # TODO: Manually verify that sense matches the single def
             elif template.name == "sense":
-                raise ValueError(f"Sense tag unexpected with single definition", text)
+                self.require_confirmation("sense", text)
 
             else:
-                raise ValueError(f"Unexpected template", template)
+                self.require_confirmation("unknown_template", text)
 
         return(link, qualifier, gloss)
 
@@ -291,7 +293,7 @@ class NymSectionToTag():
 
         if not len(sections):
             titles = [ self.get_section_title(section) for section in all_sections ]
-            raise ValueError("No word sections", titles)
+            raise ValueError("o word sections", titles)
 
         return sections
 
@@ -354,7 +356,7 @@ class NymSectionToTag():
                 raise ValueError(f"WARN: no word types found in {page}", text)
 
         if len(wiki.get_sections([header_level],section_title)):
-            print(f"FIXME: {page} {section_title} found at level {header_level} (exepected level {header_level+1})")
+            print(f"FIXME: {page} {section_title} found at level {header_level} (expected level {header_level+1})")
 
         for section in word_sections:
             pos = self.get_section_title(section)
@@ -421,8 +423,19 @@ class NymSectionToTag():
 
             return str(wiki)
 
+    def needs_confirmation(self):
+        return len(self._confirm.keys())>0
 
-    def run_fix(self, text, title=None):
+    def require_confirmation(self, name, *params):
+        self._confirm[name] = self._confirm.get(name, []) + [params]
+
+    def run_fix(self, text, fixes=[], title=""):
+        """
+        *title* is only used for error messages, and only available when run directly
+        If *fixes* is provided, return only results that match the specific fix (used for manual confirmation of results)
+        If fixes is empty, return all results that can be processed without manual confirmation
+        """
+        self._confirm = {}
 
         new_text = text
         for nym_name, nym_tag in [ ["Troponyms", "troponyms"], ["Holonyms", "holonyms"], ["Meronyms", "meronyms"], ["Hyponyms", "hyper"], ["Hyperyms", "hypo"], ["Antonyms", "ant"], ["Synonyms", "syn"] ]:
@@ -431,9 +444,14 @@ class NymSectionToTag():
             if not new_text:
                 new_text = prev_text
 
-#        if new_text != text:
-#            print("Changes")
-        return new_text
+        if len(fixes):
+            # If we're targetting specific manual fixes, only return items that need thoses fixes
+            if self.needs_confirmation() and not len(set(self._confirm.keys()).difference(fixes)):
+                return new_text
+        elif not self.needs_confirmation():
+            return new_text
+
+        return text
 
 
 def main():
@@ -446,6 +464,7 @@ def main():
     parser.add_argument('--lang-section', help="Language name", required=True)
     parser.add_argument('--pre-file', help="Destination file for unchanged articles (default: pre.txt)", default="pre.txt")
     parser.add_argument('--post-file', help="Destination file for changed articles (default: post.txt)", default="post.txt")
+    parser.add_argument('--confirm', action='append', help="Confirm the specified type of fixes", default=[])
 
     args = parser.parse_args()
 
@@ -485,7 +504,7 @@ def main():
 
         lang_count += 1
 
-        fixed = fixer.run_fix(lang_entry, entry.title)
+        fixed = fixer.run_fix(lang_entry, args.confirm, entry.title)
         if fixed == lang_entry:
             continue
 

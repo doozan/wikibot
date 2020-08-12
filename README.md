@@ -11,12 +11,23 @@ It can be used with the pywikibot replace.py script to actually make the changes
 from nym_sections_to_tags import NymSectionToTag
 nym_fixer = NymSectionToTag("Spanish", "es")
 
-def nym_sections_to_tags(text):
+def auto_fix_nyms(text):
     return nym_fixer.run_fix(text.group())
+
+def manual_fix_nyms_with_sense(text):
+    return nym_fixer.run_fix(text.group(), ["sense"])
 
 fixes['simple_nyms']= {
     'regex': True,
     'msg': { '_default':'Bot: Convert nym sections to templates' },
-    'replacements': [ (r"\n==Spanish==.*?(\n----\n|\n==[^=]+==)", simple_nyms) ],
+    'replacements': [ (r"\n==Spanish==.*?(\n----\n|\n==[^=]+==)", auto_fix_nyms) ],
+}
+
+fixes['sense_nyms']= {
+    'regex': True,
+    'msg': { '_default':'Bot: Convert nym sections to templates' },
+    'replacements': [ (r"\n==Spanish==.*?(\n----\n|\n==[^=]+==)", manual_fix_nyms_with_sense) ],
 }
 ```
+
+```replace.py -xml:enwiktionary-latest-pages-articles.xml.bz2 -dotall -fix:simple_nyms```
