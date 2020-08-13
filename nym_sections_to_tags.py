@@ -101,6 +101,7 @@ class NymSectionToTag():
 
             if line.startswith("# ") or line.startswith("#{"):
                 defs.append(line)
+                # TODO: tag with senseid if it starts with {{senseid}} template
 
             elif len(defs):
                 # TODO: Detect multi-line templates or just allow lines starting with |
@@ -210,8 +211,12 @@ class NymSectionToTag():
                 if template.params[0] != self.LANG_ID:
                     raise ValueError("Word is not in the expected language", text)
                 if link:
+                    # If there are two or more links, it's often the case of poorly tagged {{l|en|double}} {{l|en|word}}
+                    # Join the link text with a space and then flag for manual review
                     self.require_confirmation("multi_link", text)
-                link = { str(p.name):str(p.value) for p in template.params if str(p.name) in [ "1", "2", "3", "tr" ] }
+                    link["2"] += " " + str(template.get(2).value)
+                else:
+                    link = { str(p.name):str(p.value) for p in template.params if str(p.name) in [ "1", "2", "3", "tr" ] }
 
             elif template.name in [ "qualifier", "qual", "q", "i" ]:
                 if qualifier:
@@ -229,11 +234,14 @@ class NymSectionToTag():
             elif template.name in [ "g" ]:
                 continue
 
+            # TODO: If there are multiple sense tags, generate multiple nym lines
             elif template.name == "sense":
                 self.require_confirmation("sense", text)
 
             else:
                 self.require_confirmation("unknown_template", text)
+
+
 
         return(link, qualifier, gloss)
 
@@ -261,6 +269,8 @@ class NymSectionToTag():
             if line == "----" or line.startswith("[[Category:"):
                 break
 
+
+            # TODO: Check if line starts with {{sense}} tag and break into separate item
             all_items += self.parse_word_line(line)
 
         return all_items
@@ -293,27 +303,37 @@ class NymSectionToTag():
 
         if not len(sections):
             titles = [ self.get_section_title(section) for section in all_sections ]
-            raise ValueError("o word sections", titles)
+            raise ValueError("No word sections", titles)
 
         return sections
 
 
+    def get_section_end_pos(self, text, start_pos=0):
+        # Sections may be terminated by "[[Category]]" tags or a "----" separator,
+        # or nothing, if it's the last section on the page
+        end_str = [ "\n[[Category", "\n----\n" ]
+        end_pos = None
+        for ending in end_str:
+            found_pos = text.find(ending, start_pos)
+            if found_pos != -1:
+                end_pos = found_pos
+                break
+
+        return end_pos
+
+
     def get_language_entry(self, text):
         """
-        Return the full text of the requested *language entry
+        Return the body text of the language entry
         """
 
         start_str = f"\n=={self.LANG_SECTION}==\n"
-        end_str="\n----\n"
-
         start_pos = text.find(start_str)
         if start_pos < 0:
             return
         start_pos +=1
 
-        # Sections are terminated by the end_str, unless its the last section on the page
-        end_pos = text.find(end_str, start_pos)
-        end_pos = None if end_pos < 0 else end_pos+len(end_str)
+        end_pos = self.get_section_end_pos(text, start_pos)
 
         text = text[start_pos:end_pos]
 
@@ -374,7 +394,7 @@ class NymSectionToTag():
             nym_section = nym_sections[0] if len(nym_sections) else None
 
             try:
-                if "{{"+nym_tag in section:
+                if "{{"+tag_name in section:
                     self.require_confirmation("has_existing_tag")
 
                 defs = self.get_definition_lines(section)
@@ -382,10 +402,9 @@ class NymSectionToTag():
                 print(f"WARN: {page} ({pos}): ", err.args)
                 continue
 
-            # We only want to handle single definition words
-            if not len(defs) == 1:
+            if not len(defs):
+                print(f"WARN: {page} ({pos}) has no definitions")
                 continue
-            def_line = defs[0]
 
             try:
                 nyms = self.parse_section_items(nym_section) if nym_section else []
@@ -410,21 +429,27 @@ class NymSectionToTag():
             if not nym_tag or nym_tag == "":
                 continue
 
-            # If the section is at the end of the page, it may contain
-            # [[Category]] tags or the "----" ending, which must be preserved
-            start_pos = nym_section.find("[[Category")
-            if start_pos<0:
-                start_pos = nym_section.find("----")
-            if start_pos<0:
-                wiki.remove(nym_section)
+            if len(defs) == 1:
+                self.require_confirmation("single_def")
             else:
-                wiki.replace(nym_section, nym_section[start_pos:])
+                self.require_confirmation("multi_def")
 
-            # For some reason, it's important do add the line after removing the sections.
-            # When done in the other order, the added line may be removed
+            # TODO: Try to match syns to definitions with senseid tags
+            def_line = defs[0]
+
+            # Use a placeholder when replacing/removing sections so we can cleanup/condense
+            # and preceeding/following newline characters
+            placeholder = "==!!REPLACEME!!=="
+            keep_pos = self.get_section_end_pos(nym_section)
+            if keep_pos:
+                wiki.replace(nym_section, nym_section[keep_pos:])
+            else:
+                wiki.replace(nym_section, f"\n{placeholder}\n\n")
+
+            # Do this after the section replacement, otherwise mwparser loses it on occasion
             section.insert_after(def_line, f"\n#: {nym_tag}")
 
-            return str(wiki)
+            return re.sub(fr"\n*{placeholder}\n*(?=\n\n=|$)", "", str(wiki))
 
     def needs_confirmation(self):
         return len(self._confirm.keys())>0
@@ -468,6 +493,8 @@ def main():
     parser.add_argument('--pre-file', help="Destination file for unchanged articles (default: pre.txt)", default="pre.txt")
     parser.add_argument('--post-file', help="Destination file for changed articles (default: post.txt)", default="post.txt")
     parser.add_argument('--confirm', action='append', help="Confirm the specified type of fixes", default=[])
+    parser.add_argument('--article-limit', type=int, help="Limit processing to first N articles", default=[])
+    parser.add_argument('--fix-limit', type=int, help="Limit processing to first N fixable articles", default=[])
 
     args = parser.parse_args()
 
@@ -486,10 +513,10 @@ def main():
     all_sections = set()
     count=0
     lang_count=0
-    lang_fixable=0
+    fixable=0
 
     for entry in parser:
-        if count>=10000:
+        if args.article_limit and count>args.article_limit:
             break
         count+=1
 
@@ -511,18 +538,19 @@ def main():
         if fixed == lang_entry:
             continue
 
-        lang_fixable += 1
-
         prefile.write(f"\nPage: {entry.title}\n")
         prefile.write(lang_entry)
 
         postfile.write(f"\nPage: {entry.title}\n")
         postfile.write(fixed)
 
+        fixable += 1
+        if args.fix_limit and fixable>=args.fix_limit:
+            break
 
     print(f"Total articles: {count}")
     print(f"Total in {args.lang_section}: {lang_count}")
-    print(f"Total fixes: {lang_fixable}")
+    print(f"Total fixable: {fixable}")
 
     prefile.close()
     postfile.close()
