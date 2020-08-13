@@ -102,11 +102,11 @@ class NymSectionToTag():
             if line.startswith("# ") or line.startswith("#{"):
                 defs.append(line)
 
-            # Line modifiers are allowed after the first def, but fail if there's an existing syn tag
             elif len(defs):
-                if line.startswith("#:") or line.startswith("#*") or line.startswith("##"): # or line.startswith("#|passage"):
+                # TODO: Detect multi-line templates or just allow lines starting with |
+                if line.startswith("#:") or line.startswith("#*") or line.startswith("##"): # or line.startswith("|passage"):
                     continue
-                elif line.startswith("{{es-") or line.startswith("{{head"): # Fix for code folding: }}}}
+                elif line.startswith("{{"+self.LANG_ID+"-") or line.startswith("{{head"): # Fix for code folding: }}}}
                     self.require_confirmation("multiple_words", line)
                 else:
                     self.require_confirmation("unexpected_def_subline", line)
@@ -374,6 +374,9 @@ class NymSectionToTag():
             nym_section = nym_sections[0] if len(nym_sections) else None
 
             try:
+                if "{{"+nym_tag in section:
+                    self.require_confirmation("has_existing_tag")
+
                 defs = self.get_definition_lines(section)
             except ValueError as err:
                 print(f"WARN: {page} ({pos}): ", err.args)
