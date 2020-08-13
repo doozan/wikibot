@@ -14,19 +14,10 @@ nym_fixer = NymSectionToTag("Spanish", "es")
 def auto_fix_nyms(text):
     return nym_fixer.run_fix(text.group())
 
-def manual_fix_nyms_with_sense(text):
-    return nym_fixer.run_fix(text.group(), ["sense"])
-
 fixes['simple_nyms']= {
     'regex': True,
     'msg': { '_default':'Bot: Convert nym sections to templates' },
-    'replacements': [ (r"\n==Spanish==.*?(\n----\n|\n==[^=]+==)", auto_fix_nyms) ],
-}
-
-fixes['sense_nyms']= {
-    'regex': True,
-    'msg': { '_default':'Bot: Convert nym sections to templates' },
-    'replacements': [ (r"\n==Spanish==.*?(\n----\n|\n==[^=]+==)", manual_fix_nyms_with_sense) ],
+    'replacements': [ (r"\n==Spanish==.*?(\n\[\[Category|\n----\n|\n==[^=]+==)", auto_fix_nyms) ],
 }
 ```
 
