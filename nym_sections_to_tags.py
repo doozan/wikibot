@@ -27,31 +27,130 @@ import pywikibot
 from pywikibot import xmlreader
 import re
 
+# The first tag listed will be used when creating nym tags
+# Nyms will be inserted into definitions according to the order here
+# If you don't want to process a certain nym, don't comment it out here,
+# instead, change the list in run_fix()
+_nyms = {
+    "Synonyms": [ "syn", "synonyms"],
+    "Antonyms": [ "ant", "antonyms"],
+    "Hyperyms": [ "hyper", "hypernyms" ],
+    "Hyponyms": [ "hypo", "hyponyms"],
+    "Meronyms": [ "meronyms" ],
+    "Holonyms": [ "holonyms" ],
+    "Troponyms": [ "troponyms" ],
+}
+
+_tag_to_nym = { k:v for v,tags in _nyms.items() for k in tags }
+_all_nym_tags = _tag_to_nym.keys()
+_nym_order = list(_nyms.keys())
 
 class Definition():
 
     def __init__(self, lang_id, line):
         self.LANG_ID = lang_id
-        self._lines = [ line ]
+        self._lines = []
 
         self.sense_id = ""
-        self._dirty = True
 
         self._problems = {}
 
+        # The index of the line containing the nym declaration { NymName: idx }
+        self._nymidx = {}
+
+        self.declaration_idx = -1
+
+        self.add(line)
+
     def flag_problem(self, problem, data):
+        #print(problem, data)
         self._problems[problem] = self._problems.get(problem, []) + [ data ]
 
+
     def add(self, line):
-        self._dirty = True
         self._lines.append(line)
+
+        if line == "":
+            return
+
+        # Don't process anything that comes before the "# [[def]]" line
+        # But flag it as unhandled
+        if self.declaration_idx<0:
+            if line.startswith("# ") or line.startswith("#{"):
+                self.parse_hash(line)
+            else:
+                self.flag_problem("line_before_def", line)
+
+        # Index any existing nym tags
+        elif line.startswith("#:"):
+            self.parse_hashcolon(line)
+
+        elif line.startswith("#*"):
+            self.parse_hashstar(line)
+
+        elif line.startswith("##"):
+            self.parse_hashhash(line)
+
+        elif line.startswith("|"):
+            self.parse_open_template(line)
+
+        else:
+            print("Unexpected text in def: ", line)
+            self._unhandled_lines = True
+
+
+    def parse_hash(self, line):
+        self.declaration_idx = len(self._lines)-1
+
+        if "{{senseid" in line:
+            self.set_sense_id(line)
+
+    def parse_hashcolon(self, line):
+        idx = len(self._lines)-1
+
+        res = re.match(r"#:\s*{{(" + "|".join(_all_nym_tags) + r")\|[^{}]+}}", line)
+        if res:
+            nym_type = _tag_to_nym[res.group(1)]
+            if nym_type in self._nymidx:
+                self.flag_problem("duplicate_nym_defs", line)
+
+            self._nymidx[nym_type] = idx
+            return
+
+        self.flag_problem("hashcolon_is_not_nym", line)
+
+    def parse_hashstar(self, line):
+        return
+
+    def parse_hashhash(self, line):
+        return
+
+    # TODO: Verify that lines starting with | are part of a multi line template
+    def parse_open_template(self, line):
+        return
+
+    def has_nym(self, nym_name):
+        return nym_name in self._nymidx
 
     def get_nym_target(self, tag_name):
         """
         Return the definition text up to the point where the nym line should be inserted
         """
-        # TODO: be smarter
-        return self._lines[0]
+
+        target = _tag_to_nym[tag_name]
+        max_order = _nym_order.index(target)
+
+        target_idx = -1
+        idx = -1
+        for nym,idx in self._nymidx.items():
+            if _nym_order.index(nym)>max_order:
+                break
+            target_idx=idx
+
+        if target_idx<0:
+            target_idx = self.declaration_idx
+
+        return "\n".join(self._lines[:target_idx+1])
 
     def set_sense_id(self, sense_id):
         if self.sense_id and self.sense_id != sense_id:
@@ -69,29 +168,6 @@ class Definition():
                     self.flag_problem("senseid_language_mismatch", line)
                 self.set_sense_id(template.get("2"))
 
-    def _parse(self):
-        if not self._dirty:
-            return
-
-        first_line = True
-        for line in self._lines:
-            if first_line:
-                if line.startswith("# ") or line.startswith("#{"):
-                    if "{{senseid" in line:
-                        self.set_sense_id(line)
-                    continue
-                else:
-                    self._unhandled_lines = True
-                first_line = False
-            # TODO: Verify that lines starting with | are part of a multi line template
-            elif line.startswith("#:") or line.startswith("#*") or line.startswith("##") or line.startswith("|"):
-                continue
-            else:
-                print("Unexpected in def: ", line)
-                self._unhandled_lines = True
-
-        self._dirty = False
-
     def is_good(self):
         self._parse()
         return self._problems == {}
@@ -105,16 +181,21 @@ class NymSectionToTag():
     def __init__(self, lang_name, lang_id):
         self.LANG_SECTION=lang_name
         self.LANG_ID=lang_id
+        self._flagged = {}
 
     def make_tag(self, name,items):
 
         params = [ name ]
 
-        lang = items[0][0].get("1")
-        params.append(lang)
+        params.append(self.LANG_ID)
 
         idx=0
         for link,qualifier,gloss in items:
+
+            if not link:
+                self.needs_fix("missing_link", items)
+                continue
+
             idx+=1
 
             params.append(link["2"])
@@ -155,6 +236,8 @@ class NymSectionToTag():
         for line in section.splitlines():
             line = line.strip()
             if line == "":
+                if current_def:
+                    current_def.add("")
                 continue
 
             elif header_line:
@@ -182,7 +265,7 @@ class NymSectionToTag():
 
 
             # Word declaration
-            elif line.startswith("{{"+self.LANG_ID+"-") or line.startswith("{{head"): # Fix for code folding: }}}}
+            elif line.startswith("{{"+self.LANG_ID+"-") or line.startswith("{{head"): # fix folding }}}}
 
                 # This is the word declaration for the first set of definitions
                 if current_def is None and not len(defs):
@@ -258,7 +341,7 @@ class NymSectionToTag():
         res = tuple( a if a else b for a,b in zip(item,item2) )
 
         if not res[0] or res[0] == "":
-            raise ValueError("No link found", text)
+            self.needs_fix("missing_link", item, item2)
 
         return res
 
@@ -438,19 +521,23 @@ class NymSectionToTag():
         # This shouldn't happen, but it does
         res = re.search(r"\n==[^=]+==\n", text[len(start_str):])
         if res:
-            raise ValueError(f"WARN: Unexpected level 2 section in {self.LANG_SECTION} entry", res.group(0))
+            return
+            # raise ValueError(f"WARN: Unexpected level 2 section in {self.LANG_SECTION} entry", res.group(0))
 
         return text
 
 
-    def nym_section_to_tag(self, text, section_title, tag_name, page=None):
+    def nym_section_to_tag(self, text, nym_title, nym_tag, page=None):
 
         header_level = 3
         header_tag = "=" * header_level
-        if not f"{header_tag}{section_title}{header_tag}" in text:
+        if not f"{header_tag}{nym_title}{header_tag}" in text:
             return
 
         wiki = mwparserfromhell.parse(text,skip_style_tags=True)
+
+        replaceholder = "==!!REPLACEME!!=="
+        replacements = []
 
         try:
             word_sections = self.get_word_sections(wiki, header_level)
@@ -473,28 +560,25 @@ class NymSectionToTag():
             if not len(word_sections):
                 raise ValueError(f"WARN: no word types found in {page}", text)
 
-        if len(wiki.get_sections([header_level],section_title)):
-            print(f"FIXME: {page} {section_title} found at level {header_level} (expected level {header_level+1})")
+        if len(wiki.get_sections([header_level],nym_title)):
+            print(f"FIXME: {page} {nym_title} found at level {header_level} (expected level {header_level+1})")
 
         for section in word_sections:
             pos = self.get_section_title(section)
             if not pos:
                 print(f"WARN: {page} cannot get section name")
 
-            nym_sections = section.get_sections([header_level+1], section_title)
+            nym_sections = section.get_sections([header_level+1], nym_title)
 
             if not len(nym_sections):
                 continue
             if len(nym_sections) > 1:
-                print(f"FIXME: {page} has too {len(nym_sections)} {section_title} sections (1 expected)")
+                print(f"FIXME: {page} has too {len(nym_sections)} {nym_title} sections (1 expected)")
                 continue
 
             nym_section = nym_sections[0] if len(nym_sections) else None
 
             try:
-                if "{{"+tag_name in section:
-                    self.needs_fix("has_existing_tag")
-
                 defs = self.get_definitions(section)
             except ValueError as err:
                 print(f"WARN: {page} ({pos}): ", err.args)
@@ -511,8 +595,8 @@ class NymSectionToTag():
                 #print(f"WARN: {page} ({pos}): ", err.args)
                 continue
 
-            if len(nyms.keys()) and "{{" + tag_name in section: # fix vim code folding: }}
-                print(f"FIXME: {page} ({pos}) has '{tag_name}' template and {section_title} section")
+            if len(nyms.keys()) and "{{" + nym_tag in section: # fix folding }}
+                print(f"FIXME: {page} ({pos}) has '{nym_tag}' template and {nym_title} section")
                 continue
 
             if not len(nyms.keys()):
@@ -521,14 +605,10 @@ class NymSectionToTag():
 
             sense_def_list = [d.get_sense_id() for d in defs]
             sense_def = { d.get_sense_id():d for d in defs }
-            if len(sense_def.keys()) != len(sense_def_list):
+
+            all_sensed = [d for d in defs if d.get_sense_id() != ""]
+            if len(all_sensed) != len(set(all_sensed)):
                 self.needs_fix("duplicate_sense_ids")
-
-#            if len(defs) == 1:
-#                self.needs_fix("single_def")
-#            else:
-#                self.needs_fix("multi_def")
-
 
             for nym_sense in nyms.keys():
                 def_matches = sense_def_list.count(nym_sense)
@@ -546,22 +626,36 @@ class NymSectionToTag():
                     else:
                         target_def = sense_def[sense_def_list[0]]
 
-                match_line = target_def.get_nym_target(tag_name)
-                nym_tag = self.make_tag(tag_name, nyms[nym_sense])
+                if target_def.has_nym(nym_tag):
+                    self.needs_fix("has_existing_tag")
+
+                match_line = target_def.get_nym_target(nym_tag)
+                nym_line = self.make_tag(nym_tag, nyms[nym_sense])
+
+                orig_section = str(section)
 
                 # Use a placeholder when replacing/removing sections so we can cleanup/condense
-                # and preceeding/following newline characters
-                placeholder = "==!!REPLACEME!!=="
+                # any preceeding/following newline characters
                 keep_pos = self.get_section_end_pos(nym_section)
+
+                # Buffer all replacementsruntil the end so mwparser doesn't get confused
                 if keep_pos:
-                    wiki.replace(nym_section, nym_section[keep_pos:])
+                    replacements.append([re.escape(str(nym_section)), nym_section[keep_pos:]])
                 else:
-                    wiki.replace(nym_section, f"\n{placeholder}\n\n")
+                    replacements.append([re.escape(str(nym_section)), f"\n{replaceholder}\n\n"])
+                    #wiki.replace(nym_section, f"\n{replaceholder}\n\n")
 
                 # Do this after the section replacement, otherwise mwparser loses it on occasion
-                section.insert_after(match_line, f"\n#: {nym_tag}")
+                section.insert_after(match_line, f"\n#: {nym_line}")
 
-            return re.sub(fr"\n*{placeholder}\n*(?=\n\n=|$)", "", str(wiki))
+            replacements.append([fr"\n*{replaceholder}\n*(?=\n=|\n\[\[Category|\n----|$)", "\n"])
+            #replacements.append([fr"\n*{replaceholder}\n*", "\n"])
+            new_text = str(wiki)
+            for old,new in replacements:
+                # TODO: Make sure it only matches one (unless it's replacing the replaceholder)
+                new_text = re.sub(old,new,new_text)
+
+            return new_text
 
     def needs_fix(self, name, *params):
         self._flagged[name] = self._flagged.get(name, []) + [params]
@@ -574,7 +668,8 @@ class NymSectionToTag():
         self._flagged = {}
 
         new_text = text
-        for nym_name, nym_tag in [ ["Troponyms", "troponyms"], ["Holonyms", "holonyms"], ["Meronyms", "meronyms"], ["Hyponyms", "hypo"], ["Hyperyms", "hyper"], ["Antonyms", "ant"], ["Synonyms", "syn"] ]:
+        for nym_name, nym_tags in _nyms.items():
+            nym_tag = nym_tags[0]
             prev_text = new_text
             new_text = self.nym_section_to_tag(prev_text, nym_name, nym_tag, page_title)
             if not new_text:
@@ -583,9 +678,8 @@ class NymSectionToTag():
         if new_text == text:
             return text
 
-#        for fix in [ "unknown_template" ]:
-#            if fix in self._flagged:
-#                print(f"{page_title}: {fix} {self._flagged[fix]}")
+        if not len(self._flagged.keys()):
+            self.needs_fix("autofix")
 
         missing_fixes = set(self._flagged.keys()).difference(tools)
         if missing_fixes:
@@ -636,11 +730,7 @@ def main():
         if ":" in entry.title:
             continue
 
-        try:
-            lang_entry = fixer.get_language_entry(entry.text)
-        except ValueError as err:
-            #print(f"WARN: {entry.title}: ", err.args)
-            continue
+        lang_entry = fixer.get_language_entry(entry.text)
 
         if not lang_entry:
             continue
