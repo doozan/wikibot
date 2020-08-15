@@ -17,6 +17,33 @@ def run_test(orig_text, expected_text, expected_flags):
     assert expected_text == new_text
 
 
+def test_sense_match_same_level():
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{senseid|es|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+# {{l|en|word2}}
+
+===Synonyms===
+* {{sense|word1}} {{l|es|otherword}}
+"""
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{senseid|es|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+#: {{syn|es|otherword}}
+# {{l|en|word2}}
+"""
+    expected_flags = ["has_nym_section_at_word_level", "use_nym_section_from_word_level", "automatch_senseid"]
+
+    run_test(orig_text,expected_text,expected_flags)
+
+
 def test_run_fix_simple():
 
     orig_text="""==Spanish==
@@ -169,7 +196,6 @@ def test_sense_match_def():
     expected_flags = ["automatch_sense"]
 
     run_test(orig_text,expected_text,expected_flags)
-
 
 
 def test_parse_section_items():

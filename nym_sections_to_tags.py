@@ -590,7 +590,8 @@ class NymSectionToTag():
                 return
 
         if len(wiki.get_sections([header_level],nym_title)):
-            print(f"FIXME: {page} {nym_title} found at level {header_level} (expected level {header_level+1})")
+#            print(f"FIXME: {page} {nym_title} found at level {header_level} (expected level {header_level+1})")
+            self.needs_fix("has_nym_section_at_word_level")
 
         for section in word_sections:
             pos = self.get_section_title(section)
@@ -598,9 +599,12 @@ class NymSectionToTag():
                 print(f"WARN: {page} cannot get section name")
 
             nym_sections = section.get_sections([header_level+1], nym_title)
-
             if not len(nym_sections):
-                continue
+                nym_sections = wiki.get_sections([header_level], nym_title)
+                if not len(nym_sections):
+                    continue
+                self.needs_fix("use_nym_section_from_word_level")
+
 
             if len(nym_sections) > 1:
                 self.needs_fix("duplicate_nym_sections")
