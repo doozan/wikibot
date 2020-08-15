@@ -4,6 +4,19 @@ from nym_sections_to_tags import Definition
 
 synfixer = NymSectionToTag("Spanish", "es")
 
+
+def run_test(orig_text, expected_text, expected_flags):
+
+    synfixer._flagged = {}
+    new_text = synfixer.run_fix(orig_text, [], "test")
+    assert orig_text == new_text
+    assert sorted(expected_flags) == sorted(synfixer._flagged.keys())
+
+    synfixer._flagged = {}
+    new_text = synfixer.run_fix(orig_text, expected_flags, "test")
+    assert expected_text == new_text
+
+
 def test_run_fix_simple():
 
     orig_text="""==Spanish==
@@ -24,9 +37,9 @@ def test_run_fix_simple():
 # {{l|en|Aborigine}} {{gloss|original inhabitant of Australia}}
 #: {{syn|es|aborigen}}
 """
-    synfixer._flagged = {}
-    new_text = synfixer.run_fix(orig_text, ["autofix"], "test")
-    assert new_text == expected_text
+    expected_flags = ["autofix"]
+
+    run_test(orig_text,expected_text,expected_flags)
 
 
 def test_run_fix_complex():
@@ -54,22 +67,14 @@ def test_run_fix_complex():
 {{es-noun|f}}
 
 # {{lb|es|art}} [[caricature]] (pictorial representation of someone for comic effect)
-# {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
 #: {{syn|es|dibujo}}
 #: {{syn|es|dibujos animados}}
 #: {{hypo|es|caricatura editorial|caricatura política}}
+# {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
 """
 
-    synfixer._flagged = {}
-    new_text = synfixer.run_fix(orig_text, [], "test")
-    assert new_text == orig_text
-
-    tools = sorted(synfixer._flagged.keys())
-
-    assert ['def_duplicate_nym_defs', 'sense_matches_multiple_defs', 'unmatched_sense'] == tools
-
-    fixed = synfixer.run_fix(orig_text, tools, "test")
-    assert fixed == expected_text
+    expected_flags = ['automatch_sense', 'def_duplicate_nym_defs', 'sense_matches_multiple_defs', 'unmatched_sense']
+    run_test(orig_text,expected_text,expected_flags)
 
 
 def test_run_fix_complex2():
@@ -97,22 +102,15 @@ def test_run_fix_complex2():
 {{es-noun|f}}
 
 # {{lb|es|art}} [[caricature]] (pictorial representation of someone for comic effect)
-# {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
 #: {{syn|es|dibujo}}
 #: {{syn|es|dibujos animados}}
 #: {{hypo|es|caricatura editorial|caricatura política}}
+# {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
 """
 
-    synfixer._flagged = {}
-    new_text = synfixer.run_fix(orig_text, [], "test")
-    assert new_text == orig_text
+    expected_flags = ['automatch_sense', 'def_duplicate_nym_defs', 'sense_matches_multiple_defs', 'unmatched_sense']
 
-    tools = sorted(synfixer._flagged.keys())
-
-    assert ['def_duplicate_nym_defs', 'sense_matches_multiple_defs', 'unmatched_sense'] == tools
-
-    fixed = synfixer.run_fix(orig_text, tools, "test")
-    assert fixed == expected_text
+    run_test(orig_text,expected_text,expected_flags)
 
 
 def test_sense_match_senseid():
@@ -137,22 +135,21 @@ def test_sense_match_senseid():
 #: {{syn|es|otherword}}
 # {{l|en|word2}}
 """
-    synfixer._flagged = {}
-    new_text = synfixer.run_fix(orig_text, ["automatch_senseid"], "test")
-    assert new_text == expected_text
+    expected_flags = ["automatch_senseid"]
+
+    run_test(orig_text,expected_text,expected_flags)
 
 
-# TODO: Implement this
+
 def test_sense_match_def():
-    return
 
     orig_text="""==Spanish==
 
 ===Noun===
 {{es-noun|m}}
 
-# {{l|en|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
-# {{l|en|word2}}
+# {{lb|en|sometimes}} [[word1]] {{q|Mexico|Spain}} {{gloss|a long description}}
+# [[word2]]
 
 ====Synonyms====
 * {{sense|word2}} {{l|es|otherword2}}
@@ -163,16 +160,15 @@ def test_sense_match_def():
 ===Noun===
 {{es-noun|m}}
 
-# {{senseid|es|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+# {{lb|en|sometimes}} [[word1]] {{q|Mexico|Spain}} {{gloss|a long description}}
 #: {{syn|es|otherword}}
-# {{l|en|word2}}
+# [[word2]]
 #: {{syn|es|otherword2}}
 """
-    synfixer._flagged = {}
-    new_text = synfixer.run_fix(orig_text, ["automatch_sense"], "test")
-    assert new_text == expected_text
 
+    expected_flags = ["automatch_sense"]
 
+    run_test(orig_text,expected_text,expected_flags)
 
 
 
@@ -346,6 +342,18 @@ def test_definition():
     d = Definition("es", "# {{senseid|en|word}} [[word]] (qualifier)")
     assert d.get_senseid() == ""
     assert sorted([ k for k,v in d.get_problems() ]) == sorted(["senseid_lang_mismatch"])
+
+
+def test_definition_stripping():
+
+    d = Definition("es", "# [[word1]], [[word2]]; [[word3]]")
+    assert d.has_sense("word1")
+    assert d.has_sense("word2")
+    assert d.has_sense("word1|word2")
+    assert d.has_sense("word2|word1")
+    assert not d.has_sense("word3")
+
+    assert d.strip_to_text( "{{blah}} test1, (blah) [[test2]], test3 ") == "test1,  test2, test3"
 
 
 
