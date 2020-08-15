@@ -51,7 +51,7 @@ class Definition():
         self.LANG_ID = lang_id
         self._lines = []
 
-        self.sense_id = ""
+        self.senseid = ""
 
         self._problems = {}
 
@@ -103,7 +103,7 @@ class Definition():
         self.declaration_idx = len(self._lines)-1
 
         if "{{senseid" in line:
-            self.set_sense_id(line)
+            self.parse_senseid(line)
 
     def parse_hashcolon(self, line):
         idx = len(self._lines)-1
@@ -130,6 +130,7 @@ class Definition():
         return
 
     def has_nym(self, nym_name):
+        assert nym_name in _nyms
         return nym_name in self._nymidx
 
     def get_nym_target(self, tag_name):
@@ -152,24 +153,26 @@ class Definition():
 
         return "\n".join(self._lines[:target_idx+1])
 
-    def set_sense_id(self, sense_id):
-        if self.sense_id and self.sense_id != sense_id:
-            self.flag_problem("multi_sense_id", [ self.sense_id, sense_id ])
+    def set_senseid(self, senseid):
+        if self.senseid and self.senseid != senseid:
+            self.flag_problem("multi_senseid", [ self.senseid, senseid ])
 
-    def get_sense_id(self):
-        return self.sense_id
+        self.senseid = senseid
 
-    def set_sense_id_from_line(self, line):
+    def get_senseid(self):
+        return self.senseid
+
+    def parse_senseid(self, text):
         wiki = mwparserfromhell.parse(text,skip_style_tags=True)
 
         for template in wiki.filter_templates(recursive=False):
             if template.name == "senseid":
-                if template.get("1") != self.LANG_ID:
-                    self.flag_problem("senseid_language_mismatch", line)
-                self.set_sense_id(template.get("2"))
+                if template.get("1") == self.LANG_ID:
+                    self.set_senseid(str(template.get("2")))
+                else:
+                    self.flag_problem("senseid_lang_mismatch", text)
 
     def is_good(self):
-        self._parse()
         return self._problems == {}
 
     def get_problems(self):
@@ -413,8 +416,6 @@ class NymSectionToTag():
             else:
                 self.needs_fix("unknown_template", text)
 
-
-
         return(link, qualifier, gloss)
 
 
@@ -450,7 +451,6 @@ class NymSectionToTag():
                 # strip the sense tag
                 remove = re.escape(res.group(0))
                 line = re.sub(remove, "* ", line)
-
 
             all_items[sense] = all_items.get(sense,[]) + self.parse_word_line(line)
 
@@ -603,18 +603,22 @@ class NymSectionToTag():
                 continue
 
 
-            sense_def_list = [d.get_sense_id() for d in defs]
-            sense_def = { d.get_sense_id():d for d in defs }
+            sense_def_list = [d.get_senseid() for d in defs]
+            sense_def = { d.get_senseid():d for d in defs }
 
-            all_sensed = [d for d in defs if d.get_sense_id() != ""]
+            # Flag if there are more definitions having senses than unique senses
+            all_sensed = [d for d in defs if d.get_senseid() != ""]
             if len(all_sensed) != len(set(all_sensed)):
-                self.needs_fix("duplicate_sense_ids")
+                self.needs_fix("duplicate_senseid")
 
             for nym_sense in nyms.keys():
                 def_matches = sense_def_list.count(nym_sense)
                 if def_matches:
                     if def_matches>1:
                         self.needs_fix("sense_matches_multiple_defs")
+
+                    if nym_sense != "":
+                        self.needs_fix("automatch_sense")
 
                     target_def = sense_def[nym_sense]
                 else:
@@ -626,7 +630,7 @@ class NymSectionToTag():
                     else:
                         target_def = sense_def[sense_def_list[0]]
 
-                if target_def.has_nym(nym_tag):
+                if target_def.has_nym(nym_title):
                     self.needs_fix("has_existing_tag")
 
                 match_line = target_def.get_nym_target(nym_tag)

@@ -1,5 +1,6 @@
 import pytest
 from nym_sections_to_tags import NymSectionToTag
+from nym_sections_to_tags import Definition
 
 synfixer = NymSectionToTag("Spanish", "es")
 
@@ -24,7 +25,7 @@ def test_run_fix_simple():
 #: {{syn|es|aborigen}}
 """
     synfixer._flagged = {}
-    new_text = synfixer.run_fix(orig_text, [], "test")
+    new_text = synfixer.run_fix(orig_text, ["autofix"], "test")
     assert new_text == expected_text
 
 
@@ -112,6 +113,34 @@ def test_run_fix_complex2():
 
     fixed = synfixer.run_fix(orig_text, tools, "test")
     assert fixed == expected_text
+
+
+def test_sense_matching():
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{senseid|es|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+# {{l|en|word2}}
+
+====Synonyms====
+* {{sense|word1}} {{l|es|otherword}}
+"""
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{senseid|es|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+#: {{syn|es|otherword}}
+# {{l|en|word2}}
+"""
+    synfixer._flagged = {}
+    new_text = synfixer.run_fix(orig_text, ["automatch_sense"], "test")
+    assert new_text == expected_text
+
 
 
 def test_parse_section_items():
@@ -244,4 +273,46 @@ def test_get_item_from_templates_fails():
         for flag in results:
 #            raise ValueError("XXX", synfixer._flagged.keys())
             assert flag in synfixer._flagged.keys()
+
+
+def test_definition():
+
+    d = Definition("es", "# [[word]]")
+    assert d.has_nym("Synonyms") == False
+    assert d.is_good() == True
+
+    d.add("#: {{syn|es|word2}}")
+    assert d.has_nym("Synonyms") == True
+    assert d.is_good() == True
+
+    d.add("#: {{ant|es|notword}}")
+    assert d.has_nym("Antonyms") == True
+    assert d.is_good() == True
+
+    d.add("#: {{synonyms|es|word3}}")
+    assert d.has_nym("Synonyms") == True
+    assert d.is_good() == False
+    assert sorted([ k for k,v in d.get_problems() ]) == sorted([ "duplicate_nym_defs" ])
+
+
+
+    d = Definition("es", "# [[word]]")
+    d.add("#: {{unknown|es|word3}}")
+    assert sorted([ k for k,v in d.get_problems() ]) == sorted([ "hashcolon_is_not_nym" ])
+
+     # TODO: Check nym language matches lang_id
+     # Nym lines are currently not parsed beyond getting the template name
+#    d = Definition("es", "# [[word]]")
+#    d.add("#: {{ant|en|word2}}")
+#    assert sorted([ k for k,v in d.get_problems() ]) == sorted([ "nym_language_mismatch" ])
+
+    d = Definition("es", "# {{senseid|es|word}} [[word]] (qualifier)")
+    assert d.get_senseid() == "word"
+    assert sorted([ k for k,v in d.get_problems() ]) == sorted([ ])
+
+    d = Definition("es", "# {{senseid|en|word}} [[word]] (qualifier)")
+    assert d.get_senseid() == ""
+    assert sorted([ k for k,v in d.get_problems() ]) == sorted(["senseid_lang_mismatch"])
+
+
 
