@@ -55,8 +55,8 @@ def test_run_fix_complex():
 
 # {{lb|es|art}} [[caricature]] (pictorial representation of someone for comic effect)
 # {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
-#: {{syn|es|dibujos animados}}
 #: {{syn|es|dibujo}}
+#: {{syn|es|dibujos animados}}
 #: {{hypo|es|caricatura editorial|caricatura política}}
 """
 
@@ -98,8 +98,8 @@ def test_run_fix_complex2():
 
 # {{lb|es|art}} [[caricature]] (pictorial representation of someone for comic effect)
 # {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
-#: {{syn|es|dibujos animados}}
 #: {{syn|es|dibujo}}
+#: {{syn|es|dibujos animados}}
 #: {{hypo|es|caricatura editorial|caricatura política}}
 """
 
@@ -115,7 +115,7 @@ def test_run_fix_complex2():
     assert fixed == expected_text
 
 
-def test_sense_matching():
+def test_sense_match_senseid():
 
     orig_text="""==Spanish==
 
@@ -138,8 +138,41 @@ def test_sense_matching():
 # {{l|en|word2}}
 """
     synfixer._flagged = {}
+    new_text = synfixer.run_fix(orig_text, ["automatch_senseid"], "test")
+    assert new_text == expected_text
+
+
+# TODO: Implement this
+def test_sense_match_def():
+    return
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{l|en|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+# {{l|en|word2}}
+
+====Synonyms====
+* {{sense|word2}} {{l|es|otherword2}}
+* {{sense|word1}} {{l|es|otherword}}
+"""
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{senseid|es|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+#: {{syn|es|otherword}}
+# {{l|en|word2}}
+#: {{syn|es|otherword2}}
+"""
+    synfixer._flagged = {}
     new_text = synfixer.run_fix(orig_text, ["automatch_sense"], "test")
     assert new_text == expected_text
+
+
 
 
 

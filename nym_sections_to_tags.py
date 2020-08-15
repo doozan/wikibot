@@ -94,9 +94,12 @@ class Definition():
         elif line.startswith("|"):
             self.parse_open_template(line)
 
+        elif line.startswith("}}"):
+            self.parse_close_template(line)
+
         else:
             print("Unexpected text in def: ", line)
-            self._unhandled_lines = True
+            self.flag_problem("unexpected_text", line)
 
 
     def parse_hash(self, line):
@@ -129,6 +132,9 @@ class Definition():
     def parse_open_template(self, line):
         return
 
+    def parse_close_template(self, line):
+        return
+
     def has_nym(self, nym_name):
         assert nym_name in _nyms
         return nym_name in self._nymidx
@@ -153,11 +159,18 @@ class Definition():
 
         return "\n".join(self._lines[:target_idx+1])
 
+
+
+    # As of enwiki 2020-08-01 dump, senseid is only used in the Spanish section to link to wikidata sources (Q######)
     def set_senseid(self, senseid):
+
         if self.senseid and self.senseid != senseid:
             self.flag_problem("multi_senseid", [ self.senseid, senseid ])
 
         self.senseid = senseid
+
+    def matches_senseid(self, senseid):
+        return self.senseid == sensid
 
     def get_senseid(self):
         return self.senseid
@@ -480,13 +493,12 @@ class NymSectionToTag():
                 "Participle")
         all_sections =  wiki.get_sections([level])
 
-        sections = [ section for section in all_sections if self.get_section_title(section) in WORD_TYPES ]
+#        if not len(sections):
+#            titles = [ self.get_section_title(section) for section in all_sections ]
+#            raise ValueError("No word sections", titles)
 
-        if not len(sections):
-            titles = [ self.get_section_title(section) for section in all_sections ]
-            raise ValueError("No word sections", titles)
+        return [ section for section in all_sections if self.get_section_title(section) in WORD_TYPES ]
 
-        return sections
 
 
     def get_section_end_pos(self, text, start_pos=0):
@@ -527,7 +539,7 @@ class NymSectionToTag():
         return text
 
 
-    def nym_section_to_tag(self, text, nym_title, nym_tag, page=None):
+    def fix_nym_section_to_tag(self, text, nym_title, nym_tag, page=None):
 
         header_level = 3
         header_tag = "=" * header_level
@@ -536,29 +548,18 @@ class NymSectionToTag():
 
         wiki = mwparserfromhell.parse(text,skip_style_tags=True)
 
-        replaceholder = "==!!REPLACEME!!=="
+        removed_holder = "==!!REMOVEME!!=="
         replacements = []
 
-        try:
-            word_sections = self.get_word_sections(wiki, header_level)
-        except ValueError as err:
-            #print(f"WARN: {page}: ", err.args)
-            titles_searched = err.args[1]
-            word_sections = []
-
+        word_sections = self.get_word_sections(wiki, header_level)
         if not len(word_sections):
-            # If words weren't found at level 3, they're probably at level 4 inside an Entymology block
-            try:
-                header_level += 1
-                word_sections = self.get_word_sections(wiki, header_level)
-            except ValueError as err:
-                print(f"WARN: {page}: ", err.args[0], titles_searched + err.args[1])
-                print(text)
-                word_sections = []
-                exit()
+            # If words weren't found at the expected level, they're probably a level deeper inside an Entymology block
+            header_level += 1
+            word_sections = self.get_word_sections(wiki, header_level)
 
             if not len(word_sections):
-                raise ValueError(f"WARN: no word types found in {page}", text)
+                #raise ValueError(f"WARN: no word types found in {page}", text)
+                return
 
         if len(wiki.get_sections([header_level],nym_title)):
             print(f"FIXME: {page} {nym_title} found at level {header_level} (expected level {header_level+1})")
@@ -572,94 +573,100 @@ class NymSectionToTag():
 
             if not len(nym_sections):
                 continue
+
             if len(nym_sections) > 1:
-                print(f"FIXME: {page} has too {len(nym_sections)} {nym_title} sections (1 expected)")
-                continue
+                self.needs_fix("duplicate_nym_sections", items)
 
-            nym_section = nym_sections[0] if len(nym_sections) else None
-
-            try:
-                defs = self.get_definitions(section)
-            except ValueError as err:
-                print(f"WARN: {page} ({pos}): ", err.args)
-                continue
-
+            defs = self.get_definitions(section)
             if not len(defs):
                 print(f"WARN: {page} ({pos}) has no definitions")
                 continue
 
-            try:
-                nyms = self.parse_section_items(nym_section) if nym_section else []
-            except ValueError as err:
-                #print(defs)
-                #print(f"WARN: {page} ({pos}): ", err.args)
-                continue
+            for nym_section in nym_sections:
+                new_replacements = self.get_nyms_to_defs_replacements(nym_section, nym_title, nym_tag, defs)
+                if not len(new_replacements):
+                    print(f"WARN: {page} ({pos}) ({nym_section}) has no items")
 
-            if len(nyms.keys()) and "{{" + nym_tag in section: # fix folding }}
-                print(f"FIXME: {page} ({pos}) has '{nym_tag}' template and {nym_title} section")
-                continue
+                # TODO: Check defs instead of searching for tag directly
+                if "{{" + nym_tag in section: # fix folding }}
+                    self.needs_fix("nym_section_and_tag", items)
 
-            if not len(nyms.keys()):
-                continue
+                replacements += new_replacements
 
 
-            sense_def_list = [d.get_senseid() for d in defs]
-            sense_def = { d.get_senseid():d for d in defs }
+        new_text = str(wiki)
+        for old,new in replacements:
+            new_text = re.sub(old,new,new_text)
 
-            # Flag if there are more definitions having senses than unique senses
-            all_sensed = [d for d in defs if d.get_senseid() != ""]
-            if len(all_sensed) != len(set(all_sensed)):
-                self.needs_fix("duplicate_senseid")
+        return re.sub(fr"\n*{removed_holder}\n*(?=\n=|\n\[\[Category|\n----|$)", "\n", new_text)
 
-            for nym_sense in nyms.keys():
-                def_matches = sense_def_list.count(nym_sense)
-                if def_matches:
-                    if def_matches>1:
-                        self.needs_fix("sense_matches_multiple_defs")
 
-                    if nym_sense != "":
-                        self.needs_fix("automatch_sense")
+    def get_nyms_to_defs_replacements(self, nym_section, nym_title, nym_tag, defs):
 
-                    target_def = sense_def[nym_sense]
+        replacements = []
+        removed_holder = "==!!REMOVEME!!=="
+
+        nyms = self.parse_section_items(nym_section)
+        if not len(nyms.keys()):
+            return []
+
+        sense_def_list = [d.get_senseid() for d in defs]
+        sense_def = { d.get_senseid():d for d in defs }
+
+        # Flag if there are more definitions having senses than unique senses
+        all_sensed = [d for d in defs if d.get_senseid() != ""]
+        if len(all_sensed) != len(set(all_sensed)):
+            self.needs_fix("duplicate_senseid")
+
+        # The nym lines are appended after the matching definition
+        # If multiple nym lines match the same definition, each new line will be
+        # appended after the definition, above any lines that were previously appended
+        # Process the nyms in reverse order to preserve their original order when appended
+        nym_list = list(nyms.keys())
+        nym_list.reverse()
+
+        for nym_sense in nym_list:
+            def_matches = sense_def_list.count(nym_sense)
+            if def_matches:
+                if def_matches>1:
+                    self.needs_fix("sense_matches_multiple_defs")
+
+                if nym_sense != "":
+                    self.needs_fix("automatch_senseid")
+
+                target_def = sense_def[nym_sense]
+            else:
+                # assigned unmatched senses to the first def senseless def
+                # or the first declared def if they all have senseids
+                self.needs_fix("unmatched_sense")
+                if "" in sense_def:
+                    target_def = sense_def[""]
                 else:
-                    # assigned unmatched senses to the first def senseless def
-                    # or the first declared def if they all have senseids
-                    self.needs_fix("unmatched_sense")
-                    if "" in sense_def:
-                        target_def = sense_def[""]
-                    else:
-                        target_def = sense_def[sense_def_list[0]]
+                    target_def = sense_def[sense_def_list[0]]
 
-                if target_def.has_nym(nym_title):
-                    self.needs_fix("has_existing_tag")
+            if target_def.has_nym(nym_title):
+                self.needs_fix("has_existing_tag")
 
-                match_line = target_def.get_nym_target(nym_tag)
-                nym_line = self.make_tag(nym_tag, nyms[nym_sense])
+            def_target = target_def.get_nym_target(nym_tag)
+            nym_line = self.make_tag(nym_tag, nyms[nym_sense])
 
-                orig_section = str(section)
+            # Use a placeholder when replacing/removing sections so we can cleanup/condense
+            # any preceeding/following newline characters
+            keep_pos = self.get_section_end_pos(nym_section)
 
-                # Use a placeholder when replacing/removing sections so we can cleanup/condense
-                # any preceeding/following newline characters
-                keep_pos = self.get_section_end_pos(nym_section)
+            # Buffer all replacementsruntil the end so mwparser doesn't get confused
+            if keep_pos:
+                replacements.append([re.escape(str(nym_section)), nym_section[keep_pos:]])
+            else:
+                replacements.append([re.escape(str(nym_section)), f"\n{removed_holder}\n\n"])
 
-                # Buffer all replacementsruntil the end so mwparser doesn't get confused
-                if keep_pos:
-                    replacements.append([re.escape(str(nym_section)), nym_section[keep_pos:]])
-                else:
-                    replacements.append([re.escape(str(nym_section)), f"\n{replaceholder}\n\n"])
-                    #wiki.replace(nym_section, f"\n{replaceholder}\n\n")
+            replacements.append([re.escape(def_target), fr"{def_target}\n#: {nym_line}"])
 
-                # Do this after the section replacement, otherwise mwparser loses it on occasion
-                section.insert_after(match_line, f"\n#: {nym_line}")
+            # Do this after the section replacement, otherwise mwparser loses it on occasion
+#            section.insert_after(match_line, f"\n#: {nym_line}")
 
-            replacements.append([fr"\n*{replaceholder}\n*(?=\n=|\n\[\[Category|\n----|$)", "\n"])
-            #replacements.append([fr"\n*{replaceholder}\n*", "\n"])
-            new_text = str(wiki)
-            for old,new in replacements:
-                # TODO: Make sure it only matches one (unless it's replacing the replaceholder)
-                new_text = re.sub(old,new,new_text)
+        return replacements
 
-            return new_text
 
     def needs_fix(self, name, *params):
         self._flagged[name] = self._flagged.get(name, []) + [params]
@@ -675,7 +682,7 @@ class NymSectionToTag():
         for nym_name, nym_tags in _nyms.items():
             nym_tag = nym_tags[0]
             prev_text = new_text
-            new_text = self.nym_section_to_tag(prev_text, nym_name, nym_tag, page_title)
+            new_text = self.fix_nym_section_to_tag(prev_text, nym_name, nym_tag, page_title)
             if not new_text:
                 new_text = prev_text
 
