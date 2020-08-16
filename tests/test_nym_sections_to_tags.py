@@ -2,19 +2,28 @@ import pytest
 from nym_sections_to_tags import NymSectionToTag
 from nym_sections_to_tags import Definition
 
-synfixer = NymSectionToTag("Spanish", "es")
+fixer = NymSectionToTag("Spanish", "es")
 
 
 def run_test(orig_text, expected_text, expected_flags):
 
-    synfixer._flagged = {}
-    new_text = synfixer.run_fix(orig_text, [], "test")
+    fixer._flagged = {}
+    new_text = fixer.run_fix(orig_text, [], "test")
     assert orig_text == new_text
-    assert sorted(expected_flags) == sorted(synfixer._flagged.keys())
+    assert sorted(expected_flags) == sorted(fixer._flagged.keys())
 
-    synfixer._flagged = {}
-    new_text = synfixer.run_fix(orig_text, expected_flags, "test")
+    fixer._flagged = {}
+    new_text = fixer.run_fix(orig_text, expected_flags, "test")
     assert expected_text == new_text
+
+
+def test_get_link():
+
+    assert fixer.get_link("blah")["2"] == "blah"
+    assert fixer.get_link("{{l|es|blah}}")["2"] == "blah"
+    assert fixer.get_link("{{l|es|blah}} blah")["2"] == "blah blah"
+    assert fixer.get_link("blah {{l|es|blah}} blah")["2"] == "blah blah blah"
+    assert fixer.get_link("{{l|es|blah}} blah  {{link|es|blah}}")["2"] == "blah blah blah"
 
 
 def test_sense_match_same_level():
@@ -206,11 +215,11 @@ def test_parse_section_items():
 * {{l|es|dale}} {{qualifier|Argentina}}
 * {{l|es|viñedo|g=m}}
 """
-    results = synfixer.parse_section_items(section)
+    results = fixer.parse_section_items(section)
     assert results == {'': [({'1': 'es', '2': 'salvadoreño'}, None, None), ({'1': 'es', '2': 'cuscatleco'}, None, None), ({'1': 'es', '2': 'Latinoamérica'}, ['Including all Romance languages'], None), ({'1': 'es', '2': 'dale'}, ['Argentina'], None), ({'1': 'es', '2': 'viñedo'}, None, None)]}
 
     tag="{{syn|es|salvadoreño|cuscatleco|Latinoamérica|q3=Including all Romance languages|dale|q4=Argentina|viñedo}}"
-    assert tag == synfixer.make_tag("syn", results[""])
+    assert tag == fixer.make_tag("syn", results[""])
 
     tests = {
         "====Synonyms====\n* {{l|es|salvadoreño}}, {{l|es|cuscatleco}}" : "{{syn|es|salvadoreño|cuscatleco}}",
@@ -218,41 +227,66 @@ def test_parse_section_items():
     }
 
     for test,value in tests.items():
-        res = synfixer.parse_section_items(test)
+        res = fixer.parse_section_items(test)
         print(res)
-        assert value == synfixer.make_tag("syn", synfixer.parse_section_items(test)[""])
+        assert value == fixer.make_tag("syn", fixer.parse_section_items(test)[""])
 
 
-def test_parse_word():
+def test_stripformat():
 
     tests = {
-        "{{l|es|cuscatleco}}": ( {"1": "es", "2": "cuscatleco"}, None, None),
-        "{{l|es|dale}} {{qualifier|Argentina}}": ( {"1": "es", "2": "dale"}, ["Argentina"], None),
-        "{{q|Colombia|Costa Rica|Ecuador|Guatemala|Southern Mexico|Venezuela}} {{l|es|danta}}": ({'1': 'es', '2': 'danta'}, ['Colombia', 'Costa Rica', 'Ecuador', 'Guatemala', 'Southern Mexico', 'Venezuela'], None),
-        "See [[Thesaurus:pared]].": ({"1": "es", "2": "Thesaurus:pared"}, None, None),
-        "{{l|es|pambol}} (Mexico, colloquial)": ({"1": "es", "2": "pambol"}, ["Mexico", "colloquial"], None),
-        "{{l|es|calala|g=f}} (''Nicaragua'')": ({"1": "es", "2": "calala"}, ["Nicaragua"], None),
-    }
-
+            " test ": "test",
+            "''a''": "a",
+            "''b": "''b",
+            "[[c]]": "c",
+            "[[d": "[[d",
+            "[  'e  ']": "e",
+            "[[Mexico]] ": "Mexico"
+        }
     for test,value in tests.items():
-        assert value == synfixer.parse_word(test)
+        assert value == fixer.stripformat(test)
+
+def test_parse_word():
+    tests = [
+        { "test": "[[Mexico]] (colloquial)", "link": {"1":"es", "2":"Mexico"}, "q": ["colloquial"], "g": None, "errors": ["missing_link"] },
+        { "test": "(Mexico, colloquial)", "link": None, "q": ["Mexico", "colloquial"], "g": None, "errors": ["missing_link"] },
+        { "test": "(colloquial) [[Mexico]]", "link": {"1":"es", "2":"Mexico"}, "q": ["colloquial"], "g": None, "errors": [] },
+        { "test": " (colloquial)  [[Mexico]] ", "link": {"1":"es", "2":"Mexico"}, "q": ["colloquial"], "g": None, "errors": [] },
+        { "test": " [[Ciudad]] de [[Mexico]] ", "link": {"1":"es", "2":"Ciudad de Mexico"}, "q": None, "g": None, "errors": [] },
+        { "test": "blah [[Ciudad]]", "link": {"1":"es", "2":"blah Ciudad"}, "q": None, "g": None, "errors": [] },
+        { "test": "blah", "link": {"1":"es", "2":"blah"}, "q": None, "g": None, "errors": [] },
+        { "test": "{{l|es|cuscatleco}}", "link":{"1": "es", "2": "cuscatleco"}, "q":None, "g":None },
+        { "test": "{{l|es|dale}} {{qualifier|Argentina}}", "link": {"1": "es", "2": "dale"}, "q":["Argentina"], "g":None},
+        { "test": "{{q|Colombia|Costa Rica|Ecuador|Guatemala|Southern Mexico|Venezuela}} {{l|es|danta}}", "link": {'1': 'es', '2': 'danta'}, "q":['Colombia', 'Costa Rica', 'Ecuador', 'Guatemala', 'Southern Mexico', 'Venezuela'], "g":None},
+        { "test": "See [[Thesaurus:pared]].", "link": {"1": "es", "2": "Thesaurus:pared"}, "q":None, "g":None},
+        { "test": "{{l|es|pambol}} (Mexico, colloquial)", "link": {"1": "es", "2": "pambol"}, "q":["Mexico", "colloquial"], "g":None},
+        { "test": "{{l|es|calala|g=f}} (''Nicaragua'')", "link": {"1": "es", "2": "calala"}, "q":["Nicaragua"], "g":None},
+    ]
+
+    for t in tests:
+        fixer._flagged = {}
+        assert (t["link"], t["q"], t["g"]) == fixer.parse_word(t["test"])
+#        assert (t["test"], sorted(t["errors"]) == (t["test"], sorted(fixer._flagged.keys()))
+
+#    for test,value in tests.items():
+#        assert value == fixer.parse_word(test)
 
 def test_parse_word_fails():
 
     tests = [
-        { "test": "{{l|es|calala|g=f}} [[blah]]", "errors":["duplicate_text_and_template"] }, # Multiple Links
+        { "test": "{{l|es|calala|g=f}} [[blah]]", "errors":["link_text_and_template"] }, # Multiple Links
         { "test": "{{q|blah}}", "errors":["missing_link"] }, # Missing Link
-        { "test": "{{l|es|calala|g=f}} {{q|blah}} (blah2)", "errors":["duplicate_text_and_template"] }, # Multiple Qualifiers
+        { "test": "{{l|es|calala|g=f}} {{q|blah}} (blah2)", "errors":["qualifier_text_and_template"] }, # Multiple Qualifiers
         ]
 
     for t in tests:
-        synfixer._flagged = {}
-        #assert value == synfixer.strip_templates(test)
-        synfixer.parse_word(t["test"])
-        assert sorted(t["errors"]) == sorted(synfixer._flagged.keys())
+        fixer._flagged = {}
+        #assert value == fixer.strip_templates(test)
+        fixer.parse_word(t["test"])
+        assert sorted(t["errors"]) == sorted(fixer._flagged.keys())
 
     for test,results in tests:
-            assert synfixer.parse_word(test)
+            assert fixer.parse_word(test)
 
 def test_strip_templates():
     tests = {
@@ -261,73 +295,13 @@ def test_strip_templates():
 
 
     for test,results in tests.items():
-        assert results == synfixer.strip_templates(test)
+        assert results == fixer.strip_templates(test)
 
 #    for test,errors in tests.items():
-#        synfixer._flagged = {}
-#        #assert value == synfixer.strip_templates(test)
-#        assert sorted(errors) == sorted(synfixer._flagged.keys())
+#        fixer._flagged = {}
+#        #assert value == fixer.strip_templates(test)
+#        assert sorted(errors) == sorted(fixer._flagged.keys())
 
-
-def test_get_item_from_text():
-
-    tests = [
-        { "test": "(Mexico, colloquial)", "link": None, "qualifiers": ["Mexico", "colloquial"], "gloss": None, "errors": [] },
-        { "test": "[[Mexico]] (colloquial)", "link": {"1":"es", "2":"Mexico"}, "qualifiers": ["colloquial"], "gloss": None, "errors": [] },
-        { "test": "(colloquial) [[Mexico]]", "link": {"1":"es", "2":"Mexico"}, "qualifiers": ["colloquial"], "gloss": None, "errors": [] },
-        { "test": " (colloquial)  [[Mexico]] ", "link": {"1":"es", "2":"Mexico"}, "qualifiers": ["colloquial"], "gloss": None, "errors": [] },
-        { "test": " [[Ciudad]] de [[Mexico]] ", "link": {"1":"es", "2":"Ciudad"}, "qualifiers": None, "gloss": None, "errors": ["nym_unexpected_text"] },
-        { "test": "blah [[Ciudad]]", "link": {"1":"es", "2":"Ciudad"}, "qualifiers": None, "gloss": None, "errors": ["nym_unexpected_text"] },
-        { "test": "blah", "link": None, "qualifiers": None, "gloss": None, "errors": ["nym_unexpected_text"] },
-        { "test": " [[Ciudad]] [[Mexico]] ", "link": {"1":"es", "2":"Ciudad"}, "qualifiers": None, "gloss": None, "errors": ["nym_unexpected_text"] },
-    ]
-
-
-    for t in tests:
-        synfixer._flagged = {}
-        assert (t["link"], t["qualifiers"], t["gloss"]) == synfixer.get_item_from_text(t["test"])
-        assert sorted(t["errors"]) == sorted(synfixer._flagged.keys())
-
-
-#        "[[Mexico]] (colloquial)": ({ "1": "es", "2": "Mexico" }, ["colloquial"], None),
-#        "(colloquial) [[Mexico]]": ({ "1": "es", "2": "Mexico" }, ["colloquial"], None),
-
-#    for test,value in tests.items():
-#        assert value == synfixer.get_item_from_text(test)
-
-def test_get_item_from_text_fails():
-
-    tests = {
-        "[[Cuiudad]] de [[Mexico]]": ["nym_unexpected_text"],
-        "blah [[Mexico]]": ["nym_unexpected_text"],
-        "blah": ["nym_unexpected_text"],
-        "[[Mexico]], [[Korea]]": ["nym_unexpected_text"],
-        "[[Mexico]] (blah) (blah)": ["nym_unexpected_text"],
-        "[[Mexico]] [[Mexico2]]": ["nym_unexpected_text"],
-        "(blah) (blah)": ["nym_unexpected_text"],
-        }
-
-    for test,results in tests.items():
-        synfixer._flagged = {}
-        synfixer.get_item_from_text(test)
-        assert sorted(results) == sorted(synfixer._flagged.keys())
-
-
-def test_get_item_from_templates_fails():
-
-    tests = {
-        "{{l|es|calala|g=f}} {{q|blah}} {{q|blah2}}": [ "multi_qualifier" ],
-
-        # TODO: this should raise more than just multi_qualifier
-        "de {{l|es|calala|g=f}} {{q|blah}} {{q|blah2}}": [ "multi_qualifier" ],
-    }
-
-    for test,results in tests.items():
-        synfixer._flagged = {}
-        synfixer.get_item_from_templates(test)
-        for flag in results:
-#            raise ValueError("XXX", synfixer._flagged.keys())
-            assert flag in synfixer._flagged.keys()
 
 
 def test_definition():
@@ -382,4 +356,34 @@ def test_definition_stripping():
     assert d.strip_to_text( "{{blah}} test1, (blah) [[test2]], test3 ") == "test1,  test2, test3"
 
 
+
+def test_extract_templates_and_patterns():
+
+    res = fixer.extract_templates_and_patterns(["syn"], [], "test {{syn|es|blah}} test2")
+    assert res["text"] == "test  test2"
+    assert res["patterns"] == []
+    assert len(res["templates"])
+    assert res["templates"][0].get("1") == "es"
+#    assert template.params() == ["es", "blah"]
+
+
+def test_extract_qualifier():
+
+    test = "{{q|q1}} (q2) (q3) {{qualifier|q4}}"
+    assert ["q1", "q2", "q3", "q4"] == sorted(fixer.extract_qualifier(test)[0])
+
+    tests = {
+        "word (qualifier)",
+        "(qualifier) word",
+        "{{l|es|word}} {{q|qualifier}}",
+        "[[word]] (qualifier)",
+        "[[word]] {{qualifier|qualifier}})"
+    }
+
+    for test in tests:
+        assert (test, ["qualifier"]) == (test, fixer.extract_qualifier(test)[0])
+
+
+def test_extract_gloss():
+    assert fixer.extract_gloss("blah {{g|g1}} blah {{gloss|g2}}")[0] == ["g1", "g2"]
 

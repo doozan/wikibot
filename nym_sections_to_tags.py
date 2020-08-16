@@ -63,6 +63,7 @@ class Definition():
 
         self.add(line)
 
+
     def flag_problem(self, problem, data):
         #print(problem, data)
         self._problems[problem] = self._problems.get(problem, []) + [ data ]
@@ -102,6 +103,7 @@ class Definition():
             print("Unexpected text in def: ", line)
             self.flag_problem("unexpected_text", line)
 
+
     def strip_to_text(self, markup):
 
         stripped = markup
@@ -117,6 +119,7 @@ class Definition():
 
         return stripped.strip()
 
+
     def parse_hash(self, line):
         self.declaration_idx = len(self._lines)-1
 
@@ -126,8 +129,9 @@ class Definition():
         defs, *junk = stripped.partition(";")
         self.senses = [ d.strip() for d in defs.split(",") ]
 
-        if "{{senseid" in line:
+        if "{{senseid" in line: # folding fix }}
             self.parse_senseid(line)
+
 
     def parse_hashcolon(self, line):
         idx = len(self._lines)-1
@@ -143,22 +147,28 @@ class Definition():
 
         self.flag_problem("hashcolon_is_not_nym", line)
 
+
     def parse_hashstar(self, line):
         return
 
+
     def parse_hashhash(self, line):
         return
+
 
     # TODO: Verify that lines starting with | are part of a multi line template
     def parse_open_template(self, line):
         return
 
+
     def parse_close_template(self, line):
         return
+
 
     def has_nym(self, nym_name):
         assert nym_name in _nyms
         return nym_name in self._nymidx
+
 
     def get_nym_target(self, tag_name):
         """
@@ -181,7 +191,6 @@ class Definition():
         return "\n".join(self._lines[:target_idx+1])
 
 
-
     # As of enwiki 2020-08-01 dump, senseid is only used in the Spanish section to link to wikidata sources (Q######)
     def set_senseid(self, senseid):
 
@@ -190,17 +199,21 @@ class Definition():
 
         self.senseid = senseid
 
+
     def get_senseid(self):
         return self.senseid
 
+
     def has_senseid(self, senseid):
         return self.senseid == senseid
+
 
     def has_sense(self, sense):
         for sense in sense.split("|"):
             if not sense in self.senses:
                 return False
         return True
+
 
     def parse_senseid(self, text):
         wiki = mwparserfromhell.parse(text,skip_style_tags=True)
@@ -212,8 +225,10 @@ class Definition():
                 else:
                     self.flag_problem("senseid_lang_mismatch", text)
 
+
     def is_good(self):
         return self._problems == {}
+
 
     def get_problems(self):
         return self._problems.items()
@@ -221,13 +236,15 @@ class Definition():
 
 class NymSectionToTag():
 
-    def __init__(self, lang_name, lang_id):
+    def __init__(self, lang_name, lang_id, debug=()):
         self.LANG_SECTION=lang_name
         self.LANG_ID=lang_id
         self._flagged = {}
         self._stats = {}
+        self._debug_fix = set(debug)
 
-    def make_tag(self, name,items):
+
+    def make_tag(self, name, items):
 
         params = [ name ]
 
@@ -237,7 +254,7 @@ class NymSectionToTag():
         for link,qualifier,gloss in items:
 
             if not link:
-                self.needs_fix("missing_link", items)
+                self.needs_fix("missing_link")
                 continue
 
             idx+=1
@@ -265,6 +282,7 @@ class NymSectionToTag():
             raise ValueError("Item has | character in paramaters", items)
 
         return "{{" + "|".join(params) + "}}"
+
 
     def get_definitions(self, section):
         """
@@ -362,6 +380,134 @@ class NymSectionToTag():
         return str(wiki)
 
 
+    def extract_templates_and_patterns(self, templates, patterns, text):
+
+        response = { "templates": [], "patterns": [], "text": "" }
+
+        wiki = mwparserfromhell.parse(text,skip_style_tags=True)
+
+        for template in wiki.filter_templates(recursive=False):
+            if template.name in templates:
+                response["templates"].append(template)
+                wiki.remove(template)
+
+        text = str(wiki)
+        for pattern in patterns:
+            matches = re.findall(pattern, text)
+            if len(matches):
+                response["patterns"].append(matches)
+                text = re.sub(pattern, "", text)
+
+        response["text"] = text
+        return response
+
+    def stripformat(self, text):
+
+        text = text.strip()
+
+        newtext = re.sub(r"^\[+(.*?)\]+$", r"\1", text)
+        text = newtext.strip() if newtext else text
+
+        newtext = re.sub(r"^'+(.*?)'+$", r"\1", text)
+        text = newtext.strip() if newtext else text
+
+        newtext = re.sub(r'^\"+(.*?)\"+$', r"\1", text)
+        text = newtext.strip() if newtext else text
+
+        return text.strip()
+
+    def extract_qualifier(self, text):
+        res = self.extract_templates_and_patterns( ["q","qualifier"], [r"\(([^)]*)\)"], text)
+        q = []
+
+        if len(res["templates"])>1:
+            self.needs_fix("qualifier_multiple_templates")
+
+        if len(res["patterns"])>1:
+            self.needs_fix("qualifier_multiple_patterns")
+
+        if len(res["templates"]) and len(res["patterns"]):
+            self.needs_fix("qualifier_text_and_template")
+
+        for item in res["templates"]:
+            for x in item.params:
+                q.append(str(x))
+
+        q += [ self.stripformat(x) for items in res["patterns"] for item in items for x in item.split(",") ]
+
+        if "|" in "_".join(q):
+            self.needs_fix("qualifier_has_bar", text)
+            q = []
+
+        return (q, res["text"])
+
+
+    def extract_gloss(self, text):
+        res = self.extract_templates_and_patterns( ["g","gloss"], [], text)
+        g = []
+        for item in res["templates"]:
+            g += map(str, item.params)
+
+        return (g, res["text"])
+
+
+    def get_link(self, text):
+
+        links = []
+        wiki = mwparserfromhell.parse(text,skip_style_tags=True)
+
+        templates = wiki.filter_templates(recursive=False)
+        for template in templates:
+            if template.name in ["l", "link"]:
+                if template.get("1") != self.LANG_ID:
+                    self.needs_fix("link_wrong_lang")
+                links.append(template)
+
+            else:
+                self.needs_fix("link_unexpected_template", text)
+
+            wiki.remove(template)
+
+        has_text = re.search(r"[^ ,;()]", str(wiki))
+
+        if len(links) == 1 and not has_text:
+            return { p.name.strip():str(p) for p in links[0].params if p.name in ["1","2","3","tr"] }
+
+        if len(links)>2:
+            self.needs_fix("link_multiple_templates")
+
+        if has_text:
+            if not len(links):
+                self.needs_fix("link_is_text")
+            else:
+                self.needs_fix("link_text_and_template")
+
+        wiki = mwparserfromhell.parse(text,skip_style_tags=True)
+        for template in wiki.filter_templates(recursive=False):
+            if template.name in ["l", "link"]:
+                if template.has("3"):
+                    self.needs_fix("link_has_param3")
+                name = template.get("2")
+                wiki.replace(template, name)
+            else:
+                wiki.remove(template)
+            text == wiki
+
+        text = re.sub(r"\s+", " ", str(wiki)).strip()
+
+        # TODO: Warn if there are "[[words]]" mixed with "words" (are there ever [[words]] in lists)
+
+        text = " ".join([ self.stripformat(x) for x in text.split(" ") ])
+        if "|" in text:
+            self.needs_fix("link_has_pipe", text)
+            text = text.split("|",1)[0]
+
+        if text == "":
+            return None
+
+        return {"1": self.LANG_ID, "2": text}
+
+
     def parse_word(self, text):
         """
         Parses a word defined with [[link]] or {{l}}, {{q}} or (qualifier) and {{gloss}} tags while ignoring {{g}} tags
@@ -373,92 +519,18 @@ class NymSectionToTag():
         if res:
             return( {"1": self.LANG_ID, "2": res.group(1)}, None, None)
 
-        item = self.get_item_from_templates(text)
-        item2 = self.get_item_from_text(text)
+        gloss,text = self.extract_gloss(text)
+        gloss = " ".join(gloss) if len(gloss) else None
 
-        res = []
+        qualifiers,text = self.extract_qualifier(text)
+        qualifiers = qualifiers if len(qualifiers) else None
 
-        for a,b in zip(item, item2):
-            if a and b:
-                self.needs_fix("duplicate_text_and_template", item, item2)
+        link = self.get_link(text)
 
-        res = tuple( a if a else b for a,b in zip(item,item2) )
+        if not link or link == {}:
+            self.needs_fix("missing_link", text)
 
-        if not res[0] or res[0] == "":
-            self.needs_fix("missing_link", item, item2)
-
-        return res
-
-
-    def get_item_from_text(self, text):
-        """
-        Parse a string containing [[Link]] and (qualifier) text
-        Returns a tuple with ( {"1":"LANG_ID", "2": "Link"}, ["qualifier"], None )
-        """
-        clean_text = self.strip_templates(text).strip()
-
-        link,qualifier,gloss=None,None,None
-
-        pattern = r"\[\[([^\]]+)\]\]"
-        res = re.search(pattern, clean_text)
-        if res:
-            link = { "1": self.LANG_ID, "2": res.group(1) }
-            clean_text = re.sub(pattern, "", clean_text, 1)
-
-        pattern = r"\(([^)]+)\)"
-        res = re.search(pattern, clean_text)
-        if res:
-            # Strip out '', ''', '''', etc markups (does not check that they're balanced)
-            no_markup = re.sub(r"''*", "", res.group(1))
-            qualifier = [ x.strip() for x in no_markup.split(",") ]
-            clean_text = re.sub(pattern, "", clean_text, 1)
-
-        res = re.match(r"^\s*$", clean_text)
-        if not res:
-            self.needs_fix("nym_unexpected_text", clean_text)
-
-        return(link, qualifier, gloss)
-
-
-    def get_item_from_templates(self, text):
-
-        templates = mwparserfromhell.parse(text).filter_templates(recursive=False)
-        link,qualifier,gloss = None,None,None
-
-        for template in templates:
-
-            if template.name in [ "link", "l" ]:
-                if template.params[0] != self.LANG_ID:
-                    self.needs_fix("error_item_wrong_lang", text)
-                if link:
-                    # If there are two or more links, it's often the case of poorly tagged {{l|en|double}} {{l|en|word}}
-                    # Join the link text with a space and then flag for manual review
-                    self.needs_fix("multi_link", text)
-                    link["2"] += " " + str(template.get(2).value)
-                else:
-                    link = { str(p.name):str(p.value) for p in template.params if str(p.name) in [ "1", "2", "3", "tr" ] }
-
-            elif template.name in [ "qualifier", "qual", "q", "i" ]:
-                if qualifier:
-                    self.needs_fix("multi_qualifier", text)
-                qualifier = [ p.value for p in template.params if p.can_hide_key ]
-
-            elif template.name in [ "gloss", "gl" ]:
-                if gloss:
-                    self.needs_fix("multi_gloss", text)
-                if len(template.params) != 1:
-                    self.needs_fix("gloss_too_many_params", text)
-#                    raise ValueError(f"Unexpected number of parameters for {template.name}", template.params)
-                gloss = str(template.get(1))
-
-            # Ignore {{g}} template
-            elif template.name in [ "g" ]:
-                continue
-
-            else:
-                self.needs_fix("unknown_template", text)
-
-        return(link, qualifier, gloss)
+        return (link, qualifiers, gloss)
 
 
     def parse_section_items(self, section):
@@ -474,6 +546,10 @@ class NymSectionToTag():
         for line in section.splitlines():
             line = line.strip()
             if line == "":
+                continue
+
+            # Ignore open templates
+            if line.startswith("|"):
                 continue
 
             if header_line:
@@ -527,7 +603,6 @@ class NymSectionToTag():
 #            raise ValueError("No word sections", titles)
 
         return [ section for section in all_sections if self.get_section_title(section) in WORD_TYPES ]
-
 
 
     def get_section_end_pos(self, text, start_pos=0):
@@ -684,7 +759,6 @@ class NymSectionToTag():
         return replacements
 
 
-
     def get_nym_target_def(self, nym_sense, defs):
         """
         Select the best target definition from *defs* for *nym_sense*
@@ -695,7 +769,6 @@ class NymSectionToTag():
 
         If none of the above match, return the first definition
         """
-
         if nym_sense == "":
             if len(defs) > 1:
                 self.needs_fix("sense_matches_multiple_defs")
@@ -728,6 +801,7 @@ class NymSectionToTag():
 
         return matches[0]
 
+
     def get_def_matching_sense(self, nym_sense, defs):
 
         matches = [ d for d in defs if d.has_sense(nym_sense) ]
@@ -742,7 +816,10 @@ class NymSectionToTag():
 
 
     def needs_fix(self, name, *params):
+        if name in self._debug_fix:
+            print("NEEDS FIX:", self._page, name, params)
         self._flagged[name] = self._flagged.get(name, []) + [params]
+
 
     def run_fix(self, text, tools=[], page_title=""):
         """
@@ -750,6 +827,7 @@ class NymSectionToTag():
         Only return fixes that can be fixed with the list of *tools* provided
         """
         self._flagged = {}
+        self._page = page_title
 
         new_text = text
         for nym_name, nym_tags in _nyms.items():
@@ -786,6 +864,7 @@ def main():
     parser.add_argument('--lang-section', help="Language name", required=True)
     parser.add_argument('--pre-file', help="Destination file for unchanged articles (default: pre.txt)", default="pre.txt")
     parser.add_argument('--post-file', help="Destination file for changed articles (default: post.txt)", default="post.txt")
+    parser.add_argument('--fix-debug', action='append', help="Print debug info for issues with the specified flag (Can be specified multiple times)", default=[])
     parser.add_argument('--fix', action='append', help="Fix issues with the specified flag (Can be specified multiple times)", default=[])
     parser.add_argument('--article-limit', type=int, help="Limit processing to first N articles", default=[])
     parser.add_argument('--fix-limit', type=int, help="Limit processing to first N fixable articles", default=[])
@@ -799,7 +878,7 @@ def main():
     parser = dump.parse()
     site = pywikibot.Site()
 
-    fixer = NymSectionToTag(args.lang_section, args.lang_id)
+    fixer = NymSectionToTag(args.lang_section, args.lang_id, debug=args.fix_debug)
 
     prefile = open(args.pre_file, "w")
     postfile = open(args.post_file, "w")
