@@ -960,7 +960,7 @@ class NymSectionToTag():
             self._stats[x] = self._stats.get(x,0)+1
 
         missing_fixes = set(self._flagged.keys()).difference(tools)
-        if missing_fixes and not len(self._debug_fix):
+        if missing_fixes and not len(self._debug_fix) and not "all" in tools:
             print(f'{page_title} needs {", ".join(sorted(missing_fixes))}')
             return text
 
