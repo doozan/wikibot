@@ -12,12 +12,12 @@ from nym_sections_to_tags import NymSectionToTag
 nym_fixer = NymSectionToTag("Spanish", "es")
 
 def auto_fix_nyms(text):
-    return nym_fixer.run_fix(text.group(), ["autofix"])
+    return nym_fixer.run_fix(text.group(), ["autofix","automatch_senseid","automatch_sense"])
 
 fixes['simple_nyms']= {
     'regex': True,
     'msg': { '_default':'Bot: Convert nym sections to templates' },
-    'replacements': [ (r"\n==Spanish==.*?(\n\[\[Category|\n----\n|\n==[^=]+==)", auto_fix_nyms) ],
+    'replacements': [ (r"(^|\n)==Spanish==.*?(\n\[\[Category:|\n----\n|\n==[^=]+==)", auto_fix_nyms) ],
 }
 ```
 

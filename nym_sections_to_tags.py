@@ -717,7 +717,7 @@ class NymSectionToTag():
     def get_section_end_pos(self, text, start_pos=0):
         # Sections may be terminated by "[[Category]]" tags or a "----" separator,
         # or nothing, if it's the last section on the page
-        end_str = [ "\n[[Category", "\n----\n" ]
+        end_str = [ r"\n[[Category:", r"\n----\s*\n" ]
         end_pos = None
         for ending in end_str:
             found_pos = text.find(ending, start_pos)
@@ -805,6 +805,7 @@ class NymSectionToTag():
             for nym_section in nym_sections:
                 new_replacements = self.get_nyms_to_defs_replacements(nym_section, nym_title, nym_tag, defs)
 
+                # TODO: Don't warn if it's a table
                 if not len(new_replacements):
                     print(f"WARN: {page} ({pos}) ({nym_section}) has no items")
 
@@ -824,7 +825,7 @@ class NymSectionToTag():
                 new = f"\n\n{removed_holder}\n\n"
             new_text = re.sub(old,new,new_text)
 
-        return re.sub(fr"\n\s*{removed_holder}\s*(?=\n=|\n\[\[Category|\n----|$)", "\n", new_text)
+        return re.sub(fr"\n\s*{removed_holder}\s*(?=\n=|\n\[\[Category:|\n----\s*\n|$)", "\n", new_text)
 
 
     def get_nyms_to_defs_replacements(self, nym_section, nym_title, nym_tag, defs):
@@ -942,9 +943,10 @@ class NymSectionToTag():
         self._flagged = {}
         self._page = page_title
 
+        # TODO: Support fixing a single section at a time if the other section has errors
         new_text = text
-        for nym_name, nym_tags in _nyms.items():
-            nym_tag = nym_tags[0]
+        for nym_name in ["Synonyms", "Antonyms"]:
+            nym_tag = _nyms[nym_name][0]
             prev_text = new_text
             new_text = self.replace_nym_section_with_tag(prev_text, nym_name, nym_tag, page_title)
             if not new_text:
