@@ -12,7 +12,7 @@ from nym_sections_to_tags import NymSectionToTag
 nym_fixer = NymSectionToTag("Spanish", "es")
 
 def auto_fix_nyms(text):
-    return nym_fixer.run_fix(text.group(), ["autofix","automatch_senseid","automatch_sense"])
+    return nym_fixer.run_fix(text.group(), ["autofix","automatch_senseid","automatch_sense"], sections=["Synonyms","Antonyms"])
 
 fixes['simple_nyms']= {
     'regex': True,

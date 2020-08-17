@@ -51,9 +51,9 @@ def has_text(text):
     return re.search(r"[^\s,;]", text)
 
 
-def get_nest_depth(text, start_depth=0):
+def get_template_depth(text, start_depth=0):
     """
-    Returns the depth of nested templates at the end of the given line
+    Returns the depth of template templates at the end of the given line
 
     zero }} zero {{ one {{ two {{ three }} two }} one }} zero }} zero
     """
@@ -76,38 +76,6 @@ def get_nest_depth(text, start_depth=0):
 
     return depth
 
-def template_aware_split(text, splitter):
-
-    results = []
-    nested = []
-    nested_depth = 0
-
-    for item in text.split(splitter):
-        if nested_depth:
-            nested.append(item)
-            nested_depth = get_nest_depth(item, nested_depth)
-            if nested_depth:
-                continue
-            else:
-                item = "".join(nested)
-                nested = []
-
-        else:
-            nested_depth = get_nest_depth(item, nested_depth)
-            if nested_depth:
-                nested = [item]
-                continue
-
-        results.append(item)
-
-    if nested_depth:
-        results.append(item)
-        raise ValueError("Open template", text)
-    # TODO: warn here
-#        self.needs_fix("nym_has_open_template", nested[0])
-
-
-    return results
 
 
 class Definition():
@@ -121,8 +89,8 @@ class Definition():
 
         self._problems = {}
 
-        self._nested_depth = 0
-        self._open = []
+        self._template_depth = 0
+        self._open_template = []
 
         # The index of the line containing the nym declaration { NymName: idx }
         self._nymidx = {}
@@ -141,41 +109,28 @@ class Definition():
         del self._problems[problem]
 
 
-    def start_open_line(self, line):
-        self.flag_problem("has_open_template",line)
-        self._open = [ line ]
-        return
-
-
-    def continue_open_line(self, line):
-        self._open.append(line)
-        return
-
-
-    def close_open_line(self, line):
-        self.remove_problem("has_open_template")
-        self.process("".join(self._open))
-        return
-
-
     def add(self, line):
         self._lines.append(line)
 
         if line == "":
             return
 
-        if self._nested_depth:
-            self._nested_depth = get_nest_depth(line, self._nested_depth)
-            if not self._nested_depth:
-                self.close_open_line(line)
-            else:
-                self.continue_open_line(line)
-            return
+        if self._template_depth:
+            self._open_template.append(line)
+            self._template_depth = get_template_depth(line, self._template_depth)
+            if self._template_depth:
+                return
 
-        self._nested_depth = get_nest_depth(line, self._nested_depth)
-        if self._nested_depth:
-            self.start_open_line(line)
-            return
+            line = "".join(self._open_template)
+            self._open_template = []
+            self.remove_problem("has_open_template")
+
+        else:
+            self._template_depth = get_template_depth(line, self._template_depth)
+            if self._template_depth:
+                self._open_template = [line]
+                self.flag_problem("has_open_template",line)
+                return
 
         self.process(line)
 
@@ -459,6 +414,37 @@ class NymSectionToTag():
         return defs
 
 
+    def template_aware_split(self, text, splitter):
+
+        results = []
+        template = []
+        template_depth = 0
+
+        for item in text.split(splitter):
+            if template_depth:
+                template.append(item)
+                template_depth = get_template_depth(item, template_depth)
+                if template_depth:
+                    continue
+                else:
+                    item = "".join(template)
+                    template = []
+
+            else:
+                template_depth = get_template_depth(item, template_depth)
+                if template_depth:
+                    template = [item]
+                    continue
+
+            results.append(item)
+
+        if len(template):
+            results += template
+            self.needs_fix("nym_has_open_template", text)
+
+        return results
+
+
     def parse_word_line(self, line):
         """
         Parses a list of words defined within wiki tags
@@ -470,7 +456,7 @@ class NymSectionToTag():
         if line.startswith("*"):
             line = line[1:]
 
-        return [ self.parse_word(text.strip()) for text in template_aware_split(line, ",") ]
+        return [ self.parse_word(text.strip()) for text in self.template_aware_split(line, ",") ]
 
     def extract_templates_and_patterns(self, templates, patterns, text):
 
@@ -656,7 +642,7 @@ class NymSectionToTag():
         sense = ""
 
         header_line = True
-        for line in template_aware_split(section, "\n"):
+        for line in self.template_aware_split(section, "\n"):
             line = line.strip()
             if line == "":
                 continue
@@ -935,7 +921,7 @@ class NymSectionToTag():
         self._flagged[name] = self._flagged.get(name, []) + [params]
 
 
-    def run_fix(self, text, tools=[], page_title=""):
+    def run_fix(self, text, tools=[], page_title="", sections=["Synonyms","Antonyms"]):
         """
         *page_title* is only used for error messages, and only available when run directly
         Only return fixes that can be fixed with the list of *tools* provided
@@ -945,7 +931,7 @@ class NymSectionToTag():
 
         # TODO: Support fixing a single section at a time if the other section has errors
         new_text = text
-        for nym_name in ["Synonyms", "Antonyms"]:
+        for nym_name in sections:
             nym_tag = _nyms[nym_name][0]
             prev_text = new_text
             new_text = self.replace_nym_section_with_tag(prev_text, nym_name, nym_tag, page_title)
@@ -980,6 +966,7 @@ def main():
     parser.add_argument('--pre-file', help="Destination file for unchanged articles (default: pre.txt)", default="pre.txt")
     parser.add_argument('--post-file', help="Destination file for changed articles (default: post.txt)", default="post.txt")
     parser.add_argument('--fix-debug', action='append', help="Print debug info for issues with the specified flag (Can be specified multiple times)", default=[])
+    parser.add_argument('--section', action='append', help="Process specified nym section (Can be specified multiple times) (default: Synonyms, Antonyms)", default=["Synonyms","Antonyms"])
     parser.add_argument('--fix', action='append', help="Fix issues with the specified flag (Can be specified multiple times)", default=[])
     parser.add_argument('--article-limit', type=int, help="Limit processing to first N articles", default=[])
     parser.add_argument('--fix-limit', type=int, help="Limit processing to first N fixable articles", default=[])
@@ -1018,7 +1005,7 @@ def main():
 
         lang_count += 1
 
-        fixed = fixer.run_fix(lang_entry, args.fix, entry.title)
+        fixed = fixer.run_fix(lang_entry, args.fix, entry.title, args.section)
         if fixed == lang_entry:
             continue
 
