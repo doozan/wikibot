@@ -365,7 +365,7 @@ class NymSectionToTag():
                 self.needs_fix("link_has_param4", link)
 
             if qualifier:
-                v = ",".join(map(str,qualifier))
+                v = ", ".join(map(str,qualifier))
                 params.append( f"q{idx}={v}" )
 
             if gloss:
