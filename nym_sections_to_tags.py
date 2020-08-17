@@ -45,6 +45,71 @@ _tag_to_nym = { k:v for v,tags in _nyms.items() for k in tags }
 _all_nym_tags = _tag_to_nym.keys()
 _nym_order = list(_nyms.keys())
 
+
+# Consider the presense of any non-whitespace or separator to be text
+def has_text(text):
+    return re.search(r"[^\s,;]", text)
+
+
+def get_nest_depth(text, start_depth=0):
+    """
+    Returns the depth of nested templates at the end of the given line
+
+    zero }} zero {{ one {{ two {{ three }} two }} one }} zero }} zero
+    """
+
+    if start_depth<0:
+        raise ValueError("start_level cannot be negative")
+
+    depth = start_depth
+
+    first=True
+    for t in text.split("{{"):
+        if first:
+            first=False
+            if not depth:
+                continue
+        else:
+            depth+=1
+
+        depth = max(0, depth - t.count("}}"))
+
+    return depth
+
+def template_aware_split(text, splitter):
+
+    results = []
+    nested = []
+    nested_depth = 0
+
+    for item in text.split(splitter):
+        if nested_depth:
+            nested.append(item)
+            nested_depth = get_nest_depth(item, nested_depth)
+            if nested_depth:
+                continue
+            else:
+                item = "".join(nested)
+                nested = []
+
+        else:
+            nested_depth = get_nest_depth(item, nested_depth)
+            if nested_depth:
+                nested = [item]
+                continue
+
+        results.append(item)
+
+    if nested_depth:
+        results.append(item)
+        raise ValueError("Open template", text)
+    # TODO: warn here
+#        self.needs_fix("nym_has_open_template", nested[0])
+
+
+    return results
+
+
 class Definition():
 
     def __init__(self, lang_id, line):
@@ -55,6 +120,9 @@ class Definition():
         self.senses = []
 
         self._problems = {}
+
+        self._nested_depth = 0
+        self._open = []
 
         # The index of the line containing the nym declaration { NymName: idx }
         self._nymidx = {}
@@ -69,11 +137,50 @@ class Definition():
         self._problems[problem] = self._problems.get(problem, []) + [ data ]
 
 
+    def remove_problem(self, problem):
+        del self._problems[problem]
+
+
+    def start_open_line(self, line):
+        self.flag_problem("has_open_template",line)
+        self._open = [ line ]
+        return
+
+
+    def continue_open_line(self, line):
+        self._open.append(line)
+        return
+
+
+    def close_open_line(self, line):
+        self.remove_problem("has_open_template")
+        self.process("".join(self._open))
+        return
+
+
     def add(self, line):
         self._lines.append(line)
 
         if line == "":
             return
+
+        if self._nested_depth:
+            self._nested_depth = get_nest_depth(line, self._nested_depth)
+            if not self._nested_depth:
+                self.close_open_line(line)
+            else:
+                self.continue_open_line(line)
+            return
+
+        self._nested_depth = get_nest_depth(line, self._nested_depth)
+        if self._nested_depth:
+            self.start_open_line(line)
+            return
+
+        self.process(line)
+
+
+    def process(self, line):
 
         # Don't process anything that comes before the "# [[def]]" line
         # But flag it as unhandled
@@ -92,12 +199,6 @@ class Definition():
 
         elif line.startswith("##"):
             self.parse_hashhash(line)
-
-        elif line.startswith("|"):
-            self.parse_open_template(line)
-
-        elif line.startswith("}}"):
-            self.parse_close_template(line)
 
         else:
             print("Unexpected text in def: ", line)
@@ -153,15 +254,6 @@ class Definition():
 
 
     def parse_hashhash(self, line):
-        return
-
-
-    # TODO: Verify that lines starting with | are part of a multi line template
-    def parse_open_template(self, line):
-        return
-
-
-    def parse_close_template(self, line):
         return
 
 
@@ -255,7 +347,7 @@ class NymSectionToTag():
 
             if not link:
                 self.needs_fix("missing_link")
-                continue
+                return None
 
             idx+=1
 
@@ -266,6 +358,11 @@ class NymSectionToTag():
             if link.get("tr"):
                 v = link.get("tr")
                 params.append( f"tr{idx}={v}" )
+
+            if link.get("4") or link.get("t"):
+                v = link.get("4", link.get("t"))
+                # TODO: Handle this as gloss?
+                self.needs_fix("link_has_param4", link)
 
             if qualifier:
                 v = ",".join(map(str,qualifier))
@@ -281,7 +378,12 @@ class NymSectionToTag():
         if "|" in "_".join(params):
             raise ValueError("Item has | character in paramaters", items)
 
-        return "{{" + "|".join(params) + "}}"
+        tag = "{{" + "|".join(params) + "}}"
+
+        if len(tag)>80:
+            self.needs_fix("long_tag")
+
+        return tag
 
 
     def get_definitions(self, section):
@@ -367,18 +469,8 @@ class NymSectionToTag():
 
         if line.startswith("*"):
             line = line[1:]
-        return [ self.parse_word(text.strip()) for text in line.split(",") ]
 
-
-    def strip_templates(self, text):
-
-        wiki = mwparserfromhell.parse(text,skip_style_tags=True)
-
-        for template in wiki.filter_templates(recursive=False):
-            wiki.remove(template)
-
-        return str(wiki)
-
+        return [ self.parse_word(text.strip()) for text in template_aware_split(line, ",") ]
 
     def extract_templates_and_patterns(self, templates, patterns, text):
 
@@ -468,25 +560,24 @@ class NymSectionToTag():
 
             wiki.remove(template)
 
-        has_text = re.search(r"[^ ,;()]", str(wiki))
+        text_outside_templates = str(wiki)
+        has_text_outside_templates = has_text(text_outside_templates)
 
-        if len(links) == 1 and not has_text:
-            return { p.name.strip():str(p) for p in links[0].params if p.name in ["1","2","3","tr"] }
+        if len(links) == 1 and not has_text_outside_templates:
+            return { p.name.strip():str(p) for p in links[0].params if p.name in ["1","2","3","4","t","tr"] }
 
         if len(links)>2:
             self.needs_fix("link_multiple_templates")
 
-        if has_text:
-            if not len(links):
-                self.needs_fix("link_is_text")
-            else:
-                self.needs_fix("link_text_and_template")
-
         wiki = mwparserfromhell.parse(text,skip_style_tags=True)
         for template in wiki.filter_templates(recursive=False):
             if template.name in ["l", "link"]:
-                if template.has("3"):
-                    self.needs_fix("link_has_param3")
+                if template.has("3") and template.get("3") != "":
+                    self.needs_fix("link_has_param_3", str(template))
+                if template.has("4") and template.get("4") != "":
+                    self.needs_fix("link_has_param_4", str(template))
+                if template.has("t") and template.get("t") != "":
+                    self.needs_fix("link_has_param_t", str(template))
                 name = template.get("2")
                 wiki.replace(template, name)
             else:
@@ -495,7 +586,27 @@ class NymSectionToTag():
 
         text = re.sub(r"\s+", " ", str(wiki)).strip()
 
-        # TODO: Warn if there are "[[words]]" mixed with "words" (are there ever [[words]] in lists)
+        # Replace "[[word|fancy word]]" with "word"
+        orig_text = text
+        remaining_text = text_outside_templates
+        for match in re.findall(r"\[\[[^[\]]+\]\]", text):
+            target = re.escape(match)
+            replacement = match[2:].strip("]]").split("|")[0]
+            text = re.sub(target, replacement, text)
+            remaining_text = re.sub(target, "", remaining_text)
+
+        has_bracketed_text = (text != orig_text)
+        has_text_links = has_text(remaining_text)
+
+        sources = []
+        if len(links):
+            sources.append("template")
+        if has_bracketed_text:
+            sources.append("brackets")
+        if has_text_links:
+            sources.append("text")
+        if len(sources) > 1:
+            self.needs_fix("link_has_" + "_and_".join(sources))
 
         text = " ".join([ self.stripformat(x) for x in text.split(" ") ])
         if "|" in text:
@@ -519,6 +630,8 @@ class NymSectionToTag():
         if res:
             return( {"1": self.LANG_ID, "2": res.group(1)}, None, None)
 
+
+        # TODO: Extract gloss from param 4/t of {{link}} template?
         gloss,text = self.extract_gloss(text)
         gloss = " ".join(gloss) if len(gloss) else None
 
@@ -543,13 +656,9 @@ class NymSectionToTag():
         sense = ""
 
         header_line = True
-        for line in section.splitlines():
+        for line in template_aware_split(section, "\n"):
             line = line.strip()
             if line == "":
-                continue
-
-            # Ignore open templates
-            if line.startswith("|"):
                 continue
 
             if header_line:
@@ -686,7 +795,7 @@ class NymSectionToTag():
 
             defs = self.get_definitions(section)
             if not len(defs):
-                print(f"WARN: {page} ({pos}) has no definitions")
+                self.needs_fix("no_defs", pos)
                 continue
 
             all_senseid = [d for d in defs if d.get_senseid() != ""]
@@ -695,6 +804,7 @@ class NymSectionToTag():
 
             for nym_section in nym_sections:
                 new_replacements = self.get_nyms_to_defs_replacements(nym_section, nym_title, nym_tag, defs)
+
                 if not len(new_replacements):
                     print(f"WARN: {page} ({pos}) ({nym_section}) has no items")
 
@@ -740,6 +850,9 @@ class NymSectionToTag():
 
             def_target = target_def.get_nym_target(nym_tag)
             nym_line = self.make_tag(nym_tag, nyms[nym_sense])
+            if not nym_line:
+                self.needs_fix("make_tag_failed")
+                continue
 
             # Use a placeholder when replacing/removing sections so we can cleanup/condense
             # any preceeding/following newline characters
@@ -817,7 +930,7 @@ class NymSectionToTag():
 
     def needs_fix(self, name, *params):
         if name in self._debug_fix:
-            print("NEEDS FIX:", self._page, name, params)
+            print(f"{self._page} needs {name}: {params}")
         self._flagged[name] = self._flagged.get(name, []) + [params]
 
 
@@ -847,7 +960,7 @@ class NymSectionToTag():
             self._stats[x] = self._stats.get(x,0)+1
 
         missing_fixes = set(self._flagged.keys()).difference(tools)
-        if missing_fixes:
+        if missing_fixes and not len(self._debug_fix):
             print(f'{page_title} needs {", ".join(sorted(missing_fixes))}')
             return text
 

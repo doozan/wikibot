@@ -17,6 +17,96 @@ def run_test(orig_text, expected_text, expected_flags):
     assert expected_text == new_text
 
 
+def test_nym_tables():
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{l|en|word}}
+
+====Hyponyms====
+{{col3|es
+|grupo abeliano
+|grupo corona
+|grupo de la muerte
+|grupo étnico
+|{{l|es|grupo de presión||lobby, pressure group}}
+|{{l|es|grupo de edad||age group, age range, age bracket}}
+|grupo funcional
+|grupo saliente
+|grupo social
+}}
+"""
+    expected_text = orig_text
+    expected_flags = ["link_unexpected_template", "missing_link", "make_tag_failed"]
+
+    run_test(orig_text,expected_text,expected_flags)
+
+
+
+def test_run_fix_viste():
+
+    orig_text="""==Spanish==
+
+===Interjection===
+{{head|es|interjection}}
+
+# {{lb|es|interrogatively|informal|Rioplatense}} {{non-gloss definition|Used as a space filler, usually in the middle of a sentence, or when telling a story.}}
+#: No sabía qué decirle, ¿'''viste'''? — I didn't know what to tell her, '''you know'''?
+
+===Synonyms===
+* [[sabés|¿sabés?]], [[no|¿no?]]
+"""
+
+    expected_text="""==Spanish==
+
+===Interjection===
+{{head|es|interjection}}
+
+# {{lb|es|interrogatively|informal|Rioplatense}} {{non-gloss definition|Used as a space filler, usually in the middle of a sentence, or when telling a story.}}
+#: {{syn|es|sabés|no}}
+#: No sabía qué decirle, ¿'''viste'''? — I didn't know what to tell her, '''you know'''?
+"""
+    expected_flags = ['def_hashcolon_is_not_nym', 'has_nym_section_at_word_level', 'use_nym_section_from_word_level']
+
+    run_test(orig_text,expected_text,expected_flags)
+
+
+def test_open_templates():
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{l|en
+|word}} {{q|Mexico
+|Spain}} {{gloss
+|a long description}}
+
+====Synonyms====
+* {{l
+|es
+|otherword
+}}
+"""
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{l|en
+|word}} {{q|Mexico
+|Spain}} {{gloss
+|a long description}}
+#: {{syn|es|otherword}}
+"""
+    expected_flags = ["autofix"]
+
+    run_test(orig_text,expected_text,expected_flags)
+
+
 def test_get_link():
 
     assert fixer.get_link("blah")["2"] == "blah"
@@ -24,7 +114,6 @@ def test_get_link():
     assert fixer.get_link("{{l|es|blah}} blah")["2"] == "blah blah"
     assert fixer.get_link("blah {{l|es|blah}} blah")["2"] == "blah blah blah"
     assert fixer.get_link("{{l|es|blah}} blah  {{link|es|blah}}")["2"] == "blah blah blah"
-
 
 def test_sense_match_same_level():
 
@@ -49,31 +138,6 @@ def test_sense_match_same_level():
 # {{l|en|word2}}
 """
     expected_flags = ["has_nym_section_at_word_level", "use_nym_section_from_word_level", "automatch_senseid"]
-
-    run_test(orig_text,expected_text,expected_flags)
-
-
-def test_run_fix_simple():
-
-    orig_text="""==Spanish==
-
-===Noun===
-{{es-noun|mf|aboriginales}}
-
-# {{l|en|Aborigine}} {{gloss|original inhabitant of Australia}}
-
-====Synonyms====
-* {{l|es|aborigen}}
-"""
-    expected_text="""==Spanish==
-
-===Noun===
-{{es-noun|mf|aboriginales}}
-
-# {{l|en|Aborigine}} {{gloss|original inhabitant of Australia}}
-#: {{syn|es|aborigen}}
-"""
-    expected_flags = ["autofix"]
 
     run_test(orig_text,expected_text,expected_flags)
 
@@ -109,7 +173,7 @@ def test_run_fix_complex():
 # {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
 """
 
-    expected_flags = ['automatch_sense', 'def_duplicate_nym_defs', 'sense_matches_multiple_defs', 'unmatched_sense']
+    expected_flags = ['automatch_sense', 'def_duplicate_nym_defs', 'link_has_param4', 'sense_matches_multiple_defs', 'unmatched_sense']
     run_test(orig_text,expected_text,expected_flags)
 
 
@@ -144,7 +208,7 @@ def test_run_fix_complex2():
 # {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
 """
 
-    expected_flags = ['automatch_sense', 'def_duplicate_nym_defs', 'sense_matches_multiple_defs', 'unmatched_sense']
+    expected_flags = ['automatch_sense', 'def_duplicate_nym_defs', 'link_has_param4', 'sense_matches_multiple_defs', 'unmatched_sense']
 
     run_test(orig_text,expected_text,expected_flags)
 
@@ -274,28 +338,33 @@ def test_parse_word():
 def test_parse_word_fails():
 
     tests = [
-        { "test": "{{l|es|calala|g=f}} [[blah]]", "errors":["link_text_and_template"] }, # Multiple Links
+        { "test": "{{l|es|calala|g=f}} [[blah]] blah", "errors":["link_has_template_and_brackets_and_text"] }, # Mixed Links
+        { "test": "{{l|es|calala|g=f}} [[blah]]", "errors":["link_has_template_and_brackets"] }, # Mixed Links
+        { "test": "[[blah]] blah", "errors":["link_has_brackets_and_text"] }, # Mixed Links
+        { "test": "{{l|es|calala|g=f}} blah", "errors":["link_has_template_and_text"] }, # Mixed Links
         { "test": "{{q|blah}}", "errors":["missing_link"] }, # Missing Link
         { "test": "{{l|es|calala|g=f}} {{q|blah}} (blah2)", "errors":["qualifier_text_and_template"] }, # Multiple Qualifiers
         ]
 
     for t in tests:
         fixer._flagged = {}
-        #assert value == fixer.strip_templates(test)
         fixer.parse_word(t["test"])
         assert sorted(t["errors"]) == sorted(fixer._flagged.keys())
 
     for test,results in tests:
             assert fixer.parse_word(test)
 
-def test_strip_templates():
-    tests = {
-        "{{l|es|pambol}} (Mexico, colloquial)": " (Mexico, colloquial)"
-    }
-
-
-    for test,results in tests.items():
-        assert results == fixer.strip_templates(test)
+#def test_strip_templates():
+#    tests = {
+#        "{{l|es|pambol}} (Mexico, colloquial)": " (Mexico, colloquial)",
+#        "{{l|es|pambol}} (Mexico, colloquial) {{open": " (Mexico, colloquial) {{open",
+#        "{{l|es|pambol}} (Mexico, colloquial) {{open {{blah}}": " (Mexico, colloquial) {{open {{blah}}",
+#    }
+#
+#
+#    d = Definition("es", "# [[word]]")
+#    for test,results in tests.items():
+#        assert results == d.strip_templates(test)
 
 #    for test,errors in tests.items():
 #        fixer._flagged = {}
@@ -354,6 +423,24 @@ def test_definition_stripping():
     assert not d.has_sense("word3")
 
     assert d.strip_to_text( "{{blah}} test1, (blah) [[test2]], test3 ") == "test1,  test2, test3"
+
+
+def test_nested_depth():
+
+    d = Definition("es", "# [[word1]], [[word2]]; [[word3]]")
+    assert d._nested_depth == 0
+    d.add(" }} {{ blah }}")
+    assert d._nested_depth == 0
+    d.add(" {{test")
+    assert d._nested_depth == 1
+    d.add(" }} {{ blah }}")
+    assert d._nested_depth == 0
+    d.add(" {{test{{test2{{test3{{blah}}")
+    assert d._nested_depth == 3
+    d.add("}} }} }}")
+    assert d._nested_depth == 0
+    d.add("}} }} }}")
+    assert d._nested_depth == 0
 
 
 
