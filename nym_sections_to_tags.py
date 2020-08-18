@@ -94,8 +94,8 @@ class Definition():
 
         # The index of the line containing the nym declaration { NymName: idx }
         self._nymidx = {}
-
-        self.declaration_idx = -1
+        self._declaration_idx = -1
+        self._last_idx = -1
 
         self.add(line)
 
@@ -133,13 +133,14 @@ class Definition():
                 return
 
         self.process(line)
+        self._last_idx = len(self._lines)-1
 
 
     def process(self, line):
 
         # Don't process anything that comes before the "# [[def]]" line
         # But flag it as unhandled
-        if self.declaration_idx<0:
+        if self._declaration_idx<0:
             if line.startswith("# ") or line.startswith("#{"):
                 self.parse_hash(line)
             else:
@@ -177,7 +178,7 @@ class Definition():
 
 
     def parse_hash(self, line):
-        self.declaration_idx = len(self._lines)-1
+        self._declaration_idx = len(self._lines)-1
 
         stripped = self.strip_to_text(line[1:])
 
@@ -233,7 +234,11 @@ class Definition():
             target_idx=idx
 
         if target_idx<0:
-            target_idx = self.declaration_idx
+            if len(self._nymidx.keys()):
+                first_idx = next(iter(self._nymidx.values()))
+                target_idx = first_idx-1
+            else:
+                target_idx = self._last_idx
 
         return "\n".join(self._lines[:target_idx+1])
 

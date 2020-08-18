@@ -65,8 +65,8 @@ def test_run_fix_viste():
 {{head|es|interjection}}
 
 # {{lb|es|interrogatively|informal|Rioplatense}} {{non-gloss definition|Used as a space filler, usually in the middle of a sentence, or when telling a story.}}
-#: {{syn|es|sabés|no}}
 #: No sabía qué decirle, ¿'''viste'''? — I didn't know what to tell her, '''you know'''?
+#: {{syn|es|sabés|no}}
 """
     expected_flags = ['def_hashcolon_is_not_nym', 'has_nym_section_at_word_level', 'use_nym_section_from_word_level']
 
