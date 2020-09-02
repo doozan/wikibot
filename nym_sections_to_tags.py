@@ -114,19 +114,20 @@ class NymSectionToTag:
                 defs = word.get_defs_matching_sense(nymsense.sense)
 
                 if not len(defs):
-                    if nymsense.sense == "":
-                        defs = all_defs
-                    else:
-                        self.flag_problem("nym_matches_no_defs")
-                        defs = [ all_defs[0] ]
+                    defs = all_defs
+                    if nymsense.sense != "":
+                        self.flag_problem("nym_matches_no_defs", nymsense.sense)
 
                 elif nymsense.sense != "":
                     self.flag_problem("automatch_sense")
 
+                d = defs[0]
                 if len(defs) > 1:
                     self.flag_problem("nym_matches_multiple_defs")
-                d = defs[0]
-                d.add_nymsense(nymsense)
+                    d.add_nymsense(nymsense, no_merge=True)
+                else:
+                    d.add_nymsense(nymsense)
+
 
             # IF the nym has subsections, move them to the nym's parent object
             if len(nym.filter_sections()):

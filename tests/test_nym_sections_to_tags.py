@@ -88,6 +88,33 @@ def test_multi_defs2():
     expected_flags = ["nym_matches_multiple_defs"]
     run_test(orig_text, expected_text, expected_flags)
 
+def test_multi_nomerge():
+
+    orig_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# {{l|en|word1}}
+# [[word2]]
+
+====Synonyms====
+* {{sense|sense1}} {{l|es|syn1}}
+* {{sense|sense2}}  {{l|es|syn2}}
+"""
+    expected_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# {{l|en|word1}}
+#: {{syn|es|syn1}} <!-- FIXME, MATCH SENSE: 'sense1' -->
+#: {{syn|es|syn2}} <!-- FIXME, MATCH SENSE: 'sense2' -->
+# [[word2]]"""
+
+    expected_flags = ["nym_matches_multiple_defs", "nym_matches_no_defs"]
+    run_test(orig_text, expected_text, expected_flags)
+
 def test_gloss():
 
     orig_text = """==Spanish==
@@ -190,7 +217,7 @@ def test_fix_subsection():
     run_test(orig_text, expected_text, expected_flags)
 
 
-def test_ideal():
+def test_lang_parser():
     pre_text="""====Declension====
 {{sh-decl-noun
 |idèāl|ideali
@@ -254,6 +281,50 @@ From {{der|es|la|ideālis}}.
 
 """
     entry_text = pre_text+spanish_text+post_text
+
+    lang_entry = fixer.get_language_entry(entry_text)
+    assert lang_entry == spanish_text
+
+
+
+def test_lang_parser():
+    pre_text="""====Declension====
+{{sh-decl-noun
+|idèāl|ideali
+|ideála|ideala
+|idealu|idealima
+|ideal|ideale
+|ideale|ideali
+|idealu|idealima
+|idealom|idealima
+}}
+
+----
+
+"""
+    spanish_text="""
+==Spanish==
+
+===Etymology===
+From {{der|es|la|ideālis}}.
+
+===Pronunciation===
+* {{es-IPA}}
+
+===Adjective===
+{{es-adj|pl=ideales}}
+
+# {{l|en|ideal}}
+
+====Derived terms====
+{{der2|es|idealizar|idealmente}}
+
+===Noun===
+{{es-noun|m}}
+
+# {{l|en|ideal}}"""
+
+    entry_text = pre_text+spanish_text
 
     lang_entry = fixer.get_language_entry(entry_text)
     assert lang_entry == spanish_text
