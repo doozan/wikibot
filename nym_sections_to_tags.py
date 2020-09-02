@@ -26,6 +26,7 @@ from pywikibot import xmlreader
 import re
 
 import wtparser
+from wtparser.nodes import WiktionarySection
 from wtparser.nodes.language import LanguageSection
 from wtparser.nodes.word import WordSection
 from wtparser.nodes.nymsection import NymSection
@@ -34,7 +35,7 @@ class NymSectionToTag:
     def __init__(self, lang_name, lang_id, debug=()):
         self.LANG_SECTION = lang_name
         self.LANG_ID = lang_id
-        self.errors = {}
+        self.problems = {}
         self._stats = {}
         self._debug_fix = set(debug)
 
@@ -50,30 +51,33 @@ class NymSectionToTag:
         #if name in self._debug_fix:
         #    print(f"{self._page} needs {name}: {params}")
         print(f"{self._page} needs {problem}: {data}")
-        self.errors[problem] = self.errors.get(problem, []) + [data]
+        self.problems[problem] = self.problems.get(problem, []) + [data]
 
-#    def remove_problem(self, problem):
-#        del self.errors[problem]
-
-#    def clear(self):
-#        self.errors = {}
+    def clear_problems(self):
+        self.problems = {}
 
 #    def is_good(self):
-#        return self.errors == {}
+#        return self.problems == {}
 
 #    def get_problems(self):
-#        return self.errors.items()
+#        return self.problems.items()
 
     def get_language_entry(self, text):
         """
         Return the body text of the language entry
         """
-        start_pattern = fr"\n=={self.LANG_SECTION}==\n"
-        end_pattern = r"(?=\n==[^=]+==\s*\n|\n\[\[Category:|\n----\s*\n|$)"
-        pattern = rf"({start_pattern}.*?){end_pattern}"
+
+        start = fr"(^|\n)=={self.LANG_SECTION}==\n"
+        text_endings = [ "[[Category:", "{{c|", "{{C|", "{{top|", "{{topics|", "{{categorize|", "{{catlangname|", "{{cln|" ]
+        re_endings = [ r"\[\[\s*Category\s*:" r"==[^=]+==", r"----" ]
+        re_endings += map(re.escape, text_endings)
+        endings = "|".join(re_endings)
+        newlines = r"(\n\s*){1,2}"
+        pattern = fr"{start}.*?(?={newlines}({endings})|$)"
+
         res = re.search(pattern, text, re.DOTALL)
         if res:
-            return res.group(1)
+            return res.group(0)
 
     def replace_nym_section_with_tag(self, language_text, nym_title, page=None):
 
@@ -89,53 +93,75 @@ class NymSectionToTag:
         if not len(all_words):
             self.flag_problem("no_words")
 
-        for word in all_words:
-            all_defs = word.filter_defs(recursive=False)
-            all_nyms = word.filter_nyms(matches=nym_title)
-
-            if len(all_nyms) == 0:
+        all_nyms = language.filter_nyms(matches=lambda x: x.name == nym_title)
+        for nym in all_nyms:
+            word = nym.get_ancestor(WordSection)
+            if not word:
+                word = all_words[0]
                 if len(all_words) == 1:
-                    all_nyms = language.filter_nyms(matches=nym_title)
-                    if len(all_nyms):
-                        self.flag_problem("automatch_nymsection_outside_word")
+                    self.flag_problem("automatch_nymsection_outside_word")
                 else:
                     self.flag_problem("nym_matches_multiple_words")
 
-            if len(all_nyms) == 0:
-                self.flag_problem("cannot_find_nyms")
+            all_defs = word.filter_defs(recursive=False)
+
+            if not len(all_defs):
+                self.flag_problem("word_has_no_defs", word.name)
                 continue
 
-            if len(all_nyms) > 1:
-                self.flag_problem("multiple_nym_sections")
+            senses = nym.filter_senses()
+            for nymsense in senses:
+                defs = word.get_defs_matching_sense(nymsense.sense)
 
-            if len(all_nyms) and not len(all_defs):
-                self.flag_problem("word_has_no_defs")
-                continue
+                if not len(defs):
+                    if nymsense.sense == "":
+                        defs = all_defs
+                    else:
+                        self.flag_problem("nym_matches_no_defs")
+                        defs = [ all_defs[0] ]
 
-            for nym in all_nyms:
+                elif nymsense.sense != "":
+                    self.flag_problem("automatch_sense")
 
-                # TODO: warn if word already has existing nym
-                senses = nym.filter_senses()
-                for nymsense in senses:
-                    # TODO: Warn if nymsense has data that can't be converted
-                    defs = word.get_defs_matching_sense(nymsense.sense)
-                    if not len(defs):
-                        if nymsense.sense == "":
-                            defs = all_defs
-                        else:
-                            self.flag_problem("nym_matches_no_defs")
-                            defs = [ all_defs[0] ]
+                if len(defs) > 1:
+                    self.flag_problem("nym_matches_multiple_defs")
+                d = defs[0]
+                d.add_nymsense(nymsense)
 
-                    if len(defs) > 1:
-                        self.flag_problem("nym_matches_multiple_defs")
-                    d = defs[0]
-                    d.add_nymsense(nymsense)
+            # IF the nym has subsections, move them to the nym's parent object
+            if len(nym.filter_sections()):
+                found = False
+                for i, child in enumerate(nym._children):
+                    for node in child.nodes:
+                        if isinstance(node, WiktionarySection):
+                            found=True
+                            break
+                    if found:
+                        break
+                if not found:
+                    raise ValueError("can't find child")
+
+                print(f"child is {i} of {len(nym._children)}")
+
+                # TODO: Change header level
+
+                new_parent = nym._parent
+                new_children = nym._children[i:]
+                for child in new_children:
+                    child._parent = new_parent
+
+                print(len(new_parent._children), "children")
+                new_parent.replace_child_with_list(nym, new_children)
+                print(len(new_parent._children), "children")
+                print(f"{len(new_children)} children reparented")
+                self.flag_problem("autofix_nym_section_has_subsections")
+            else:
                 language.remove_child(nym)
 
         if str(language) == language_text:
             self.flag_problem("no_change")
 
-        return str(language)
+        return str(language).rstrip()
 
 
     def run_fix(self, text, tools=[], page_title="", sections=["Synonyms", "Antonyms"]):
@@ -143,7 +169,7 @@ class NymSectionToTag:
         *page_title* is only used for error messages, and only available when run directly
         Only return fixes that can be fixed with the list of *tools* provided
         """
-        self.errors = {}
+        self.problems = {}
         self._page = page_title
 
         # TODO: Support fixing a single section at a time if the other section has errors
@@ -159,15 +185,15 @@ class NymSectionToTag:
         if new_text == text:
             return text
 
-        if not len(self.errors.keys()):
+        if not len(self.problems.keys()):
             self.flag_problem("autofix")
 
-        for x in self.errors.keys():
+        for x in self.problems.keys():
             self._stats[x] = self._stats.get(x, 0) + 1
 
-        missing_fixes = set(self.errors.keys()).difference(tools)
+        missing_fixes = set(self.problems.keys()).difference(tools)
         if missing_fixes and not len(self._debug_fix) and "all" not in tools:
-            #print(f'{page_title} needs {", ".join(sorted(missing_fixes))}')
+            print(f'{page_title} needs {", ".join(sorted(missing_fixes))}')
             return text
 
         return new_text

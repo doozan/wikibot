@@ -5,14 +5,259 @@ fixer = NymSectionToTag("Spanish", "es")
 
 def run_test(orig_text, expected_text, expected_flags):
 
-    fixer._flagged = {}
+    fixer.clear_problems()
     new_text = fixer.run_fix(orig_text, [], "test")
     assert orig_text == new_text
-#    assert sorted(expected_flags) == sorted(fixer._flagged.keys())
+    assert sorted(expected_flags) == sorted(fixer.problems.keys())
 
-    fixer._flagged = {}
+    fixer.clear_problems()
     new_text = fixer.run_fix(orig_text, expected_flags, "test", sections=["Synonyms","Antonyms","Hyponyms"])
-    assert expected_text == new_text
+    assert new_text == expected_text
+
+def test():
+
+    orig_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word]]
+
+====Synonyms====
+* {{l|es|gabacho}} {{qualifier|Spain, Mexico}}
+* {{l|es|guiri}} {{qualifier|Spain}}
+"""
+    expected_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word]]
+#: {{syn|es|gabacho|q1=Spain, Mexico|guiri|q2=Spain}}"""
+
+    expected_flags = ["autofix"]
+    run_test(orig_text, expected_text, expected_flags)
+
+def test_multi_defs():
+
+    orig_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word1]]
+# [[word2]]
+
+====Synonyms====
+* {{l|es|syn1}}
+"""
+    expected_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word1]]
+#: {{syn|es|syn1}}
+# [[word2]]"""
+
+    expected_flags = ["nym_matches_multiple_defs"]
+    run_test(orig_text, expected_text, expected_flags)
+
+def test_multi_defs2():
+
+    orig_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# {{l|en|word1}}
+# [[word2]]
+
+====Synonyms====
+* {{l|es|syn1}}
+"""
+    expected_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# {{l|en|word1}}
+#: {{syn|es|syn1}}
+# [[word2]]"""
+
+    expected_flags = ["nym_matches_multiple_defs"]
+    run_test(orig_text, expected_text, expected_flags)
+
+def test_gloss():
+
+    orig_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word1]]
+
+====Synonyms====
+* {{l|es|syn1}} {{gloss|gloss as qualifier}}
+"""
+    expected_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word1]]
+#: {{syn|es|syn1|q1=gloss as qualifier}}"""
+
+    expected_flags = ["using_gloss_as_qualifier"]
+    run_test(orig_text, expected_text, expected_flags)
+
+
+
+def test_brocolli():
+    entry_text="""==Spanish==
+{{wikipedia|lang=es}}
+
+===Etymology===
+Alteration of {{m|es|bróculi}}.
+
+===Pronunciation===
+* {{es-IPA}}
+
+===Noun===
+{{es-noun|m|brécoles}}
+
+# [[broccoli]]
+
+====Synonyms====
+* {{l|es|brócoli}}
+* {{l|es|bróculi}}
+
+===Further reading===
+* {{R:DRAE 2001}}"""
+
+    lang_entry = fixer.get_language_entry(entry_text)
+    assert lang_entry == entry_text
+
+def test_fix_subsection():
+    orig_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word1]]
+
+====Synonyms====
+* {{l|es|syn1}}
+
+=====Subsection=====
+* blah
+
+======Sub-Subsection======
+* blah
+
+{{other stuff}}
+
+=====Subsection2=====
+* blah
+
+=====Subsection3=====
+* blah
+
+"""
+    expected_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word1]]
+#: {{syn|es|syn1}}
+
+=====Subsection=====
+* blah
+
+======Sub-Subsection======
+* blah
+
+{{other stuff}}
+
+=====Subsection2=====
+* blah
+
+=====Subsection3=====
+* blah"""
+
+    expected_flags = ["autofix_nym_section_has_subsections", "unexpected_section"]
+    run_test(orig_text, expected_text, expected_flags)
+
+
+def test_ideal():
+    pre_text="""====Declension====
+{{sh-decl-noun
+|idèāl|ideali
+|ideála|ideala
+|idealu|idealima
+|ideal|ideale
+|ideale|ideali
+|idealu|idealima
+|idealom|idealima
+}}
+
+----
+
+"""
+    spanish_text="""
+==Spanish==
+
+===Etymology===
+From {{der|es|la|ideālis}}.
+
+===Pronunciation===
+* {{es-IPA}}
+
+===Adjective===
+{{es-adj|pl=ideales}}
+
+# {{l|en|ideal}}
+
+====Derived terms====
+{{der2|es|idealizar|idealmente}}
+
+===Noun===
+{{es-noun|m}}
+
+# {{l|en|ideal}}"""
+
+    post_text="""
+
+----
+
+==Swedish==
+
+===Pronunciation===
+* {{audio|sv|Sv-ideal.ogg|audio}}
+
+===Noun===
+{{sv-noun|n}}
+
+# [[#English|ideal]]; perfect standard
+# {{lb|sv|mathematics}} [[#English|ideal]]; special subsets of a [[ring]]
+
+====Declension====
+{{sv-infl-noun-n-zero}}
+
+===Anagrams===
+* {{anagrams|sv|a=adeil|ilade}}
+
+----
+
+==Turkish==
+
+"""
+    entry_text = pre_text+spanish_text+post_text
+
+    lang_entry = fixer.get_language_entry(entry_text)
+    assert lang_entry == spanish_text
+
 
 
 def xtest_run_fix_viste():
