@@ -1,17 +1,33 @@
+#
+# Copyright (c) 2020 Jeff Doozan
+#
+# This is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import pytest
 from nym_sections_to_tags import NymSectionToTag
 
 fixer = NymSectionToTag("Spanish", "es")
 
-def run_test(orig_text, expected_text, expected_flags):
+def run_test(orig_text, expected_text, expected_flags, title="test"):
 
     fixer.clear_problems()
-    new_text = fixer.run_fix(orig_text, [], "test")
+    new_text = fixer.run_fix(orig_text, [], title)
     assert orig_text == new_text
     assert sorted(expected_flags) == sorted(fixer.problems.keys())
 
     fixer.clear_problems()
-    new_text = fixer.run_fix(orig_text, expected_flags, "test", sections=["Synonyms","Antonyms","Hyponyms"])
+    new_text = fixer.run_fix(orig_text, expected_flags, title+"-fix", sections=["Synonyms","Antonyms","Hyponyms"])
     assert new_text == expected_text
 
 def test():
@@ -57,10 +73,10 @@ def test_multi_defs():
 {{es-noun}}
 
 # [[word1]]
-#: {{syn|es|syn1}}
+#: {{syn|es|syn1}} <!-- FIXME, MATCH SENSE: '' -->
 # [[word2]]"""
 
-    expected_flags = ["nym_matches_multiple_defs"]
+    expected_flags = ["nymsense_matches_multiple_defs"]
     run_test(orig_text, expected_text, expected_flags)
 
 def test_multi_defs2():
@@ -82,10 +98,10 @@ def test_multi_defs2():
 {{es-noun}}
 
 # {{l|en|word1}}
-#: {{syn|es|syn1}}
+#: {{syn|es|syn1}} <!-- FIXME, MATCH SENSE: '' -->
 # [[word2]]"""
 
-    expected_flags = ["nym_matches_multiple_defs"]
+    expected_flags = ["nymsense_matches_multiple_defs"]
     run_test(orig_text, expected_text, expected_flags)
 
 def test_multi_nomerge():
@@ -112,7 +128,7 @@ def test_multi_nomerge():
 #: {{syn|es|syn2}} <!-- FIXME, MATCH SENSE: 'sense2' -->
 # [[word2]]"""
 
-    expected_flags = ["nym_matches_multiple_defs", "nym_matches_no_defs"]
+    expected_flags = ["nymsense_matches_multiple_defs", "nymsense_matches_no_defs"]
     run_test(orig_text, expected_text, expected_flags)
 
 def test_gloss():
@@ -213,7 +229,7 @@ def test_fix_subsection():
 =====Subsection3=====
 * blah"""
 
-    expected_flags = ["autofix_nym_section_has_subsections", "unexpected_section"]
+    expected_flags = ["autofix_nym_section_has_subsections", "unexpected_section", "unhandled_line"]
     run_test(orig_text, expected_text, expected_flags)
 
 
@@ -547,4 +563,164 @@ def xtest_sense_match_def():
     expected_flags = ["automatch_sense"]
 
     run_test(orig_text,expected_text,expected_flags)
+
+
+def test_sense_match_multi_def():
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# [[word1]], blah word2 blah
+# [[word2]]
+# [[word3]]
+
+====Synonyms====
+* {{sense|word2}} {{l|es|syn1}}
+"""
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# [[word1]], blah word2 blah
+#: {{syn|es|syn1}} <!-- FIXME, MATCH SENSE: 'word2' -->
+# [[word2]]
+# [[word3]]"""
+
+    expected_flags = ["automatch_sense", 'both_nym_line_and_section', "nymsense_matches_multiple_defs"]
+
+    run_test(orig_text,expected_text,expected_flags)
+
+
+
+def test_sense_match_multi_def():
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{lb|es|Chile|Argentina}} public [[bus]]
+# {{lb|es|Mexico}} [[minibus]]
+
+====Synonyms====
+* {{l|es|ómnibus}}
+* {{sense|Argentina}} {{l|es|colectivo}}
+* {{sense|Mexico}} {{l|es|pesero}}, {{l|es|combi}}
+"""
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{lb|es|Chile|Argentina}} public [[bus]]
+#: {{syn|es|ómnibus}} <!-- FIXME, MATCH SENSE: '' -->
+#: {{syn|es|colectivo}}
+# {{lb|es|Mexico}} [[minibus]]
+#: {{syn|es|pesero|combi}}"""
+
+    expected_flags = ["automatch_sense", "nymsense_matches_multiple_defs"]
+
+    run_test(orig_text,expected_text,expected_flags, "test_multi")
+
+def test_sense_match_multi_words():
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{l|en|drama}} {{gloss|genre in art, film, theatre and literature or a work of said genre}}
+# {{l|en|drama}}, [[tragedy]], [[plight]] {{gloss|quality of intense or high emotion or situation of enormous gravity that heightens such emotions}}
+# {{l|en|drama}} {{gloss|theatre studies}}
+# [[play]] {{gloss|work of theatre}}
+# [[big deal]], [[fuss]], [[scene]]
+
+====Synonyms====
+* {{sense|play}} {{l|es|obra}}
+* {{sense|big deal, fuss}} {{l|es|gran}} {{l|es|cosa}}, {{l|es|escándalo}}, {{l|es|escena}}
+"""
+
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{l|en|drama}} {{gloss|genre in art, film, theatre and literature or a work of said genre}}
+# {{l|en|drama}}, [[tragedy]], [[plight]] {{gloss|quality of intense or high emotion or situation of enormous gravity that heightens such emotions}}
+# {{l|en|drama}} {{gloss|theatre studies}}
+# [[play]] {{gloss|work of theatre}}
+#: {{syn|es|obra}}
+# [[big deal]], [[fuss]], [[scene]]
+#: {{syn|es|gran cosa|escándalo|escena}}"""
+
+    expected_flags = ["automatch_sense"]
+
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+
+def test_sense_match_multi_words2():
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# [[gem]]
+# {{lb|es|botany}} [[bud]], [[shoot]]
+
+====Synonyms====
+* {{sense|bud|shoot}} {{l|es|botón|g=m}}, {{l|es|yema|g=f}}
+"""
+
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# [[gem]]
+# {{lb|es|botany}} [[bud]], [[shoot]]
+#: {{syn|es|botón|yema}}"""
+
+    expected_flags = ["automatch_sense"]
+
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+def xtest_sense_match_multi_wordsxxx():
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# [[gem]]
+# {{lb|es|botany}} [[bud]], [[shoot]]
+
+====Synonyms====
+* {{l|es|buen rollo}} {{qualifier|Argentina|Chile|Mexico|Spain}}
+* {{l|es|buena onda}} {{qualifier|Mexico}}
+* {{l|es|chévere}} {{qualifier|Caribbean|Venezuela|Peru}}
+* {{l|es|genial}}
+* {{l|es|chido}} {{qualifier|Mexico}}
+* {{l|es|padre}} {{qualifier|Mexico}}
+* {{l|es|diacachimba}} {{qualifier|Nicaragua}}
+* {{l|es|diaverga}} {{qualifier|Nicaragua}}
+"""
+
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# [[gem]]
+# {{lb|es|botany}} [[bud]], [[shoot]]
+#: {{syn|es|botón|yema}}"""
+
+    expected_flags = ['long_nymline', 'nymsense_matches_multiple_defs']
+
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+
 

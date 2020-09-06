@@ -8,17 +8,22 @@ It can be called directly from the command line to generate files with the pre/p
 It can be used with the pywikibot replace.py script to actually make the changes with the following user-fixes.py:
 
 ```
+TARGET_LANG="Spanish"
+TARGET_LANG_ID="es"
+
 import re
 from nym_sections_to_tags import NymSectionToTag
-nym_fixer = NymSectionToTag("Spanish", "es")
+nym_fixer = NymSectionToTag(TARGET_LANG, TARGET_LANG_ID)
 
-start = r"(^|\n)==Spanish=="
-text_endings = [ "[[Category:", "{{c|", "{{C|", "{{top|", "{{topics|", "{{categorize|", "{{catlangname|", "{{cln|" ]
+
+start = rf"(^|\n)=={TARGET_LANG}=="
 re_endings = [ r"\[\[\s*Category\s*:" r"==[^=]+==", r"----" ]
-re_endings += map(re.escape, text_endings)
+template_endings = [ "c", "C", "top", "topics", "categorize", "catlangname", "catlangcode", "cln", "DEFAULTSORT" ]
+re_endings += [ r"\{\{\s*"+item+r"\s*\|" for item in template_endings ]
 endings = "|".join(re_endings)
 newlines = r"(\n\s*){1,2}"
 pattern = fr"{start}.*?(?={newlines}({endings})|$)"
+
 
 def auto_fix_nyms(text):
     return nym_fixer.run_fix(text.group(), ["autofix","automatch_senseid","automatch_sense"], sections=["Synonyms","Antonyms"])
