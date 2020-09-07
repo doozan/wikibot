@@ -24,11 +24,11 @@ def run_test(orig_text, expected_text, expected_flags, title="test"):
     fixer.clear_problems()
     new_text = fixer.run_fix(orig_text, [], title)
     assert orig_text == new_text
-    assert sorted(expected_flags) == sorted(fixer.problems.keys())
+    assert sorted(expected_flags) == sorted([ x for x in fixer._problems.keys() if not x.startswith("_") and x != "partial_fix" ])
 
     fixer.clear_problems()
     new_text = fixer.run_fix(orig_text, expected_flags, title+"-fix", sections=["Synonyms","Antonyms","Hyponyms"])
-    assert new_text == expected_text
+    assert expected_text == new_text
 
 def test():
 
@@ -229,7 +229,7 @@ def test_fix_subsection():
 =====Subsection3=====
 * blah"""
 
-    expected_flags = ["autofix_nym_section_has_subsections", "unexpected_section", "unhandled_line"]
+    expected_flags = ["autofix_nymsection_has_subsections", "unexpected_section", "unhandled_line"]
     run_test(orig_text, expected_text, expected_flags)
 
 
@@ -370,7 +370,7 @@ def xtest_run_fix_viste():
 #: No sabía qué decirle, ¿'''viste'''? — I didn't know what to tell her, '''you know'''?
 #: {{syn|es|sabés|no}}
 """
-    expected_flags = ['def_hashcolon_is_not_nym', 'has_nym_section_at_word_level', 'use_nym_section_from_word_level']
+    expected_flags = ['def_hashcolon_is_not_nym', 'has_nymsection_at_word_level', 'use_nymsection_from_word_level']
 
     run_test(orig_text,expected_text,expected_flags)
 
@@ -431,7 +431,7 @@ def xtest_sense_match_same_level():
 #: {{syn|es|otherword}}
 # {{l|en|word2}}
 """
-    expected_flags = ["has_nym_section_at_word_level", "use_nym_section_from_word_level", "automatch_senseid"]
+    expected_flags = ["has_nymsection_at_word_level", "use_nymsection_from_word_level", "automatch_senseid"]
 
     run_test(orig_text,expected_text,expected_flags)
 
@@ -722,5 +722,42 @@ def xtest_sense_match_multi_wordsxxx():
 
     run_test(orig_text,expected_text,expected_flags, "test_multiword")
 
+
+def test_partial_fixes():
+
+    orig_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word]]
+
+====Synonyms====
+* {{l|es|gabacho}} {{qualifier|Spain, Mexico}}
+* {{l|es|guiri}} {{qualifier|Spain}}
+* {{sense|nomatch}} {{l|es|guiri}} {{qualifier|Spain}}
+"""
+    expected_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word]]
+#: {{syn|es|gabacho|q1=Spain, Mexico|guiri|q2=Spain}}
+
+====Synonyms====
+* {{sense|nomatch}} {{l|es|guiri}} {{qualifier|Spain}}"""
+
+
+    fixer.clear_problems()
+    new_text = fixer.run_fix(orig_text, [], "test_partial")
+    assert orig_text == new_text
+
+    expected_flags = ["nymsense_matches_no_defs", "partial_fix"]
+    assert sorted(expected_flags) == sorted([ x for x in fixer._problems.keys() if not x.startswith("_")])
+
+    fixer.clear_problems()
+    new_text = fixer.run_fix(orig_text, ["partial_fix"], "partial_fix-fix", sections=["Synonyms","Antonyms","Hyponyms"])
+    assert new_text == expected_text
 
 

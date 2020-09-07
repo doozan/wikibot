@@ -30,13 +30,14 @@ from wtparser.sections import WiktionarySection
 from wtparser.sections.language import LanguageSection
 from wtparser.sections.pos import PosSection
 from wtparser.sections.nymsection import NymSection
+from wtparser.wtnodes.nymline import NymLine
 from wtparser.wtnodes.word import Word
 
 class NymSectionToTag:
     def __init__(self, lang_name, lang_id, debug=()):
         self.LANG_SECTION = lang_name
         self.LANG_ID = lang_id
-        self.problems = {}
+        self._problems = {}
         self._stats = {}
         self._debug_fix = set(debug)
 
@@ -47,21 +48,24 @@ class NymSectionToTag:
         #ch.setFormatter(formatter)
         #self.log.addHandler(ch)
 
-    def flag_problem(self, problem, *data):
+    def flag_problem(self, problem, *data, from_child=False):
         #self.log.info(problem, json.dumps(data))
         #if name in self._debug_fix:
         #    print(f"{self._page} needs {name}: {params}")
         print(f"{self._page} needs {problem}: {data}")
-        self.problems[problem] = self.problems.get(problem, []) + [data]
+        self._problems[problem] = self._problems.get(problem, []) + [data]
 
     def clear_problems(self):
-        self.problems = {}
+        self._problems = {}
 
-#    def is_good(self):
-#        return self.problems == {}
+    def can_handle(self, problems):
+        if "all" in self.tools:
+            return True
 
-#    def get_problems(self):
-#        return self.problems.items()
+        # This still doesn't work if problems is {}
+        res = len(set(problems.keys()).difference(self.tools)) == 0
+
+        return res
 
     def get_language_entry(self, text):
         """
@@ -101,18 +105,18 @@ class NymSectionToTag:
             if not pos:
                 pos = all_pos[0]
                 if len(all_pos) == 1:
-                    self.flag_problem("automatch_nymsection_outside_pos")
+                    nym.flag_problem("automatch_nymsection_outside_pos")
                 else:
-                    self.flag_problem("nymsense_matches_multiple_pos")
+                    nym.flag_problem("nymsection_matches_multiple_pos")
 
             all_words = pos.filter_words()
             if len(all_words) > 1:
-                self.flag_problem("pos_has_multiple_words")
+                nym.flag_problem("pos_has_multiple_words")
 
             all_defs = pos.filter_defs()
 
             if not len(all_defs):
-                self.flag_problem("pos_has_no_defs", pos.name)
+                nym.flag_problem("pos_has_no_defs", pos.name)
                 continue
 
             senses = nym.filter_senses()
@@ -122,59 +126,101 @@ class NymSectionToTag:
                 if not len(defs):
                     defs = all_defs
                     if nymsense.sense != "":
-                        self.flag_problem("nymsense_matches_no_defs", nymsense.sense)
+                        nymsense.flag_problem("nymsense_matches_no_defs", nymsense.sense)
 
                 elif nymsense.sense != "":
-                    self.flag_problem("automatch_sense")
+                    nymsense.flag_problem("automatch_sense")
 
+                no_merge=False
                 d = defs[0]
                 if len(defs) > 1:
-                    self.flag_problem("nymsense_matches_multiple_defs")
-                    d.add_nymsense(nymsense, no_merge=True)
-                else:
-                    d.add_nymsense(nymsense)
+                    nymsense.flag_problem("nymsense_matches_multiple_defs")
+                    # If this isn't a perfect match, don't merge it into existing nymsense
+                    # This makes it easy to manually review and move to the correct location
+                    no_merge=True
 
+                if self.can_handle(d.problems) \
+                   and self.can_handle(nymsense.problems) \
+                   and self.add_nymsense_to_def(nymsense, d, no_merge=no_merge):
+                       nymsense._parent.remove_child(nymsense)
+                else:
+                    nym.flag_problem("_unhandled_problems")
 
             # IF the nym has subsections, move them to the nym's parent object
-            if len(nym.filter_sections()):
-                found = False
-                for i, child in enumerate(nym._children):
-                    for node in child.nodes:
-                        if isinstance(node, WiktionarySection):
-                            found=True
-                            break
-                    if found:
-                        break
-                if not found:
-                    raise ValueError("can't find child")
-
-                # TODO: Change header level
-
-                new_parent = nym._parent
-                new_children = nym._children[i:]
-                for child in new_children:
-                    child._parent = new_parent
-
-                new_parent.replace_child_with_list(nym, new_children)
-                self.flag_problem("autofix_nym_section_has_subsections")
+            if len(nym.filter_sections(recursive=False)):
+                self.flag_problem("autofix_nymsection_has_subsections")
+                if self.can_handle(nym.local_problems):
+                    self.replace_with_subsections(nym)
             else:
-                language.remove_child(nym)
+                if self.can_handle(nym.local_problems):
+                    nym._parent.remove_child(nym)
 
-        if str(language) == language_text:
-            self.flag_problem("no_change")
+#        if str(language) == language_text:
+#            self.flag_problem("no_change")
 
-        return str(language).rstrip()
+        return str(language)
 
+
+    def add_nymsense_to_def(self, nymsense, definition, no_merge=False):
+        # TODO: Ensure nymsense has items
+        #
+
+        nymline = definition.get_nym(nymsense._type)
+        if not no_merge and nymline and "FIXME" not in nymline:
+            self.flag_problem("both_nym_line_and_section")
+            if self.can_handle("both_nym_line_and_section"):
+                self.add_nymsense_to_nymline(nymsense, nymline)
+                return True
+        else:
+            nymline = NymLine.from_nymsense(nymsense, name="1", parent=definition)
+            if len(str(nymline)) > 200:
+                nymline.flag_problem("long_nymline")
+            if self.can_handle(nymline.problems):
+                line = str(nymline)
+                if no_merge:
+                    line = re.sub("\n", f" <!-- FIXME, MATCH SENSE: '{nymsense.sense}' -->\n", line)
+                definition.add_nymline(line, smart_position=True, no_merge=no_merge)
+                return True
+
+    def add_nymsense_to_nymline(self, nymsense, nymline):
+        items = [wordlink.item for wordlink in nymsense.filter_wordlinks()]
+        if items:
+            nymline.add(items)
+
+    def replace_with_subsections(self, obj):
+
+        # Everything after the first WiktionarySection is "other" stuff
+        # that should be re-parented
+        found = False
+        for i, child in enumerate(obj._children):
+            for node in child.nodes:
+                if isinstance(node, WiktionarySection):
+                    found=True
+                    break
+            if found:
+                break
+        if not found:
+            raise ValueError("can't find child")
+
+        # TODO: Change header level on item and sub-items
+
+        new_parent = obj._parent
+        new_children = obj._children[i:]
+        for child in new_children:
+            child._parent = new_parent
+
+        new_parent.replace_child_with_list(obj, new_children)
 
     def run_fix(self, text, tools=[], page_title="", sections=["Synonyms", "Antonyms"]):
         """
         *page_title* is only used for error messages, and only available when run directly
         Only return fixes that can be fixed with the list of *tools* provided
         """
-        self.problems = {}
+        self.clear_problems()
         self._page = page_title
 
-        # TODO: Support fixing a single section at a time if the other section has errors
+        self.tools = set(tools)
+
         new_text = text
         for nym_title in sections:
             prev_text = new_text
@@ -187,24 +233,33 @@ class NymSectionToTag:
         if new_text == text:
             return text
 
-        if not len(self.problems.keys()):
+        if not len(self._problems.keys()):
             self.flag_problem("autofix")
+            if "autofix" not in self.tools and "all" not in self.tools:
+                print(f'{page_title} needs autofix')
+                return text
 
-        for x in self.problems.keys():
+        for x in self._problems.keys():
             self._stats[x] = self._stats.get(x, 0) + 1
 
-        if "only" in tools:
-            if set(tools).difference(set(self.problems.keys())) == {"only"} and \
-               set(self.problems.keys()).difference(set(tools)) == set():
+        if "only" in self.tools:
+            if self.tools.difference(set(self._problems.keys())) == {"only"} and \
+               set(self._problems.keys()).difference(self.tools) == set():
                    return new_text
             return text
 
-        missing_fixes = set(self.problems.keys()).difference(tools)
-        if missing_fixes and not len(self._debug_fix) and "all" not in tools:
-            print(f'{page_title} needs {", ".join(sorted(missing_fixes))}')
-            return text
+        missing_fixes = set(self._problems.keys()).difference(self.tools)
+        if missing_fixes:
+            self.flag_problem("partial_fix")
+            missing_fixes = set(self._problems.keys()).difference(self.tools)
 
-        return new_text
+        if missing_fixes and not len(self._debug_fix) and "all" not in self.tools:
+            print(f'{page_title} needs {", ".join(sorted(x for x in missing_fixes if not x.startswith("_")))}')
+
+        if "partial_fix" in missing_fixes and "all" not in self.tools:
+            return text
+        else:
+            return new_text.rstrip()
 
 
 def main():
