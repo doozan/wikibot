@@ -40,6 +40,7 @@ class NymSectionToTag:
         self._problems = {}
         self._stats = {}
         self._debug_fix = set(debug)
+        self.fixes = set()
 
         #self.log = logging.getLogger("wikibot")
         #self.log.setLevel(logging.DEBUG)
@@ -49,21 +50,33 @@ class NymSectionToTag:
         #self.log.addHandler(ch)
 
     def flag_problem(self, problem, *data, from_child=False):
+        """ Add *problem* to the internal list of problems
+
+        Return value is a Bool whether the problem is unhandled (True) or handled (False)
+        """
+
         #self.log.info(problem, json.dumps(data))
         #if name in self._debug_fix:
         #    print(f"{self._page} needs {name}: {params}")
         print(f"{self._page} needs {problem}: {data}")
         self._problems[problem] = self._problems.get(problem, []) + [data]
 
+        if "all" in self.fixes:
+            return False
+
+        return problem not in self.fixes
+
     def clear_problems(self):
         self._problems = {}
 
     def can_handle(self, problems):
-        if "all" in self.tools:
+        if "all" in self.fixes:
             return True
 
-        # This still doesn't work if problems is {}
-        res = len(set(problems.keys()).difference(self.tools)) == 0
+        if isinstance(problems, dict):
+            res = len(set(problems.keys()).difference(self.fixes)) == 0
+        else:
+            res = problems in self.fixes
 
         return res
 
@@ -73,7 +86,7 @@ class NymSectionToTag:
         """
 
         start = fr"(^|\n)=={self.LANG_SECTION}==\n"
-        re_endings = [ r"\[\[\s*Category\s*:" r"==[^=]+==", r"----" ]
+        re_endings = [ r"\[\[\s*Category\s*:", r"==[^=]+==", r"----" ]
         template_endings = [ "c", "C", "top", "topics", "categorize", "catlangname", "catlangcode", "cln", "DEFAULTSORT" ]
         re_endings += [ r"\{\{\s*"+item+r"\s*\|" for item in template_endings ]
         endings = "|".join(re_endings)
@@ -101,6 +114,7 @@ class NymSectionToTag:
 
         all_nyms = language.filter_nyms(matches=lambda x: x.name == nym_title)
         for nym in all_nyms:
+            unhandled_problems = False
             pos = nym.get_ancestor(PosSection)
             if not pos:
                 pos = all_pos[0]
@@ -139,21 +153,23 @@ class NymSectionToTag:
                     # This makes it easy to manually review and move to the correct location
                     no_merge=True
 
-                if self.can_handle(d.problems) \
+                if self.can_handle(nym.local_problems) \
+                   and self.can_handle(d.problems) \
                    and self.can_handle(nymsense.problems) \
                    and self.add_nymsense_to_def(nymsense, d, no_merge=no_merge):
                        nymsense._parent.remove_child(nymsense)
                 else:
-                    nym.flag_problem("_unhandled_problems")
+                    unhandled_problems = True
 
             # IF the nym has subsections, move them to the nym's parent object
             if len(nym.filter_sections(recursive=False)):
-                self.flag_problem("autofix_nymsection_has_subsections")
-                if self.can_handle(nym.local_problems):
-                    self.replace_with_subsections(nym)
-            else:
-                if self.can_handle(nym.local_problems):
-                    nym._parent.remove_child(nym)
+                if not self.flag_problem("autofix_nymsection_has_subsections"):
+                    if not unhandled_problems and self.can_handle(nym.local_problems):
+                        nym.raise_subsections()
+                        nym._parent.remove_child(nym)
+
+            elif not unhandled_problems and self.can_handle(nym.local_problems):
+                nym._parent.remove_child(nym)
 
 #        if str(language) == language_text:
 #            self.flag_problem("no_change")
@@ -187,39 +203,15 @@ class NymSectionToTag:
         if items:
             nymline.add(items)
 
-    def replace_with_subsections(self, obj):
-
-        # Everything after the first WiktionarySection is "other" stuff
-        # that should be re-parented
-        found = False
-        for i, child in enumerate(obj._children):
-            for node in child.nodes:
-                if isinstance(node, WiktionarySection):
-                    found=True
-                    break
-            if found:
-                break
-        if not found:
-            raise ValueError("can't find child")
-
-        # TODO: Change header level on item and sub-items
-
-        new_parent = obj._parent
-        new_children = obj._children[i:]
-        for child in new_children:
-            child._parent = new_parent
-
-        new_parent.replace_child_with_list(obj, new_children)
-
-    def run_fix(self, text, tools=[], page_title="", sections=["Synonyms", "Antonyms"]):
+    def run_fix(self, text, fixes=[], page_title="", sections=["Synonyms", "Antonyms"]):
         """
         *page_title* is only used for error messages, and only available when run directly
-        Only return fixes that can be fixed with the list of *tools* provided
+        Only return fixes that can be fixed with the list of *fixes* provided
         """
         self.clear_problems()
         self._page = page_title
 
-        self.tools = set(tools)
+        self.fixes = set(fixes)
 
         new_text = text
         for nym_title in sections:
@@ -235,28 +227,28 @@ class NymSectionToTag:
 
         if not len(self._problems.keys()):
             self.flag_problem("autofix")
-            if "autofix" not in self.tools and "all" not in self.tools:
+            if "autofix" not in self.fixes and "all" not in self.fixes:
                 print(f'{page_title} needs autofix')
                 return text
 
         for x in self._problems.keys():
             self._stats[x] = self._stats.get(x, 0) + 1
 
-        if "only" in self.tools:
-            if self.tools.difference(set(self._problems.keys())) == {"only"} and \
-               set(self._problems.keys()).difference(self.tools) == set():
+        if "only" in self.fixes:
+            if self.fixes.difference(set(self._problems.keys())) == {"only"} and \
+               set(self._problems.keys()).difference(self.fixes) == set():
                    return new_text
             return text
 
-        missing_fixes = set(self._problems.keys()).difference(self.tools)
+        missing_fixes = set(self._problems.keys()).difference(self.fixes)
         if missing_fixes:
             self.flag_problem("partial_fix")
-            missing_fixes = set(self._problems.keys()).difference(self.tools)
+            missing_fixes = set(self._problems.keys()).difference(self.fixes)
 
-        if missing_fixes and not len(self._debug_fix) and "all" not in self.tools:
+        if missing_fixes and not len(self._debug_fix) and "all" not in self.fixes:
             print(f'{page_title} needs {", ".join(sorted(x for x in missing_fixes if not x.startswith("_")))}')
 
-        if "partial_fix" in missing_fixes and "all" not in self.tools:
+        if "partial_fix" in missing_fixes and "all" not in self.fixes:
             return text
         else:
             return new_text.rstrip()
@@ -270,6 +262,7 @@ def main():
     parser.add_argument("--xml", help="XML file to load", required=True)
     parser.add_argument("--lang-id", help="Language id", required=True)
     parser.add_argument("--lang-section", help="Language name", required=True)
+    parser.add_argument("--ignore", help="List of articles to ignore")
     parser.add_argument(
         "--pre-file",
         help="Destination file for unchanged articles (default: pre.txt)",
@@ -328,12 +321,20 @@ def main():
     lang_count = 0
     fixable = 0
 
+    ignore = set()
+    if args.ignore:
+        with open(args.ignore) as infile:
+            ignore = set(infile.read().splitlines())
+
     for entry in parser:
         if args.article_limit and count > args.article_limit:
             break
         count += 1
 
         if ":" in entry.title:
+            continue
+
+        if entry.title in ignore:
             continue
 
         lang_entry = fixer.get_language_entry(entry.text)

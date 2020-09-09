@@ -28,7 +28,7 @@ def run_test(orig_text, expected_text, expected_flags, title="test"):
 
     fixer.clear_problems()
     new_text = fixer.run_fix(orig_text, expected_flags, title+"-fix", sections=["Synonyms","Antonyms","Hyponyms"])
-    assert expected_text == new_text
+    assert new_text == expected_text
 
 def test():
 
@@ -141,7 +141,7 @@ def test_gloss():
 # [[word1]]
 
 ====Synonyms====
-* {{l|es|syn1}} {{gloss|gloss as qualifier}}
+* {{sense|word1}} {{l|es|syn1}} {{gloss|gloss as qualifier}}
 """
     expected_text = """==Spanish==
 
@@ -151,8 +151,34 @@ def test_gloss():
 # [[word1]]
 #: {{syn|es|syn1|q1=gloss as qualifier}}"""
 
-    expected_flags = ["using_gloss_as_qualifier"]
-    run_test(orig_text, expected_text, expected_flags)
+    expected_flags = ["automatch_sense", "using_gloss_as_qualifier"]
+    new_text = fixer.run_fix(orig_text, expected_flags, "test-fix", sections=["Synonyms","Antonyms","Hyponyms"])
+    assert expected_text == new_text
+
+def test_gloss_as_sense():
+
+    orig_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word1]]
+
+====Synonyms====
+* {{gloss|word1}} {{l|es|syn1}}
+"""
+    expected_text = """==Spanish==
+
+===Noun===
+{{es-noun}}
+
+# [[word1]]
+#: {{syn|es|syn1}}"""
+
+    expected_flags = ["all"]
+    #run_test(orig_text, expected_text, expected_flags)
+    new_text = fixer.run_fix(orig_text, expected_flags, "test-fix", sections=["Synonyms","Antonyms","Hyponyms"])
+    assert expected_text == new_text
 
 
 
@@ -722,6 +748,176 @@ def xtest_sense_match_multi_wordsxxx():
 
     run_test(orig_text,expected_text,expected_flags, "test_multiword")
 
+def test_sense_match_diestro():
+    orig_text="""\
+==Spanish==
+===Adjective===
+{{es-adj|f=diestra}}
+
+# [[right]], [[right-hand]] {{gloss|direction}}
+# [[right-handed]]
+# [[skillful]], [[dexterous]], [[adroit]]
+# {{lb|es|heraldry}} [[dexter]], [[dextral]]
+
+====Synonyms====
+* {{sense|right-hand}} {{l|es|derecho}}
+* {{sense|skillful}} {{l|es|hábil}}, {{l|es|habiloso}}
+
+====Antonyms====
+* {{sense|right-handed}} {{l|es|zurdo}}
+* {{sense|right-hand}} {{l|es|izquierdo}}, {{l|es|siniestro}}
+"""
+    expected_text="""\
+==Spanish==
+===Adjective===
+{{es-adj|f=diestra}}
+
+# [[right]], [[right-hand]] {{gloss|direction}}
+#: {{syn|es|derecho}}
+#: {{ant|es|izquierdo|siniestro}}
+# [[right-handed]]
+#: {{ant|es|zurdo}}
+# [[skillful]], [[dexterous]], [[adroit]]
+#: {{syn|es|hábil|habiloso}}
+# {{lb|es|heraldry}} [[dexter]], [[dextral]]"""
+
+    expected_flags = ['automatch_sense']
+
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+def test_sense_match_aguja():
+    orig_text="""\
+==Spanish==
+===Noun===
+{{es-noun|f}}
+
+# [[needle]]
+#: {{ux|es|¿Tiene usted una '''aguja''' para coser estos botones?|Do you have a needle to sew on these buttons?}}
+# [[hand]] {{gloss|of a clock}}
+# {{lb|es|military}} [[firing pin]]
+# {{lb|es|architecture}} [[spire]], [[steeple]]
+# {{lb|es|plant}} [[Venus' comb]]
+
+====Synonyms====
+* {{s|hand}} {{l|es|saeta}}, {{l|es|manecilla}}
+* {{sense|plant}} {{l|es|peine de Venus}}
+"""
+    expected_text="""\
+==Spanish==
+===Noun===
+{{es-noun|f}}
+
+# [[needle]]
+#: {{ux|es|¿Tiene usted una '''aguja''' para coser estos botones?|Do you have a needle to sew on these buttons?}}
+# [[hand]] {{gloss|of a clock}}
+#: {{syn|es|saeta|manecilla}}
+# {{lb|es|military}} [[firing pin]]
+# {{lb|es|architecture}} [[spire]], [[steeple]]
+# {{lb|es|plant}} [[Venus' comb]]
+#: {{syn|es|peine de Venus}}"""
+
+    expected_flags = ['automatch_sense']
+
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+
+
+def test_sense_match_thesaurus():
+    orig_text="""\
+==Spanish==
+
+===Noun===
+{{es-noun|f}}
+
+# [[word]]
+
+====Synonyms====
+* See [[Thesaurus:test]].
+"""
+    expected_text="""\
+==Spanish==
+
+===Noun===
+{{es-noun|f}}
+
+# [[word]]
+#: {{syn|es|Thesaurus:test}}"""
+
+    expected_flags = ['autofix']
+
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+    orig_text="""\
+==Spanish==
+
+===Noun===
+{{es-noun|f}}
+
+# [[word]]
+
+====Synonyms====
+* See [[Thesaurus:test]]
+"""
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+    expected_flags=["automatch_sense"]
+    orig_text="""\
+==Spanish==
+
+===Noun===
+{{es-noun|f}}
+
+# [[word]]
+
+====Synonyms====
+* {{s|word}} See [[Thesaurus:test]]
+"""
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+    orig_text="""\
+==Spanish==
+
+===Noun===
+{{es-noun|f}}
+
+# [[word]]
+
+====Synonyms====
+* {{sense|word}} See [[Thesaurus:test]]
+"""
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+
+def test_sense_match_3():
+    orig_text="""\
+==Spanish==
+
+===Noun===
+{{es-noun|f}}
+
+# {{lb|es|colloquial}} [[drunkenness]]
+# {{lb|es|colloquial}} [[year]] (used in talking about ages)
+
+====Synonyms====
+* {{sense|drunkenness}} See [[Thesaurus:borrachera]].
+* {{sense|year}} {{l|es|año}}
+"""
+    expected_text="""\
+==Spanish==
+
+===Noun===
+{{es-noun|f}}
+
+# {{lb|es|colloquial}} [[drunkenness]]
+#: {{syn|es|Thesaurus:borrachera}}
+# {{lb|es|colloquial}} [[year]] (used in talking about ages)
+#: {{syn|es|año}}"""
+
+    expected_flags = ['automatch_sense']
+
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+
 
 def test_partial_fixes():
 
@@ -760,4 +956,38 @@ def test_partial_fixes():
     new_text = fixer.run_fix(orig_text, ["partial_fix"], "partial_fix-fix", sections=["Synonyms","Antonyms","Hyponyms"])
     assert new_text == expected_text
 
+
+def test_tortilla():
+    orig_text="""\
+==Spanish==
+
+===Noun===
+{{es-noun|f}}
+
+# {{lb|es|Spain and most Hispanic countries}} [[Spanish omelette]], {{l|en|tortilla}}
+# {{lb|es|Spain and most Hispanic countries}} [[omelette]]
+# {{lb|es|Mexico and Central America}} {{l|en|tortilla}}
+
+====Synonyms====
+* {{gloss|Spanish omelette}} {{l|es|tortilla de patatas}} {{qualifier|Spain}}, {{l|es|tortilla de papas}} {{qualifier|Hispanic America|Canary Islands}}, {{l|es|tortilla española}}
+* {{gloss|omelette}} {{l|es|tortilla francesa}}
+* {{gloss|tortilla}} {{l|es|tortilla de harina de trigo}}, {{l|es|tortilla de harina}}, {{l|es|tortilla de trigo}}
+"""
+
+    expected_text = """\
+==Spanish==
+
+===Noun===
+{{es-noun|f}}
+
+# {{lb|es|Spain and most Hispanic countries}} [[Spanish omelette]], {{l|en|tortilla}}
+#: {{syn|es|tortilla de patatas|q1=Spain|tortilla de papas|q2=Hispanic America, Canary Islands|tortilla española}}
+#: {{syn|es|tortilla francesa}} <!-- FIXME, MATCH SENSE: 'omelette' -->
+#: {{syn|es|tortilla de harina de trigo|tortilla de harina|tortilla de trigo}} <!-- FIXME, MATCH SENSE: 'tortilla' -->
+# {{lb|es|Spain and most Hispanic countries}} [[omelette]]
+# {{lb|es|Mexico and Central America}} {{l|en|tortilla}}"""
+
+    expected_flags = ['autofix_gloss_as_sense', 'automatch_sense', 'nymsense_matches_multiple_defs']
+
+    run_test(orig_text,expected_text,expected_flags, "test_multiword")
 
