@@ -682,7 +682,7 @@ def test_sense_match_multi_words():
 # [[big deal]], [[fuss]], [[scene]]
 #: {{syn|es|gran cosa|escándalo|escena}}"""
 
-    expected_flags = ["automatch_sense"]
+    expected_flags = ["automatch_sense", "link_is_complicated"]
 
     run_test(orig_text,expected_text,expected_flags, "test_multiword")
 

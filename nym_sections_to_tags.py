@@ -29,7 +29,7 @@ import wtparser
 from wtparser.sections import WiktionarySection
 from wtparser.sections.language import LanguageSection
 from wtparser.sections.pos import PosSection
-from wtparser.sections.nymsection import NymSection
+from wtparser.sections.nym import NymSection
 from wtparser.wtnodes.nymline import NymLine
 from wtparser.wtnodes.word import Word
 
@@ -115,19 +115,22 @@ class NymSectionToTag:
         all_nyms = language.filter_nyms(matches=lambda x: x.name == nym_title)
         for nym in all_nyms:
             unhandled_problems = False
+            search_pos = []
             pos = nym.get_ancestor(PosSection)
+            if pos:
+                search_pos = [pos]
             if not pos:
-                pos = all_pos[0]
+                search_pos = all_pos
                 if len(all_pos) == 1:
                     nym.flag_problem("automatch_nymsection_outside_pos")
                 else:
                     nym.flag_problem("nymsection_matches_multiple_pos")
 
-            all_words = pos.filter_words()
-            if len(all_words) > 1:
-                nym.flag_problem("pos_has_multiple_words")
-
-            all_defs = pos.filter_defs()
+#            all_words = pos.filter_words()
+#            if len(all_words) > 1:
+#                nym.flag_problem("pos_has_multiple_words")
+#
+            all_defs = [ d for pos in search_pos for d in pos.filter_defs() ]
 
             if not len(all_defs):
                 nym.flag_problem("pos_has_no_defs", pos.name)
@@ -135,7 +138,7 @@ class NymSectionToTag:
 
             senses = nym.filter_senses()
             for nymsense in senses:
-                defs = pos.filter_defs(matches=lambda d: d.has_sense(nymsense.sense))
+                defs = [ d for pos in search_pos for d in pos.filter_defs(matches=lambda x: x.has_sense(nymsense.sense)) ]
 
                 if not len(defs):
                     defs = all_defs
@@ -199,7 +202,7 @@ class NymSectionToTag:
                 return True
 
     def add_nymsense_to_nymline(self, nymsense, nymline):
-        items = [wordlink.item for wordlink in nymsense.filter_wordlinks()]
+        items = [decoratedlink.item for decoratedlink in nymsense.filter_decoratedlinks()]
         if items:
             nymline.add(items)
 
