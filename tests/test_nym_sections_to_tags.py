@@ -255,7 +255,7 @@ def test_fix_subsection():
 =====Subsection3=====
 * blah"""
 
-    expected_flags = ["autofix_nymsection_has_subsections", "unexpected_section", "unhandled_line"]
+    expected_flags = ["autofix_nymsection_has_subsections", "unexpected_section"]
     run_test(orig_text, expected_text, expected_flags)
 
 

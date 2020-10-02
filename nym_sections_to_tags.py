@@ -25,13 +25,13 @@ import os
 from pywikibot import xmlreader
 import re
 
-import wtparser
-from wtparser.sections import WiktionarySection
-from wtparser.sections.language import LanguageSection
-from wtparser.sections.pos import PosSection
-from wtparser.sections.nym import NymSection
-from wtparser.wtnodes.nymline import NymLine
-from wtparser.wtnodes.word import Word
+import enwiktionary_parser as wtparser
+from enwiktionary_parser.sections import WiktionarySection
+from enwiktionary_parser.sections.language import LanguageSection
+from enwiktionary_parser.sections.pos import PosSection
+from enwiktionary_parser.sections.nym import NymSection
+from enwiktionary_parser.wtnodes.nymline import NymLine
+from enwiktionary_parser.wtnodes.word import Word
 
 class NymSectionToTag:
     def __init__(self, lang_name, lang_id, debug=()):
@@ -61,10 +61,7 @@ class NymSectionToTag:
         print(f"{self._page} needs {problem}: {data}")
         self._problems[problem] = self._problems.get(problem, []) + [data]
 
-        if "all" in self.fixes:
-            return False
-
-        return problem not in self.fixes
+        return not self.can_handle(problem)
 
     def clear_problems(self):
         self._problems = {}
@@ -86,7 +83,7 @@ class NymSectionToTag:
         """
 
         start = fr"(^|\n)=={self.LANG_SECTION}==\n"
-        re_endings = [ r"\[\[\s*Category\s*:", r"==[^=]+==", r"----" ]
+        re_endings = [ r"\[\[\s*Category\s*:", r"==[^=]+==", r"----", r"\{\{DEFAULTSORT:" ]
         template_endings = [ "c", "C", "top", "topics", "categorize", "catlangname", "catlangcode", "cln", "DEFAULTSORT" ]
         re_endings += [ r"\{\{\s*"+item+r"\s*\|" for item in template_endings ]
         endings = "|".join(re_endings)
@@ -130,15 +127,15 @@ class NymSectionToTag:
 #            if len(all_words) > 1:
 #                nym.flag_problem("pos_has_multiple_words")
 #
-            all_defs = [ d for pos in search_pos for d in pos.filter_defs() ]
+            all_defs = [ d for pos in search_pos for d in pos.filter_wordsenses() ]
 
             if not len(all_defs):
                 nym.flag_problem("pos_has_no_defs", pos.name)
                 continue
 
-            senses = nym.filter_senses()
+            senses = nym.filter_nymsenses()
             for nymsense in senses:
-                defs = [ d for pos in search_pos for d in pos.filter_defs(matches=lambda x: x.has_sense(nymsense.sense)) ]
+                defs = [ d for pos in search_pos for d in pos.filter_wordsenses(matches=lambda x: x.has_sense(nymsense.sense)) ]
 
                 if not len(defs):
                     defs = all_defs
