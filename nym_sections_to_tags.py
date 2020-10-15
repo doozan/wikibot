@@ -94,7 +94,7 @@ class NymSectionToTag:
         if res:
             return res.group(0)
 
-    def replace_nym_section_with_tag(self, language_text, nym_title, page=None):
+    def replace_nym_section_with_tag(self, language_text, nym_title, title=None):
 
         # Make sure there's a nym section at L3 or deeper
         header_level = 3
@@ -102,14 +102,14 @@ class NymSectionToTag:
         if f"{header_tag}{nym_title}{header_tag}" not in language_text:
             return
 
-        language = wtparser.parse_language(language_text, skip_style_tags=True, parent=self) #, name="wikibot.language")
+        wikt = wtparser.parse_page(language_text, title=title, parent=self, skip_style_tags=True)
 
-        all_pos = language.filter_pos()
+        all_pos = wikt.filter_pos()
         if not len(all_pos):
             self.flag_problem("no_pos")
             return
 
-        all_nyms = language.filter_nyms(matches=lambda x: x.name == nym_title)
+        all_nyms = wikt.filter_nyms(matches=lambda x: x.name == nym_title)
         for nym in all_nyms:
             unhandled_problems = False
             search_pos = []
@@ -171,10 +171,10 @@ class NymSectionToTag:
             elif not unhandled_problems and self.can_handle(nym.local_problems):
                 nym._parent.remove_child(nym)
 
-#        if str(language) == language_text:
+#        if str(wikt) == language_text:
 #            self.flag_problem("no_change")
 
-        return str(language)
+        return str(wikt)
 
 
     def add_nymsense_to_def(self, nymsense, definition, no_merge=False):
