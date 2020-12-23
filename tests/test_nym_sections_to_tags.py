@@ -15,20 +15,30 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pytest
-from nym_sections_to_tags import NymSectionToTag
+from ..nym_sections_to_tags import NymSectionToTag
 
-fixer = NymSectionToTag("Spanish", "es")
+fixer = NymSectionToTag("es")
+en_fixer = NymSectionToTag("en")
 
 def run_test(orig_text, expected_text, expected_flags, title="test"):
 
     fixer.clear_problems()
     new_text = fixer.run_fix(orig_text, [], title)
     assert orig_text == new_text
-    assert sorted(expected_flags) == sorted([ x for x in fixer._problems.keys() if not x.startswith("_") and x != "partial_fix" ])
+
+    first_expected = [ x for x in expected_flags if x != 'partial_fix' ]
+    assert sorted(first_expected) == sorted([ x for x in fixer._problems.keys() if not x.startswith("_") and x != "partial_fix" ])
 
     fixer.clear_problems()
     new_text = fixer.run_fix(orig_text, expected_flags, title+"-fix", sections=["Synonyms","Antonyms","Hyponyms"])
     assert new_text == expected_text
+
+def run_test_partial(orig_text, expected_text, expected_flags, title="test"):
+
+    fixer.clear_problems()
+    new_text = fixer.run_fix(orig_text, expected_flags, title+"-fix", sections=["Synonyms","Antonyms","Hyponyms"])
+    assert new_text == expected_text
+
 
 def test():
 
@@ -61,20 +71,20 @@ def test_multi_defs():
 ===Noun===
 {{es-noun}}
 
-# [[word1]]
-# [[word2]]
+# [[wordA]]
+# [[wordB]]
 
 ====Synonyms====
-* {{l|es|syn1}}
+* {{l|es|synA}}
 """
     expected_text = """==Spanish==
 
 ===Noun===
 {{es-noun}}
 
-# [[word1]]
-#: {{syn|es|syn1}} <!-- FIXME, MATCH SENSE: '' -->
-# [[word2]]"""
+# [[wordA]]
+#: {{syn|es|synA}} <!-- FIXME, MATCH SENSE: '' -->
+# [[wordB]]"""
 
     expected_flags = ["nymsense_matches_multiple_defs"]
     run_test(orig_text, expected_text, expected_flags)
@@ -86,20 +96,20 @@ def test_multi_defs2():
 ===Noun===
 {{es-noun}}
 
-# {{l|en|word1}}
-# [[word2]]
+# {{l|en|wordA}}
+# [[wordB]]
 
 ====Synonyms====
-* {{l|es|syn1}}
+* {{l|es|synA}}
 """
     expected_text = """==Spanish==
 
 ===Noun===
 {{es-noun}}
 
-# {{l|en|word1}}
-#: {{syn|es|syn1}} <!-- FIXME, MATCH SENSE: '' -->
-# [[word2]]"""
+# {{l|en|wordA}}
+#: {{syn|es|synA}} <!-- FIXME, MATCH SENSE: '' -->
+# [[wordB]]"""
 
     expected_flags = ["nymsense_matches_multiple_defs"]
     run_test(orig_text, expected_text, expected_flags)
@@ -111,24 +121,24 @@ def test_multi_nomerge():
 ===Noun===
 {{es-noun}}
 
-# {{l|en|word1}}
-# [[word2]]
+# {{l|en|wordA}}
+# [[wordB]]
 
 ====Synonyms====
-* {{sense|sense1}} {{l|es|syn1}}
-* {{sense|sense2}}  {{l|es|syn2}}
+* {{sense|senseA}} {{l|es|synA}}
+* {{sense|sense2}}  {{l|es|synB}}
 """
     expected_text = """==Spanish==
 
 ===Noun===
 {{es-noun}}
 
-# {{l|en|word1}}
-#: {{syn|es|syn1}} <!-- FIXME, MATCH SENSE: 'sense1' -->
-#: {{syn|es|syn2}} <!-- FIXME, MATCH SENSE: 'sense2' -->
-# [[word2]]"""
+# {{l|en|wordA}}
+#: {{syn|es|synA}} <!-- FIXME, MATCH SENSE: 'senseA' -->
+#: {{syn|es|synB}} <!-- FIXME, MATCH SENSE: 'sense2' -->
+# [[wordB]]"""
 
-    expected_flags = ["nymsense_matches_multiple_defs", "nymsense_matches_no_defs"]
+    expected_flags = ["nymsense_matches_no_defs"]
     run_test(orig_text, expected_text, expected_flags)
 
 def test_gloss():
@@ -138,18 +148,18 @@ def test_gloss():
 ===Noun===
 {{es-noun}}
 
-# [[word1]]
+# [[wordA]]
 
 ====Synonyms====
-* {{sense|word1}} {{l|es|syn1}} {{gloss|gloss as qualifier}}
+* {{sense|wordA}} {{l|es|synA}} {{gloss|gloss as qualifier}}
 """
     expected_text = """==Spanish==
 
 ===Noun===
 {{es-noun}}
 
-# [[word1]]
-#: {{syn|es|syn1|q1=gloss as qualifier}}"""
+# [[wordA]]
+#: {{syn|es|synA|q1=gloss as qualifier}}"""
 
     expected_flags = ["automatch_sense", "using_gloss_as_qualifier"]
     new_text = fixer.run_fix(orig_text, expected_flags, "test-fix", sections=["Synonyms","Antonyms","Hyponyms"])
@@ -162,18 +172,18 @@ def test_gloss_as_sense():
 ===Noun===
 {{es-noun}}
 
-# [[word1]]
+# [[wordA]]
 
 ====Synonyms====
-* {{gloss|word1}} {{l|es|syn1}}
+* {{gloss|wordA}} {{l|es|synA}}
 """
     expected_text = """==Spanish==
 
 ===Noun===
 {{es-noun}}
 
-# [[word1]]
-#: {{syn|es|syn1}}"""
+# [[wordA]]
+#: {{syn|es|synA}}"""
 
     expected_flags = ["all"]
     #run_test(orig_text, expected_text, expected_flags)
@@ -182,41 +192,16 @@ def test_gloss_as_sense():
 
 
 
-def test_brocolli():
-    entry_text="""==Spanish==
-{{wikipedia|lang=es}}
-
-===Etymology===
-Alteration of {{m|es|bróculi}}.
-
-===Pronunciation===
-* {{es-IPA}}
-
-===Noun===
-{{es-noun|m|brécoles}}
-
-# [[broccoli]]
-
-====Synonyms====
-* {{l|es|brócoli}}
-* {{l|es|bróculi}}
-
-===Further reading===
-* {{R:DRAE 2001}}"""
-
-    lang_entry = fixer.get_language_entry(entry_text)
-    assert lang_entry == entry_text
-
 def test_fix_subsection():
     orig_text = """==Spanish==
 
 ===Noun===
 {{es-noun}}
 
-# [[word1]]
+# [[wordA]]
 
 ====Synonyms====
-* {{l|es|syn1}}
+* {{l|es|synA}}
 
 =====Subsection=====
 * blah
@@ -238,8 +223,8 @@ def test_fix_subsection():
 ===Noun===
 {{es-noun}}
 
-# [[word1]]
-#: {{syn|es|syn1}}
+# [[wordA]]
+#: {{syn|es|synA}}
 
 =====Subsection=====
 * blah
@@ -259,121 +244,7 @@ def test_fix_subsection():
     run_test(orig_text, expected_text, expected_flags)
 
 
-def test_lang_parser():
-    pre_text="""====Declension====
-{{sh-decl-noun
-|idèāl|ideali
-|ideála|ideala
-|idealu|idealima
-|ideal|ideale
-|ideale|ideali
-|idealu|idealima
-|idealom|idealima
-}}
-
-----
-
-"""
-    spanish_text="""
-==Spanish==
-
-===Etymology===
-From {{der|es|la|ideālis}}.
-
-===Pronunciation===
-* {{es-IPA}}
-
-===Adjective===
-{{es-adj|pl=ideales}}
-
-# {{l|en|ideal}}
-
-====Derived terms====
-{{der2|es|idealizar|idealmente}}
-
-===Noun===
-{{es-noun|m}}
-
-# {{l|en|ideal}}"""
-
-    post_text="""
-
-----
-
-==Swedish==
-
-===Pronunciation===
-* {{audio|sv|Sv-ideal.ogg|audio}}
-
-===Noun===
-{{sv-noun|n}}
-
-# [[#English|ideal]]; perfect standard
-# {{lb|sv|mathematics}} [[#English|ideal]]; special subsets of a [[ring]]
-
-====Declension====
-{{sv-infl-noun-n-zero}}
-
-===Anagrams===
-* {{anagrams|sv|a=adeil|ilade}}
-
-----
-
-==Turkish==
-
-"""
-    entry_text = pre_text+spanish_text+post_text
-
-    lang_entry = fixer.get_language_entry(entry_text)
-    assert lang_entry == spanish_text
-
-
-
-def test_lang_parser():
-    pre_text="""====Declension====
-{{sh-decl-noun
-|idèāl|ideali
-|ideála|ideala
-|idealu|idealima
-|ideal|ideale
-|ideale|ideali
-|idealu|idealima
-|idealom|idealima
-}}
-
-----
-
-"""
-    spanish_text="""
-==Spanish==
-
-===Etymology===
-From {{der|es|la|ideālis}}.
-
-===Pronunciation===
-* {{es-IPA}}
-
-===Adjective===
-{{es-adj|pl=ideales}}
-
-# {{l|en|ideal}}
-
-====Derived terms====
-{{der2|es|idealizar|idealmente}}
-
-===Noun===
-{{es-noun|m}}
-
-# {{l|en|ideal}}"""
-
-    entry_text = pre_text+spanish_text
-
-    lang_entry = fixer.get_language_entry(entry_text)
-    assert lang_entry == spanish_text
-
-
-
-def xtest_run_fix_viste():
+def test_run_fix_viste():
 
     orig_text="""==Spanish==
 
@@ -394,14 +265,14 @@ def xtest_run_fix_viste():
 
 # {{lb|es|interrogatively|informal|Rioplatense}} {{non-gloss definition|Used as a space filler, usually in the middle of a sentence, or when telling a story.}}
 #: No sabía qué decirle, ¿'''viste'''? — I didn't know what to tell her, '''you know'''?
-#: {{syn|es|sabés|no}}
+#: {{syn|es|sabés|alt1=¿sabés?|no|alt2=¿no?}}\
 """
-    expected_flags = ['def_hashcolon_is_not_nym', 'has_nymsection_at_word_level', 'use_nymsection_from_word_level']
+    expected_flags = ['automatch_nymsection_outside_pos']
 
     run_test(orig_text,expected_text,expected_flags)
 
 
-def xtest_open_templates():
+def test_open_templates():
 
     orig_text="""==Spanish==
 
@@ -428,41 +299,41 @@ def xtest_open_templates():
 |word}} {{q|Mexico
 |Spain}} {{gloss
 |a long description}}
-#: {{syn|es|otherword}}
+#: {{syn|es|otherword}}\
 """
     expected_flags = ["autofix"]
 
     run_test(orig_text,expected_text,expected_flags)
 
 
-def xtest_sense_match_same_level():
+def test_sense_match_same_level():
 
     orig_text="""==Spanish==
 
 ===Noun===
 {{es-noun|m}}
 
-# {{senseid|es|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
-# {{l|en|word2}}
+# {{senseid|es|worda}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+# {{l|en|wordb}}
 
 ===Synonyms===
-* {{sense|word1}} {{l|es|otherword}}
+* {{sense|worda}} {{l|es|otherword}}
 """
     expected_text="""==Spanish==
 
 ===Noun===
 {{es-noun|m}}
 
-# {{senseid|es|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+# {{senseid|es|worda}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
 #: {{syn|es|otherword}}
-# {{l|en|word2}}
+# {{l|en|wordb}}\
 """
-    expected_flags = ["has_nymsection_at_word_level", "use_nymsection_from_word_level", "automatch_senseid"]
+    expected_flags = ['automatch_nymsection_outside_pos', 'automatch_sense']
 
     run_test(orig_text,expected_text,expected_flags)
 
 
-def xtest_run_fix_complex():
+def test_run_fix_complex():
 
     orig_text="""==Spanish==
 
@@ -481,112 +352,94 @@ def xtest_run_fix_complex():
 * {{l|es|caricatura política}}
 """
 
-    expected_text="""==Spanish==
+    expected_text_partial="""==Spanish==
 
 ===Noun===
 {{es-noun|f}}
 
 # {{lb|es|art}} [[caricature]] (pictorial representation of someone for comic effect)
 #: {{syn|es|dibujo}}
+# {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
 #: {{syn|es|dibujos animados}}
-#: {{hypo|es|caricatura editorial|caricatura política}}
-# {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
-"""
-
-    expected_flags = ['automatch_sense', 'def_duplicate_nym_defs', 'link_has_param4', 'sense_matches_multiple_defs', 'unmatched_sense']
-    run_test(orig_text,expected_text,expected_flags)
-
-
-def xtest_run_fix_complex2():
-
-    orig_text="""==Spanish==
-
-===Noun===
-{{es-noun|f}}
-
-# {{lb|es|art}} [[caricature]] (pictorial representation of someone for comic effect)
-# {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
 
 ====Hyponyms====
 * {{l|es|caricatura editorial||editorial cartoon}}
-* {{l|es|caricatura política}}
-
-====Synonyms====
-* {{sense|caricature}} {{l|es|dibujo}}
-* {{sense|cartoon}} {{l|es|dibujos animados}}
+* {{l|es|caricatura política}}\
 """
 
-    expected_text="""==Spanish==
+    expected_text_all="""==Spanish==
 
 ===Noun===
 {{es-noun|f}}
 
 # {{lb|es|art}} [[caricature]] (pictorial representation of someone for comic effect)
 #: {{syn|es|dibujo}}
-#: {{syn|es|dibujos animados}}
-#: {{hypo|es|caricatura editorial|caricatura política}}
+#: {{hypo|es|caricatura editorial|q1=editorial cartoon|caricatura política}} <!-- FIXME, MATCH SENSE: '' -->
 # {{lb|es|colloquial|Mexico}} [[animated cartoon]] (''specially in plural'')
+#: {{syn|es|dibujos animados}}\
 """
 
-    expected_flags = ['automatch_sense', 'def_duplicate_nym_defs', 'link_has_param4', 'sense_matches_multiple_defs', 'unmatched_sense']
+    expected_flags = ['automatch_sense', 'nymsense_matches_multiple_defs', 'partial_fix' ]
+    run_test_partial(orig_text,expected_text_partial,expected_flags)
 
-    run_test(orig_text,expected_text,expected_flags)
+    expected_flags = ['all']
+    run_test_partial(orig_text,expected_text_all,expected_flags)
 
 
-def xtest_sense_match_senseid():
+def test_sense_match_senseid():
 
     orig_text="""==Spanish==
 
 ===Noun===
 {{es-noun|m}}
 
-# {{senseid|es|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
-# {{l|en|word2}}
+# {{senseid|es|wordA}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+# {{l|en|wordB}}
 
 ====Synonyms====
-* {{sense|word1}} {{l|es|otherword}}
+* {{sense|wordA}} {{l|es|otherword}}
 """
     expected_text="""==Spanish==
 
 ===Noun===
 {{es-noun|m}}
 
-# {{senseid|es|word1}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
+# {{senseid|es|wordA}} {{l|en|word}} {{q|Mexico|Spain}} {{gloss|a long description}}
 #: {{syn|es|otherword}}
-# {{l|en|word2}}
+# {{l|en|wordB}}\
 """
-    expected_flags = ["automatch_senseid"]
-
-    run_test(orig_text,expected_text,expected_flags)
-
-
-
-def xtest_sense_match_def():
-
-    orig_text="""==Spanish==
-
-===Noun===
-{{es-noun|m}}
-
-# {{lb|en|sometimes}} [[word1]] {{q|Mexico|Spain}} {{gloss|a long description}}
-# [[word2]]
-
-====Synonyms====
-* {{sense|word2}} {{l|es|otherword2}}
-* {{sense|word1}} {{l|es|otherword}}
-"""
-    expected_text="""==Spanish==
-
-===Noun===
-{{es-noun|m}}
-
-# {{lb|en|sometimes}} [[word1]] {{q|Mexico|Spain}} {{gloss|a long description}}
-#: {{syn|es|otherword}}
-# [[word2]]
-#: {{syn|es|otherword2}}
-"""
-
     expected_flags = ["automatch_sense"]
+
+    run_test(orig_text,expected_text,expected_flags)
+
+
+
+def test_sense_match_def():
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{lb|en|sometimes}} [[wordA]] {{q|Mexico|Spain}} {{gloss|a long description}}
+# [[wordB]]
+
+====Synonyms====
+* {{sense|wordB}} {{l|es|otherwordB}}
+* {{sense|wordA}} {{l|es|otherword}}
+"""
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# {{lb|en|sometimes}} [[wordA]] {{q|Mexico|Spain}} {{gloss|a long description}}
+#: {{syn|es|otherword}}
+# [[wordB]]
+#: {{syn|es|otherwordB}}\
+"""
+
+    expected_flags = ["automatch_sense",  'sense_label_lang_mismatch']
 
     run_test(orig_text,expected_text,expected_flags)
 
@@ -598,22 +451,22 @@ def test_sense_match_multi_def():
 ===Noun===
 {{es-noun|m}}
 
-# [[word1]], blah word2 blah
-# [[word2]]
-# [[word3]]
+# [[wordA]], blah wordB blah
+# [[wordB]]
+# [[wordC]]
 
 ====Synonyms====
-* {{sense|word2}} {{l|es|syn1}}
+* {{sense|wordB}} {{l|es|synA}}
 """
     expected_text="""==Spanish==
 
 ===Noun===
 {{es-noun|m}}
 
-# [[word1]], blah word2 blah
-#: {{syn|es|syn1}} <!-- FIXME, MATCH SENSE: 'word2' -->
-# [[word2]]
-# [[word3]]"""
+# [[wordA]], blah wordB blah
+#: {{syn|es|synA}} <!-- FIXME, MATCH SENSE: 'wordB' -->
+# [[wordB]]
+# [[wordC]]"""
 
     expected_flags = ["automatch_sense", 'both_nym_line_and_section', "nymsense_matches_multiple_defs"]
 
@@ -711,40 +564,6 @@ def test_sense_match_multi_words2():
 #: {{syn|es|botón|yema}}"""
 
     expected_flags = ["automatch_sense"]
-
-    run_test(orig_text,expected_text,expected_flags, "test_multiword")
-
-def xtest_sense_match_multi_wordsxxx():
-
-    orig_text="""==Spanish==
-
-===Noun===
-{{es-noun|m}}
-
-# [[gem]]
-# {{lb|es|botany}} [[bud]], [[shoot]]
-
-====Synonyms====
-* {{l|es|buen rollo}} {{qualifier|Argentina|Chile|Mexico|Spain}}
-* {{l|es|buena onda}} {{qualifier|Mexico}}
-* {{l|es|chévere}} {{qualifier|Caribbean|Venezuela|Peru}}
-* {{l|es|genial}}
-* {{l|es|chido}} {{qualifier|Mexico}}
-* {{l|es|padre}} {{qualifier|Mexico}}
-* {{l|es|diacachimba}} {{qualifier|Nicaragua}}
-* {{l|es|diaverga}} {{qualifier|Nicaragua}}
-"""
-
-    expected_text="""==Spanish==
-
-===Noun===
-{{es-noun|m}}
-
-# [[gem]]
-# {{lb|es|botany}} [[bud]], [[shoot]]
-#: {{syn|es|botón|yema}}"""
-
-    expected_flags = ['long_nymline', 'nymsense_matches_multiple_defs']
 
     run_test(orig_text,expected_text,expected_flags, "test_multiword")
 
@@ -990,4 +809,236 @@ def test_tortilla():
     expected_flags = ['autofix_gloss_as_sense', 'automatch_sense', 'nymsense_matches_multiple_defs']
 
     run_test(orig_text,expected_text,expected_flags, "test_multiword")
+
+
+def notest_you():
+    orig_text="""\
+==English==
+
+===Etymology===
+From {{m|en|champ|champ (verb)|to chew noisily}} + {{m|en|bit||part of horse's harness held in its mouth}}; horses tend to chew on their bits when impatient at waiting.
+
+===Pronunciation===
+* {{audio|en|en-au-champ at the bit.ogg|Audio (AU)}}
+
+===Verb===
+{{en-verb|*}}
+
+# {{lb|en|intransitive|horses}} To [[bite]] the [[bit]], especially when [[restless]].
+# {{lb|en|intransitive|idiomatic|of a person}} To show [[impatience]] or [[frustration]] when [[delayed]].
+#* '''2001:''' Byron Spice, Science Editor, Pittsburgh Post-Gazette, ''PG News'' read at [http://www.postgazette.com/healthscience/20011001terascale1001p3.asp] on 14 May 2006
+#*: Pittsburgh supercomputer is complete, and scientists are '''champing at the bit''' to use it.
+#* '''2006:''' Australian Broadcasting Corporation, webpage for ''Ideas with wings, a radio series supporting innovation'' read at [http://abc.net.au/science/wings/ http://abc.net.au/science/wings/] on 14 May 2006
+#*: Everyone is '''champing at the bit''' to be labelled innovative.
+#* '''2006:''' Al Rosenquist of Pastika’s Sport Shop, speaking to Terrell Boettcher of Sawyer County Record, Hayward, Wisconsin, ''Anglers '''champing at the bit''' ''read at [http://www.haywardwi.com/record/index.php?story_id=218863] on 14 May 2006
+#*: We had quite a few people in last weekend. They’re '''champing at the bit''', ready to go.
+
+====Synonyms====
+* {{l|en|chafe at the bit}}
+
+====Related terms====
+* {{l|en|chomp at the bit}}
+
+====Translations====
+{{trans-top|of horse: to bite the bit}}
+* Finnish: {{t|fi|[[purra]] [[kuolain|kuolainta]]}}
+* French: {{t+|fr|prendre le mors aux dents}}
+{{trans-mid}}
+* German: {{t|de|auf dem Gebiss kauen}}
+* Russian: {{t|ru|закуси́ть удила́}}
+{{trans-bottom}}
+
+{{trans-top|to show impatience when delayed}}
+* Finnish: {{t|fi|hermoilla}}
+* French: {{t+|fr|ronger son frein}}, {{t+|fr|se ronger les ongles}}
+* German: {{t|de|mit den Hufen scharren}}
+{{trans-mid}}
+* Russian: {{t|ru|закуси́ть удила́}}
+* Swedish: {{t|sv|brinna av iver}}, {{t|sv|brinna av otålighet}}
+{{trans-bottom}}
+"""
+
+    expected_text = """\
+==Spanish==
+
+===Noun===
+{{es-noun|f}}
+
+# {{lb|es|Spain and most Hispanic countries}} [[Spanish omelette]], {{l|en|tortilla}}
+#: {{syn|es|tortilla de patatas|q1=Spain|tortilla de papas|q2=Hispanic America, Canary Islands|tortilla española}}
+#: {{syn|es|tortilla francesa}} <!-- FIXME, MATCH SENSE: 'omelette' -->
+#: {{syn|es|tortilla de harina de trigo|tortilla de harina|tortilla de trigo}} <!-- FIXME, MATCH SENSE: 'tortilla' -->
+# {{lb|es|Spain and most Hispanic countries}} [[omelette]]
+# {{lb|es|Mexico and Central America}} {{l|en|tortilla}}"""
+
+    expected_flags = ['nymsense_matches_multiple_defs']
+
+    title = "champ at the bit"
+
+#    en_fixer.clear_problems()
+#    new_text = en_fixer.run_fix(orig_text, [], title)
+#    assert orig_text == new_text
+#    assert sorted(expected_flags) == sorted([ x for x in en_fixer._problems.keys() if not x.startswith("_") and x != "partial_fix" ])
+
+    en_fixer.clear_problems()
+    new_text = en_fixer.run_fix(orig_text, expected_flags, title, sections=["Synonyms"])
+    assert new_text == expected_text
+
+
+
+def test_match_parent():
+
+    orig_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# [[wordA]]
+
+====Synonyms====
+* {{l|es|synA}}
+
+===Verb===
+{{es-verb}}
+
+# [[wordA]]
+"""
+    expected_text="""==Spanish==
+
+===Noun===
+{{es-noun|m}}
+
+# [[wordA]]
+#: {{syn|es|synA}}
+
+===Verb===
+{{es-verb}}
+
+# [[wordA]]\
+"""
+
+    expected_flags = ["autofix"]
+
+    run_test(orig_text,expected_text,expected_flags)
+
+
+
+def test_match_parent2():
+
+    orig_text="""
+==Spanish==
+
+===Etymology 1===
+
+====Noun====
+{{es-noun|m}}
+
+# [[word]]
+
+====Synonyms====
+* {{l|es|syn}}
+
+===Etymology 2===
+
+===Verb===
+{{es-verb}}}
+
+# [[word]]
+"""
+    expected_text="""
+==Spanish==
+
+===Etymology 1===
+
+====Noun====
+{{es-noun|m}}
+
+# [[word]]
+#: {{syn|es|syn}}
+
+===Etymology 2===
+
+===Verb===
+{{es-verb}}}
+
+# [[word]]\
+"""
+
+    expected_flags = ['automatch_nymsection_outside_pos']
+
+    run_test(orig_text,expected_text,expected_flags)
+
+
+def no_test_stall():
+
+    orig_text="""
+==Portuguese==
+
+===Noun===
+{{pt-noun|f|s}}
+
+# {{l|en|stall}} {{gloss|a small open-fronted shop}}
+# {{l|en|booth}} {{gloss|a small stall for the display and sale of goods}}
+# {{l|en|newsstand}} {{gloss|open stall where newspapers and magazines are on sale}}
+# {{l|en|jury}} {{gloss|a group of people whose aim is to judge something}}
+
+====Synonyms====
+* {{sense|stall}} {{l|pt|estande}}
+"""
+
+    expected_text="""
+==Portuguese==
+
+===Noun===
+{{pt-noun|f|s}}
+
+# {{l|en|stall}} {{gloss|a small open-fronted shop}}
+#: {{syn|pt|estande}}
+# {{l|en|booth}} {{gloss|a small stall for the display and sale of goods}}
+# {{l|en|newsstand}} {{gloss|open stall where newspapers and magazines are on sale}}
+# {{l|en|jury}} {{gloss|a group of people whose aim is to judge something}}\
+"""
+
+    expected_flags = ["autofix"]
+
+    run_test(orig_text,expected_text,expected_flags)
+
+
+def test_front():
+
+    orig_text="""
+==Portuguese==
+
+===Noun===
+{{pt-noun|f}}
+
+# {{l|en|front}} {{gloss|facing side}}
+# {{l|en|front}} {{gloss|main entrance side}}
+# {{lb|pt|military}} {{l|en|front}} {{gloss|area or line of conflict}}
+# {{lb|pt|weather}} {{l|en|front}}
+
+====Synonyms====
+* {{sense|facing side}} {{l|pt|dianteira}}
+* {{sense|entrance site}} {{l|pt|entrada}}
+* {{sense|line of conflict}} {{l|pt|fronte}}
+"""
+
+    expected_text="""
+==Portuguese==
+
+===Noun===
+{{pt-noun|f}}
+
+# {{l|en|front}} {{gloss|facing side}}
+#: {{syn|pt|dianteira}}
+# {{l|en|front}} {{gloss|main entrance side}}
+#: {{syn|pt|entrada}}
+# {{lb|pt|military}} {{l|en|front}} {{gloss|area or line of conflict}}
+#: {{syn|pt|fronte}}
+# {{lb|pt|weather}} {{l|en|front}}\
+"""
+
+    expected_flags = ['automatch_sense', 'nymsense_fuzzy_match']
+
+    run_test(orig_text,expected_text,expected_flags)
 
