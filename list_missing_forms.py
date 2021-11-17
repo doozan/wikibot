@@ -61,38 +61,40 @@ if __name__ == "__main__":
 
         missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
+        is_doublet = ""
         if missing_forms and unexpected_forms:
             print(f"{form}: has missing and unexpected forms")
+            is_doublet = " * has both missing/unexpected"
 
         for pos, formtype, lemma, lemma_genders in missing_forms:
             if pos == "v":
                 continue
 
             if pos == "n" and formtype == "m":
-                print(f"{form}:{pos} declared by {lemma}, but should probably be a lemma")
+                print(f"{form}:{pos} declared by {lemma}, but should probably be a lemma $is_doublet")
                 continue
 
             words = list(wordlist.get_words(form, pos))
             if not words:
-                print(f"{form}:{pos} missing pos {formtype} of {lemma}")
+                print(f"{form}:{pos} missing pos {formtype} of {lemma} $is_doublet")
                 continue
 
-            if pos == "n" and formtype == "pl" and unexpected_forms:
-                masculines = get_masculines_from_fpl(words[0])
-                masculine_links = [m for m in masculines if (pos, "fpl", m) in unexpected_forms]
-                if masculine_links:
-                    for m in masculine_links:
-                        unexpected_forms.remove((pos, "fpl", m))
-                    print(f"{form}:{pos} links to masculine {masculine_links} instead of feminine")
-                    continue
+#            if pos == "n" and formtype == "pl" and unexpected_forms:
+#                masculines = get_masculines_from_fpl(words[0])
+#                masculine_links = [m for m in masculines if (pos, "fpl", m) in unexpected_forms]
+#                if masculine_links:
+#                    for m in masculine_links:
+#                        unexpected_forms.remove((pos, "fpl", m))
+#                    print(f"{form}:{pos} links to masculine {masculine_links} instead of feminine $is_doublet")
+#                    continue
 
-            print(f"{form}:{pos} missing sense {formtype} of {lemma}", sorted(declared_forms), sorted(existing_forms))
+            print(f"{form}:{pos} missing sense {formtype} of {lemma} $is_doublet", sorted(declared_forms), sorted(existing_forms))
 
         for pos, formtype, lemma in unexpected_forms:
             if pos == "v":
                 continue
             words = list(wordlist.get_words(lemma, pos))
             if words:
-                print(f"{form}:{pos} unexpected form, claims to be {formtype} of {lemma}, but not reciprocated")
+                print(f"{form}:{pos} unexpected form, claims to be {formtype} of {lemma}, but not reciprocated $is_doublet")
             else:
-                print(f"{form}:{pos} unexpected form, claims to be {formtype} of nonexistent {lemma}")
+                print(f"{form}:{pos} unexpected form, claims to be {formtype} of nonexistent {lemma} $is_doublet")
