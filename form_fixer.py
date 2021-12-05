@@ -2,10 +2,12 @@ import collections
 import re
 import sys
 import enwiktionary_parser as wtparser
+import enwiktionary_templates as templates
 from enwiktionary_parser.languages.all_ids import languages as lang_ids
 from enwiktionary_parser.wtnodes.wordsense import WordSense
 from enwiktionary_wordlist.utils import wiki_to_text
 from enwiktionary_wordlist.sense import Sense
+from enwiktionary_wordlist.word import Word
 from enwiktionary_parser.sections.pos import ALL_POS
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
@@ -380,9 +382,46 @@ class FormFixer():
             wikt.add_text(entry)
 
 
+    @staticmethod
+    def get_forms_from_headword(word):
+        for template in templates.iter_templates(word.headword):
+            if template.name == "head":
+                data = self.get_head_forms(template)
+            else:
+                data = templates.expand_template(template, self.word)
+            self.add_forms(self.parse_list(data))
+
+
+    @staticmethod
+    def parse_list(line):
+        items = {}
+        for match in re.finditer(r"\s*(.*?)=(.*?)(; |$)", line):
+            k = match.group(1)
+            v = match.group(2)
+            if k not in items:
+                items[k] = [v]
+            else:
+                items[k].append(v)
+
+        return items
+
     @classmethod
-    def get_existing_forms(cls, wikt):
+    def get_existing_forms(cls, title, wikt):
         existing_forms = {}
+
+        # if feminine noun with masculine, add form of masculine
+        for word in wikt.filter_words():
+
+            #for formtype, forms in word.forms.items():
+            print(word.shortpos, word.genders, word.forms, word.headword, word.lang)
+            if "f" in word.genders: # or "m" in word.genders:
+                gender = "f" # if "f" in word.genders else "m"
+                mate =  "m" #if gender == "f" else "f"
+
+                wlword = Word(title, [("meta", word.headword), ("pos", word.shortpos)])
+                if mate in wlword.forms:
+                    for mate_lemma in wlword.forms[mate]:
+                        existing_forms[(word.shortpos, gender, mate_lemma)] = None
 
         for sense in wikt.filter_wordsenses():
             pos_title = re.sub("[ 1-9]+$", "", sense._parent._parent.name)
@@ -427,7 +466,7 @@ class FormFixer():
     def remove_forms(self, title, wikt, unexpected_forms, ignore_errors):
         """ Removes the given list of forms from the entry, possibly leaving empty sections """
 
-        existing_forms = self.get_existing_forms(wikt)
+        existing_forms = self.get_existing_forms(title, wikt)
 
         print("removing unexpected", unexpected_forms)
 
@@ -562,7 +601,7 @@ class FormFixer():
         for pos, forms in missing.items():
 
             # Word targets must match the POS and contain a "form of" link in their definitions
-            word_targets = [x for x in wikt.filter_words(matches=lambda x: x.shortpos == pos) if self.get_existing_forms(x)]
+            word_targets = [x for x in wikt.filter_words(matches=lambda x: x.shortpos == pos) if self.get_existing_forms(title, x)]
 
             if word_targets:
 
@@ -658,7 +697,7 @@ class FormFixer():
             self.add_language_entry(wikt, self.generate_full_entry(title, declared_forms), "Spanish")
             return str(wikt)
 
-        missing_forms, unexpected_forms = self.compare_forms(declared_forms, self.get_existing_forms(entry).keys())
+        missing_forms, unexpected_forms = self.compare_forms(declared_forms, self.get_existing_forms(title, entry).keys())
 
         if missing_forms:
             self._add_forms(title, entry, missing_forms, skip_errors)
@@ -673,13 +712,39 @@ class FormFixer():
         if not entry:
             return text
 
-        missing_forms, unexpected_forms = self.compare_forms(declared_forms, self.get_existing_forms(entry).keys())
+        missing_forms, unexpected_forms = self.compare_forms(declared_forms, self.get_existing_forms(title, entry).keys())
 
         if unexpected_forms:
             self.remove_forms(title, entry, unexpected_forms, ignore_errors)
 
         return str(wikt)
 
+    def replace_forms(self, title, page_text, forms, ignore_errors=False):
+        """ Removes and then adds forms that have both a remove and add operation on the same POS """
+
+        wikt = wtparser.parse_page(page_text, title=title, parent=None, skip_style_tags=True)
+        entry = self.get_language_entry(title, wikt, "Spanish")
+        if not entry:
+            return page_text
+
+        missing_forms, unexpected_forms = self.compare_forms(forms, self.get_existing_forms(title, entry).keys())
+
+        missing_pos = {f[0] for f in missing_forms}
+        unexpected_pos = {f[0] for f in unexpected_forms}
+        old_forms = [f for f in unexpected_forms if f[0] in missing_pos]
+        new_forms = [f for f in missing_forms if f[0] in unexpected_pos]
+
+        if not old_forms:
+            return page_text
+
+        print("replacing", old_forms, "with", new_forms)
+
+        self.remove_forms(title, entry, old_forms, ignore_errors=True)
+        new_text = self.add_missing_forms(title, str(wikt), new_forms, skip_errors=False)
+
+        new_text = re.sub("\n+----\n+----\n+", "\n\n----\n\n", new_text)
+        new_text = re.sub(r"\n\n\n*", r"\n\n", new_text)
+        return new_text
 
 class FixRunner():
 
@@ -801,18 +866,13 @@ class FixRunner():
         if title[0] in "-1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ":
             return False
 
-        if title in ["antiinflamatoria", "antiinflamatorias", "aparecidos", "gama" ]:
-            return False
-
         return True
 
     def _add_forms(self, page_text, title, skip_errors=False):
 
         declared_forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
-        print("declared forms", declared_forms)
         supported_forms = [f for f in declared_forms if f[0] != "v" and f[0] in pos_to_inflection]
         if not supported_forms:
-            print("no supported forms")
             return page_text
 
         lean_text, lean_tail = self.get_lean_entry(page_text)
@@ -836,6 +896,12 @@ class FixRunner():
             return page_text
 
 
+    def _replace_forms(self, page_text, title, ignore_errors=False):
+        declared_forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
+        supported_forms = [f for f in declared_forms if f[0] != "v" and f[0] in pos_to_inflection]
+
+        return self.fixer.replace_forms(title, page_text, supported_forms, ignore_errors)
+
     def _remove_forms(self, page_text, title, allow_blank=False, ignore_errors=False):
 
         declared_forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
@@ -855,7 +921,6 @@ class FixRunner():
 
         # If there are no sections in the remaining text, remove the entry
         if "\n==" not in new_text:
-            print("XX removing entry")
             return self._remove_entry(title, page_text, allow_blank)
 
         return new_text
@@ -885,6 +950,7 @@ class FixRunner():
 
 
     def add_forms(self, match, title, replacement=None):
+
         page_text = match.group(0)
         if not self.can_handle_page(title):
             return page_text
@@ -893,11 +959,21 @@ class FixRunner():
         if "#REDIRECT" in page_text:
             page_text = re.sub("^#REDIRECT.*$", "", page_text)
             if not re.match(r"\s*$", page_text, re.S):
-                raise ValueError("{title}: has a redirect with extra text")
+                raise ValueError(f"{title}: has a redirect with extra text")
 
         if replacement:
             replacement._edit_summary = "Spanish: Added forms"
-        return self._add_forms(page_text, title, skip_errors=True)
+
+        try:
+            return self._add_forms(page_text, title, skip_errors=True)
+        except BaseException as e:
+            print("ERROR:", e)
+            with open("error.log", "a") as outfile:
+                print(f"{title} failed during add forms {e}")
+                outfile.write(f"{title}: failed during add forms {e}\n")
+            return page_text
+
+
 
     def remove_forms(self, match, title, replacement=None):
 
@@ -911,14 +987,18 @@ class FixRunner():
 
     def replace_forms(self, match, title, replacement=None):
 
-        # TODO: limit only to matching pos pairs so it can be run automatically
-
         page_text = match.group(0)
         if not self.can_handle_page(title):
             return page_text
 
-        new_text = self._remove_forms(page_text, title, allow_blank=True, ignore_errors=True)
-        new_text = self._add_forms(new_text, title, skip_errors=True)
+        try:
+            new_text = self._replace_forms(page_text, title)
+        except BaseException as e:
+            print("ERROR:", e)
+            with open("error.log", "a") as outfile:
+                print(f"{title} failed during replace forms {e}")
+                outfile.write(f"{title}: failed during add forms {e}\n")
+            return page_text
 
         if replacement:
             replacement._edit_summary = "Spanish: Replaced forms"

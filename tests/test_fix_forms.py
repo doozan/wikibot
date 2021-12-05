@@ -878,7 +878,7 @@ def test_fix_feminine_plural(fixer, allforms):
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
-    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(wikt))
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     assert missing_forms ==  [('n', 'pl', 'académica', ['f'])]
     assert unexpected_forms == {('n', 'fpl', 'académico')}
 
@@ -918,7 +918,7 @@ def test_remove_unexpected_first_pos(fixer, allforms):
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
-    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(wikt))
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     assert missing_forms ==  []
     assert unexpected_forms == {('adj', 'fpl', 'test')}
 
@@ -967,7 +967,7 @@ def test_remove_unexpected_inner_pos(fixer, allforms):
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
-    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(wikt))
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     assert missing_forms ==  []
     assert unexpected_forms == {('n', 'pl', 'blah')}
 
@@ -1007,7 +1007,7 @@ def test_remove_unexpected_last_pos(fixer, allforms):
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
-    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(wikt))
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     assert missing_forms ==  []
     assert unexpected_forms == {('n', 'pl', 'blah')}
 
@@ -1043,7 +1043,7 @@ def test_remove_unexpected_form_only(fixer, allforms):
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
-    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(wikt))
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     assert missing_forms ==  []
     assert unexpected_forms == {('adj', 'pl', 'blah'), ('adj', 'pl', 'blah2')}
 
@@ -1943,7 +1943,7 @@ def test_female_lemma(fixrunner):
 ==Spanish==
 
 ===Noun===
-{{es-noun|f|m=abuelito}}, [[granny]]
+{{es-noun|f|m=abuelito}}
 
 # {{diminutive of|es|abuela}}
 """
@@ -1952,7 +1952,7 @@ def test_female_lemma(fixrunner):
 ==Spanish==
 
 ===Noun===
-{{es-noun|f|m=abuelito}}, [[granny]]
+{{es-noun|f|m=abuelito}}
 
 # {{diminutive of|es|abuela}}
 """
@@ -2002,5 +2002,63 @@ def test_female_lemma2(fixrunner):
     title = "estanciero"
     res = fixrunner.replace_forms(re.match("(?s).*", text), title)
     assert res == text
+
+
+
+def test_get_existing(fixer, allforms):
+
+    text = """
+==Spanish==
+
+===Noun===
+{{es-noun|f|m=busero}}
+
+# [[bus driver]]
+"""
+
+    title = "busera"
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    assert fixer.get_existing_forms(title, wikt) == {('n', 'f', 'busero'): None}
+
+
+    text = """
+==Spanish==
+
+===Noun===
+{{es-noun|m|f=busera}}
+
+# [[bus driver]]
+"""
+
+    title = "busero"
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    assert fixer.get_existing_forms(title, wikt) == {('n', 'm', 'busera'): None}
+
+
+def test_actriz(fixer, allforms):
+    title = "actriz"
+
+    text = """
+==Spanish==
+
+===Noun===
+{{es-noun|f|m=actor}}
+
+# [[actress]]
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+    assert declared_forms == [('n', 'f', 'actor', ['m'])]
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+    assert existing_forms == {('n', 'f', 'actor'): None}
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+
+    assert missing_forms == []
+    assert unexpected_forms == set()
 
 
