@@ -55,7 +55,7 @@ error_header = {
     "ref_tag_without_references": "Pages with a <nowiki><ref></nowiki> tag (or equivalent) but no <nowiki><references/></nowiki> tag",
 }
 
-def error_data(error, items):
+def format_error(error, items):
 
     if error in error_header:
         yield error_header[error]
@@ -81,7 +81,15 @@ def error_data(error, items):
 
 def export_error(error, items):
     page = "User:JeffDoozan/lists/" + error
-    save_page(page, "\n".join(error_data(error, items)))
+    save_page(page, "\n".join(format_error(error, items)))
+
+def export_errors():
+    for error, items in errors.items():
+        export_error(error, items)
+
+    # Update pages that no longer have any entries
+    for error in error_header.keys()-errors.keys():
+        export_error(error, [])
 
 
 def validate_entry(entry):
@@ -117,7 +125,8 @@ def validate_entry(entry):
         if not section._lines and not section._children:
             log("empty_section", section)
 
-    refs = entry.ifilter_sections(matches=lambda x: any(d for d in x._lines if re.search(headerfix.PATTERN_REFS, d)))
+    PATTERN_SIMPLE_REFS = r"(?i)(<\s*references\s*/>|{{reflist}})"
+    refs = entry.ifilter_sections(matches=lambda x: any(d for d in x._lines if re.search(PATTERN_SIMPLE_REFS, d)))
     for r in refs:
         if "References" not in r.lineage:
             log("reference_tag_outside_references", r)
@@ -180,12 +189,7 @@ def main():
                 if len(samples[item]) > 100:
                     samples[item] = None
 
-    for error, items in errors.items():
-        export_error(error, items)
-
-    # Update pages that no longer have any entries
-    for error in error_header.keys()-errors.keys():
-        export_error(error, [])
+    export_errors()
 
     if args.upload_stats:
         for tag in args.tag:
@@ -218,7 +222,7 @@ def upload_samples(base_url, samples):
             else:
                 data.append(f"===<nowiki>{title}</nowiki>===")
             for level, samples in levels.items():
-                data.append(f"; L{level}: " + ", ".join(f"[[{x}#{title}|{x}]]" for x in samples))
+                data.append(f"; L{level}: " + ", ".join(f"[[{x}#{title}|{x}]]" for x in sorted(samples)))
 
         page = base_url + f"/{section}"
         page_text = "\n".join(data)
