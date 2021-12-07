@@ -34,7 +34,7 @@ from enwiktionary_parser.sections.pos import PosSection
 from enwiktionary_parser.sections.nym import NymSection
 from enwiktionary_parser.wtnodes.nymline import NymLine
 from enwiktionary_parser.wtnodes.word import Word
-from enwiktionary_parser.constants import ALL_POS
+from enwiktionary_parser.sections.pos import ALL_POS
 
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.language_extract import LanguageFile
@@ -66,7 +66,7 @@ class NymSectionToTag:
         #self.log.info(problem, json.dumps(data))
         #if name in self._debug_fix:
         #    print(f"{self._page} needs {name}: {params}")
-        print(f"{self._page} needs {problem}: {data}", file=sys.stderr)
+#        print(f"{self._page} needs {problem}: {data}", file=sys.stderr)
         self._problems[problem] = self._problems.get(problem, []) + [data]
 
         return not self.can_handle(problem)
@@ -330,7 +330,7 @@ class NymSectionToTag:
         if items:
             nymline.add(items)
 
-    def run_fix(self, text, fixes=[], page_title="", sections=["Synonyms", "Antonyms"]):
+    def run_fix(self, text, fixes=[], page_title="", sections=["Synonyms", "Antonyms"], dump_unfixable=False):
         """
         *page_title* is only used for error messages, and only available when run directly
         Only return fixes that can be fixed with the list of *fixes* provided
@@ -355,7 +355,7 @@ class NymSectionToTag:
                 found = True
 
         if not found:
-            if DUMP_UNFIXABLE:
+            if dump_unfixable:
                 return None
             else:
                 return text
@@ -383,8 +383,8 @@ class NymSectionToTag:
             self.flag_problem("partial_fix")
             missing_fixes = set(self._problems.keys()).difference(self.fixes)
 
-        if missing_fixes and not len(self._debug_fix) and "all" not in self.fixes:
-            print(f'XXXXXXX {page_title} needs {", ".join(sorted(x for x in missing_fixes if not x.startswith("_")))}')
+#        if missing_fixes and not len(self._debug_fix) and "all" not in self.fixes:
+#            print(f'XXXXXXX {page_title} needs {", ".join(sorted(x for x in missing_fixes if not x.startswith("_")))}')
 
         if "partial_fix" in missing_fixes and "all" not in self.fixes:
             return text
@@ -494,7 +494,7 @@ def main():
 
 #        print(f"Scanning {entry_title}")
 
-        fixed = fixer.run_fix(lang_entry, args.fix, entry_title, args.section)
+        fixed = fixer.run_fix(lang_entry, args.fix, entry_title, args.section, args.dump_unfixable)
         if not fixed:
             continue
         if fixed == lang_entry:
