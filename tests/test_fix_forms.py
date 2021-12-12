@@ -30,6 +30,18 @@ pos: n
   gloss: abjad (writing system)
     q: linguistics
 _____
+aborregarse
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: verb
+_____
+aborrascarse
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  etymology: a + borrasca
+  gloss: to get stormy
+    q: reflexive
+_____
 abuelito
 pos: n
   meta: {{es-noun|m|f=abuelita}}
@@ -50,6 +62,16 @@ pos: n
   meta: {{es-noun|m|f=académica}}
   g: m
   gloss: academician, academic
+_____
+accidentar
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: to cause an accident
+_____
+accidentarse
+pos: v
+  meta: {{es-verb}} {{es-conj|nocomb=1}}
+  gloss: to have an accident, get into an accident, crash
 _____
 actor
 pos: n
@@ -94,6 +116,11 @@ pos: num
 pos: pron
   meta: {{head|es|pronoun}}
   gloss: both
+_____
+amigar
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: to cause (people) to be friends
 _____
 amigue
 pos: n
@@ -177,6 +204,28 @@ pos: n
   gloss: kid, child
     q: Venezuela, colloquial
 _____
+comer
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: to eat
+_____
+comida
+pos: n
+  meta: {{es-noun|f}}
+  g: f
+  gloss: food
+_____
+comidas
+pos: n
+  meta: {{head|es|noun form|g=f-p}}
+  g: f-p
+  gloss: plural of "comida"
+_____
+comido
+pos: v
+  meta: {{es-past participle|comid}}
+  gloss: pp_ms of "comer"
+_____
 crudívoro
 pos: adj
   meta: {{es-adj}}
@@ -197,6 +246,11 @@ pos: n
   g: mf
   etymology: diente + -ista
   gloss: dentist
+_____
+errar
+pos: v
+  meta: {{es-verb|<ye[Spain],+[Latin America]>}} {{es-conj|<ye[Spain],+[Latin America]>}}
+  gloss: to miss
 _____
 estanciera
 pos: n
@@ -322,6 +376,16 @@ pos: n
   gloss: unemployed person
     syn: desempleado; cesante
 _____
+sumar
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+gloss: to add
+_____
+sumir
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+gloss: to submerge
+_____
 vosotres
 pos: pron
   meta: {{head|es|pronoun|masculine|vosotros|feminine|vosotras|g=m|g2=f}}
@@ -355,10 +419,13 @@ def test_get_declared_forms(fixer, allforms):
         "alegre": [],
         "alegres": [('adj', 'pl', 'alegre', ['m', 'f'])],
 
-         # gender neutral plurals
-        "amigues": [('n', 'pl', 'amigue', ['m', 'f'])],
-        "amigo": [],
-        "amiga": [],
+        # when declared by both -r and -se verbs, skip the -se
+        "accidentada":  [('v', 'pp_fs', 'accidentar', [])],
+
+        # gender neutral plurals
+        "amigues": [('v', 'neg_imp_2s', 'amigar', []), ('v', 'pres_sub_2s', 'amigar', []), ('n', 'pl', 'amigue', ['m', 'f'])],
+        "amigo": [('v', 'pres_1s', 'amigar', [])],
+        "amiga": [('v', 'imp_2s', 'amigar', []), ('v', 'pres_2sf', 'amigar', []), ('v', 'pres_3s', 'amigar', [])],
 
         "aquélla":  [('pron', 'f', 'aquél', ['m'])],
         "aquéllas":  [('pron', 'fpl', 'aquél', ['m'])],
@@ -406,15 +473,20 @@ def test_get_declared_forms(fixer, allforms):
         "cabro": [('n', 'm', 'cabra', ['f'])],
 
         # masculines declared by femninine nouns should be ignored
-        "bosniacos": [('n', 'pl', 'bosniaco', ['m'])],
+#        "bosniacos": [('n', 'pl', 'bosniaco', ['m'])],
 
         # feminines declared by femninine form of and masculine form of, should be both
-        "bosniacas": [('n', 'pl', 'bosniaca', ['f']), [('n', 'fpl', 'bosniaco', ['m'])] ],
+#        "bosniacas": [('n', 'pl', 'bosniaca', ['f']), [('n', 'fpl', 'bosniaco', ['m'])] ],
+
+        # verbs
+        "comida": [('v', 'pp_fs', 'comer', [])],
+        "comidas": [('v', 'pp_fp', 'comer', []), ('n', 'pl', 'comida', ['f'])],
     }
 
     for title, forms in tests.items():
-        print("checking", title)
-        assert fixer.get_declared_forms(title, fixer.wordlist, allforms) == forms
+        res = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+        print("checking", title, res)
+        assert res == forms
 
 def test_full_entries(fixer, allforms):
 
@@ -547,12 +619,66 @@ def test_full_entries(fixer, allforms):
 {{head|es|noun form|g=f-p}}
 
 # {{noun form of|es|hijadalgo||p}}""",
+
+        "come": """\
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|mood=imperative|sense=affirmative|formal=n|person=2|number=s|ending=er|comer}}
+# {{es-verb form of|mood=indicative|tense=present|formal=y|person=2|number=s|ending=er|comer}}
+# {{es-verb form of|mood=indicative|tense=present|person=3|number=s|ending=er|comer}}""",
+
+        "cómelo": """\
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-compound of|com|er|come|lo|mood=imperative|person=tú}}""",
+
+        "comiéndosele": """\
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-compound of|com|er|comiendo|se|le|mood=gerund}}""",
+
+        "comidas": """\
+==Spanish==
+
+===Noun===
+{{head|es|noun form|g=f-p}}
+
+# {{noun form of|es|comida||p}}
+
+===Verb===
+{{head|es|past participle form|g=f-p}}
+
+# {{es-verb form of|mood=participle|gender=f|number=p|ending=er|comer}}""",
+
+        "sume": """\
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|mood=imperative|sense=affirmative|formal=n|person=2|number=s|ending=ir|sumir}}
+# {{es-verb form of|mood=imperative|sense=affirmative|formal=y|person=2|number=s|ending=ar|sumar}}
+# {{es-verb form of|mood=indicative|tense=present|formal=y|person=2|number=s|ending=ir|sumir}}
+# {{es-verb form of|mood=indicative|tense=present|person=3|number=s|ending=ir|sumir}}
+# {{es-verb form of|mood=subjunctive|tense=present|person=1|number=s|ending=ar|sumar}}
+# {{es-verb form of|mood=subjunctive|tense=present|formal=y|person=2|number=s|ending=ar|sumar}}
+# {{es-verb form of|mood=subjunctive|tense=present|person=3|number=s|ending=ar|sumar}}""",
     }
 
     for title, page in tests.items():
         df = fixer.get_declared_forms(title, fixer.wordlist, allforms)
         res = fixer.generate_full_entry(title, df)
         if res != page:
+            print(title, allforms.all_forms.get(title), df)
             print(f'\n\n        "{title}": """\\\n{res}""",')
         assert res == page
 
@@ -2033,8 +2159,23 @@ def test_get_existing(fixer, allforms):
 
     title = "busero"
 
+#    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+#    assert fixer.get_existing_forms(title, wikt) == {('n', 'm', 'busera'): None}
+
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|past participle form|g=f-s}}
+
+# {{es-verb form of|ending=ar|mood=participle|gender=f|number=s|abacorar}}
+"""
+    title = "abacorada"
+
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
-    assert fixer.get_existing_forms(title, wikt) == {('n', 'm', 'busera'): None}
+    assert fixer.get_existing_forms(title, wikt) == {('v', 'pp_fs', 'abacorar'): '# {{es-verb form of|ending=ar|mood=participle|gender=f|number=s|abacorar}}\n'}
+
 
 
 def test_actriz(fixer, allforms):
@@ -2062,3 +2203,79 @@ def test_actriz(fixer, allforms):
     assert unexpected_forms == set()
 
 
+def test_imp2_se(fixer, allforms):
+    title = "aborrascaos"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|aborrascarse|ending=-ar|mood=imperative|number=p|person=2|formal=n|sense=affirmative|region=Spain}}
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+    assert declared_forms == [('v', 'imp_2p', 'aborrascarse', [])] 
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+    assert existing_forms == {('v', 'imp_2p', 'aborrascarse'): '# {{es-verb form of|aborrascarse|ending=-ar|mood=imperative|number=p|person=2|formal=n|sense=affirmative|region=Spain}}\n'} 
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+
+    assert missing_forms == []
+    assert unexpected_forms == set()
+
+    assert False
+
+def test_reflexive_stripping(fixer, allforms):
+    title = "aborregas"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|aborregar|ending=-ar|mood=indicative|tense=present|number=s|person=2|formal=n}}
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+    assert declared_forms == [('v', 'pres_2s', 'aborregarse', [])]
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+    assert existing_forms == {('v', 'pres_2s', 'aborregar'): '# {{es-verb form of|aborregar|ending=-ar|mood=indicative|tense=present|number=s|person=2|formal=n}}\n'}
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+
+    assert missing_forms == [('v', 'pres_2s', 'aborregarse', [])]
+    assert unexpected_forms == {('v', 'pres_2s', 'aborregar')}
+
+
+def test_errar_verb_multi_forms(fixer, allforms):
+    title = "yerras"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|mood=ind|tense=pres|num=s|pers=2|formal=n|ending=ar|errar}}
+"""
+    print(allforms.all_forms["erras"])
+    print(allforms.all_forms["yerras"])
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+    assert declared_forms == "X"
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+    assert existing_forms == "X"
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+
+    assert missing_forms == []
+    assert unexpected_forms == set()
