@@ -20,7 +20,7 @@ def get_existing_forms(form, wordlist):
 def get_word_forms(words):
     existing_forms = set()
 
-    for word in wordlist.get_words(form):
+    for word in words:
 
         #if word.pos == "n" and word.genders and ("f" in word.genders or "m" in word.genders):
         #if word.pos in ["n", "adj"] and word.genders == "f":
@@ -39,7 +39,7 @@ def get_word_forms(words):
 
         for sense in word.senses:
             # Limit to the formtypes we can handle, forms like "misspelling of" aren't our concern
-            if sense.formtype and sense.formtype in FormFixer.all_formtypes:
+            if sense.formtype and FormFixer.can_handle_formtype(sense.formtype):
                 existing_forms.add((word.pos, sense.formtype, sense.lemma))
 
     return existing_forms
@@ -93,7 +93,7 @@ def format_error_line(error_id, form, item):
         if error_id in [ "missing_sense", "missing_pos_multi_ety", "missing_pos" ]:
             pos, formtype, lemma, *_ = item
             try:
-                line.append(f"{pos} <nowiki>" + fixer.get_form_gloss(item) + "</nowiki>")
+                line.append(f"{pos} <nowiki>" + fixer.get_form_gloss(form, item) + "</nowiki>")
             except ValueError:
                 line.append(f"{pos} ({formtype} of [[{lemma}#Spanish|{lemma}]])")
         else:
@@ -134,7 +134,7 @@ def export_errors():
 site = None
 def save_page(page, page_text):
 
-    page = "f_" + re.sub("[^\w]+", "_", page)
+    page = "forms/" + re.sub("[^\w]+", "_", page)
     with open(page, "w") as outfile:
         outfile.write(page_text)
     return
@@ -162,17 +162,18 @@ def main(wordlist_file, allforms_file, allpages_file):
     with open(allpages_file) as infile:
         allpages = { x.strip() for x in infile }
 
-    #form = "fulano"
-    #declared_forms = fixer.get_declared_forms(form, wordlist, allforms)
-    #existing_forms = get_existing_forms(form, wordlist)
-    #missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
-    #print("declared", declared_forms)
-    #print("existing", existing_forms)
-    #print("missing", missing_forms)
-    #print("unexpected", unexpected_forms)
-    #exit()
+#    form = "achaparrándolo"
+#    declared_forms = fixer.get_declared_forms(form, wordlist, allforms)
+#    existing_forms = get_existing_forms(form, wordlist)
+#    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+#    print("declared", declared_forms)
+#    print("existing", existing_forms)
+#    print("missing", missing_forms)
+#    print("unexpected", unexpected_forms)
+#    exit()
 
 
+    count = 0
     for form in allforms.all_forms:
 
         # Fix for conversion from <sup>x</sup> -> ^x
@@ -184,6 +185,10 @@ def main(wordlist_file, allforms_file, allpages_file):
         except ValueError as e:
             error("form_errors", form, str(e))
             continue
+
+#        count += 1
+#        if count > 30000:
+#            break
 
         existing_forms = get_existing_forms(form, wordlist)
 
@@ -202,7 +207,12 @@ def main(wordlist_file, allforms_file, allpages_file):
 
         for item in missing_forms:
             pos, formtype, lemma, lemma_genders = item
-            if pos == "v":
+
+            if not FormFixer.can_handle_formtype(formtype):
+                continue
+
+            # TODO: for now skip multi word verbs
+            if pos == "v" and " " in lemma:
                 continue
 
             if pos == "n" and formtype == "m":
@@ -240,8 +250,6 @@ def main(wordlist_file, allforms_file, allpages_file):
 
         for item in unexpected_forms:
             pos, formtype, lemma = item
-            if pos == "v":
-                continue
             words = list(wordlist.get_words(lemma, pos))
             if words:
                 error("unexpected_form", form, item)
@@ -255,8 +263,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate list of missing forms")
     parser.add_argument("wordlist", help="wordlist")
-    parser.add_argument("--allforms", help="all_forms file")
-    parser.add_argument("--allpages", help="wiki.allpages")
+    parser.add_argument("--allforms", required=True, help="all_forms file")
+    parser.add_argument("--allpages", required=True, help="wiki.allpages")
     parser.add_argument("--summary", help="wiktionary commit message")
     args = parser.parse_args()
 
