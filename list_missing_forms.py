@@ -134,7 +134,7 @@ def export_errors():
 site = None
 def save_page(page, page_text):
 
-    page = "forms/" + re.sub("[^\w]+", "_", page)
+    page = "forms/x2/" + re.sub("[^\w]+", "_", page)
     with open(page, "w") as outfile:
         outfile.write(page_text)
     return
@@ -151,7 +151,7 @@ def save_page(page, page_text):
     wiki_page.save(SAVE_NOTE)
 
 
-def main(wordlist_file, allforms_file, allpages_file):
+def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
 
     global fixer
 
@@ -183,12 +183,16 @@ def main(wordlist_file, allforms_file, allpages_file):
         try:
             declared_forms = fixer.get_declared_forms(form, wordlist, allforms)
         except ValueError as e:
-            error("form_errors", form, str(e))
+            print(e)
+#            error("form_errors", form, str(e))
             continue
 
-#        count += 1
-#        if count > 30000:
-#            break
+        if not count % 1000 and progress:
+            print(count, end = '\r', file=sys.stderr)
+
+        if args.limit and count >= limit:
+            break
+        count += 1
 
         existing_forms = get_existing_forms(form, wordlist)
 
@@ -266,9 +270,11 @@ if __name__ == "__main__":
     parser.add_argument("--allforms", required=True, help="all_forms file")
     parser.add_argument("--allpages", required=True, help="wiki.allpages")
     parser.add_argument("--summary", help="wiktionary commit message")
+    parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
+    parser.add_argument("--progress", help="Display progress", action='store_true')
     args = parser.parse_args()
 
     global SAVE_NOTE
     SAVE_NOTE = args.summary
 
-    main(args.wordlist, args.allforms, args.allpages)
+    main(args.wordlist, args.allforms, args.allpages, args.limit, args.progress)
