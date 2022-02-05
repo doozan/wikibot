@@ -3,7 +3,7 @@ import re
 class SectionParser():
 
     def log(self, error, section, line):
-        lineage = list(section.lineage)
+        lineage = list(section.lineage) if section else [ self.title, "" ]
         page = lineage.pop
         path = ":".join(reversed(lineage))
         self._log.append((error, path, line))
