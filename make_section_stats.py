@@ -22,7 +22,7 @@ def log(error, section, notes=None):
     else:
         path = ":".join(reversed(list(section.lineage)))
 
-    print(path, error, notes)
+    #print(path, error, notes)
     errors[error].append((path, notes))
 
 
@@ -150,7 +150,8 @@ def main():
     parser.add_argument('--summary', help="Summary comment", required=True)
     parser.add_argument("--upload-stats", help="Update stats on Wiktionary", action='store_true', default=False)
     parser.add_argument("--tag", help="tag to use when uploading data (if specified multiple times will upload to each location)", action='append')
-    parser.add_argument('--verbose', action='store_true')
+    parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
+    parser.add_argument("--progress", help="Display progress", action='store_true')
     args = parser.parse_args()
 
     SAVE_NOTE = args.summary
@@ -172,10 +173,10 @@ def main():
             continue
 
         count += 1
-        if count % 1000 == 0 and args.verbose:
+        if count % 1000 == 0 and args.progress:
             print(count, file=sys.stderr, end="\r")
-#            if count >= 2000:
-#                break
+        if args.limit and count > args.limit:
+            break
 
         entry = SectionParser(page.text, page.title)
 
