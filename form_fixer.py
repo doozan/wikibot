@@ -104,10 +104,15 @@ class FormFixer():
             if pos != "v":
                 continue
 
-            if lemma.endswith("rse"):
-                has_se = True
-            elif lemma[-2:] in ["ar", "er", "ir", "ír"]:
-                has_non_se = True
+            if lemma.endswith("rse") and not has_se:
+                has_se = any(form in forms
+                    for word in wordlist.get_words(lemma, pos)
+                    for formtype, forms in word.forms.items())
+
+            elif lemma[-2:] in ["ar", "er", "ir", "ír"] and not has_non_se:
+                has_non_se = any(form in forms
+                    for word in wordlist.get_words(lemma, pos)
+                    for formtype, forms in word.forms.items())
 
         # Now that everything is cleaned up, this should be VERY rare
         # probably rare enough to flag it instead of using a workaround
@@ -151,12 +156,12 @@ class FormFixer():
                     # with condensed verbs, the neg_imp will be the same as the imp_ forms in the 3rds person
 #                    # imp_2sf', 'abandonar', []), ('v', 'neg_imp_2sf',
                     if formtype in ["neg_imp_3s", "neg_imp_3p"]:
-#                        print("skipping -rse", formtype)
+                        #print("skipping -rse", formtype)
                         continue
 
                     # and in 2nd person singular plural with non-reflexive verbs (ustedes no hablen, hablen ustedes)
                     if has_non_se and formtype in ["neg_imp_2sf", "neg_imp_1p", "neg_imp_2pf"]:
-#                        print("skipping non-rse", formtype)
+                        #print("skipping non-rse", formtype)
                         continue
 
                     if form in forms:
@@ -459,8 +464,10 @@ class FormFixer():
 
         # some imperatives are the same in the affirmative and the negative
         if formtype in ["imp_3s", "imp_3p"]:
+            #print("using generic imperative", formtype)
             del data["sense"]
         elif formtype in ["imp_2sf", "imp_1p", "imp_2pf"] and not lemma.endswith("rse"):
+            #print("using generic imperative", formtype)
             del data["sense"]
 
         data["ending"] = lemma[-4:-2] if lemma[-2:] == "se" else lemma[-2:]
