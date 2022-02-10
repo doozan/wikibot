@@ -62,6 +62,8 @@ class WikiSaver(BaseHandler):
         prev_item = prev_section_entries[-1] if prev_section_entries else None
         if not prev_item or prev_item.error != item.error:
             res.append(f"==={item.error}===")
+            count = sum(map(len, [x for x in pages[page_name] if x[0].error == item.error]))
+            res.append(f"{count} item{'s' if count>1 else ''}<br>")
 
         res.append(f"===={item.section}====")
         res.append(f"{len(section_entries)} item{'s' if len(section_entries)>1 else ''}<br>")
@@ -125,8 +127,9 @@ def check_page(title, page_text, log_function):
 
     for item in wikt.ifilter_words(matches = lambda x: is_form(x)):
 
-        if any(item._parent.ifilter_sections()):
-            log("has_subsection", title, item)
+        subsections = [x.name for x in item._parent.ifilter_sections()]
+        if subsections:
+            log("has_subsection", title, item, "; ".join(subsections))
 
         for sense in item.ifilter_wordsenses():
 
@@ -149,7 +152,7 @@ def check_page(title, page_text, log_function):
             match = re.search(r"{{(?!ux)[^}]*\|(t|gloss)=([^|}]*)", str(sense))
             if match:
                 detail = match.group(2) if match else None
-                log("has_gloss_param", title, item, detail)
+                log("has_gloss_param", title, item, str(sense)) # TODO: when higlighting, add line and highlight detail
             elif nonform:
                 log("has_text_outside_form", title, item, str(sense))
 
