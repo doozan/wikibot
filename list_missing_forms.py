@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import csv
 import io
 import pywikibot
@@ -10,6 +10,98 @@ import sys
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
 from form_fixer import FormFixer
+from autodooz.wikilog import WikiLogger, BaseHandler
+
+class Logger(WikiLogger):
+    _paramtype = namedtuple("params", [ "error", "form", "item" ])
+
+class WikiSaver(BaseHandler):
+    error_header = {
+        "form_errors": "Errors while processing forms",
+        "should_be_lemma": "Forms that should probably be lemmas (manual review needed)",
+#        "missing_page": "Redlinks",
+        "missing_entry": "Missing Spanish section (bot job)",
+        "missing_pos": "Missing POS entry (bot job)",
+        "missing_pos_multi_ety": "Missing POS entry, entry has multiple etymologies (manual review needed)",
+        "missing_sense": "Entry exists, but is missing a 'form of' declaration",
+        "wrong_form": "Entry has existing 'form of' that doesn't match the expected 'form of'",
+        "unexpected_form": "Entry claims to be a 'form of' lemma but is not declared by the lemma",
+        "missing_lemma": "Entry claims to be a 'form of' non-existent lemma",
+    }
+
+    def sort_items(self, items):
+        return sorted(items, key=lambda x:(x.error,  x.form))
+
+    def is_new_page(self, page_sections, section_entries):
+        # each error is a new page
+        return page_sections and page_sections[-1][-1].error != section_entries[0].error
+
+    def is_new_section(self, item, prev_item):
+        # Split by error
+        return prev_item and prev_item.error != item.error
+
+    def page_name(self, page_sections, prev):
+        # named by error code
+        return page_sections[0][0].error
+
+    # Add empty pages if they generated no errors
+    def make_pages(self, *args, **nargs):
+        pages = super().make_pages(*args, **nargs)
+        for error in self.error_header.keys():
+            if error not in pages:
+                pages[error] = []
+        return pages
+
+    def page_header(self, base_path, page_name, page_sections, pages):
+        count = sum(map(len, page_sections))
+        header = self.error_header.get(page_name, page_name)
+        return [f"{header}: {count} item{'' if count==1 else 's'}"]
+
+    def format_entry(self, entry, prev_entry):
+
+        pos, formtype, lemma, *_ = entry.item
+
+        if entry.error in [ "missing_sense", "missing_pos_multi_ety", "missing_pos" ]:
+            try:
+                data = f"{pos} <nowiki>" + fixer.get_form_gloss(entry.form, entry.item) + "</nowiki>"
+            except ValueError:
+                data = f"{pos} ({formtype} of [[{lemma}#Spanish|{lemma}]])"
+
+        elif entry.error == "should_be_lemma":
+            data = f"{pos} declared by [[{lemma}#Spanish|{lemma}]]:{pos}"
+        elif entry.error == "missing_page":
+            data = f" ({formtype} of [[{lemma}#Spanish|{lemma}]]:{pos})"
+        elif entry.error == "missing_entry":
+            data = f" ({formtype} of [[{lemma}#Spanish|{lemma}]]:{pos})"
+        elif entry.error == "unexpected_form":
+            data = f"{pos} is not declared a {formtype} of [[{lemma}#Spanish|{lemma}]]:{pos}"
+        elif entry.error == "missing_lemma":
+            data = f"{pos} claims to be {formtype} of non-existent lemma [[{lemma}#Spanish|{lemma}]]:{pos}"
+        else:
+            #"missing_pos": " does not have POS {pos} ({formtype} of {lemma}:{pos})",
+            #"missing_pos_multiple_ety": " does not have POS {pos} ({formtype} of {lemma}:{pos})",
+            #"missing_sense": "{pos} <nowiki>{fixer2.get_form_gloss(item)}</nowiki>",
+            #"wrong_form": "{pos} ({formtype} of [[{lemma}#Spanish|{lemma}]])",
+            data = entry.item
+
+        return [f": [[{entry.form}#Spanish|{entry.form}]]:" + data]
+
+class FileSaver(WikiSaver):
+
+    def save_page(self, dest, page_text):
+        dest = dest.lstrip("/").replace("/", "_")
+        with open(dest, "w") as outfile:
+            outfile.write(page_text)
+            print("saved", dest)
+
+    def save(self, *args, **nargs):
+        super().save(*args, **nargs, commit_message=None)
+
+logger = Logger()
+
+def error(error_id, form, item):
+    logger.add(error_id, form, item)
+
 
 fixer = None
 
@@ -46,110 +138,6 @@ def get_word_forms(words):
 
 def get_masculines_from_fpl(word):
     return [lemma for lemma, forms in word.form_of.items() if "fpl" in forms]
-
-
-errors = defaultdict(list)
-
-error_header = {
-    "form_errors": "Errors while processing forms",
-    "should_be_lemma": "Forms that should probably be lemmas (manual review needed)",
-#    "missing_page": "Redlinks",
-    "missing_entry": "Missing Spanish section (bot job)",
-    "missing_pos": "Missing POS entry (bot job)",
-    "missing_pos_multi_ety": "Missing POS entry, entry has multiple etymologies (manual review needed)",
-    "missing_sense": "Entry exists, but is missing a 'form of' declaration (manual review needed)",
-    "wrong_form": "Entry has existing 'form of' that doesn't match the expected 'form of'",
-    "unexpected_form": "Entry claims to be a 'form of' lemma but is not declared by the lemma",
-    "missing_lemma": "Entry claims to be a 'form of' non-existente lemma",
-}
-
-
-#fixer.get_form_gloss(form_obj)
-
-error_templates = {
-#    "form_errors": "{item}",
-    "should_be_lemma": "{pos} declared by [[{lemma}#Spanish|{lemma}]]:{pos}",
-    "missing_page": " ({formtype} of [[{lemma}#Spanish|{lemma}]]:{pos})",
-    "missing_entry": " ({formtype} of [[{lemma}#Spanish|{lemma}]]:{pos})",
-    #"missing_pos": " does not have POS {pos} ({formtype} of {lemma}:{pos})",
-    #"missing_pos_multiple_ety": " does not have POS {pos} ({formtype} of {lemma}:{pos})",
-    #"missing_sense": "{pos} <nowiki>{fixer2.get_form_gloss(item)}</nowiki>",
-    #"wrong_form": "{pos} ({formtype} of [[{lemma}#Spanish|{lemma}]])",
-    "unexpected_form": "{pos} is not declared a {formtype} of [[{lemma}#Spanish|{lemma}]]:{pos}",
-    "missing_lemma": "{pos} claims to be {formtype} of non-existent lemma [[{lemma}#Spanish|{lemma}]]:{pos}"
-}
-
-def error(error_id, form, item):
-    global errors
-    errors[error_id].append((form, item))
-    #print(f"{form}: {error_id}:: {item}")
-    #print(format_error_line(error_id, form, item))
-
-def format_error_line(error_id, form, item):
-
-    line = [ f": [[{form}#Spanish|{form}]]:" ]
-    template = error_templates.get(error_id)
-    if not template:
-        if error_id in [ "missing_sense", "missing_pos_multi_ety", "missing_pos" ]:
-            pos, formtype, lemma, *_ = item
-            try:
-                line.append(f"{pos} <nowiki>" + fixer.get_form_gloss(form, item) + "</nowiki>")
-            except ValueError:
-                line.append(f"{pos} ({formtype} of [[{lemma}#Spanish|{lemma}]])")
-        else:
-            line.append(item)
-
-    else:
-        pos, formtype, lemma, *_ = item
-        line.append(template.format(**locals()))
-
-    return "".join(line)
-
-def format_error(error_id, items):
-
-    if error_id in error_header:
-        yield error_header[error_id]
-        yield "\n"
-
-    yield f"{len(items)} entries"
-    yield "\n"
-
-    for form, item in sorted(items):
-        yield format_error_line(error_id, form, item)
-
-def export_error(error_id, items):
-    page = "User:JeffDoozan/es_forms/" + error_id
-    #print(page)
-    #print("\n".join(format_error(error_id, items)))
-    save_page(page, "\n".join(format_error(error_id, items)))
-
-def export_errors():
-    for error, items in errors.items():
-        export_error(error, items)
-
-    # Update pages that no longer have any entries
-    for error in error_header.keys()-errors.keys():
-        export_error(error, [])
-
-site = None
-def save_page(page, page_text):
-
-    page = "forms/x2/" + re.sub("[^\w]+", "_", page)
-    with open(page, "w") as outfile:
-        outfile.write(page_text)
-    return
-
-    global site
-    if not site:
-        site = pywikibot.Site()
-    wiki_page = pywikibot.Page(site, page)
-    if wiki_page.text.strip() == page_text.strip():
-        print(f"{page} has no changes")
-        return
-    wiki_page.text = page_text
-    print(f"saving {page}")
-    wiki_page.save(SAVE_NOTE)
-
 
 def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
 
@@ -260,7 +248,12 @@ def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
             else:
                 error("missing_lemma", form, item)
 
-    export_errors()
+
+    if args.save:
+        base_url = "User:JeffDoozan/lists/es/forms"
+        logger.save(base_url, WikiSaver, commit_message=args.save)
+    else:
+        logger.save("", FileSaver)
 
 if __name__ == "__main__":
     import argparse
@@ -269,12 +262,12 @@ if __name__ == "__main__":
     parser.add_argument("wordlist", help="wordlist")
     parser.add_argument("--allforms", required=True, help="all_forms file")
     parser.add_argument("--allpages", required=True, help="wiki.allpages")
-    parser.add_argument("--summary", help="wiktionary commit message")
+    parser.add_argument("--save", help="wiktionary commit message")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     args = parser.parse_args()
 
     global SAVE_NOTE
-    SAVE_NOTE = args.summary
+    SAVE_NOTE = args.save
 
     main(args.wordlist, args.allforms, args.allpages, args.limit, args.progress)
