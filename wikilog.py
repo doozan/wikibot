@@ -23,6 +23,18 @@ class BaseHandler():
             return
 
         items = self.sort_items(items)
+        pages = self.make_pages(items)
+
+        for page_name, page_sections in pages.items():
+            page_lines = self.make_page(base_path, page_name, page_sections, pages)
+            self.save_page(base_path+"/"+page_name, "\n".join(page_lines))
+
+        index_lines = self.make_index(base_path, page_name, pages)
+        if index_lines:
+            index_url = getattr(self.args, "index_url", base_path)
+            self.save_page(index_url, "\n".join(index_lines))
+
+    def make_pages(self, items):
 
         pages = {} # page_name: page_sections
         page_name = None
@@ -52,14 +64,7 @@ class BaseHandler():
         pages[page_name] = page_sections
         page_sections = []
 
-        for page_name, page_sections in pages.items():
-            page_lines = self.make_page(base_path, page_name, page_sections, pages)
-            self.save_page(base_path+"/"+page_name, "\n".join(page_lines))
-
-        index_lines = self.make_index(base_path, page_name, pages)
-        if index_lines:
-            index_url = getattr(self.args, "index_url", base_path)
-            self.save_page(index_url, "\n".join(index_lines))
+        return pages
 
     def save_page(self, page, page_text):
         if not self._site:
