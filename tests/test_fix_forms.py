@@ -4,7 +4,7 @@ import re
 import enwiktionary_parser as wtparser
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
-from ..form_fixer import FormFixer, FixRunner
+from ..form_fixer import FormFixer, FixRunner, DeclaredForm, ExistingForm
 
 @pytest.fixture(scope = 'module')
 def wordlist():
@@ -402,7 +402,7 @@ def fixer(wordlist):
 
 @pytest.fixture(scope = 'module')
 def allforms(fixer):
-    return AllForms.from_wordlist(fixer.wordlist, resolve_true_lemmas=False)
+    return AllForms.from_wordlist(fixer.wordlist, resolve_lemmas=False)
 
 @pytest.fixture(scope = 'module')
 def fixrunner(wordlist, allforms):
@@ -414,77 +414,78 @@ def test_get_declared_forms(fixer, allforms):
 
         # Ignore masculines of feminine nouns, if they have lemma
         "Señor": [],
-        "Señores": [('n', 'pl', 'Señor', ['m'])],
+        "Señores": [('Señores', 'n', 'pl', 'Señor', ['m'])],
 
         "alegre": [],
-        "alegres": [('adj', 'pl', 'alegre', ['m', 'f'])],
+        "alegres": [('alegres', 'adj', 'pl', 'alegre', ['m', 'f'])],
 
         # when declared by both -r and -se verbs, skip the -se
-        "accidentada":  [('v', 'pp_fs', 'accidentar', [])],
+        "accidentada": [('accidentada', 'v', 'pp_fs', 'accidentar', [])],
 
         # gender neutral plurals
-        "amigues": [('v', 'neg_imp_2s', 'amigar', []), ('v', 'pres_sub_2s', 'amigar', []), ('n', 'pl', 'amigue', ['m', 'f'])],
-        "amigo": [('v', 'pres_1s', 'amigar', [])],
-        "amiga": [('v', 'imp_2s', 'amigar', []), ('v', 'pres_2sf', 'amigar', []), ('v', 'pres_3s', 'amigar', [])],
+        "amigues": [('amigues', 'n', 'pl', 'amigue', ['m', 'f']), ('amigues', 'v', 'neg_imp_2s', 'amigar', []), ('amigues', 'v', 'pres_sub_2s', 'amigar', [])],
+        "amigo": [('amigo', 'v', 'pres_1s', 'amigar', [])],
+        "amiga": [('amiga', 'v', 'imp_2s', 'amigar', []), ('amiga', 'v', 'pres_2sf', 'amigar', []), ('amiga', 'v', 'pres_3s', 'amigar', [])],
 
-        "aquélla":  [('pron', 'f', 'aquél', ['m'])],
-        "aquéllas":  [('pron', 'fpl', 'aquél', ['m'])],
+        "aquélla": [('aquélla', 'pron', 'f', 'aquél', ['m'])],
+        "aquéllas": [('aquéllas', 'pron', 'fpl', 'aquél', ['m'])],
 
         # neuter forms not handled
         "aquéllo": [],
         "":  [],
-        "aquéllos":  [('pron', 'mpl', 'aquél', ['m'])],
+        "aquéllos": [('aquéllos', 'pron', 'mpl', 'aquél', ['m'])],
 
         "vosotres": [],
         "vosotros": [],
         "vosotras": [],
 
         # declared by multiple versions of same lemma
-        "ayudas": [('n', 'pl', 'ayuda', ['f']), ('n', 'pl', 'ayuda', ['m', 'f'])],
+        "ayudas": [('ayudas', 'n', 'pl', 'ayuda', ['f']), ('ayudas', 'n', 'pl', 'ayuda', ['m', 'f'])],
 
         "académico": [],
-        "académica": [('adj', 'f', 'académico', ['m']), ('n', 'f', 'académico', ['m'])],
-        "académicos": [('adj', 'mpl', 'académico', ['m']), ('n', 'pl', 'académico', ['m'])],
-        "académicas": [('adj', 'fpl', 'académico', ['m']), ('n', 'pl', 'académica', ['f'])],
+        "académica": [('académica', 'adj', 'f', 'académico', ['m']), ('académica', 'n', 'f', 'académico', ['m'])],
+        "académicos": [('académicos', 'adj', 'mpl', 'académico', ['m']), ('académicos', 'n', 'pl', 'académico', ['m'])],
+        "académicas": [('académicas', 'adj', 'fpl', 'académico', ['m']), ('académicas', 'n', 'pl', 'académica', ['f'])],
 
         # form of
-        "abyades": [('n', 'pl', 'abyad', ['m'])],
+        "abyades": [('abyades', 'n', 'pl', 'abyad', ['m'])],
 
         # multiple feminines
-        "actora": [('n', 'f', 'actor', ['m'])],
-        "actoras": [('n', 'pl', 'actora', ['f'])],
-        "actrices": [('n', 'pl', 'actriz', ['f'])],
+        "actora": [('actora', 'n', 'f', 'actor', ['m'])],
+        "actoras": [('actoras', 'n', 'pl', 'actora', ['f'])],
+        "actrices": [('actrices', 'n', 'pl', 'actriz', ['f'])],
 
         # weird header
-        "ambas": [('adj', 'fpl', 'ambos', ['m', 'f'])],
+        "ambas": [('ambas', 'adj', 'fpl', 'ambos', ['m', 'f'])],
 
         # masculine and plural
         "dentista": [],
-        "dentistas": [('n', 'pl', 'dentista', ['m', 'f'])],
+        "dentistas": [('dentistas', 'n', 'pl', 'dentista', ['m', 'f'])],
 
         # irregular plural noun
         "hijodalgo": [],
-        "hijosdalgos": [('n', 'pl', 'hijodalgo', ['m'])],
-        "hijadalgo": [('n', 'f', 'hijodalgo', ['m'])],
-        "hijasdalgo": [('n', 'pl', 'hijadalgo', ['f'])],
+        "hijosdalgos": [('hijosdalgos', 'n', 'pl', 'hijodalgo', ['m'])],
+        "hijadalgo": [('hijadalgo', 'n', 'f', 'hijodalgo', ['m'])],
+        "hijasdalgo": [('hijasdalgo', 'n', 'pl', 'hijadalgo', ['f'])],
 
         # female lemmas
         "cabra": [],
-        "cabro": [('n', 'm', 'cabra', ['f'])],
+        "cabro": [('cabro', 'n', 'm', 'cabra', ['f'])],
 
         # masculines declared by femninine nouns should be ignored
-#        "bosniacos": [('n', 'pl', 'bosniaco', ['m'])],
+        "bosniacos": [('bosniacos', 'n', 'pl', 'bosniaco', ['m'])],
 
-        # feminines declared by femninine form of and masculine form of, should be both
-#        "bosniacas": [('n', 'pl', 'bosniaca', ['f']), [('n', 'fpl', 'bosniaco', ['m'])] ],
+        # feminine plural nouns should be feminine
+        "bosniacas": [('bosniacas', 'n', 'pl', 'bosniaca', ['f'])],
 
         # verbs
-        "comida": [('v', 'pp_fs', 'comer', [])],
-        "comidas": [('v', 'pp_fp', 'comer', []), ('n', 'pl', 'comida', ['f'])],
+        "comida": [('comida', 'v', 'pp_fs', 'comer', [])],
+        "comidas": [('comidas', 'n', 'pl', 'comida', ['f']), ('comidas', 'v', 'pp_fp', 'comer', [])],
     }
 
     for title, forms in tests.items():
         res = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+        #print(f'        "{title}": {list(map(tuple, res))},')
         print("checking", title, res)
         assert res == forms
 
@@ -666,7 +667,7 @@ def test_full_entries(fixer, allforms):
 {{head|es|verb form}}
 
 # {{es-verb form of|mood=imperative|sense=affirmative|formal=n|person=2|number=s|ending=ir|sumir}}
-# {{es-verb form of|mood=imperative|sense=affirmative|formal=y|person=2|number=s|ending=ar|sumar}}
+# {{es-verb form of|mood=imperative|formal=y|person=2|number=s|ending=ar|sumar}}
 # {{es-verb form of|mood=indicative|tense=present|formal=y|person=2|number=s|ending=ir|sumir}}
 # {{es-verb form of|mood=indicative|tense=present|person=3|number=s|ending=ir|sumir}}
 # {{es-verb form of|mood=subjunctive|tense=present|person=1|number=s|ending=ar|sumar}}
@@ -678,7 +679,7 @@ def test_full_entries(fixer, allforms):
         df = fixer.get_declared_forms(title, fixer.wordlist, allforms)
         res = fixer.generate_full_entry(title, df)
         if res != page:
-            print(title, allforms.all_forms.get(title), df)
+            print(title, allforms.get_lemmas(title), df)
             print(f'\n\n        "{title}": """\\\n{res}""",')
         assert res == page
 
@@ -916,7 +917,9 @@ def test_append_new_pos(fixer, allforms):
 ===Noun===
 {{head|es|noun form|g=m-p|g2=f-p}}
 
-# {{noun form of|es|dentista||p}}"""
+# {{noun form of|es|dentista||p}}
+
+"""
 
     title = "dentistas"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
@@ -1000,13 +1003,26 @@ def test_fix_feminine_plural(fixer, allforms):
 # blah"""
 
     title = "académicas"
-    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
-    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
-    assert missing_forms ==  [('n', 'pl', 'académica', ['f'])]
-    assert unexpected_forms == {('n', 'fpl', 'académico')}
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    entry = fixer.get_language_entry(title, wikt, "Spanish")
+    existing_forms = fixer.get_existing_forms(title, entry)
+
+    assert declared_forms ==  [
+        ('académicas', 'adj', 'fpl', 'académico', ['m']),
+        ('académicas', 'n', 'pl', 'académica', ['f'])
+        ]
+
+    assert existing_forms == {
+        ('académicas', 'adj', 'fpl', 'académico'): '# {{adj form of|es|académico||f|p}}\n',
+        ('académicas', 'n', 'fpl', 'académico'): '# {{feminine plural of|es|académico}}\n',
+        }
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+    assert missing_forms ==  [('académicas', 'n', 'pl', 'académica', ['f'])]
+    assert unexpected_forms == {('académicas', 'n', 'fpl', 'académico')}
 
     res = fixer.add_missing_forms(title, text, declared_forms)
     res = fixer.remove_undeclared_forms(title, res, declared_forms)
@@ -1046,7 +1062,7 @@ def test_remove_unexpected_first_pos(fixer, allforms):
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     assert missing_forms ==  []
-    assert unexpected_forms == {('adj', 'fpl', 'test')}
+    assert unexpected_forms == {('test', 'adj', 'fpl', 'test')}
 
     res = fixer.remove_undeclared_forms(title, text, declared_forms)
 
@@ -1095,7 +1111,7 @@ def test_remove_unexpected_inner_pos(fixer, allforms):
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     assert missing_forms ==  []
-    assert unexpected_forms == {('n', 'pl', 'blah')}
+    assert unexpected_forms == {('test', 'n', 'pl', 'blah')}
 
     res = fixer.remove_undeclared_forms(title, text, declared_forms)
 
@@ -1135,7 +1151,7 @@ def test_remove_unexpected_last_pos(fixer, allforms):
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     assert missing_forms ==  []
-    assert unexpected_forms == {('n', 'pl', 'blah')}
+    assert unexpected_forms == {('test', 'n', 'pl', 'blah')}
 
     res = fixer.remove_undeclared_forms(title, text, declared_forms)
 
@@ -1171,7 +1187,7 @@ def test_remove_unexpected_form_only(fixer, allforms):
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     assert missing_forms ==  []
-    assert unexpected_forms == {('adj', 'pl', 'blah'), ('adj', 'pl', 'blah2')}
+    assert unexpected_forms == {('test', 'adj', 'pl', 'blah'), ('test', 'adj', 'pl', 'blah2')}
 
     res = fixer.remove_undeclared_forms(title, text, declared_forms)
 
@@ -1482,7 +1498,7 @@ def test_caldea(fixer, allforms):
 
     title = "caldea"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == [('adj', 'f', 'caldeo', ['m']), ('n', 'f', 'caldeo', ['m'])]
+    assert declared_forms == [('caldea', 'adj', 'f', 'caldeo', ['m']), ('caldea', 'n', 'f', 'caldeo', ['m'])]
     res = fixer.add_missing_forms(title, text, declared_forms)
 #    res = fixer.add_missing_forms(title, text, declared_forms)
 
@@ -1512,11 +1528,13 @@ def test_aduanero(fixer, allforms):
 ===Noun===
 {{es-noun|f}}
 
-# {{female equivalent of|es|aduanero}}"""
+# {{female equivalent of|es|aduanero}}
+
+"""
 
     title = "aduanera"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == [('adj', 'f', 'aduanero', ['m']), ('n', 'f', 'aduanero', ['m', 'f'])]
+    assert declared_forms == [('aduanera', 'adj', 'f', 'aduanero', ['m']), ('aduanera', 'n', 'f', 'aduanero', ['m', 'f'])]
     res = fixer.add_missing_forms(title, text, declared_forms)
 #    res = fixer.add_missing_forms(title, text, declared_forms)
 
@@ -1530,9 +1548,9 @@ def test_get_form_head(fixer):
 
     # Test buggy noun declarations (says mf, but gives separate f form)
     #  {{es-noun|mf|f=aduanera}}
-    assert fixer.get_form_head('aduanera', ('n', 'f', 'aduanero', ['m', 'f'])) == "{{es-noun|f}}"
-    assert fixer.get_form_head('actriz', ('n', 'f', 'actor', ['m'])) == "{{es-noun|f}}"
-    assert fixer.get_form_head('hijadalgo', ('n', 'f', 'hijodalgo', ['m'])) == "{{es-noun|f|hijasdalgo}}"
+    assert fixer.get_form_head(DeclaredForm('aduanera', 'n', 'f', 'aduanero', ['m', 'f'])) == "{{es-noun|f}}"
+    assert fixer.get_form_head(DeclaredForm('actriz', 'n', 'f', 'actor', ['m'])) == "{{es-noun|f}}"
+    assert fixer.get_form_head(DeclaredForm('hijadalgo', 'n', 'f', 'hijodalgo', ['m'])) == "{{es-noun|f|hijasdalgo}}"
 
 
 def test_crudivora(fixer, allforms):
@@ -1556,15 +1574,16 @@ def test_crudivora(fixer, allforms):
 
 # {{adj form of|es|crudívoro||f|s}}
 
-
 ===Noun===
 {{es-noun|f}}
 
-# {{female equivalent of|es|crudívoro}}"""
+# {{female equivalent of|es|crudívoro}}
+
+"""
 
     title = "crudívora"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == [('adj', 'f', 'crudívoro', ['m']), ('n', 'f', 'crudívoro', ['m'])]
+    assert declared_forms == [('crudívora', 'adj', 'f', 'crudívoro', ['m']), ('crudívora', 'n', 'f', 'crudívoro', ['m'])]
     res = fixer.add_missing_forms(title, text, declared_forms)
     res = fixer.remove_undeclared_forms(title, res, declared_forms)
 
@@ -1594,16 +1613,21 @@ def test_kirguisa(fixer, allforms):
 # {{feminine singular of|es|kirguís}}
 # {{adj form of|es|kirguiso||f|s}}
 
-
 ===Noun===
 {{es-noun|f}}
 
 # {{female equivalent of|es|kirguiso}}
-# {{female equivalent of|es|kirguís}}"""
+# {{female equivalent of|es|kirguís}}
+
+"""
 
     title = "kirguisa"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == [('adj', 'f', 'kirguiso', ['m']), ('n', 'f', 'kirguiso', ['m']), ('adj', 'f', 'kirguís', ['m']), ('n', 'f', 'kirguís', ['m'])]
+    assert declared_forms == [
+            ('kirguisa', 'adj', 'f', 'kirguiso', ['m']),
+            ('kirguisa', 'adj', 'f', 'kirguís', ['m']),
+            ('kirguisa', 'n', 'f', 'kirguiso', ['m']),
+            ('kirguisa', 'n', 'f', 'kirguís', ['m'])]
     res = fixer.add_missing_forms(title, text, declared_forms)
     res = fixer.remove_undeclared_forms(title, res, declared_forms)
 
@@ -1744,7 +1768,7 @@ def test_paradas(fixer, allforms):
 
     title = "paradas"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == [('n', 'pl', 'parada', ['f'])]
+    assert declared_forms == [('paradas', 'n', 'pl', 'parada', ['f'])]
 
     res = fixer.add_missing_forms(title, text, declared_forms)
     with pytest.raises(ValueError) as e:
@@ -1799,17 +1823,18 @@ def test_chamas(fixer, allforms):
 ==Spanish==
 
 ===Noun===
-{{head|es|noun form|g=f-p}}
+{{head|es|noun form|g=m-p}}
 
 # {{noun form of|es|chama||p}}
 """
 
     title = "chamas"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms ==  [('n', 'pl', 'chama', ['m'])] #, ('n', 'pl', 'chama', ['f'])]
+    assert declared_forms ==  [('chamas', 'n', 'pl', 'chama', ['m'])] #, ('n', 'pl', 'chama', ['f'])]
 
-    res = fixer.add_missing_forms(title, text, declared_forms)
-    res = fixer.remove_undeclared_forms(title, res, declared_forms)
+    res = fixer.replace_pos(title, text, declared_forms, "n")
+    #res = fixer.add_missing_forms(title, text, declared_forms)
+    #res = fixer.remove_undeclared_forms(title, res, declared_forms)
 
     assert res == result
 
@@ -1859,24 +1884,6 @@ def test_dont_remove_sense_with_data(fixer, allforms):
     with pytest.raises(ValueError) as e:
         res = fixer.remove_undeclared_forms(title, text, declared_forms)
 
-def test_amigues(fixer, allforms):
-
-    text = """
-==Spanish==
-
-===Pronunciation===
-{{es-IPA}}
-
-===Noun===
-{{head|es|noun form}}
-
-# {{plural of|es|amigue}}
-"""
-    # Don't delete existing
-
-    assert False
-
-
 def test_add_entry_to_empty_page(fixer, allforms):
     text = ""
 
@@ -1889,7 +1896,7 @@ def test_add_entry_to_empty_page(fixer, allforms):
 
     title = "gongos"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms ==  [('n', 'pl', 'gongo', ['m'])]
+    assert declared_forms ==  [('gongos', 'n', 'pl', 'gongo', ['m'])]
     res = fixer.add_missing_forms(title, text, declared_forms)
     res = fixer.remove_undeclared_forms(title, res, declared_forms)
     print(res)
@@ -1919,7 +1926,12 @@ def test_amigues(fixer, allforms):
 
     title = "amigues"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == [('n', 'pl', 'amigue', ['m', 'f'])]
+    assert declared_forms == [
+            ('amigues', 'n', 'pl', 'amigue', ['m', 'f']),
+            ('amigues', 'v', 'neg_imp_2s', 'amigar', []),
+            ('amigues', 'v', 'pres_sub_2s', 'amigar', []),
+            ]
+
     res = fixer.add_missing_forms(title, text, declared_forms)
     res = fixer.remove_undeclared_forms(title, res, declared_forms)
     print(res)
@@ -1972,7 +1984,10 @@ def test_huilas(fixer, allforms):
 
     title = "huilas"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == [('n', 'pl', 'huila', ['f']), ('adj', 'fpl', 'huilo', ['m'])]
+    assert declared_forms == [
+            ('huilas', 'adj', 'fpl', 'huilo', ['m']),
+            ('huilas', 'n', 'pl', 'huila', ['f']),
+            ]
 
     res = fixer.add_missing_forms(title, text, declared_forms)
     assert res == text
@@ -1997,13 +2012,21 @@ def test_granados(fixrunner):
 ====Verb====
 {{head|es|past participle form}}
 
-# {{es-verb form of|mood=participle|gen=m|num=p|ending=ar|granar}}"""
+# {{es-verb form of|mood=participle|gen=m|num=p|ending=ar|granar}}
+
+===Noun===
+{{head|es|noun form|g=m-p}}
+
+# {{noun form of|es|granado||p}}
+
+
+"""
 
     title = "granados"
     res = fixrunner.add_forms(re.match("(?s).*", text), title)
 
     print(res)
-    # No change, because the result is messy because Verb is L4 and not L3
+    # Appended after the verb because the verb is L4 and not L3
     assert res == text
 
 def test_fulanos(fixrunner):
@@ -2084,7 +2107,7 @@ def test_female_lemma(fixrunner):
 """
 
     title = "abuelita"
-    res = fixrunner.replace_forms(re.match("(?s).*", text), title)
+    res = fixrunner.replace_pos(re.match("(?s).*", text), title, None, ["n"])
     assert res == text
 
 
@@ -2112,23 +2135,10 @@ def test_female_lemma2(fixrunner):
 """
 
     title = "abuelita"
-    res = fixrunner.replace_forms(re.match("(?s).*", text), title)
+    res = fixrunner.replace_pos(re.match("(?s).*", text), title, None, ["n"])
     assert res == text
 
     # Deleted pages aren't changed, but an error is logged to error.log
-
-def test_female_lemma2(fixrunner):
-
-    # Don't add masculine form of feminine noun
-
-    text = ""
-
-    result = ""
-
-    title = "estanciero"
-    res = fixrunner.replace_forms(re.match("(?s).*", text), title)
-    assert res == text
-
 
 
 def test_get_existing(fixer, allforms):
@@ -2145,7 +2155,7 @@ def test_get_existing(fixer, allforms):
     title = "busera"
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
-    assert fixer.get_existing_forms(title, wikt) == {('n', 'f', 'busero'): None}
+    assert fixer.get_existing_forms(title, wikt) == {('busera', 'n', 'f', 'busero'): None}
 
 
     text = """
@@ -2160,7 +2170,7 @@ def test_get_existing(fixer, allforms):
     title = "busero"
 
 #    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
-#    assert fixer.get_existing_forms(title, wikt) == {('n', 'm', 'busera'): None}
+#    assert fixer.get_existing_forms(title, wikt) == {('busera', 'n', 'm', 'busera'): None}
 
 
     text = """
@@ -2174,7 +2184,7 @@ def test_get_existing(fixer, allforms):
     title = "abacorada"
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
-    assert fixer.get_existing_forms(title, wikt) == {('v', 'pp_fs', 'abacorar'): '# {{es-verb form of|ending=ar|mood=participle|gender=f|number=s|abacorar}}\n'}
+    assert fixer.get_existing_forms(title, wikt) == {('abacorada', 'v', 'pp_fs', 'abacorar'): '# {{es-verb form of|ending=ar|mood=participle|gender=f|number=s|abacorar}}\n'}
 
 
 
@@ -2191,11 +2201,11 @@ def test_actriz(fixer, allforms):
 """
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == [('n', 'f', 'actor', ['m'])]
+    assert declared_forms == [('actriz', 'n', 'f', 'actor', ['m'])]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
     existing_forms = fixer.get_existing_forms(title, wikt)
-    assert existing_forms == {('n', 'f', 'actor'): None}
+    assert existing_forms == {('actriz', 'n', 'f', 'actor'): None}
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
@@ -2216,18 +2226,16 @@ def test_imp2_se(fixer, allforms):
 """
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == [('v', 'imp_2p', 'aborrascarse', [])] 
+    assert declared_forms == [('aborrascaos', 'v', 'imp_2p', 'aborrascarse', [])] 
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
     existing_forms = fixer.get_existing_forms(title, wikt)
-    assert existing_forms == {('v', 'imp_2p', 'aborrascarse'): '# {{es-verb form of|aborrascarse|ending=-ar|mood=imperative|number=p|person=2|formal=n|sense=affirmative|region=Spain}}\n'} 
+    assert existing_forms == {('aborrascaos', 'v', 'imp_2p', 'aborrascarse'): '# {{es-verb form of|aborrascarse|ending=-ar|mood=imperative|number=p|person=2|formal=n|sense=affirmative|region=Spain}}\n'} 
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
     assert missing_forms == []
     assert unexpected_forms == set()
-
-    assert False
 
 def test_reflexive_stripping(fixer, allforms):
     title = "aborregas"
@@ -2242,16 +2250,16 @@ def test_reflexive_stripping(fixer, allforms):
 """
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == [('v', 'pres_2s', 'aborregarse', [])]
+    assert declared_forms == [('aborregas', 'v', 'pres_2s', 'aborregarse', [])]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
     existing_forms = fixer.get_existing_forms(title, wikt)
-    assert existing_forms == {('v', 'pres_2s', 'aborregar'): '# {{es-verb form of|aborregar|ending=-ar|mood=indicative|tense=present|number=s|person=2|formal=n}}\n'}
+    assert existing_forms == {('aborregas', 'v', 'pres_2s', 'aborregar'): '# {{es-verb form of|aborregar|ending=-ar|mood=indicative|tense=present|number=s|person=2|formal=n}}\n'}
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
-    assert missing_forms == [('v', 'pres_2s', 'aborregarse', [])]
-    assert unexpected_forms == {('v', 'pres_2s', 'aborregar')}
+    assert missing_forms == [('aborregas', 'v', 'pres_2s', 'aborregarse', [])]
+    assert unexpected_forms == {('aborregas', 'v', 'pres_2s', 'aborregar')}
 
 
 def test_errar_verb_multi_forms(fixer, allforms):
@@ -2265,15 +2273,14 @@ def test_errar_verb_multi_forms(fixer, allforms):
 
 # {{es-verb form of|mood=ind|tense=pres|num=s|pers=2|formal=n|ending=ar|errar}}
 """
-    print(allforms.all_forms["erras"])
-    print(allforms.all_forms["yerras"])
+#    print(allforms.all_forms["erras"])
+#    print(allforms.all_forms["yerras"])
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms == "X"
+    assert declared_forms == [('yerras', 'v', 'pres_2s', 'errar', [])]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
     existing_forms = fixer.get_existing_forms(title, wikt)
-    assert existing_forms == "X"
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 

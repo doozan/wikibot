@@ -43,6 +43,10 @@ pos_to_inflection = {
     "v": "v",
 }
 
+DeclaredForm = collections.namedtuple("Form", [ "form", "pos", "formtype", "lemma", "lemma_genders" ])
+ExistingForm = collections.namedtuple("ExistingForm", [ "form", "pos", "formtype", "lemma" ])
+
+
 _unstresstab = str.maketrans("áéíóú", "aeiou")
 def unstress(text):
     return text.translate(_unstresstab)
@@ -81,7 +85,7 @@ class FormFixer():
 
     @classmethod
     def get_declared_forms(cls, form, wordlist, allforms):
-        """ Returns a list of (pos, formtype, lemma, [lemma_genders]) for each lemma that declares form """
+        """ Returns a list of Forms for each lemma that declares the given form """
 
         imp_to_comb = {
            "imp_2s" : "imp_2s_comb_te",
@@ -125,8 +129,8 @@ class FormFixer():
                 continue
 
             for word in wordlist.get_words(lemma, pos):
-                #if skip_se_verbs and word.word.endswith("rse"):
-                #    continue
+                if skip_se_verbs and word.word.endswith("rse"):
+                    continue
 
                 has_reflexive = word.word.endswith("rse") or any(s for s in word.senses if s.qualifier and re.search("(reflexive|pronominal)", s.qualifier))
 
@@ -178,7 +182,7 @@ class FormFixer():
                         elif pos not in ["n", "prop"] and formtype == "pl" and "fpl" in word.forms:
                             formtype = "mpl"
 
-                        item = (pos, formtype, lemma, genders)
+                        item = DeclaredForm(form, pos, formtype, lemma, genders)
                         if item not in declared_forms:
 
                             # There's a conflict between imp_xxx and imp_xxx_comb on -se verb conjugations
@@ -196,11 +200,13 @@ class FormFixer():
                                     prefer_form = comb_to_imp.get(formtype)
 
                                 if remove_form:
-                                    remove_item = (pos, remove_form, lemma, genders)
+                                    remove_item = DeclaredForm(item.form, pos, remove_form, lemma, genders)
                                     if remove_item in declared_forms:
                                         declared_forms.remove(remove_item)
+
+
                                 elif prefer_form:
-                                    prefer_item = (pos, prefer_form, lemma, genders)
+                                    prefer_item = DeclaredForm(item.form, pos, prefer_form, lemma, genders)
                                     if prefer_item in declared_forms:
                                         continue
 
@@ -264,33 +270,33 @@ class FormFixer():
 
 
     def get_gender_param(self, form_obj):
-        pos, formtype, lemma, lemma_genders = form_obj
-        gender, plural = self.get_gender_plural(formtype)
+#        pos, formtype, lemma, lemma_genders = form_obj
+        gender, plural = self.get_gender_plural(form_obj.formtype)
 
-        if pos == "v":
+        if form_obj.pos == "v":
             return ""
 
         gender = ""
-        if lemma_genders == ["m", "f"]:
+        if form_obj.lemma_genders == ["m", "f"]:
             if plural:
                 return "g=m-p|g2=f-p"
             raise ValueError("xx", f"It seems like {lemma} can only take a plural, but {formtype} is not plural")
 
-        elif lemma_genders == ["m"]:
-            if pos == "adj" and formtype in ["fpl", "f"]:
+        elif form_obj.lemma_genders == ["m"]:
+            if form_obj.pos == "adj" and form_obj.formtype in ["fpl", "f"]:
                 gender = "f"
             else:
                 gender = "m"
-        elif lemma_genders == ["f"]:
+        elif form_obj.lemma_genders == ["f"]:
             gender = "f"
         else:
-            if formtype in ["m", "mpl"]:
+            if form_obj.formtype in ["m", "mpl"]:
                 return "g=m"
-            if formtype in ["f", "fpl"]:
+            if form_obj.formtype in ["f", "fpl"]:
                 return "g=f"
-            if formtype == "pl" and lemma_genders == []:
+            if form_obj.formtype == "pl" and form_obj.lemma_genders == []:
                 return None
-            raise ValueError("Unexpected genders", lemma_genders, pos, formtype, lemma, lemma_genders)
+            raise ValueError("Unexpected genders", form_obj)
 
         res = f"g={gender}"
         if plural == "p":
@@ -309,17 +315,17 @@ class FormFixer():
 
         return res
 
-    def get_fem_irregular_plural(self, form, form_obj):
-        pos, formtype, lemma, lemma_genders = form_obj
-
+    def get_fem_irregular_plural(self, form_obj):
         # emperador -> emperadora, emperatriz
         # {{es-noun|m|f=emperatriz|f2=+}}
 
-        words = [w for w in self.wordlist.get_words(lemma, pos) if formtype in w.forms and form in w.forms[formtype]]
+        words = [w for w in self.wordlist.get_words(form_obj.lemma, form_obj.pos) if form_obj.formtype in w.forms and form_obj.form in w.forms[form_obj.formtype]]
+        if not words:
+            raise ValueError("no words", form_obj)
         word = words[0]
         if len(words) > 1 and any(w for w in words[1:] if set(w.forms) - set(word.forms)):
             w = next(w for w in words[1:] if w.forms != word.forms)
-            raise ValueError(form, f"Ambiguous forms: {w.forms} != {word.forms}, cannot insert")
+            raise ValueError(form_obj.form, f"Ambiguous forms: {w.forms} != {word.forms}, cannot insert")
 
         plurals = word.forms.get("fpl")
 
@@ -327,35 +333,34 @@ class FormFixer():
             return "-"
 
         if len(plurals) > 1:
-            idx = word.forms.get("f").index(form)
+            idx = word.forms.get("f").index(form_obj.form)
             plurals = [ plurals[idx] ]
 
-        if self.get_es_noun_plurals(form, pos) != plurals:
+        if self.get_es_noun_plurals(form_obj.form, form_obj.pos) != plurals:
             return plurals[0]
 
-    def get_verb_head(self, form, form_obj):
-        pos, formtype, lemma, lemma_genders = form_obj
-        if formtype == "pp_ms":
-            if not form.endswith("o"):
+    def get_verb_head(self, form_obj):
+        #pos, formtype, lemma, lemma_genders = form_obj
+        if form_obj.formtype == "pp_ms":
+            if not form_obj.form.endswith("o"):
                 raise ValueError("Unexpected singular past participle")
-            return "{{es-past participle|" + form[:-1] + "}}"
+            return "{{es-past participle|" + form_obj.form[:-1] + "}}"
 
-        elif formtype in [ "pp_mp", "pp_fs", "pp_fp" ]:
-            g =formtype[-2] + "-" + formtype[-1]
+        elif form_obj.formtype in [ "pp_mp", "pp_fs", "pp_fp" ]:
+            g = form_obj.formtype[-2] + "-" + form_obj.formtype[-1]
             return "{{head|es|past participle form|g=" + g + "}}"
 
-        return self.get_generic_head(form, form_obj)
+        return self.get_generic_head(form_obj)
 
-    def get_noun_head(self, form, form_obj):
-        pos, formtype, lemma, lemma_genders = form_obj
-        gender, plural = self.get_gender_plural(formtype)
+    def get_noun_head(self, form_obj):
+        gender, plural = self.get_gender_plural(form_obj.formtype)
 
         if gender == "m" and plural == "s":
             raise ValueError("Singular masculine noun should probably be a lemma")
 
         # Feminine singular is a lemma
         if gender == "f" and plural == "s":
-            irregular_plural = self.get_fem_irregular_plural(form, form_obj)
+            irregular_plural = self.get_fem_irregular_plural(form_obj)
             if irregular_plural:
                 return "{{es-noun|f|" + irregular_plural + "}}"
             return "{{es-noun|f}}"
@@ -366,21 +371,19 @@ class FormFixer():
         else:
             raise ValueError("Noun form needs a gender")
 
-    def get_form_head(self, form, form_obj):
+    def get_form_head(self, form_obj):
+        if form_obj.pos == "n":
+            return self.get_noun_head(form_obj)
 
-        pos = form_obj[0]
-        if pos == "n":
-            return self.get_noun_head(form, form_obj)
+        if form_obj.pos == "v":
+            return self.get_verb_head(form_obj)
 
-        if pos == "v":
-            return self.get_verb_head(form, form_obj)
+        return self.get_generic_head(form_obj)
 
-        return self.get_generic_head(form, form_obj)
-
-    def get_generic_head(self, form, form_obj):
+    def get_generic_head(self, form_obj):
 
         # TODO: verify this is good
-        pos = form_obj[0]
+        pos = form_obj.pos
         form_name = POS_TO_TITLE[pos].lower()
         gender_param = self.get_gender_param(form_obj)
         if gender_param:
@@ -389,11 +392,10 @@ class FormFixer():
 
 
     def get_adj_gloss(self, form_obj):
-        pos, formtype, lemma, lemma_genders = form_obj
-        gender, plural = self.get_gender_plural(formtype)
+        gender, plural = self.get_gender_plural(form_obj.formtype)
 
         genderplural = "|".join(x for x in [gender, plural] if x)
-        return "# {{adj form of|es|" + lemma + "||" + genderplural + "}}"
+        return "# {{adj form of|es|" + form_obj.lemma + "||" + genderplural + "}}"
 
 
     slot_to_props = {
@@ -429,28 +431,24 @@ class FormFixer():
 
     param_order = {k:i for i,k in enumerate(["mood", "tense", "sense", "formal", "person", "gender", "number", "voseo", "sera", "participle", "region", "ending"])}
 
-    def get_verb_gloss(self, form, form_obj):
-        pos, formtype, lemma, lemma_genders = form_obj
-
-        if formtype == "infinitive":
-            return "# {{inflection of|es|" + lemma + "||inf}}"
-        elif formtype == "reflexive":
-            return "# {{reflexive of|es|" + lemma + "}}"
-        elif "_comb_" in formtype:
-            return self.get_verb_compound_gloss(form, form_obj)
+    def get_verb_gloss(self, form_obj):
+        if form_obj.formtype == "infinitive":
+            return "# {{inflection of|es|" + form_obj.lemma + "||inf}}"
+        elif form_obj.formtype == "reflexive":
+            return "# {{reflexive of|es|" + form_obj.lemma + "}}"
+        elif "_comb_" in form_obj.formtype:
+            return self.get_verb_compound_gloss(form_obj)
         else:
-            return self.get_verb_form_gloss(form, form_obj)
+            return self.get_verb_form_gloss(form_obj)
 
-    def get_verb_form_gloss(self, form, form_obj):
-        pos, formtype, lemma, lemma_genders = form_obj
-
+    def get_verb_form_gloss(self, form_obj):
         # TODO: handle this better
-        if " " in lemma:
-            raise ValueError("unsupported lemma", lemma)
+        if " " in form_obj.lemma:
+            raise ValueError("unsupported lemma", form_obj.lemma)
 
         data = {}
 
-        parts = formtype.split("_")
+        parts = form_obj.formtype.split("_")
         last = parts[-1]
         if last in self.person_props:
            parts.pop()
@@ -463,37 +461,34 @@ class FormFixer():
         data.update(self.slot_to_props[item])
 
         # some imperatives are the same in the affirmative and the negative
-        if formtype in ["imp_3s", "imp_3p"]:
+        if form_obj.formtype in ["imp_3s", "imp_3p"]:
             #print("using generic imperative", formtype)
             del data["sense"]
-        elif formtype in ["imp_2sf", "imp_1p", "imp_2pf"] and not lemma.endswith("rse"):
+        elif form_obj.formtype in ["imp_2sf", "imp_1p", "imp_2pf"] and not form_obj.lemma.endswith("rse"):
             #print("using generic imperative", formtype)
             del data["sense"]
 
-        data["ending"] = lemma[-4:-2] if lemma[-2:] == "se" else lemma[-2:]
+        data["ending"] = form_obj.lemma[-4:-2] if form_obj.lemma[-2:] == "se" else form_obj.lemma[-2:]
         if data["ending"] not in ["ar", "er", "ir", "ír"]:
-            raise ValueError("unsupported lemma (can't find verb ending)", lemma)
+            raise ValueError("unsupported lemma (can't find verb ending)", form_obj.lemma)
 
-        gloss = "# {{es-verb form of|" + "|".join(f"{k}={v}" for k,v in sorted(data.items(), key=lambda x: self.param_order[x[0]])) + "|" + lemma + "}}"
+        gloss = "# {{es-verb form of|" + "|".join(f"{k}={v}" for k,v in sorted(data.items(), key=lambda x: self.param_order[x[0]])) + "|" + form_obj.lemma + "}}"
         return gloss
 
 
-    def get_verb_compound_gloss(self, form, form_obj):
-
+    def get_verb_compound_gloss(self, form_obj):
         # formtypes: imp_2s_comb_melo
 
-        pos, formtype, lemma, lemma_genders = form_obj
-
         # TODO: handle this better
-        if " " in lemma:
-            raise ValueError("unsupported lemma", lemma)
+        if " " in form_obj.lemma:
+            raise ValueError("unsupported lemma", form_obj.lemma)
 
-        ending = lemma[-4:-2] if lemma[-2:] == "se" else lemma[-2:]
+        ending = form_obj.lemma[-4:-2] if form_obj.lemma[-2:] == "se" else form_obj.lemma[-2:]
         if ending not in ["ar", "er", "ir", "ír"]:
-            raise ValueError("unsupported lemma (can't find verb ending)", lemma)
+            raise ValueError("unsupported lemma (can't find verb ending)", form_obj.lemma)
 
-        stem = lemma[:-4] if lemma[-2:] == "se" else lemma[:-2]
-        splits = formtype.split("_")
+        stem = form_obj.lemma[:-4] if form_obj.lemma[-2:] == "se" else form_obj.lemma[:-2]
+        splits = form_obj.formtype.split("_")
         combo = splits[-1]
         if len(combo) > 3 and combo[-2:] in ["lo", "la", "le"]:
             pronoun1 = combo[:-2]
@@ -505,14 +500,14 @@ class FormFixer():
            pronoun1 = combo
            pronoun2 = None
 
-        if formtype.startswith("imp_"):
+        if form_obj.formtype.startswith("imp_"):
             mood = "imperative"
-        elif formtype.startswith("gerund_"):
+        elif form_obj.formtype.startswith("gerund_"):
             mood = "gerund"
-        elif formtype.startswith("infinitive_"):
+        elif form_obj.formtype.startswith("infinitive_"):
             mood = "infinitive"
         else:
-            raise ValueError("unsupported formtype", formtype)
+            raise ValueError("unsupported formtype", form_obj.formtype)
 
         if mood == "imperative":
             pidx = splits.index("imp") + 1
@@ -526,7 +521,7 @@ class FormFixer():
         else:
             person = None
 
-        shortform = unstress(form[:-1*(len(combo))])
+        shortform = unstress(form_obj.form[:-1*(len(combo))])
         # if shortform is 1p, it may have dropped the s
         if mood == "imperative" and person == "nosotros":
             if not shortform.endswith("s"):
@@ -546,29 +541,27 @@ class FormFixer():
 
 
     def get_noun_gloss(self, form_obj):
-        pos, formtype, lemma, lemma_genders = form_obj
-        gender, plural = self.get_gender_plural(formtype)
+        gender, plural = self.get_gender_plural(form_obj.formtype)
 
         if gender == "f" and plural == "s":
-            return "# {{female equivalent of|es|" + lemma + "}}"
+            return "# {{female equivalent of|es|" + form_obj.lemma + "}}"
 
-        return "# {{noun form of|es|" + lemma + "||" + plural + "}}"
+        return "# {{noun form of|es|" + form_obj.lemma + "||" + plural + "}}"
 
     def get_generic_gloss(self, form_obj):
-        pos, formtype, lemma, lemma_genders = form_obj
-        gender, plural = self.get_gender_plural(formtype)
+        gender, plural = self.get_gender_plural(form_obj.formtype)
 
         genderplural = "|".join(x for x in [gender, plural] if x)
-        return "# {{inflection of|es|" + lemma + "||" + genderplural + "|p=" + pos_to_inflection[pos] + "}}"
+        return "# {{inflection of|es|" + form_obj.lemma + "||" + genderplural + "|p=" + pos_to_inflection[form_obj.pos] + "}}"
 
-    def get_form_gloss(self, form, form_obj):
-        pos = form_obj[0]
+    def get_form_gloss(self, form_obj):
+        pos = form_obj.pos
         if pos == "adj":
             return self.get_adj_gloss(form_obj)
         elif pos == "n":
             return self.get_noun_gloss(form_obj)
         elif pos == "v":
-            return self.get_verb_gloss(form, form_obj)
+            return self.get_verb_gloss(form_obj)
         elif pos in pos_to_inflection:
             return self.get_generic_gloss(form_obj)
 
@@ -578,25 +571,25 @@ class FormFixer():
         if not forms:
             raise ValueError(title, "no forms")
 
-        pos = forms[0][0]
-        if any(f for f in forms if f[0] != pos):
-            raise ValueError(form, f"expected one type of pos, but got multiples: {f[0]} != {pos}")
+        pos = forms[0].pos
+        if any(f for f in forms if f.pos != pos):
+            raise ValueError(f"expected one type of pos, but got multiples: {f.pos} != {pos}", f)
 
         res = [ "="*level + POS_TO_TITLE[pos] + "="*level ]
 
         # TODO: Verify all forms share a lemma ?
 
-        res.append(self.get_form_head(title, forms[0]))
+        res.append(self.get_form_head(forms[0]))
         res.append("")
 
 
         added_forms = set()
         for form_obj in forms:
-            pos, formtype, lemma, lemma_genders = form_obj
-            if (pos, formtype, lemma) in added_forms:
+            item = ExistingForm(form_obj.form, form_obj.pos, form_obj.formtype, form_obj.lemma)
+            if item in added_forms:
                 continue
-            res.append(self.get_form_gloss(title, form_obj))
-            added_forms.add((pos, formtype, lemma))
+            res.append(self.get_form_gloss(form_obj))
+            added_forms.add(item)
 
         return res
 
@@ -612,14 +605,14 @@ class FormFixer():
         prev_pos = None
         pos_forms = []
         for form in sorted(forms):
-            pos, formtype, lemma, lemma_genders = form
-            if pos != prev_pos:
+            #pos, formtype, lemma, lemma_genders = form
+            if form.pos != prev_pos:
                 if prev_pos:
                     res.append("")
                     res += self.full_pos(title, 3, pos_forms)
                 pos_forms = []
             pos_forms.append(form)
-            prev_pos = pos
+            prev_pos = form.pos
         if pos_forms:
             res.append("")
             res += self.full_pos(title, 3, pos_forms)
@@ -634,19 +627,17 @@ class FormFixer():
         unexpected_forms = set(existing_forms)
 
         for x in declared_forms:
-            item = (x[0], x[1], x[2])
-            #item = (pos, formtype, lemma)
+            item = ExistingForm(x.form, x.pos, x.formtype, x.lemma)
 
             # Consider mpl and pl to be the same
-            if x[1] in ["mpl", "pl"]:
-                alt_item = (x[0], "mpl", x[2]) if x[1] == "pl" else (x[0], "pl", x[2])
+            alt_item = None
+            if x.formtype in ["pl", "mpl"]:
+                alt = "pl" if x.formtype == "mpl" else "mpl"
+                alt_item = item._replace(formtype=alt)
 
             # combined forms of reflexive verbs use the infinitive
-            if "_comb" in x[1] and x[2].endswith("rse"):
-                alt_item = (x[0], x[1], x[2][:-2])
-
-            else:
-                alt_item = None
+            elif "_comb" in item.formtype and item.lemma.endswith("rse"):
+                alt_item = item._replace(lemma=item.lemma[:-2])
 
             if item in existing_forms:
                 if item in unexpected_forms:
@@ -723,7 +714,8 @@ class FormFixer():
                 wlword = Word(title, [("meta", word.headword), ("pos", word.shortpos)])
                 if mate in wlword.forms:
                     for mate_lemma in wlword.forms[mate]:
-                        existing_forms[(word.shortpos, gender, mate_lemma)] = None
+                        item = ExistingForm(title, word.shortpos, gender, mate_lemma)
+                        existing_forms[item] = None
 
         for sense in wikt.filter_wordsenses():
             pos_title = re.sub("[ 1-9]+$", "", sense._parent._parent.name)
@@ -742,12 +734,12 @@ class FormFixer():
             if cls.can_handle_formtype(formtype):
 
                 lemma = lemma.strip()
-                item = (pos, formtype, lemma)
+                item = ExistingForm(title, pos, formtype, lemma)
                 if item in existing_forms:
                     continue
                     #raise ValueError(f"duplicate formtypes {item} already in {existing_forms}")
 
-                existing_forms[(pos, formtype, lemma)] = sense
+                existing_forms[item] = sense
 
         return existing_forms
 
@@ -771,13 +763,12 @@ class FormFixer():
 
         existing_forms = self.get_existing_forms(title, wikt)
 
-        print("removing unexpected", unexpected_forms)
+        #print("removing unexpected", unexpected_forms)
 
         for uf in unexpected_forms:
 
             # Only remove forms from words that have good support
-            if uf[0] not in pos_to_inflection:
-            #if uf[0] == "v" or uf[0] not in pos_to_inflection:
+            if uf.pos not in pos_to_inflection:
                 continue
 
             wordsense = existing_forms[uf]
@@ -796,7 +787,7 @@ class FormFixer():
 
             word = wordsense._parent
             word.remove_child(wordsense)
-            print("removing sense", wordsense)
+            #print("removing sense", wordsense)
 
             if not self.word_is_empty(word):
                 continue
@@ -806,7 +797,7 @@ class FormFixer():
 
             pos = word._parent
             pos.remove_child(word)
-            print("removing word", word)
+            #print("removing word", word)
 
             if not self.pos_is_empty(pos):
                 continue
@@ -816,7 +807,7 @@ class FormFixer():
 
             parent = pos._parent
             parent.remove_child(pos)
-            print("removing pos", pos)
+            #print("removing pos", pos)
 
             if limit == "pos":
                 continue
@@ -828,7 +819,7 @@ class FormFixer():
 
                 lang = ety._parent
                 lang.remove_child(ety)
-                print("removing ety", ety)
+                #print("removing ety", ety)
 
                 etys = lang.filter_etymology_sections()
                 for i, ety in enumerate(etys, 1):
@@ -843,7 +834,7 @@ class FormFixer():
 
             if self.lang_is_empty(lang):
                 lang._parent.remove_child(lang)
-                print("removing lang")
+                #print("removing lang")
 
 
     def _add_sense(self, form, word_target, form_obj):
@@ -852,7 +843,7 @@ class FormFixer():
         target = senses[-1]
 
         pre_text = "" if str(target).endswith("\n") else "\n"
-        gloss = pre_text + self.get_form_gloss(form, form_obj) + "\n"
+        gloss = pre_text + self.get_form_gloss(form_obj) + "\n"
 
         sense = WordSense(gloss, parent=word_target, name=str(len(senses)+1))
 
@@ -873,13 +864,13 @@ class FormFixer():
         """ Attempts to find a compatable word target to handle a new 'form of' sense,
         This is really only used when replacing a bad form with a new form """
 
-        pos, formtype, lemma, lemma_genders = missing_form
+        #pos, formtype, lemma, lemma_genders = missing_form
 
         # If the gender isn't part of the formtype, use the lemma's gender(s)
-        if formtype == "pl":
-            match_genders = sorted(set(lemma_genders))
+        if missing_form.formtype == "pl":
+            match_genders = sorted(set(missing_form.lemma_genders))
         else:
-            match_genders = self.formtype_to_genders.get(formtype)
+            match_genders = self.formtype_to_genders.get(missing_form.formtype)
             if not match_genders:
                 return None
 
@@ -903,13 +894,13 @@ class FormFixer():
 
         changes = []
         missing = collections.defaultdict(list)
-        for missing_form in sorted(missing_forms, key=lambda x: (x[0], x[2], x[1])):
-            pos, formtype, lemma, lemma_genders = missing_form
+        for missing_form in sorted(missing_forms, key=lambda x: (x.pos, x.lemma, x.formtype)):
+            #pos, formtype, lemma, lemma_genders = missing_form
 
             # don't add masculine forms of female lemmas
-            if formtype in ["m", "mpl"] and lemma_genders == ["f"]:
+            if missing_form.formtype in ["m", "mpl"] and missing_form.lemma_genders == ["f"]:
                 continue
-            missing[pos].append(missing_form)
+            missing[missing_form.pos].append(missing_form)
 
         added_forms = set()
 
@@ -929,13 +920,14 @@ class FormFixer():
                         else:
                             raise ValueError(f"has POS, but no matching words: {missing_form}")
 
-                    pos, formtype, lemma, lemma_genders = missing_form
-                    if (pos, formtype, lemma) in added_forms:
+                    #pos, formtype, lemma, lemma_genders = missing_form
+                    item = ExistingForm(missing_form.form, missing_form.pos, missing_form.formtype, missing_form.lemma)
+                    if item in added_forms:
                         continue
 
 #                    print("Inserting new sense", pos, formtype, lemma)
                     self._add_sense(title, word_target, missing_form)
-                    added_forms.add((pos, formtype, lemma))
+                    added_forms.add(item)
 
             # insert new POS
             else:
@@ -959,28 +951,29 @@ class FormFixer():
                 if preceeding_pos_targets:
                     target = preceeding_pos_targets[-1]
 
-                    data = "\n\n" + "\n".join(self.full_pos(title, target._level, forms)) + "\n\n"
+                    data = "\n".join(self.full_pos(title, target._level, forms)) + "\n\n"
                     changes.append(["after", target, data])
                 else:
                     target = next(wikt.ifilter_pos(), None)
                     level = target._level if target else 3
-                    entry_text = "\n".join(self.full_pos(title, level, forms))
-                    data = entry_text + "\n\n"
+                    data = "\n".join(self.full_pos(title, level, forms)) + "\n\n"
                     if not target:
-                        changes.append(["append", None, data])
+                        changes.append(["after", wikt, data])
                     else:
                         changes.append(["before", target, data])
 
 
         for position, target, data in changes:
             if position == "after":
+                if not target.endswith("\n\n"):
+                    if target.endswith("\n"):
+                        target.add_text("\n")
+                    else:
+                        target.add_text("\n\n")
                 wikt.insert_after(target, data)
 
             elif position == "before":
                 wikt.insert_before(target, data)
-
-            elif position == "append":
-                wikt.add_text(data)
 
 
     @classmethod
@@ -1021,6 +1014,7 @@ class FormFixer():
 
         entry = self.get_language_entry(title, wikt, "Spanish")
         if not entry:
+            print("no entry found")
             return text
 
         missing_forms, unexpected_forms = self.compare_forms(declared_forms, self.get_existing_forms(title, entry).keys())
@@ -1035,9 +1029,9 @@ class FormFixer():
         """ Removes the pos section entirely and then re-creates it with the given forms
         fails if the existing pos has anything other than generic form or data """
 
-        forms = [f for f in x_forms if f[0] == target_pos]
+        forms = [f for f in x_forms if f.pos == target_pos]
 
-        print("remove", forms, target_pos)
+        #print("remove", forms, target_pos)
 
         if not forms:
             return page_text
@@ -1081,15 +1075,15 @@ class FormFixer():
             item._parent.remove_child(item)
 
         res = str(wikt).rstrip()
-        if res.endswith("----"):
-            res += "\n"
 
         # Sloppy workaround when the last item has been replaced
-        elif page_text.rstrip().endswith("----"):
-            res = res + "\n\n----\n"
+        if not res.endswith("----") and page_text.rstrip().endswith("----"):
+            res = res + "\n----"
+
+        res += "\n"
 
         # if the only difference is "|g=m-p" and just return the normal page
-        if re.sub(" form\|g=(m|m-s|f|f-s)}}", " form}}", res.rstrip()) == re.sub(" form\|g=(m|m-s|f|f-s)}}", " form}}", page_text.rstrip()):
+        if re.sub(r" form\|g=(m|m-s|f|f-s)}}", " form}}", res.rstrip()) == re.sub(r" form\|g=(m|m-s|f|f-s)}}", " form}}", page_text.rstrip()):
             return page_text
 
         return res
@@ -1223,8 +1217,8 @@ class FixRunner():
     def _add_forms(self, page_text, title, skip_errors=False):
 
         declared_forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
-        #supported_forms = [f for f in declared_forms if f[0] != "v" and f[0] in pos_to_inflection]
-        supported_forms = [f for f in declared_forms if f[0] in pos_to_inflection]
+        #supported_forms = [f for f in declared_forms if f.pos != "v" and f.pos in pos_to_inflection]
+        supported_forms = [f for f in declared_forms if f.pos in pos_to_inflection]
         if not supported_forms:
             return page_text
 
@@ -1254,10 +1248,8 @@ class FixRunner():
         forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
         #print(title, "forms", forms)
 
-        forms = [f for f in forms if f[0] in pos]
+        forms = [f for f in forms if f.pos in pos]
         new_text = self.fixer.replace_pos(title, page_text, forms, pos)
-
-        return new_text
 
 
     def _remove_forms(self, page_text, title, allow_blank=False, ignore_errors=False):
