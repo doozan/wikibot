@@ -1250,14 +1250,12 @@ class FixRunner():
             return page_text
 
 
-    def _replace_pos(self, page_text, title, filter_pos):
+    def _replace_pos(self, page_text, title, pos):
         forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
-        print(title, "forms", forms)
+        #print(title, "forms", forms)
 
-        new_text = page_text
-        for pos in filter_pos:
-            forms = [f for f in forms if f[0] in filter_pos]
-            new_text = self.fixer.replace_pos(title, new_text, forms, pos)
+        forms = [f for f in forms if f[0] in pos]
+        new_text = self.fixer.replace_pos(title, page_text, forms, pos)
 
         return new_text
 
@@ -1349,28 +1347,31 @@ class FixRunner():
              replacement._edit_summary = "Spanish: Removed forms"
         return self._remove_forms(page_text, title)
 
-    def replace_pos(self, match, title, replacement, pos):
+    def replace_pos(self, match, title, replacement, pos_list):
 
         page_text = match.group(0)
         if not self.can_handle_page(title):
             return page_text
 
-        try:
-            new_text = self._replace_pos(page_text, title, pos)
-        except BaseException as e:
-            print("ERROR:", title, e)
-            #raise e
-            with open("error.log", "a") as outfile:
-                print(f"{title} failed during replace pos {e}")
-                outfile.write(f"{title}: failed during replace pos {e}\n")
-            return page_text
+        replaced = []
+        new_text = page_text
+        for pos in pos_list:
+            try:
+                text = self._replace_pos(new_text, title, pos)
+                if text != new_text:
+                    replaced.add(f"Replaced {pos} forms")
+                    new_text = text
 
-        if replacement:
-            pos_type = {"v": "verb", "n": "noun", "adj": "adjective"}.get(pos[0]) if len(pos) == 1 else None
-            if pos_type:
-                replacement._edit_summary = f"Spanish: Replaced {pos_type} forms"
-            else:
-                replacement._edit_summary = "Spanish: Replaced forms"
+            except BaseException as e:
+                print("ERROR:", title, e)
+                #raise e
+                with open("error.log", "a") as outfile:
+                    print(f"{title} failed during replace pos {pos} {e}")
+                    outfile.write(f"{title}: failed during replace pos {e}\n")
+
+        if replacement and replaced:
+            replacement._edit_summary = f"Spanish: " + "; ".join(replaced)
+
         return new_text
 
     def add_remove_forms(self, match, title, replacement=None):
