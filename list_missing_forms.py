@@ -9,7 +9,8 @@ import re
 import sys
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
-from form_fixer import FormFixer
+from enwiktionary_wordlist.language_extract import LanguageFile
+from form_fixer import FormFixer, FixRunner, ExistingForm
 from autodooz.wikilog import WikiLogger, BaseHandler
 
 class Logger(WikiLogger):
@@ -20,17 +21,23 @@ class WikiSaver(BaseHandler):
         "form_errors": "Errors while processing forms",
         "should_be_lemma": "Forms that should probably be lemmas (manual review needed)",
 #        "missing_page": "Redlinks",
-        "missing_entry": "Missing Spanish section (bot job)",
-        "missing_pos": "Missing POS entry (bot job)",
-        "missing_pos_multi_ety": "Missing POS entry, entry has multiple etymologies (manual review needed)",
+        "missing_entry": "Missing Spanish section",
+        "missing_pos": "Missing POS entry",
+        #"missing_pos_multi_ety": "Missing POS entry, entry has multiple etymologies (manual review needed)",
         "missing_sense": "Entry exists, but is missing a 'form of' declaration",
         "wrong_form": "Entry has existing 'form of' that doesn't match the expected 'form of'",
         "unexpected_form": "Entry claims to be a 'form of' lemma but is not declared by the lemma",
         "missing_lemma": "Entry claims to be a 'form of' non-existent lemma",
     }
 
+    def save_page(self, page, page_text):
+        if page.endswith("_autofix"):
+            print("DEBUGGING - skipping autofix file upload until 2/20 data load")
+            return
+        super().save_page(page, page_text)
+
     def sort_items(self, items):
-        return sorted(items, key=lambda x:(x.error,  x.form))
+        return sorted(filter_items(items), key=lambda x:(x.error,  x.form))
 
     def is_new_page(self, page_sections, section_entries):
         # each error is a new page
@@ -54,37 +61,62 @@ class WikiSaver(BaseHandler):
 
     def page_header(self, base_path, page_name, page_sections, pages):
         count = sum(map(len, page_sections))
+        error = page_name[:-len("_autofix")] if page_name.endswith("_autofix") else page_name
         header = self.error_header.get(page_name, page_name)
         return [f"{header}: {count} item{'' if count==1 else 's'}"]
 
     def format_entry(self, entry, prev_entry):
 
-        pos, formtype, lemma, *_ = entry.item
+        error = entry.error[:-len("_autofix")] if entry.error.endswith("_autofix") else entry.error
+        f = entry.item
 
-        if entry.error in [ "missing_sense", "missing_pos_multi_ety", "missing_pos" ]:
+        #if entry.error in [ "missing_sense", "missing_pos_multi_ety", "missing_pos" ]:
+        if error in [ "missing_sense", "missing_pos" ]:
             try:
-                data = f"{pos} <nowiki>" + fixer.get_form_gloss(entry.form, entry.item) + "</nowiki>"
+                data = f"{f.pos} <nowiki>" + fixer.get_form_gloss(entry.item) + "</nowiki>"
             except ValueError:
-                data = f"{pos} ({formtype} of [[{lemma}#Spanish|{lemma}]])"
+                data = f"{f.pos} ({f.formtype} of [[{f.lemma}#Spanish|{f.lemma}]])"
 
-        elif entry.error == "should_be_lemma":
-            data = f"{pos} declared by [[{lemma}#Spanish|{lemma}]]:{pos}"
-        elif entry.error == "missing_page":
-            data = f" ({formtype} of [[{lemma}#Spanish|{lemma}]]:{pos})"
-        elif entry.error == "missing_entry":
-            data = f" ({formtype} of [[{lemma}#Spanish|{lemma}]]:{pos})"
-        elif entry.error == "unexpected_form":
-            data = f"{pos} is not declared a {formtype} of [[{lemma}#Spanish|{lemma}]]:{pos}"
-        elif entry.error == "missing_lemma":
-            data = f"{pos} claims to be {formtype} of non-existent lemma [[{lemma}#Spanish|{lemma}]]:{pos}"
+        elif error == "should_be_lemma":
+            data = f"{f.pos} declared by [[{f.lemma}#Spanish|{f.lemma}]]:{f.pos}"
+
+        elif error == "missing_page":
+            data = f" ({f.formtype} of [[{f.lemma}#Spanish|{f.lemma}]]:{f.pos})"
+
+        elif error == "missing_entry":
+            data = f" ({f.formtype} of [[{f.lemma}#Spanish|{f.lemma}]]:{f.pos})"
+
+        elif error in ["unexpected_form", "wrong_form"]:
+            data = f"{f.pos} is not declared a {f.formtype} of [[{f.lemma}#Spanish|{f.lemma}]]:{f.pos}"
+
+        elif error == "missing_lemma":
+            data = f"{f.pos} claims to be {f.formtype} of non-existent lemma [[{f.lemma}#Spanish|{f.lemma}]]:{f.pos}"
+
         else:
             #"missing_pos": " does not have POS {pos} ({formtype} of {lemma}:{pos})",
-            #"missing_pos_multiple_ety": " does not have POS {pos} ({formtype} of {lemma}:{pos})",
             #"missing_sense": "{pos} <nowiki>{fixer2.get_form_gloss(item)}</nowiki>",
             #"wrong_form": "{pos} ({formtype} of [[{lemma}#Spanish|{lemma}]])",
             data = entry.item
 
         return [f": [[{entry.form}#Spanish|{entry.form}]]:" + data]
+
+    # override for missing lemma, which needs to be re-sorted by lemma and not by form
+    def make_section(self, base_path, page_name, section_entries, prev_section_entries, pages):
+
+        if not section_entries or section_entries[0].error != "missing_lemma":
+            return super().make_section(base_path, page_name, section_entries, prev_section_entries, pages)
+
+        res = self.get_section_header(base_path, page_name, section_entries, prev_section_entries, pages)
+
+        prev_entry = None
+        for entry in sorted(section_entries, key=lambda x: (x.item.pos, x.item.lemma)):
+            if not prev_entry or prev_entry.item.pos != entry.item.pos:
+                res.append(f"==={entry.item.pos}===")
+            if not prev_entry or prev_entry.item.lemma != entry.item.lemma:
+                res.append(f"; [[{entry.item.lemma}#Spanish|{entry.item.lemma}]]:")
+            res.append(f"[[{entry.item.form}#Spanish|{entry.item.form}]]({entry.item.formtype}),")
+            prev_entry = entry
+        return res
 
 class FileSaver(WikiSaver):
 
@@ -104,6 +136,7 @@ def error(error_id, form, item):
 
 
 fixer = None
+fixrunner = None
 
 def get_existing_forms(form, wordlist):
     words = wordlist.get_words(form)
@@ -127,25 +160,83 @@ def get_word_forms(words):
 
             if mate in word.forms:
                 for mate_lemma in word.forms[mate]:
-                    existing_forms.add((word.pos, gender, mate_lemma))
+                    existing_forms.add(ExistingForm(word.word, word.pos, gender, mate_lemma))
 
         for sense in word.senses:
             # Limit to the formtypes we can handle, forms like "misspelling of" aren't our concern
             if sense.formtype and FormFixer.can_handle_formtype(sense.formtype):
-                existing_forms.add((word.pos, sense.formtype, sense.lemma))
+                existing_forms.add(ExistingForm(word.word, word.pos, sense.formtype, sense.lemma))
 
     return existing_forms
 
 def get_masculines_from_fpl(word):
     return [lemma for lemma, forms in word.form_of.items() if "fpl" in forms]
 
+
+#def filter_fixes(extract, errors):
+def filter_items(errors):
+
+    # NOTE: if an error occurs in a page not included in the language_file,
+    # it will be lost in this filter, which ONLY returns items that do exist
+    # In most cases this won't matter as the problem should only have been
+    # found in a search of pages in the language file, but still, just a heads-up
+
+    search_titles = defaultdict(list)
+    for e in errors:
+        search_titles[e.form].append(e)
+
+    for item in LanguageFile.iter_articles("Spanish.txt.bz2"):
+        title, entry = item
+        if title not in search_titles:
+            continue
+
+        page_errors = search_titles[title]
+        for error in page_errors:
+            try:
+                autofix = can_autofix(entry, title, error)
+            except ValueError:
+                autofix = False
+
+            yield error._replace(error=error.error+"_autofix") if autofix else error
+
+def can_autofix(page_text, title, error):
+
+    if error.error == "wrong_form":
+        pos = error.item
+        if fixrunner._replace_pos(page_text, title, pos) != page_text:
+            return True
+        if fixrunner._remove_forms(page_text, title, pos) != page_text \
+                and fixrunner._add_forms(page_text, title, pos) != page_text:
+            return True
+
+    elif error.error == "unexpected_form":
+        if not hasattr(error.item, "pos"):
+            raise ValueError("tuple", error, error.item, title)
+        if fixrunner._replace_pos(page_text, title, error.item.pos) != page_text:
+            return True
+        if fixrunner._remove_forms(page_text, title, error.item.pos) != page_text:
+            return True
+
+    elif error.error in ["missing_entry", "missing_pos"]:
+        if fixrunner._add_forms(page_text, title, error.item.pos) != page_text:
+            return True
+
+    elif error.error == "missing_sense":
+        if fixrunner._replace_pos(page_text, title, error.item.pos) != page_text:
+            return True
+        if fixrunner._add_forms(page_text, title, error.item.pos) != page_text:
+            return True
+
+
 def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
 
     global fixer
+    global fixrunner
 
     wordlist = Wordlist.from_file(wordlist_file)
     allforms = AllForms.from_file(allforms_file)
     fixer = FormFixer(wordlist)
+    fixrunner = FixRunner("es", wordlist, allforms)
 
     with open(allpages_file) as infile:
         allpages = { x.strip() for x in infile }
@@ -186,40 +277,43 @@ def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
 
         missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
-        missing_pos = {f[0] for f in missing_forms}
-        unexpected_pos = {f[0] for f in unexpected_forms}
-        wrong_forms = missing_pos & unexpected_pos
+        missing_pos = {f.pos for f in missing_forms}
+        unexpected_pos = {f.pos for f in unexpected_forms}
+        wrong_pos = missing_pos & unexpected_pos
 
-        if wrong_forms:
-            for pos in wrong_forms:
+        if wrong_pos:
+            for pos in wrong_pos:
                 error("wrong_form", form, pos)
 
-            unexpected_forms = [f for f in unexpected_forms if f[0] not in wrong_forms]
-            missing_forms = [f for f in missing_forms if f[0] not in wrong_forms]
+            unexpected_forms = [f for f in unexpected_forms if f.pos not in wrong_pos]
+            missing_forms = [f for f in missing_forms if f.pos not in wrong_pos]
 
         for item in missing_forms:
-            pos, formtype, lemma, lemma_genders = item
+            #pos, formtype, lemma, lemma_genders = item
 
-            if not FormFixer.can_handle_formtype(formtype):
+            if item.form != form:
+                raise ValueError(form, item)
+
+            if not FormFixer.can_handle_formtype(item.formtype):
                 continue
 
             # TODO: for now skip multi word verbs
-            if pos == "v" and " " in lemma:
+            if item.pos == "v" and " " in item.lemma:
                 continue
 
-            if pos == "n" and formtype == "m":
+            if item.pos == "n" and item.formtype == "m":
                 error("should_be_lemma", form, item)
                 continue
 
-            words = list(wordlist.get_words(form, pos))
+            words = list(wordlist.get_words(form, item.pos))
             if not words:
                 matches = list(wordlist.get_words(form))
                 if matches:
-                    ety = {w.etymology for w in matches}
-                    if len(ety) > 1:
-                        error("missing_pos_multi_ety", form, item)
-                    else:
-                        error("missing_pos", form, item)
+#                    ety = {w.etymology for w in matches}
+#                    if len(ety) > 1:
+#                        error("missing_pos_multi_ety", form, item)
+#                    else:
+                    error("missing_pos", form, item)
                 else:
                     if form in allpages:
                          error("missing_entry", form, item)
@@ -241,8 +335,7 @@ def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
             error("missing_sense", form, item)
 
         for item in unexpected_forms:
-            pos, formtype, lemma = item
-            words = list(wordlist.get_words(lemma, pos))
+            words = list(wordlist.get_words(item.lemma, item.pos))
             if words:
                 error("unexpected_form", form, item)
             else:
@@ -251,9 +344,10 @@ def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
 
     if args.save:
         base_url = "User:JeffDoozan/lists/es/forms"
+        logger.save("xx", FileSaver)
         logger.save(base_url, WikiSaver, commit_message=args.save)
     else:
-        logger.save("", FileSaver)
+        logger.save("xx", FileSaver)
 
 if __name__ == "__main__":
     import argparse
