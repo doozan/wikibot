@@ -54,6 +54,31 @@ def save_to_file(self, dest, page_text):
         outfile.write(page_text)
         print("saved", dest)
 
+error_to_text = {
+    "allow_missing_has_template": "Has both translation and non-translation",
+    "footer_has_posttext": "Table footer has post-text",
+    "footer_has_pretext": "Table footer has pre-text",
+    "header_has_posttext": "Table header has post-text",
+    "item_html_comment": "Entry HTML comment",
+    "merged_genders": "Genders outside t-template",
+    "missing_bottom_template": "Table has no bottom template",
+    "missing_t": "No translation template",
+    "missing_translation_target": "No translation target",
+    "mixed_delimiters": "List items separated by both comma and semicolon",
+    "multiple_genders_sources": "Genders in t-template and g-template",
+    "multiple_qualifier_templates": "Multiple qualifiers",
+    "multiple_t_templates": "Multiple t-templates",
+    "nested_template": "Nested templates",
+    "no_tables": "No tables",
+    "outside_pos": "Table found outside a POS section",
+    "t_is_l": "Uses l-template instead of t-template",
+    "table_html_comment": "Table HTML comment",
+    "unexpected_data": "Unexpected data",
+    "unexpected_language": "Unexpected language",
+    "unexpected_template": "Unexpected template",
+    "wrong_language_code": "Wrong language code",
+}
+
 class WikiByLanguage(BaseWikiByLanguage):
 
     _indextype = namedtuple("index_items", [ "link", "entries", "errors" ])
@@ -90,11 +115,12 @@ class WikiByLanguage(BaseWikiByLanguage):
         count = sum(map(len, [x for x in pages[page_name] if x[0].language == item.language]))
         # To avoid cluttering the header summary, only use subheaders if the language has
         # more than 80 entries
+        error = error_to_text.get(item.error, item.error)
         if count > 80:
-            res.append(f"==={item.error}===")
+            res.append(f"==={error}===")
             res.append(f"; {len(section_entries)} item{'s' if len(section_entries)>1 else ''}")
         else:
-            res.append(f"'''{item.error}''': {len(section_entries)} item{'s' if len(section_entries)>1 else ''}")
+            res.append(f"'''{error}''': {len(section_entries)} item{'s' if len(section_entries)>1 else ''}")
 
         if item.error == "wrong_language_code":
             res.append(f"''Expected language code is '''{ALL_LANGS.get(LANG_ALIASES.get(item.language, item.language), '')}'''''<br>")
@@ -113,18 +139,43 @@ class WikiByLanguage(BaseWikiByLanguage):
     def index_header(self, index_items):
         return [("Language", "Entries", "Errors")]
 
+    @staticmethod
+    def get_lang(link):
+        if not link.startswith("["):
+            return link
+
+        # return language name split from [[mismatched/G#German Low German|German Low German]]
+        return link.split("#")[1].split("|")[0]
+
     def index_sort(self, items):
-        # Sort by total (descending), then language name split from [[mismatched/G#German Low German|German Low German]]
-        return sorted(items, key=lambda x: (x.entries*-1, x.link.split("#")[1].split("|")[0]))
+
+        # Build a list of all languages with entries
+        all_langs = stats["lang_entries"]
+        langs_with_errors = { self.get_lang(item.link) for item in items }
+        langs_without_errors = all_langs.keys() - langs_with_errors
+
+        all_items = items
+        for language in langs_without_errors:
+            entries = stats["lang_entries"][language]
+            all_items.append(self._indextype(language, entries, 0))
+
+        return sorted(all_items, key=lambda x: (x.entries*-1, self.get_lang(x.link)))
 
     def index_footer(self, index_items):
         total_entries = sum(stats["lang_entries"].values())
-        return [("Total", total_entries, sum(x.errors for x in index_items))]
+        return [(f"Total ({len(index_items)} languages)", total_entries, sum(x.errors for x in index_items))]
 
 
 class WikiByError(BaseHandler):
 
     _indextype = namedtuple("index_items", ["link", "count"])
+
+    def make_page(self, *args, **nargs):
+        page_lines = super().make_page(*args, **nargs)
+        limit = 15000
+        if len(page_lines) > limit:
+            return page_lines[:limit] + [f"Page truncated to {limit} lines"]
+        return page_lines
 
     def format_entry(self, entry, prev_entry):
         e = entry
@@ -148,8 +199,7 @@ class WikiByError(BaseHandler):
         return lines
 
     def sort_items(self, items):
-        return sorted([x for x in items if x.error not in ["text_outside_template"]],
-            key=lambda x: (x.error, x.page, x.section))
+        return sorted(items, key=lambda x: (x.error, x.page, x.section))
 
     def is_new_page(self, page_sections, section_entries):
         # each error is a new page
@@ -164,7 +214,8 @@ class WikiByError(BaseHandler):
         return page_sections[0][0].error
 
     def get_section_header(self, base_path, page_name, section_entries, prev_section_entries, pages):
-        res = [f"==={section_entries[0].error}==="]
+        error = error_to_text.get(section_entries[0].error, section_entries[0].error)
+        res = [f"==={error}==="]
         res.append(f"; {len(section_entries)} items")
         return res
 
@@ -172,12 +223,10 @@ class WikiByError(BaseHandler):
         link = f"[[{base_path}/{page_name}|{page_name}]]"
         return [self._indextype(link, len(section_entries))]
 
-        # NOTE: When changing the link format, ensure that index_sort() isn't affected
     def index_header(self, index_items):
         return [("Error", "#")]
 
     def index_sort(self, items):
-        # Sort by total (descending), then language name split from [[mismatched/G#German Low German|German Low German]]
         return sorted(items, key=lambda x: (x.count*-1, x.link))
 
     def index_footer(self, index_items):
