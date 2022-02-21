@@ -39,6 +39,7 @@ error_header = {
     # Errors generated here
     "autofix_title": "Pages with title typos that will be automatically fixed by the bot",
     "autofix_numbered_pos": "Pages with numbered POS entries that will automatically be fixed by the bot",
+    "autofix_bad_l2": "Pages with POS sections in L2 that will be fixed by the bot",
     "autofix_levels": "Pages with level jumps (eg, L4 section inside a L2 section) that will automatically be normalized by the bot",
     "autofix_empty_section": "Pages with empty sections that will automatically be removed by the bot",
 
@@ -100,6 +101,7 @@ def validate_entry(entry):
 
     headerfix.fix_section_titles(entry) and log("autofix_title", entry)
     headerfix.fix_remove_pos_counters(entry) and log("autofix_numbered_pos", entry)
+    headerfix.fix_bad_l2(entry) and log("autofix_bad_l2", entry)
     headerfix.fix_section_levels(entry) and log("autofix_levels", entry)
     headerfix.remove_empty_sections(entry) and log ("autofix_empty_section", entry)
 
@@ -125,17 +127,17 @@ def validate_entry(entry):
         if not section._lines and not section._children:
             log("empty_section", section)
 
-    PATTERN_SIMPLE_REFS = r"(?i)(<\s*references\s*/>|{{reflist}})"
-    refs = entry.ifilter_sections(matches=lambda x: any(d for d in x._lines if re.search(PATTERN_SIMPLE_REFS, d)))
-    for r in refs:
-        if "References" not in r.lineage:
-            log("reference_tag_outside_references", r)
+        PATTERN_SIMPLE_REFS = r"(?i)(<\s*references\s*/>|{{reflist}})"
+        if any(re.search(PATTERN_SIMPLE_REFS, d) for d in section._lines):
+            if "References" not in section.lineage:
+                if len(section._lines) == 1:
+                    log("misnamed_references_section", section)
+                else:
+                    log("reference_tag_outside_references", section)
 
     for section in entry._children:
         if re.search(headerfix.PATTERN_REF_TAGS, str(section)) and not re.search(headerfix.PATTERN_REFS, str(section)):
-            note = "has references section" if any(x for x in section._children if x.title == "References") else None
-            log("autofix_missing_references", section, note)
-
+            log("autofix_missing_references", section)
 
 
 SAVE_NOTE = None
