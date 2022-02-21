@@ -23,45 +23,238 @@ import os
 import re
 import sys
 from copy import deepcopy
-from autodooz.t9nparser import TranslationTable, TranslationLine, UNKNOWN_LANGS, LANG_PARENTS
+from autodooz.t9nparser import TranslationTable, TranslationLine, Translation, UNKNOWN_LANGS, LANG_PARENTS
 from enwiktionary_wordlist.all_forms import AllForms
 from autodooz.sectionparser import SectionParser
+from enwiktionary_parser.utils import nest_aware_resplit, nest_aware_split
+from enwiktionary_parser.languages.all_ids import languages as lang_ids
+ALL_LANGS = {v:k for k,v in lang_ids.items()}
+
+ttbc_fixes = {}
 
 class T9nFixer():
     def __init__(self, allforms=None):
         self.allforms = allforms
 
     def cleanup_table(self, table):
-
         # TODO: warn if multiple senses and no gloss (requires en.data)
 
         self.fix_bottom_footer(table)
+        table.fixes = []
 
-        for item in table.items:
-            if not isinstance(item, TranslationLine):
-                continue
+        fixes = []
+        for i, item in enumerate(table.items):
+
+            if isinstance(item, TranslationLine):
+                res = self.cleanup_list(item)
+            else:
+                # Expand {{ttbc
+                if "{{ttbc" in item:
+                    cleaned_item = ttbc_fixes.get(item)
+                    if not cleaned_item:
+                        cleaned_item = self.cleanup_ttbc(item)
+                    if cleaned_item:
+                        fixes.append((i, cleaned_item))
+                        table.fixes.append("Updated {{ttbc}} line")
+
+                # replace "* Language" with "* Language:"
+                else:
+                    match = re.match("[ #*:]+(.*)", item)
+                    if match:
+                        if match.group(1).strip() in ALL_LANGS:
+                            fixes.append((i, item.rstrip() + ":"))
+                            table.fixes.append("Appended : to bare language line")
 
             # TODO:
             # detect duplicate languages
             # fix indentation?
             # validate language code?
 
-            if item.lang_id == "es":
-                res = self.cleanup_list(item)
+
+        if fixes:
+            for i, new_item in fixes:
+                table.items[i] = new_item
+
+    re_ttbc_line = re.compile(r"([*#: ]*){{ttbc\|([^|}]+)}}(.*)") #}} - code folding fix
+    @classmethod
+    def cleanup_ttbc(cls, line):
+
+        match = re.match(cls.re_ttbc_line, line)
+        if not match:
+            return
+
+        lang_id = match.group(2)
+        full_lang = lang_ids.get(lang_id)
+        if not full_lang:
+            return
+
+        new_line = match.group(1) + full_lang + match.group(3)
+        if "{{t-check" in new_line or "{{t+check" in new_line:
+            return new_line
+
+        newer_line = re.sub(r"{{(t|tt|t\+|tt\+)\s*\|", lambda x: "{{t+check|" if x.group(1).endswith("+") else "{{t-check|", new_line)
+        if newer_line != new_line:
+            return newer_line
+
+        res = TranslationTable.parse_lang_line(new_line)
+        if not res:
+            return
+
+        # Don't aggressively check without manual approval
+        return
+
+        depth, lang, data = res
+
+        res = depth + " " + lang + ": "
+        entries = []
+        for entry in nest_aware_resplit(r"[,;]\s*", data, [("(",")")]):
+            new_entry = cls.make_translation(entry[0], lang_id)
+            if new_entry == entry:
+                return
+            entries.append(new_entry)
+
+        return res + ", ".join(entries)
+
+
+    @classmethod
+    def make_translation(cls, text, lang_id):
+
+
+        #(?:{{l\|[^|]+\|)?       # {{l|*|
+        #(?:}})?                 # }}
+
+        PATTERN = r"""(?x)  # verbose regex
+        \s*
+        (?:\[\[)                # [[
+        ([^#\|(){}\[\]]+?)      # single link without any symbols or whitespace, captured asgroup(1)
+        (?:]])                  # ]]
+        \s*
+        (?:{{g\|([^}]+)}})?     # {{g|blah}} tag, "bl|ah" captured as group(2)
+        \s*
+        (\([\w, \-'’"]+\))?     # (words without any symbols), captured as group(3)
+        \s*
+        (\([0-9, \-]+\))?       # (1,2, 3), captured as group(4)
+        \s*
+        $
+        """
+
+        match = re.match(PATTERN, text)
+        if not match:
+            return text
+
+        new_entry = "{{t|" + lang_id + "|" + match.group(1)
+        if match.group(2):
+            new_entry += "|" + match.group(2)
+        new_entry += "}}"
+        if match.group(3):
+            new_entry += " " + match.group(3)
+        if match.group(4):
+            new_entry += " " + match.group(4)
+
+        return new_entry
+
+        # bareword or [[single link]]
+#        match = re.match(r"(?:\[\[)?([:_\-=}\|{[\][!@#$%^&*() \",'])(?:]])$", data)
+#        if match:
+#            return depth + " " + lang + ": {{t-check|" + lang_id + "|" + match.group(1) + "}}"
+
+        # bareword {{g|m}}
+        # [[single link]] {{g|m}}
+#        match = re.match(r"(?:\[\[)?([^\W]*)(?:]])?\s*({{g\|([^}])+}})?$", data)
+#        if match:
+#            return depth + " " + lang + ": {{t-check|" + lang_id + "|" + match.group(1) + "|" + match.group(2) + "}}"
+
+
+#        data = data.strip("[]")
+#        if data and not re.search(r"[:_\-=}\|{[\][!@#$%^&*() \",']", data):
+#            return depth + lang + ": {{t-check|" + lang_id + "|" + data + "}}"
+
+
+#        return str(tline)
+
+
+
+#        entries = []
+#        for entry in split_entry_list(data):
+
+    def convert_l_to_t(self, item):
+
+        gender_keys = []
+        for k in item.params.keys():
+            if isinstance(k, int):
+                continue
+            elif k.startswith("g"):
+                gender_keys.append(k)
+            elif k not in ["ts", "sc", "tr", "alt", "lit", "id"]:
+                raise ValueError("complex_keys", tlist)
+
+        genders = {}
+        for k in gender_keys:
+            v = item.params.pop(k)
+            idx = k[1:]
+            if idx:
+                genders[int(idx)] = v
+            else:
+                genders[1] = v
+
+        gender_list = []
+        for k,v in sorted(genders.items(), key=lambda x: x[1]):
+            if v not in gender_list:
+                gender_list.append(v)
+
+        for k,v in enumerate(gender_list, 3):
+            item.params[k] = v
+
+        if item.template == "l":
+            item.template = "t"
+
+        item.parent.parent.fixes.append("Converted {{l}} to {{t}}")
 
 
     def cleanup_list(self, tlist):
 
-        if not self.allforms:
+        if tlist.has_errors:
+            entries = []
+            for item in nest_aware_split(',', tlist._entries, [("{{","}}"), ("(",")")]):
+
+                # Disable the tlist logger when rebuilding the Translations so that
+                # it doesn't add new errors to the log
+                old_log = tlist.log
+                tlist.log = lambda *x, **y: ""
+                entry = Translation(item, tlist)
+                tlist.log == old_log
+
+                if entry.has_errors:
+                    entry.parent = tlist
+                    new_item = self.make_translation(item, tlist.lang_id)
+                    if new_item != item:
+                        tlist.parent.fixes.append("Converted bare link to {{t}}")
+                        entry = Translation(new_item, tlist)
+
+                    # If it couldn't be parsed, give up
+                    else:
+                        return
+
+                entries.append(entry)
+            tlist.entries = entries
+            tlist.has_errors = False
             return
 
         if not tlist.entries:
             return
 
-        if tlist.has_errors:
+        if not self.allforms:
             return
 
-        # For now, spanish only
+        # Convert l to t
+        #if "{{l" in str(tlist):
+
+        for item in tlist.entries:
+            if "{{l" in str(item):
+                self.convert_l_to_t(item)
+                return
+
+       # For now, spanish only
         if tlist.lang_id != "es":
             return
 
@@ -70,7 +263,16 @@ class T9nFixer():
             return
         pos = "adj"
 
-        seen_genders = { g for item in tlist.entries for g in item.genders }
+        seen_genders = set()
+        for item in tlist.entries:
+            # Fail if any item is t-needed
+            if not item.params:
+                return
+
+            for k,g in item.params.items():
+                if isinstance(k,int) and k > 2:
+                    seen_genders.add(g)
+
 
         if len(seen_genders) and ("m" not in seen_genders and "f" not in seen_genders and "mf" not in seen_genders):
             tlist.log("target_is_form", str(sorted(seen_genders)))
@@ -78,32 +280,32 @@ class T9nFixer():
 
         lemma_entries = {}
         for item in tlist.entries:
-
             pattern = r"""(?x)   # verbose regex
                 \[\[             # double brackets
                 ([^#|\]]*)       # the link target: everything before * | or ]
                 .*?]]            # the link text and closing brackets
             """
-            target = re.sub(pattern, r"\1", item.target)
+            target = item.params[2]
+            clean_target = re.sub(pattern, r"\1", target)
 
-            all_poslemmas = self.allforms.get_lemmas(target)
+            all_poslemmas = self.allforms.get_lemmas(clean_target)
             if not all_poslemmas:
-                if " " in item.target:
+                if " " in target:
                     tlist.log("target_phrase_missing", target)
                 else:
-                    tlist.log("target_lemma_missing", target)
+                    tlist.log("target_lemma_missing", f"{target}")
                 return
 
             poslemmas = [p for p in all_poslemmas if p.startswith(f"{pos}|")]
             if not poslemmas:
-                tlist.log("target_lemma_missing_pos", f'{item.target}:{pos}')
+                tlist.log("target_lemma_missing_pos", f'{target}:{pos}')
                 return
 
             if len(poslemmas) > 1:
-                if f"{pos}|" + target in poslemmas:
-                    poslemmas = [f"{pos}|" + target]
+                if f"{pos}|" + clean_target in poslemmas:
+                    poslemmas = [f"{pos}|" + clean_target]
                 else:
-                    tlist.log("target_lemma_ambiguous", f'{item.target} -> {poslemmas}')
+                    tlist.log("target_lemma_ambiguous", f'{target} -> {poslemmas}')
                     return
 
             pos, lemma = poslemmas[0].split("|")
@@ -111,7 +313,7 @@ class T9nFixer():
                 lemma_entries[lemma] = item
             else:
                 # TODO: also check alt and other t params
-                if item.qualifiers != lemma_entries[lemma].qualifiers:
+                if item.qualifier != lemma_entries[lemma].qualifier:
                     tlist.log("removable_form_has_qualifier")
                     return
 
@@ -124,11 +326,13 @@ class T9nFixer():
 
         if len(lemma_entries) != len(tlist.entries):
             tlist.log("botfix_consolidate_forms")
+            tlist.parent.fixes.append("Reduced Spanish forms to common lemma")
 
             new_entries = []
             for lemma, item in lemma_entries.items():
-                item.genders = []
-                item.target = lemma
+#                item.genders = []
+                item.params[2] = lemma
+                item.params = {k:v for k,v in item.params.items() if (not isinstance(k, int) or k < 3)}
                 new_entries.append(item)
             tlist.entries = new_entries
 
@@ -211,18 +415,68 @@ class T9nFixRunner():
 
                 # TODO: rework TT() so it handles text instead of lines and doesn't require page, pos params
                 table_lines = table_text.splitlines()
-                table = TranslationTable(title, pos, table_lines, log_function=lambda *x: x)
+                table = TranslationTable(title, pos, table_lines, log_function=lambda *x: print(x))
 
                 self.fixer.cleanup_table(table)
+
                 new_text =  str(table)
-                if new_text != table_text:
-                    replacements.append((table_text, new_text))
+                if table.fixes and new_text != table_text:
+                    replacements.append((table_text, new_text, table.fixes))
 
         if replacements:
-            if replacement:
-                replacement._edit_summary = "Translations: cleanup formatting" #Spanish: reduced forms to common lemma"
+            all_fixes = []
             for item in replacements:
-                old, new = item
+                old, new, fixes = item
+                all_fixes += fixes
                 page_text = page_text.replace(old, new)
 
+            if replacement:
+                summary = "Translations: " + ", ".join(sorted(set(all_fixes)))
+                #replacement._edit_summary = "Translations: expanded {{ttbc}} to language, wrapped entries in {{t-check}} (manually assisted)" #Spanish: reduced forms to common lemma"
+                #replacement._edit_summary = "Translations: replaced bare '* Language' with '* Language:'" #Spanish: reduced forms to common lemma"
+                replacement._edit_summary = summary
+
         return page_text
+
+r"""
+ttbc_orig = []
+with open("ttbc.orig") as infile:
+    for line in infile:
+        line = line.strip()
+        if ttbc_orig and line == ttbc_orig[-1]:
+            print("dup", line)
+        ttbc_orig.append(line)
+
+with open("ttbc") as infile:
+    for i, line in enumerate(infile):
+        line = line.strip()
+
+        match = re.search("{{ttbc\|([^|}]*)", line)
+        lang_id = match.group(1)
+
+        for match in re.findall("{{t-check\|([^|}]*)", line):
+            if match != lang_id:
+                print("mismatch", [match, lang_id], line)
+
+        if line.count("{") != line.count("}"):
+            print("{ mismatch", line)
+
+        if line.count("(") != line.count(")"):
+            print("( mismatch", line)
+
+        if line.count("[") != line.count("]"):
+            print("[ mismatch", line)
+
+        line = T9nFixer.cleanup_ttbc(line)
+        ttbc_fixes[ttbc_orig[i]] = line
+
+
+print("DONE")
+
+#if len(ttbc_orig) != len(set(ttbc_orig)):
+#    print("dup lines")
+#else:
+#    print("no dups")
+
+
+"""
