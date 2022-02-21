@@ -152,13 +152,8 @@ class BaseHandler():
 
     def make_index(self, base_path, page_name, pages):
         """ Returns a list of strings to be used as the index page """
-        index_items = []
+        index_items = self.make_index_items(base_path, page_name, pages)
 
-        prev_section_entries = None
-        for page_name, page_sections in pages.items():
-            for section_entries in page_sections:
-                index_items += self.get_section_index(base_path, page_name, section_entries, prev_section_entries, pages)
-                prev_section_entries = section_entries
 
         index_header = self.index_header(index_items)
         index_footer = self.index_footer(index_items)
@@ -168,6 +163,16 @@ class BaseHandler():
             return []
 
         return self.make_wiki_table(index_items, extra_class="sortable", num_headers=len(index_header), num_footers=len(index_footer))
+
+    def make_index_items(self, base_path, page_name, pages):
+        index_items = []
+        prev_section_entries = None
+        for page_name, page_sections in pages.items():
+            for section_entries in page_sections:
+                index_items += self.get_section_index(base_path, page_name, section_entries, prev_section_entries, pages)
+                prev_section_entries = section_entries
+
+        return index_items
 
     def make_wiki_table(self, rows, caption=None, extra_class=None, num_headers=0, num_footers=0):
         """ Formats a list of rows as a wiki table """
