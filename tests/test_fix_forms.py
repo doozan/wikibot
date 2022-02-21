@@ -247,6 +247,19 @@ pos: n
   etymology: diente + -ista
   gloss: dentist
 _____
+descomer
+pos: v
+  meta: {{es-verb}} {{es-conj|nocomb=1}}
+  etymology: des + comer
+  gloss: to defecate
+    q: euphemistic
+_____
+descomedirse
+pos: v
+  meta: {{es-verb|<i>}} {{es-conj|<i>}}
+  gloss: to be rude or disrespectful
+    q: reflexive
+_____
 errar
 pos: v
   meta: {{es-verb|<ye[Spain],+[Latin America]>}} {{es-conj|<ye[Spain],+[Latin America]>}}
@@ -2285,4 +2298,41 @@ def test_errar_verb_multi_forms(fixer, allforms):
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
     assert missing_forms == []
+    assert unexpected_forms == set()
+
+
+
+def test_descomida(fixer, allforms):
+    title = "descomida"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|mood=subjunctive|tense=present|person=1|number=s|ending=ir|descomedirse}}
+# {{es-verb form of|mood=subjunctive|tense=present|formal=y|person=2|number=s|ending=ir|descomedirse}}
+# {{es-verb form of|mood=subjunctive|tense=present|person=3|number=s|ending=ir|descomedirse}}
+# {{es-verb form of|mood=participle|gender=f|number=s|ending=er|descomer}}
+"""
+#    print(allforms.all_forms["erras"])
+#    print(allforms.all_forms["yerras"])
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+    assert declared_forms == [
+        ('descomida', 'v', 'neg_imp_2sf', 'descomedirse', []),
+        ('descomida', 'v', 'pres_sub_1s', 'descomedirse', []),
+        ('descomida', 'v', 'pres_sub_2sf', 'descomedirse', []),
+        ('descomida', 'v', 'pres_sub_3s', 'descomedirse', []),
+        ('descomida', 'v', 'pp_fs', 'descomer', []),
+    ]
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+
+    assert missing_forms == [('descomida', 'v', 'neg_imp_2sf', 'descomedirse', [])]
+
     assert unexpected_forms == set()

@@ -102,25 +102,29 @@ class FormFixer():
 
         poslemmas = allforms.get_lemmas(form)
 
-        has_se = False
-        has_non_se = False
+        se_verbs = set()
+        non_se_verbs = set()
         for pos, lemma in [poslemma.split("|") for poslemma in poslemmas]:
             if pos != "v":
                 continue
 
-            if lemma.endswith("rse") and not has_se:
-                has_se = any(form in forms
+            if lemma.endswith("rse") and \
+                any(form in forms
                     for word in wordlist.get_words(lemma, pos)
-                    for formtype, forms in word.forms.items())
+                    for formtype, forms in word.forms.items()):
+                    se_verbs.add(lemma[:-2])
 
-            elif lemma[-2:] in ["ar", "er", "ir", "ír"] and not has_non_se:
-                has_non_se = any(form in forms
+            elif lemma[-2:] in ["ar", "er", "ir", "ír"] and \
+                any(form in forms
                     for word in wordlist.get_words(lemma, pos)
-                    for formtype, forms in word.forms.items())
+                    for formtype, forms in word.forms.items()):
+                    non_se_verbs.add(lemma)
 
         # Now that everything is cleaned up, this should be VERY rare
         # probably rare enough to flag it instead of using a workaround
-        skip_se_verbs = has_se and has_non_se
+        se_and_non_se_verbs = se_verbs & non_se_verbs
+        if se_and_non_se_verbs:
+            print("se_and_non_se", se_verbs, non_se_verbs, se_and_non_se_verbs)
 
         declared_forms = []
         for pos, lemma in [poslemma.split("|") for poslemma in poslemmas]:
@@ -129,7 +133,7 @@ class FormFixer():
                 continue
 
             for word in wordlist.get_words(lemma, pos):
-                if skip_se_verbs and word.word.endswith("rse"):
+                if se_and_non_se_verbs and word.word.endswith("rse") and word.word[:-2] in se_and_non_se_verbs:
                     continue
 
                 has_reflexive = word.word.endswith("rse") or any(s for s in word.senses if s.qualifier and re.search("(reflexive|pronominal)", s.qualifier))
@@ -164,7 +168,7 @@ class FormFixer():
                         continue
 
                     # and in 2nd person singular plural with non-reflexive verbs (ustedes no hablen, hablen ustedes)
-                    if has_non_se and formtype in ["neg_imp_2sf", "neg_imp_1p", "neg_imp_2pf"]:
+                    if lemma in non_se_verbs and formtype in ["neg_imp_2sf", "neg_imp_1p", "neg_imp_2pf"]:
                         #print("skipping non-rse", formtype)
                         continue
 
@@ -192,7 +196,7 @@ class FormFixer():
                             # When there are both -se and -r verbs, prefer the imp_2s_comb_te entry, but when
                             # there is only a -se verb or only a -r verb, we want to prefer the imp_2s entry
                             if formtype in comb_to_imp or formtype in imp_to_comb:
-                                if skip_se_verbs:
+                                if lemma in se_and_non_se_verbs:
                                     remove_form = comb_to_imp.get(formtype)
                                     prefer_form = imp_to_comb.get(formtype)
                                 else:
@@ -256,22 +260,24 @@ class FormFixer():
             return True
 
 
-    def get_gender_plural(self, formtype):
+    @classmethod
+    def get_gender_plural(cls, formtype):
 
         """
         Returns (gender, quantity, and needs_gender), where gender is "m" or "f", number is "s"(ingular) or "p"(lural)
         """
 
-        res = self.formtype_to_genderplural.get(formtype)
+        res = cls.formtype_to_genderplural.get(formtype)
         if not res:
             return "", ""
             #raise ValueError(form, f"Unexpected genderplural {pos}: {formtype}")
         return res
 
 
-    def get_gender_param(self, form_obj):
+    @classmethod
+    def get_gender_param(cls, form_obj):
 #        pos, formtype, lemma, lemma_genders = form_obj
-        gender, plural = self.get_gender_plural(form_obj.formtype)
+        gender, plural = cls.get_gender_plural(form_obj.formtype)
 
         if form_obj.pos == "v":
             return ""
@@ -304,7 +310,8 @@ class FormFixer():
 
         return res
 
-    def get_es_noun_plurals(self, lemma, pos):
+    @staticmethod
+    def get_es_noun_plurals(lemma, pos):
         res = []
 
         forms = wiki_to_text("{{es-noun}}", lemma)
@@ -763,8 +770,6 @@ class FormFixer():
 
         existing_forms = self.get_existing_forms(title, wikt)
 
-        #print("removing unexpected", unexpected_forms)
-
         for uf in unexpected_forms:
 
             # Only remove forms from words that have good support
@@ -1014,7 +1019,6 @@ class FormFixer():
 
         entry = self.get_language_entry(title, wikt, "Spanish")
         if not entry:
-            print("no entry found")
             return text
 
         missing_forms, unexpected_forms = self.compare_forms(declared_forms, self.get_existing_forms(title, entry).keys())
@@ -1249,7 +1253,7 @@ class FixRunner():
         #print(title, "forms", forms)
 
         forms = [f for f in forms if f.pos in pos]
-        new_text = self.fixer.replace_pos(title, page_text, forms, pos)
+        return self.fixer.replace_pos(title, page_text, forms, pos)
 
 
     def _remove_forms(self, page_text, title, allow_blank=False, ignore_errors=False):
@@ -1345,7 +1349,7 @@ class FixRunner():
         if not self.can_handle_page(title):
             return page_text
 
-        replaced = []
+        replaced = set()
         new_text = page_text
         for pos in pos_list:
             try:
@@ -1362,7 +1366,7 @@ class FixRunner():
                     outfile.write(f"{title}: failed during replace pos {e}\n")
 
         if replacement and replaced:
-            replacement._edit_summary = f"Spanish: " + "; ".join(replaced)
+            replacement._edit_summary = f"Spanish: " + "; ".join(sorted(replaced))
 
         return new_text
 
