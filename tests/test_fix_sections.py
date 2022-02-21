@@ -213,3 +213,34 @@ blah
 
     assert res.splitlines() == result.splitlines()
 
+def test_fix_bad_l2():
+
+    text = """\
+==English==
+
+===Noun===
+blah
+
+==References==
+"""
+
+    result = """\
+==English==
+
+===Noun===
+blah
+
+===References===
+"""
+
+    entry = SectionParser(text, "test")
+    print(entry)
+
+    assert fixer.fix_bad_l2(entry) == True
+    res = str(entry)
+    entry = SectionParser(res, "test")
+    assert fixer.fix_bad_l2(entry) == False
+    print(res)
+
+    assert res.splitlines() == result.splitlines()
+
