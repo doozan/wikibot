@@ -32,6 +32,9 @@ from autodooz.form_fixer import POS_TO_TITLE
 from autodooz.utils import regex_lang, split_body_and_tail
 from enwiktionary_wordlist.utils import wiki_to_text
 
+from autodooz.sectionparser import SectionParser
+from autodooz.sort_sections import ALL_POS
+
 class WikiSaver(BaseHandler):
     def page_name(self, items, prev):
         return f"es/forms_with_data"
@@ -88,14 +91,9 @@ logger = Logger()
 
 re_pattern = regex_lang('es')
 
-def get_wikt(page_text, title):
+def get_lean_spanish_entry(page_text):
 
     if "==Spanish==" not in page_text:
-        return
-
-    # All forms use the head template,
-    # this is a fast way of finding the pages that don't
-    if "{{head|es" not in page_text:
         return
 
     match = re.search(re_pattern, page_text)
@@ -104,27 +102,36 @@ def get_wikt(page_text, title):
 
     body, tail = split_body_and_tail(match)
 
-    # Check that there is at least one form declaration in the page
-    if not re.search("^\s*{{head\|es\|(past participle|[^|]* form)", body, re.MULTILINE):
-        return
+    return body
 
-    wikt = parse_page(body, title, None)
-    return wikt
+def has_form_header(text):
+    # Check that there is at least one form declaration in the page
+    return re.search("^\s*{{head\|es\|(past participle|[^|]* form)", text, re.MULTILINE)
 
 def is_form(item):
     # Only check forms
     if not item.headword:
         return False
 
-    return re.search("^\s*{{head\|es\|(past participle|[^|]* form)", str(item.headword))
+    return has_form_header(str(item.headword))
 
 def check_page(title, page_text, log_function):
 
     log = log_function
-    wikt = get_wikt(page_text, title)
-    if not wikt:
-       return
 
+    # All forms use the head template,
+    # this is a fast way of finding the pages that don't
+    if "{{head|es" not in page_text:
+        return
+
+    body = get_lean_spanish_entry(page_text)
+    if not body:
+        return
+
+    if not has_form_header(body):
+        return
+
+    wikt = parse_page(body, title, None)
     for item in wikt.ifilter_words(matches = lambda x: is_form(x)):
 
         subsections = [x.name for x in item._parent.ifilter_sections()]
@@ -202,6 +209,47 @@ if __name__ == "__main__":
     main()
 
 
+class MoveSubsectionsRunner():
+
+    def move_form_subsections(self, match, title, replacement):
+        """ Move any form subsections into the previous non-form """
+        page_text = match.group(0)
+
+        body = get_lean_spanish_entry(page_text)
+        entry = SectionParser(body, title)
+        if not entry:
+           return
+
+        summary = []
+        target = None
+        for item in entry.ifilter_sections(recursive=True, matches=lambda x: x.title in ALL_POS):
+
+            if not re.search("^\s*{{head\|es\|(past participle|[^|]* form)", "".join(item._lines)):
+                target = item
+                continue
+
+            if not target:
+                continue
+
+            if not item._children:
+                continue
+
+            if target._children:
+                target._children += item._children
+            else:
+                target._children = item._children
+            item._children = []
+            moved = True
+
+            summary.append(f"moved subsections from {item.title} to {target.title}")
+
+        if not summary:
+            return page_text
+
+        replacement._edit_summary = f"Spanish: " + "; ".join(summary)
+        return page_text.replace(body, str(entry))
+
+
 class MergeDataRunner():
 
     def __init__(self, pairfile):
@@ -210,11 +258,11 @@ class MergeDataRunner():
         self.iter_count = 0
         self.load_pairfile(pairfile)
 
-        self.section_to_pos = {
-            "Adjective": "adj",
-            "Noun": "n",
-            "Verb": "v",
-        }
+    section_to_pos = {
+        "Adjective": "adj",
+        "Noun": "n",
+        "Verb": "v",
+    }
 
     @property
     def site(self):
@@ -291,7 +339,17 @@ class MergeDataRunner():
                 return page_text
 
             self._matched = line
-            wikt = get_wikt(page_text, title)
+
+            body = get_lean_spanish_entry(page_text)
+            if not body:
+                print(page_text)
+                raise ValueError("no spanish found")
+            wikt = parse_page(body, title, None)
+            if not wikt:
+                print("no page data", title)
+                print(page_text)
+                return page_text
+
             items = wikt.filter_words(matches = lambda x: x._parent._name == self._section)
 
             print("checking" ,page)
