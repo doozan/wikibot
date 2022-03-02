@@ -323,40 +323,26 @@ def move_misnamed_references(entry):
 
 def move_misplaced_translations(entry):
 
-    changed = False
-    for section in list(entry.ifilter_sections(matches=lambda x: x.title == "Translations" and x.parent.title not in ALL_POS)):
+    changes = []
+    target = None
+    found = False
+    for section in entry.ifilter_sections():
+        print("scanning", section.level, section.title)
+        if section.title in ALL_POS:
+            print("target is", section.title)
+            target = section
 
-        found = False
-        target = None
-        for i, child in enumerate(section.parent._children, 0):
-            if child == section:
-                found = section.parent._children.pop(i)
-                break
-            if child.title in ALL_POS:
-                target = child
-
-        if not found:
-            raise ValueError("can't find child in parent")
-
-        ancestor = section
-        while not target and ancestor.level > 2:
-            ancestor = ancestor.parent
-            for target in ancestor.ifilter_sections(matches=lambda x: x.title in ALL_POS):
+        elif section.title == "Translations" and section.parent.title not in ALL_POS:
+            if not target:
+                print("Translation found before POS, can't move", entry.title)
                 continue
+            changes.append((target, section))
 
+    for target, section in changes:
+        index = section.parent._children.index(section)
+        item = section.parent._children.pop(index)
         print("Moving to", target.title, target.level)
+        item.level = target.level + 1
+        target._children.append(item)
 
-        if not target:
-            raise ValueError("No POS sections found")
-
-        changed = True
-
-        section.level = target.level + 1
-
-        # Anagrams is always the last section, otherwise References is the last
-        target._children.append(section)
-        print("Moved to", target.title, section.level)
-
-    return changed
-
-
+    return bool(changes)
