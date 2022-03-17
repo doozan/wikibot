@@ -22,7 +22,6 @@ fix translation tables
 import os
 import re
 import sys
-from copy import deepcopy
 from autodooz.t9nparser import TranslationTable, TranslationLine, Translation, UNKNOWN_LANGS, LANG_PARENTS
 from enwiktionary_wordlist.all_forms import AllForms
 from autodooz.sectionparser import SectionParser
