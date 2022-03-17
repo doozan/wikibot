@@ -22,7 +22,7 @@ fix translation tables
 import os
 import re
 import sys
-from autodooz.t9nparser import TranslationTable, TranslationLine, Translation, UNKNOWN_LANGS, LANG_PARENTS
+from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation, UNKNOWN_LANGS, LANG_PARENTS
 from enwiktionary_wordlist.all_forms import AllForms
 from autodooz.sectionparser import SectionParser
 from enwiktionary_parser.utils import nest_aware_resplit, nest_aware_split
