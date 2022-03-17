@@ -23,6 +23,13 @@ pos: n
   g: f
   gloss: alternative letter-case form of "señora", used before a name
 _____
+ababillarse
+pos: v
+  meta: {{es-verb}} {{es-conj|nocomb=1}}
+  etymology: From a- + babilla ("the stifle (as of a horse)") + -ar.
+  gloss: to be sick with the stifle (of horses and other quadrupeds)
+    q: veterinary medicine, Chile, Mexico
+_____
 abjad
 pos: n
   meta: {{es-noun|m}}
@@ -2326,6 +2333,35 @@ def test_descomida(fixer, allforms):
         ('descomida', 'v', 'pres_sub_2sf', 'descomedirse', []),
         ('descomida', 'v', 'pres_sub_3s', 'descomedirse', []),
         ('descomida', 'v', 'pp_fs', 'descomer', []),
+    ]
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+
+    assert missing_forms == [('descomida', 'v', 'neg_imp_2sf', 'descomedirse', [])]
+
+    assert unexpected_forms == set()
+
+
+
+def test_ababillarse(fixer, allforms):
+    title = "ababillándose"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-compound of|ababill|ar|ababillando|se|mood=gerund}}
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+    print(declared_forms)
+    assert declared_forms == [
+        ('ababillándose', 'v', 'gerund_comb_se', 'ababillarse', [])
     ]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)

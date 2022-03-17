@@ -56,6 +56,10 @@ class FormFixer():
     def __init__(self, wordlist):
         self.wordlist = wordlist
 
+    @staticmethod
+    def can_handle(item):
+        return item.pos in pos_to_inflection
+
     @classmethod
     def get_word_genders(cls, word):
         if word.pos == "adj":
@@ -300,7 +304,7 @@ class FormFixer():
                 return "g=m"
             if form_obj.formtype in ["f", "fpl"]:
                 return "g=f"
-            if form_obj.formtype == "pl" and form_obj.lemma_genders == []:
+            if form_obj.lemma_genders == []:
                 return None
             raise ValueError("Unexpected genders", form_obj)
 
@@ -569,7 +573,7 @@ class FormFixer():
             return self.get_noun_gloss(form_obj)
         elif pos == "v":
             return self.get_verb_gloss(form_obj)
-        elif pos in pos_to_inflection:
+        elif self.can_handle(form_obj):
             return self.get_generic_gloss(form_obj)
 
         raise ValueError("unsupported pos", pos)
@@ -728,9 +732,6 @@ class FormFixer():
             pos_title = re.sub("[ 1-9]+$", "", sense._parent._parent.name)
             pos = ALL_POS[pos_title]
 
-#            if pos == "v" or pos not in pos_to_inflection:
-#                continue
-
             gloss = wiki_to_text(str(sense.gloss), "title").lstrip("# ")
             if " of " not in gloss:
                 continue
@@ -751,16 +752,25 @@ class FormFixer():
         return existing_forms
 
     def lang_is_empty(self, lang):
-        # check no other sections
-        return not lang.problems and not any(lang.ifilter_wordsenses())
+        return not lang.problems and not any(lang.ifilter_sections(
+            matches=lambda x: x.name not in ["Pronunciation"]))
 
     def ety_is_empty(self, ety):
         # check no other sections
-        return not ety.problems and not any(ety.ifilter_wordsenses())
+        return not ety.problems and not any(ety.ifilter_sections())
 
     def pos_is_empty(self, pos):
         # check no other sections
-        return not pos.problems and not any(pos.ifilter_wordsenses())
+        if pos.problems:
+            return False
+
+        if any(pos.ifilter_wordsenses()):
+            return False
+
+        if any(pos.ifilter_sections()):
+            return False
+
+        return True
 
     def word_is_empty(self, word):
         return not word.problems and not any(word.ifilter_wordsenses())
@@ -773,7 +783,7 @@ class FormFixer():
         for uf in unexpected_forms:
 
             # Only remove forms from words that have good support
-            if uf.pos not in pos_to_inflection:
+            if not self.can_handle(uf):
                 continue
 
             wordsense = existing_forms[uf]
@@ -1035,8 +1045,6 @@ class FormFixer():
 
         forms = [f for f in x_forms if f.pos == target_pos]
 
-        #print("remove", forms, target_pos)
-
         if not forms:
             return page_text
 
@@ -1221,8 +1229,7 @@ class FixRunner():
     def _add_forms(self, page_text, title, skip_errors=False):
 
         declared_forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
-        #supported_forms = [f for f in declared_forms if f.pos != "v" and f.pos in pos_to_inflection]
-        supported_forms = [f for f in declared_forms if f.pos in pos_to_inflection]
+        supported_forms = [f for f in declared_forms if self.fixer.can_handle(f)]
         if not supported_forms:
             return page_text
 

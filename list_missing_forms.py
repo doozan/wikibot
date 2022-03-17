@@ -323,7 +323,11 @@ def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
                     level = 4 if len(ety) > 1 else 3
 #                    error("missing_pos_multi_ety", form, item)
                     items = [i for i in missing_forms if i.pos == item.pos]
-                    pos_text = "\n".join(fixer.full_pos(item.form, level, items))
+
+                    if fixer.can_handle(item):
+                        pos_text = "\n".join(fixer.full_pos(item.form, level, items))
+                    else:
+                        pos_text = ""
                     error("missing_pos", form, item, pos_text)
                     missing_pos.append(item.pos)
                 else:
