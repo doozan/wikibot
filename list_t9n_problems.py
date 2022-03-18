@@ -19,23 +19,21 @@
 List translation problems
 """
 
-#import timeit
 from collections import defaultdict
 import os
 import re
 import sys
-from copy import deepcopy
 from autodooz.t9n_fixer import T9nFixer
-from autodooz.t9nparser import TranslationTable, TranslationLine, UNKNOWN_LANGS, LANG_PARENTS
 from autodooz.wikilog import WikiLogger, BaseHandler
 from autodooz.wikilog_language import WikiByLanguage as BaseWikiByLanguage
+from enwiktionary_translations import TranslationTable, TranslationLine, UNKNOWN_LANGS, LANG_PARENTS
+from enwiktionary_translations.language_aliases import language_aliases as LANG_ALIASES
 from enwiktionary_wordlist.all_forms import AllForms
 from enwiktionary_wordlist.language_extract import LanguageFile
 from collections import namedtuple
 from enwiktionary_parser.sections.pos import ALL_POS
 from enwiktionary_parser.languages.all_ids import languages as lang_ids
 ALL_LANGS = {v:k for k,v in lang_ids.items()}
-from autodooz.language_aliases import language_aliases as LANG_ALIASES
 
 stats = {
     "total_tables": 0,
