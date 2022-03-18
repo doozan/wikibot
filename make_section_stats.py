@@ -80,17 +80,17 @@ def format_error(error, items):
 
         yield "".join(line)
 
-def export_error(error, items):
-    page = "User:JeffDoozan/lists/" + error
-    save_page(page, "\n".join(format_error(error, items)))
+def export_error(prefix, error, items, summary):
+    page = prefix + "/" + error
+    save_page(page, "\n".join(format_error(error, items)), summary)
 
-def export_errors():
+def export_errors(prefix, summary):
     for error, items in errors.items():
-        export_error(error, items)
+        export_error(prefix, error, items, summary)
 
     # Update pages that no longer have any entries
     for error in error_header.keys()-errors.keys():
-        export_error(error, [])
+        export_error(prefix, error, [], summary)
 
 
 def validate_entry(entry):
@@ -140,28 +140,17 @@ def validate_entry(entry):
             log("autofix_missing_references", section)
 
 
-SAVE_NOTE = None
 def main():
 
     import argparse
     from pywikibot import xmlreader
-    global SAVE_NOTE
 
     parser = argparse.ArgumentParser(description="Find fixable entries")
     parser.add_argument("xmlfile", help="Wiktionary dump")
-    parser.add_argument('--summary', help="Summary comment", required=True)
-    parser.add_argument("--upload-stats", help="Update stats on Wiktionary", action='store_true', default=False)
-    parser.add_argument("--tag", help="tag to use when uploading data (if specified multiple times will upload to each location)", action='append')
+    parser.add_argument("--save", help="Save to wiktionary with specified commit message")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     args = parser.parse_args()
-
-    SAVE_NOTE = args.summary
-
-    if args.upload_stats:
-        if not args.tag:
-            print("--tag is required when using --upload-stats")
-            return 1
 
     dump = xmlreader.XmlDump(args.xmlfile)
     parser = dump.parse()
@@ -192,17 +181,15 @@ def main():
                 if len(samples[item]) > 100:
                     samples[item] = None
 
-    export_errors()
-
-    if args.upload_stats:
-        for tag in args.tag:
-            base_url = "User:JeffDoozan/stats/sections/" + tag
-            upload_stats(base_url, stats)
-            upload_samples(base_url, samples)
+    export_errors("User:JeffDoozan/lists", args.save)
+    if args.save:
+        base_url = "User:JeffDoozan/stats/sections/latest"
+        upload_stats(base_url, stats, args.save)
+        upload_samples(base_url, samples, args.save)
 
 
 
-def upload_samples(base_url, samples):
+def upload_samples(base_url, samples, summary):
 
     sections = defaultdict(lambda: defaultdict(dict))
 
@@ -232,10 +219,19 @@ def upload_samples(base_url, samples):
 #        print(page_text)
 #        return
 #
-        save_page(page, page_text)
+        save_page(page, page_text, summary)
 
 site = None
-def save_page(page, page_text):
+def save_page(page, page_text, summary):
+
+    # no summary signals that the pages should be saved locally
+    if not summary:
+        dest = page.lstrip("/").replace("/", "_").replace(":", "_")
+        with open(dest, "w") as outfile:
+            outfile.write(page_text)
+            print("saved", dest)
+        return
+
     global site
     if not site:
         site = pywikibot.Site()
@@ -245,9 +241,9 @@ def save_page(page, page_text):
         return
     wiki_page.text = page_text
     print(f"saving {page}")
-    wiki_page.save(SAVE_NOTE)
+    wiki_page.save(summary)
 
-def upload_stats(base_url, stats):
+def upload_stats(base_url, stats, summary):
 
     title_stats = defaultdict(dict)
     table_types = {}
@@ -331,7 +327,7 @@ def upload_stats(base_url, stats):
 #    return
 
     page = base_url
-    save_page(page, page_text)
+    save_page(page, page_text, summary)
 
 
 def make_wiki_table(rows, caption=None, extra_class=None, num_headers=0, num_footers=0):
