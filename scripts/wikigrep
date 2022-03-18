@@ -1,0 +1,33 @@
+#!/bin/bash
+
+DEFAULT_FILE=es.txt.bz2
+
+echo starting
+
+if (( $# > 2 )); then
+   echo "Usage: $0 [LANG_CODE |FILENAME] <PATTERN>"
+   exit 1
+
+elif (( $# == 2 )); then
+    if [ -f $1 ]; then
+        _FILE=$1
+    elif [ -f "$1.txt.bz2" ]; then
+        _FILE=$1.txt.bz2
+    else
+        echo "File '$1' not found"
+        echo "Usage: $0 [LANG_CODE |FILENAME] <PATTERN>"
+        exit 1
+    fi
+
+    export _PATTERN=$2
+
+else
+     _FILE=$DEFAULT_FILE
+     export _PATTERN=$1
+fi
+
+#echo "Searching $_LANG for $_PATTERN"
+
+bzcat "$_FILE" | \
+    perl -ne 'if (/_____(.*)_____/) { $entry = $1 } elsif (/$ENV{_PATTERN}/) { print("$entry: $_") }'
+#    awk -v PATTERN="$_PATTERN" '/_____.*_____/{ if (match($0,"_____(.*)_____",m)) ENTRY=m[1] } $0~PATTERN{ print ENTRY ": " $0 }'

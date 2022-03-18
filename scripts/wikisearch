@@ -1,0 +1,94 @@
+#!/usr/bin/python3
+#
+# Copyright (c) 2021 Jeff Doozan
+#
+# This is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import bz2
+import re
+import os
+from enwiktionary_wordlist.utils import wiki_to_text
+from enwiktionary_parser.languages.all_ids import languages as lang_ids
+
+def main():
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Search language extract for articles matching a given pattern")
+    parser.add_argument("filename", help="Search the given file")
+    parser.add_argument("pattern", help="regex pattern")
+    parser.add_argument("--not", help="not matching regex pattern", dest="re_not")
+    parser.add_argument("--multiline", help="search patterns across multiple lines")
+#    parser.add_argument("--in-template", help="search only within templates matching TEMPLATE pattern")
+#    parser.add_argument("--or", help="not matching regex pattern")
+#    parser.add_argument("--and", help="not matching regex pattern")
+#    parser.add_argument("wordlist2", help="wordlist")
+    args = parser.parse_args()
+
+#    if not args.lang:
+#        args.lang = "Spanish"
+#    else:
+#        args.lang = lang_ids.get(args.lang, args.lang)
+#
+#    filename = args.lang + ".txt.bz2"
+
+    if not os.path.exists(args.filename):
+        print(f"Language does not exist: {args.filename}")
+        exit(1)
+
+    re_not = re.compile(args.re_not) if args.re_not else None
+    re_match = re.compile(args.pattern)
+
+    for entry_title, entry in iter_entries(args.filename):
+
+        matches = []
+        for line in entry:
+            if re.search(re_match, line):
+                matches.append(line)
+#        matches = re.search(re_match, "".join(entry))
+
+        if not matches:
+            continue
+
+        if re_not and re.search(re_not, "".join(entry)):
+            continue
+
+        for match in matches:
+            print(f"{entry_title}: {match.rstrip()}")
+
+
+
+
+
+def iter_entries(filename):
+    with bz2.open(filename, "rt") as infile:
+        entry_title = None
+        entry = []
+
+        for line in infile:
+            if line.startswith("_____") and line.endswith("_____\n"):
+                if entry_title:
+                    yield entry_title, entry
+                entry_title = line[5:-6]
+                entry = []
+            else:
+                if entry_title is None:
+                    raise ValueError("File is not a recognized format")
+                entry.append(line)
+        if entry_title:
+            yield entry_title, entry
+
+if __name__ == "__main__":
+
+    main()

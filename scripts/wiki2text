@@ -1,0 +1,10 @@
+#!/usr/bin/python3
+
+import fileinput
+
+from enwiktionary_wordlist.utils import wiki_to_text
+
+for line in fileinput.input():
+    line = line.strip()
+    title = line.split(":")[0]
+    print(wiki_to_text(line, title))
