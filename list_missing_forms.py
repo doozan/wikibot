@@ -4,6 +4,7 @@ import argparse
 from collections import defaultdict, namedtuple
 import csv
 import io
+import gc
 import pywikibot
 import re
 import sys
@@ -146,8 +147,7 @@ fixer = None
 fixrunner = None
 
 def get_existing_forms(form, wordlist):
-    words = wordlist.get_words(form)
-    return get_word_forms(words)
+    return get_word_forms(wordlist.get_iwords(form))
 
 def get_word_forms(words):
     existing_forms = set()
@@ -180,8 +180,13 @@ def get_masculines_from_fpl(word):
     return [lemma for lemma, forms in word.form_of.items() if "fpl" in forms]
 
 
+ARTICLE_FILE = None
 #def filter_fixes(extract, errors):
 def filter_items(errors):
+
+    # eww
+    if not ARTICLE_FILE:
+        raise ValueError("global variable ARTICLE_FILE has not been initialized")
 
     # NOTE: if an error occurs in a page not included in the language_file,
     # it will be lost in this filter, which ONLY returns items that do exist
@@ -192,7 +197,7 @@ def filter_items(errors):
     for e in errors:
         search_titles[e.form].append(e)
 
-    for item in LanguageFile.iter_articles("Spanish.txt.bz2"):
+    for item in LanguageFile.iter_articles(ARTICLE_FILE):
         title, entry = item
         if title not in search_titles:
             continue
@@ -235,18 +240,40 @@ def can_autofix(page_text, title, error):
             return True
 
 
-def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
+def main():
 
     global fixer
     global fixrunner
 
-    wordlist = Wordlist.from_file(wordlist_file)
-    allforms = AllForms.from_file(allforms_file)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Generate list of missing forms")
+    parser.add_argument("wordlist", help="wordlist")
+    parser.add_argument("--allforms", required=True, help="all_forms file")
+    parser.add_argument("--allpages", required=True, help="wiki.allpages")
+    parser.add_argument("--articles", required=True, help="Language extract with raw articles, used for checking autofixes")
+    parser.add_argument("--save", help="wiktionary commit message")
+    parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
+    parser.add_argument("--progress", help="Display progress", action='store_true')
+    args = parser.parse_args()
+
+    global ARTICLE_FILE
+    ARTICLE_FILE = args.articles
+
+    wordlist = Wordlist.from_file(args.wordlist)
+
+    allforms = AllForms.from_file(args.allforms)
     fixer = FormFixer(wordlist)
     fixrunner = FixRunner("es", wordlist, allforms)
 
-    with open(allpages_file) as infile:
-        allpages = { x.strip() for x in infile }
+    with open(args.allpages) as infile:
+        # Loading the entire contents of allpages takes 600M
+        # To conserve memory, temporarily load allforms into a set
+        # and then create a set of entries in allpages that are also in allforms
+
+        allforms_set = set(allforms.all_forms)
+        allpages = { x.strip() for x in infile if x in allforms_set }
+        del allforms_set
 
 #    form = "achaparrándolo"
 #    declared_forms = fixer.get_declared_forms(form, wordlist, allforms)
@@ -257,7 +284,6 @@ def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
 #    print("missing", missing_forms)
 #    print("unexpected", unexpected_forms)
 #    exit()
-
 
     count = 0
     for form in allforms.all_forms:
@@ -270,13 +296,13 @@ def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
             declared_forms = fixer.get_declared_forms(form, wordlist, allforms)
         except ValueError as e:
             print(e)
-#            error("form_errors", form, str(e))
+            error("form_errors", form, str(e))
             continue
 
-        if not count % 1000 and progress:
+        if not count % 1000 and args.progress:
             print(count, end = '\r', file=sys.stderr)
 
-        if args.limit and count >= limit:
+        if args.limit and count >= args.limit:
             break
         count += 1
 
@@ -284,20 +310,8 @@ def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
 
         missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
-#        missing_pos = {f.pos for f in missing_forms}
-#        unexpected_pos = {f.pos for f in unexpected_forms}
-#        wrong_pos = missing_pos & unexpected_pos
-#
-#        if wrong_pos:
-#            for pos in wrong_pos:
-#                error("wrong_form", form, pos)
-#
-#            unexpected_forms = [f for f in unexpected_forms if f.pos not in wrong_pos]
-#            missing_forms = [f for f in missing_forms if f.pos not in wrong_pos]
-
         missing_pos = []
         for item in missing_forms:
-            #pos, formtype, lemma, lemma_genders = item
 
             if item.form != form:
                 raise ValueError(form, item)
@@ -334,9 +348,6 @@ def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
                     if form in allpages:
                          error("missing_entry", form, item)
 
-# ignore redlinks
-#                    else:
-#                         error("missing_page", form, item)
                 continue
 
 #            if pos == "n" and formtype == "pl" and unexpected_forms:
@@ -357,27 +368,11 @@ def main(wordlist_file, allforms_file, allpages_file, limit=0, progress=False):
             else:
                 error("missing_lemma", form, item)
 
-
     if args.save:
         base_url = "User:JeffDoozan/lists/es/forms"
-        logger.save("yy", FileSaver)
         logger.save(base_url, WikiSaver, commit_message=args.save)
     else:
-        logger.save("xx", FileSaver)
+        logger.save("forms", FileSaver)
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Generate list of missing forms")
-    parser.add_argument("wordlist", help="wordlist")
-    parser.add_argument("--allforms", required=True, help="all_forms file")
-    parser.add_argument("--allpages", required=True, help="wiki.allpages")
-    parser.add_argument("--save", help="wiktionary commit message")
-    parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
-    parser.add_argument("--progress", help="Display progress", action='store_true')
-    args = parser.parse_args()
-
-    global SAVE_NOTE
-    SAVE_NOTE = args.save
-
-    main(args.wordlist, args.allforms, args.allpages, args.limit, args.progress)
+    main()
