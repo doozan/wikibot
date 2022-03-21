@@ -21,7 +21,7 @@ def main():
         if not len(word.senses):
             continue
 
-        if "verb form" in word.meta:
+        if word.meta and "verb form" in word.meta:
             continue
 
         for s in word.senses:

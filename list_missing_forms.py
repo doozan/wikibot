@@ -295,8 +295,8 @@ def main():
         try:
             declared_forms = fixer.get_declared_forms(form, wordlist, allforms)
         except ValueError as e:
-            print(e)
-            error("form_errors", form, str(e))
+            print("ERROR", e)
+            #error("form_errors", form, str(e))
             continue
 
         if not count % 1000 and args.progress:
