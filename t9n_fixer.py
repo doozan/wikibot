@@ -45,7 +45,7 @@ class T9nFixer():
         for i, item in enumerate(table.items):
 
             if isinstance(item, TranslationLine):
-                res = self.cleanup_list(item)
+                res = self.cleanup_line(item)
             else:
                 # Expand {{ttbc
                 if "{{ttbc" in item:
@@ -185,7 +185,7 @@ class T9nFixer():
             elif k.startswith("g"):
                 gender_keys.append(k)
             elif k not in ["ts", "sc", "tr", "alt", "lit", "id"]:
-                raise ValueError("complex_keys", tlist)
+                raise ValueError("complex_keys", item)
 
         genders = {}
         for k in gender_keys:
@@ -210,60 +210,56 @@ class T9nFixer():
         item.parent.parent.fixes.append("Converted {{l}} to {{t}}")
 
 
-    def cleanup_list(self, tlist):
+    def cleanup_line(self, tline):
 
-        if tlist.has_errors:
+        if tline.has_errors:
             entries = []
-            for item in nest_aware_split(',', tlist._entries, [("{{","}}"), ("(",")")]):
+            for item in nest_aware_split(',', tline._entries, [("{{","}}"), ("(",")")]):
 
-                # Disable the tlist logger when rebuilding the Translations so that
+                # Disable the tline logger when rebuilding the Translations so that
                 # it doesn't add new errors to the log
-                old_log = tlist.log
-                tlist.log = lambda *x, **y: ""
-                entry = Translation(item, tlist)
-                tlist.log == old_log
+                old_log = tline.log
+                tline.log = lambda *x, **y: ""
+                entry = Translation(item, tline)
+                tline.log == old_log
 
                 if entry.has_errors:
-                    entry.parent = tlist
-                    new_item = self.make_translation(item, tlist.lang_id)
+                    entry.parent = tline
+                    new_item = self.make_translation(item, tline.lang_id)
                     if new_item != item:
-                        tlist.parent.fixes.append("Converted bare link to {{t}}")
-                        entry = Translation(new_item, tlist)
+                        tline.parent.fixes.append("Converted bare link to {{t}}")
+                        entry = Translation(new_item, tline)
 
                     # If it couldn't be parsed, give up
                     else:
                         return
 
                 entries.append(entry)
-            tlist.entries = entries
-            tlist.has_errors = False
+            tline.entries = entries
+            tline.has_errors = False
             return
 
-        if not tlist.entries:
+        if not tline.entries:
             return
 
         if not self.allforms:
             return
 
-        # Convert l to t
-        #if "{{l" in str(tlist):
-
-        for item in tlist.entries:
+        for item in tline.entries:
             if "{{l" in str(item):
                 self.convert_l_to_t(item)
-                return
 
        # For now, spanish only
-        if tlist.lang_id != "es":
+        if tline.lang_id != "es":
             return
 
         # Adjectives only, nouns may need different logic
-        if tlist.parent.pos != "Adjective":
+        if tline.parent.pos != "Adjective":
             return
         pos = "adj"
 
         seen_genders = set()
-        for item in tlist.entries:
+        for item in tline.entries:
             # Fail if any item is t-needed
             if not item.params:
                 return
@@ -274,11 +270,11 @@ class T9nFixer():
 
 
         if len(seen_genders) and ("m" not in seen_genders and "f" not in seen_genders and "mf" not in seen_genders):
-            tlist.log("target_is_form", str(sorted(seen_genders)))
+            tline.log("target_is_form", str(sorted(seen_genders)))
             return
 
         lemma_entries = {}
-        for item in tlist.entries:
+        for item in tline.entries:
             pattern = r"""(?x)   # verbose regex
                 \[\[             # double brackets
                 ([^#|\]]*)       # the link target: everything before * | or ]
@@ -290,21 +286,21 @@ class T9nFixer():
             all_poslemmas = self.allforms.get_lemmas(clean_target)
             if not all_poslemmas:
                 if " " in target:
-                    tlist.log("target_phrase_missing", target)
+                    tline.log("target_phrase_missing", target)
                 else:
-                    tlist.log("target_lemma_missing", f"{target}")
+                    tline.log("target_lemma_missing", f"{target}")
                 return
 
             poslemmas = [p for p in all_poslemmas if p.startswith(f"{pos}|")]
             if not poslemmas:
-                tlist.log("target_lemma_missing_pos", f'{target}:{pos}')
+                tline.log("target_lemma_missing_pos", f'{target}:{pos}')
                 return
 
             if len(poslemmas) > 1:
                 if f"{pos}|" + clean_target in poslemmas:
                     poslemmas = [f"{pos}|" + clean_target]
                 else:
-                    tlist.log("target_lemma_ambiguous", f'{target} -> {poslemmas}')
+                    tline.log("target_lemma_ambiguous", f'{target} -> {poslemmas}')
                     return
 
             pos, lemma = poslemmas[0].split("|")
@@ -313,34 +309,33 @@ class T9nFixer():
             else:
                 # TODO: also check alt and other t params
                 if item.qualifier != lemma_entries[lemma].qualifier:
-                    tlist.log("removable_form_has_qualifier")
+                    tline.log("removable_form_has_qualifier")
                     return
 
                 if item.params and any(
                         v != lemma_entries[lemma].params.get(k) for k,v in item.params.items()
                         if not isinstance(k, int)):
-                    tlist.log("removable_form_has_params")
+                    tline.log("removable_form_has_params")
                     return
 
 
-        if len(lemma_entries) != len(tlist.entries):
-            tlist.log("botfix_consolidate_forms")
-            tlist.parent.fixes.append("Reduced Spanish forms to common lemma")
+        if len(lemma_entries) != len(tline.entries):
+            tline.log("botfix_consolidate_forms")
+            tline.parent.fixes.append("Reduced Spanish forms to common lemma")
 
             new_entries = []
             for lemma, item in lemma_entries.items():
-#                item.genders = []
                 item.params[2] = lemma
                 item.params = {k:v for k,v in item.params.items() if (not isinstance(k, int) or k < 3)}
                 new_entries.append(item)
-            tlist.entries = new_entries
+            tline.entries = new_entries
 
         elif "m" in seen_genders:
-            for item in tlist.entries:
-                item.genders = []
+            for item in tline.entries:
+                item.params = {k:v for k,v in item.params.items() if (not isinstance(k, int) or k < 3)}
 
-            tlist.log("botfix_remove_gendertags")
-
+            tline.log("botfix_remove_gendertags")
+            tline.parent.fixes.append("Spanish: removed gender tags from adjectives")
 
 
     def fix_bottom_footer(self, table):
