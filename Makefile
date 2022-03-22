@@ -31,6 +31,7 @@ WIKI2TEXT := $(PYPATH) scripts/wiki2text
 WIKIGREP := $(PYPATH) scripts/wikigrep
 WIKISEARCH := $(PYPATH) scripts/wikisearch
 WIKISORT := $(PYPATH) scripts/wikisort
+GETLINKS := $(PYPATH) scripts/getlinks
 
 LIST_DUPLICATE_PASSAGES := $(PYPATH) ./list_duplicate_passages.py
 LIST_VERBS_MISSING_TYPE := $(PYPATH) ./list_verbs_missing_type.py
@@ -43,10 +44,14 @@ LIST_T9N_PROBLEMS := $(PYPATH) ./list_t9n_problems.py
 
 EXTERNAL := ../..
 PUT := $(EXTERNAL)/put.py
+REPLACE := $(EXTERNAL)/replace.py
+FUN_REPLACE := $(EXTERNAL)/fun_replace.py
 TLFI_LEMMAS := $(EXTERNAL)/tlfi.lemmas
+
 
 # prefix for list files
 LIST := $(BUILDDIR)/.list.
+FIX := $(BUILDDIR)/.fix.
 
 SAVE := --save "Updated with $(DATETAG_PRETTY) data"
 
@@ -89,10 +94,10 @@ $(BUILDDIR)/%.lemmas_without_etymology: $(BUILDDIR)/%.lemmas $(BUILDDIR)/%.with_
 # Lists
 
 #../wikibot/src/list_t9n_problems.py
-$(LIST)t9n_problems: $(BUILDDIR)/translations.bz2
+$(LIST)t9n_problems: $(BUILDDIR)/translations.bz2 $(BUILDDIR)/es-en.enwikt.allforms.csv
 >   @echo "Running $@..."
 
->   $(LIST_T9N_PROBLEMS) --trans $< $(SAVE)
+>   $(LIST_T9N_PROBLEMS) --trans $< --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv $(SAVE)
 >   touch $@
 
 #../wikibot/src/make_section_stats.py
@@ -126,7 +131,7 @@ $(LIST)maybe_forms: $(BUILDDIR)/es-en.enwikt.data-full
 $(LIST)missing_forms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/wiki.pages $(BUILDDIR)/es-en.enwikt.txt.bz2
 #../wikibot/src/list_missing_forms.py
 >   echo "Running $@..."
->   $(LIST_MISSING_FORMS) --progress --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv --allpages $(BUILDDIR)/wiki.pages --articles $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data-full $(SAVE)
+>   $(LIST_MISSING_FORMS) --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv --allpages $(BUILDDIR)/wiki.pages --articles $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data-full $(SAVE)
 >   touch $@
 
 $(LIST)fr_missing_lemmas: $(BUILDDIR)/fr-en.enwikt.lemmas $(BUILDDIR)/fr-en.enwikt.allpages $(TLFI_LEMMAS)
@@ -318,198 +323,200 @@ $(LIST)es_verbs_missing_type: $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-en.en
 
 
 # Fixes
-
-.fix.add_tlfi_links: .list.fr_missing_tlfi
+$(FIX)fr_missing_tlfi: $(LIST)fr_missing_tlfi
 >   @
 >   FIX="-fix:add_tlfi"
 >   SRC="User:JeffDoozan/lists/fr_missing_tlfi"
 >   MAX=500
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.add_drae_links: .list.es_missing_drae
+$(FIX)es_missing_drae: $(LIST)es_missing_drae
 >   @
 >   FIX="-fix:add_drae"
 >   SRC="User:JeffDoozan/lists/es_missing_drae"
 >   MAX=500
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 # TODO: some sort of list maker to check if they can be auto fixed
-.fix.es_syns: es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data
+$(FIX)es_syns: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data
 >   @
 >   FIX="-fix:es_simple_nyms"
 >   SRC="User:JeffDoozan/lists/es_with_synonyms"
 >   MAX=200
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.pt_syns: $(BUILDDIR)/pt-en.enwikt.data
+$(FIX)pt_syns: $(BUILDDIR)/pt-en.enwikt.data
 >   @
 >   FIX="-fix:pt_simple_nyms"
 >   SRC="User:JeffDoozan/lists/Portuguese_with_Synonyms"
 >   MAX=1000
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.autofix_title: .list.section_stats
+$(FIX)autofix_title: $(LIST)section_stats
 >   @
 >   FIX="-fix:cleanup_sections"
 >   SRC="User:JeffDoozan/lists/autofix_title"
 >   MAX=300
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.autofix_numbered_pos: .list.section_stats
+$(FIX)autofix_numbered_pos: $(LIST)section_stats
 >   @
 >   FIX="-fix:cleanup_sections"
 >   SRC="User:JeffDoozan/lists/autofix_numbered_pos"
 >   MAX=200
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.misnamed_references_section: .list.section_stats
->   @
->   SRC="User:JeffDoozan/lists/misnamed_references_section"
->   FIX="-fix:cleanup_sections"
->   MAX=200
-
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
->   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
->   echo $$LINKS > $@
-
-.fix.misplaced_translations_section: .list.section_stats
+$(FIX)misplaced_translations_section: $(LIST)section_stats
 >   @
 >   SRC="User:JeffDoozan/lists/translations/by_error/outside_pos"
 >   FIX="-fix:cleanup_sections"
 >   MAX=300
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.autofix_empty_section: .list.section_stats
->   @
->   SRC="User:JeffDoozan/lists/autofix_empty_section"
->   FIX="-fix:cleanup_sections"
->   MAX=200
-
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
->   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
->   echo $$LINKS > $@
-
-.fix.autofix_missing_references: .list.section_stats
+$(FIX)autofix_missing_references: $(LIST)section_stats
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_missing_references"
 >   FIX="-fix:cleanup_sections"
 >   MAX=200
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.autofix_bad_l2: .list.section_stats
+$(FIX)autofix_bad_l2: $(LIST)section_stats
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_bad_l2"
 >   FIX="-fix:cleanup_sections"
 >   MAX=200
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.botfix_consolidate_forms: .list.t9n_problems
+$(FIX)botfix_consolidate_forms: $(LIST)t9n_problems
 >   @
 >   SRC="User:JeffDoozan/lists/translations/by_error/botfix_consolidate_forms"
 >   FIX="-fix:fix_t9n"
->   MAX=200
+>   MAX=300
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.es_missing_entry: .list.missing_forms
+$(FIX)es_missing_entry: $(LIST)missing_forms
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_entry_autofix"
 >   FIX="-fix:es_add_forms"
 >   MAX=200
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.es_missing_pos: .list.missing_forms
+$(FIX)es_missing_pos: $(LIST)missing_forms
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_pos_autofix"
 >   FIX="-fix:es_add_forms"
 >   MAX=200
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.es_missing_sense: .list.missing_forms
+$(FIX)es_missing_sense: $(LIST)missing_forms
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_sense_autofix"
 >   FIX="-fix:es_replace_forms -fix:es_add_forms"
 >   MAX=1000
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-.fix.es_unexpected_form: .list.missing_forms .fix.es_missing_sense
+
+
+# not safe to run automatically
+$(FIX)misnamed_references_section: $(LIST)section_stats
+>   @
+>   SRC="User:JeffDoozan/lists/misnamed_references_section"
+>   FIX="-fix:cleanup_sections"
+>   MAX=200
+
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   echo $$LINKS > $@
+
+$(FIX)autofix_empty_section: $(LIST)section_stats
+>   @
+>   SRC="User:JeffDoozan/lists/autofix_empty_section"
+>   FIX="-fix:cleanup_sections"
+>   MAX=200
+
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   echo $$LINKS > $@
+
+$(FIX)es_unexpected_form: $(LIST)missing_forms $(FIX)es_missing_sense
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/unexpected_form_autofix"
 >   FIX="-fix:es_replace_forms -fix:es_remove_forms"
->   MAX=2200
+>   MAX=200
 
->   LINKS=`../wikibot/src/getlinks.py $$SRC | sort -u | wc -l`
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   ../wikibot/fun_replace.py -links:$$SRC $$FIX $(ALWAYS) || exit
+>   $(FUN_REPLACE) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
 
