@@ -48,7 +48,8 @@ class NymSectionToTag:
         self._stats = {}
         self._debug_fix = set(debug)
         self.fixes = set()
-        self.wordlist = wordlist
+
+        self.wordlist = Wordlist.from_file(wordlist) if isinstance(wordlist, str) else wordlist
 
         #self.log = logging.getLogger("wikibot")
         #self.log.setLevel(logging.DEBUG)

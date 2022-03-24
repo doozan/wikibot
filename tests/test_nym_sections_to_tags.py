@@ -204,18 +204,18 @@ def test_fix_subsection():
 * {{l|es|synA}}
 
 =====Subsection=====
-* blah
+* blah1
 
 ======Sub-Subsection======
-* blah
+* blah2
 
 {{other stuff}}
 
 =====Subsection2=====
-* blah
+* blah3
 
 =====Subsection3=====
-* blah
+* blah4
 
 """
     expected_text = """==Spanish==
@@ -226,19 +226,19 @@ def test_fix_subsection():
 # [[wordA]]
 #: {{syn|es|synA}}
 
-=====Subsection=====
-* blah
+====Subsection====
+* blah1
 
-======Sub-Subsection======
-* blah
+=====Sub-Subsection=====
+* blah2
 
 {{other stuff}}
 
-=====Subsection2=====
-* blah
+====Subsection2====
+* blah3
 
-=====Subsection3=====
-* blah"""
+====Subsection3====
+* blah4"""
 
     expected_flags = ["autofix_nymsection_has_subsections", "unexpected_section"]
     run_test(orig_text, expected_text, expected_flags)
