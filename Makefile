@@ -180,6 +180,21 @@ $(LIST)es_missing_lemmas: $(BUILDDIR)/es-en.enwikt.lemmas $(BUILDDIR)/es-es.drae
 >   rm -f $@.formonly $@.sorted_az $@.wiki.base
 >   mv $@.wiki $@
 
+$(LIST)pl_missing_ety: $(BUILDDIR)/pl-en.enwikt.lemmas_without_etymology
+>   @echo "Running $@..."
+>   DEST="User:JeffDoozan/lists/pl/missing_ety"
+>   SUMMARY="Lemmas without etymology info"
+
+>   cat $< | awk '{print ": [["$$0"#Polish|"$$0"]]"}' > $@.wiki.base
+
+>   COUNT=`wc -l $@.wiki.base | cut -d " " -f 1`
+>   echo "$$SUMMARY as of $(DATETAG_PRETTY) ($$COUNT entries)" > $@.wiki
+>   cat $@.wiki.base >> $@.wiki
+
+>   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
+>   rm -f $@.wiki.base  $@.sorted_az
+>   mv $@.wiki $@
+
 $(LIST)es_missing_ety: $(BUILDDIR)/es-es.drae.with_etymology $(BUILDDIR)/es-en.enwikt.lemmas_without_etymology $(BUILDDIR)/es-en.enwikt.sortorder
 >   @echo "Running $@..."
 >   DEST="User:JeffDoozan/lists/es_missing_ety"
@@ -356,9 +371,9 @@ $(FIX)es_missing_drae: $(LIST)es_missing_drae
 >   echo $$LINKS > $@
 
 # TODO: some sort of list maker to check if they can be auto fixed
-$(FIX)es_syns: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data
+$(FIX)es_syns: $(BUILDDIR)/es-en.enwikt.data-full
 >   @
->   FIX="-fix:es_simple_nyms"
+>   FIX="-fix:simple_nyms --lang:es --wordlist:$(BUILDDIR)/es-en.enwikt.data-full --sections:Synonyms"
 >   SRC="User:JeffDoozan/lists/es_with_synonyms"
 >   MAX=200
 
@@ -370,7 +385,7 @@ $(FIX)es_syns: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data
 
 $(FIX)pt_syns: $(BUILDDIR)/pt-en.enwikt.data-full
 >   @
->   FIX="-fix:pt_all_nyms --lang:pt --wordlist:$(BUILDDIR)/pt-en.enwikt.data-full --sections:Synonyms"
+>   FIX="-fix:simple_nyms --lang:pt --wordlist:$(BUILDDIR)/pt-en.enwikt.data-full --sections:Synonyms"
 >   SRC="User:JeffDoozan/lists/Portuguese_with_Synonyms"
 >   MAX=1000
 
