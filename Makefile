@@ -56,7 +56,15 @@ FIX := $(BUILDDIR)/.fix.
 SAVE := --save "Updated with $(DATETAG_PRETTY) data"
 
 # Call into the spanish_data makefile to build anything not declared here
-$(BUILDDIR)/%.data-full $(BUILDDIR)/%.data $(BUILDDIR)/%.frequency.csv: force
+$(BUILDDIR)/%.data-full: force
+>   @echo "Subcontracting $@..."
+>   $(MAKE) -C $(SPANISH_DATA) $(@:$(SPANISH_DATA)/%=%)
+
+$(BUILDDIR)/%.data: force
+>   @echo "Subcontracting $@..."
+>   $(MAKE) -C $(SPANISH_DATA) $(@:$(SPANISH_DATA)/%=%)
+
+$(BUILDDIR)/%.frequency.csv: force
 >   @echo "Subcontracting $@..."
 >   $(MAKE) -C $(SPANISH_DATA) $(@:$(SPANISH_DATA)/%=%)
 
@@ -360,9 +368,9 @@ $(FIX)es_syns: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)pt_syns: $(BUILDDIR)/pt-en.enwikt.data
+$(FIX)pt_syns: $(BUILDDIR)/pt-en.enwikt.data-full
 >   @
->   FIX="-fix:pt_simple_nyms"
+>   FIX="-fix:pt_all_nyms --lang:pt --wordlist:$(BUILDDIR)/pt-en.enwikt.data-full --sections:Synonyms"
 >   SRC="User:JeffDoozan/lists/Portuguese_with_Synonyms"
 >   MAX=1000
 
@@ -468,10 +476,10 @@ $(FIX)es_missing_pos: $(LIST)missing_forms
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)es_missing_sense: $(LIST)missing_forms
+$(FIX)es_missing_sense: $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/es-en.enwikt.allforms.csv
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_sense_autofix"
->   FIX="-fix:es_replace_forms -fix:es_add_forms"
+>   FIX="-fix:es_replace_forms -fix:es_add_forms --lang:es --wordlist:$(BUILDDIR)/es-en.enwikt.data-full --allforms:$(BUILDDIR)/es-en.enwikt.allforms.csv --pos:v,n,adj"
 >   MAX=1000
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -507,10 +515,10 @@ $(FIX)autofix_empty_section: $(LIST)section_stats
 >   $(FUN_REPLACE) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-$(FIX)es_unexpected_form: $(LIST)missing_forms $(FIX)es_missing_sense
+$(FIX)es_unexpected_form: $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/es-en.enwikt.allforms.csv
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/unexpected_form_autofix"
->   FIX="-fix:es_replace_forms -fix:es_remove_forms"
+>   FIX="-fix:es_replace_forms -fix:es_remove_forms --lang:es --wordlist:$(BUILDDIR)/es-en.enwikt.data-full --allforms:$(BUILDDIR)/es-en.enwikt.allforms.csv"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
