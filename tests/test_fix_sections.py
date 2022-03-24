@@ -268,6 +268,9 @@ def test_t9n_moving():
 * Polish: {{t|pl|asport|m}}
 {{trans-bottom}}
 
+====Further Reading====
+# Stuff
+
 ===Etymology 2===
 Borrowed from {{bor|en|la|asportō}}.
 
@@ -304,6 +307,9 @@ Borrowed from {{bor|en|la|asportō}}.
 {{trans-mid}}
 * Polish: {{t|pl|asport|m}}
 {{trans-bottom}}
+
+===Further Reading===
+# Stuff
 
 ===Etymology 2===
 Borrowed from {{bor|en|la|asportō}}.

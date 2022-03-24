@@ -333,15 +333,28 @@ def move_misplaced_translations(entry):
             target = section
 
         elif section.title == "Translations" and section.parent.title not in ALL_POS:
+            print(" misplaced, flagging")
             if not target:
                 print("Translation found before POS, can't move", entry.title)
                 continue
             changes.append((target, section))
 
     for target, section in changes:
+
         index = section.parent._children.index(section)
         item = section.parent._children.pop(index)
+
+        # Translations shouldn't have any children, promote them to siblings before moving the translation
+        while item._children:
+            newparent = item.parent
+            child = item._children.pop()
+            print("moving child to", newparent.title, newparent.level, item.level)
+            child.parent = newparent
+            child.level = newparent.level + 1 # TODO: also re-level grandchildren
+            newparent._children.insert(index, child)
+
         print("Moving to", target.title, target.level)
+        item.parent = target
         item.level = target.level + 1
         target._children.append(item)
 
