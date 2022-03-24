@@ -46,7 +46,7 @@ pos: adj
 
 @pytest.fixture(scope = 'module')
 def allforms(wordlist):
-    return AllForms.from_wordlist(wordlist, resolve_lemmas=False)
+    return AllForms.from_wordlist(wordlist)
 
 @pytest.fixture(scope = 'module')
 def fixer(allforms):

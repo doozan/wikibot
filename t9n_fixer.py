@@ -321,7 +321,7 @@ class T9nFixer():
 
         if len(lemma_entries) != len(tline.entries):
             tline.log("botfix_consolidate_forms")
-            tline.parent.fixes.append("Reduced Spanish forms to common lemma")
+            tline.parent.fixes.append("Spanish: reduced adjective forms to common lemma")
 
             new_entries = []
             for lemma, item in lemma_entries.items():

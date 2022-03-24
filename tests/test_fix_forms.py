@@ -422,7 +422,7 @@ def fixer(wordlist):
 
 @pytest.fixture(scope = 'module')
 def allforms(fixer):
-    return AllForms.from_wordlist(fixer.wordlist, resolve_lemmas=False)
+    return AllForms.from_wordlist(fixer.wordlist)
 
 @pytest.fixture(scope = 'module')
 def fixrunner(wordlist, allforms):
@@ -1850,7 +1850,7 @@ def test_chamas(fixer, allforms):
 
     title = "chamas"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
-    assert declared_forms ==  [('chamas', 'n', 'pl', 'chama', ['m'])] #, ('n', 'pl', 'chama', ['f'])]
+    assert declared_forms ==  [('chamas', 'n', 'pl', 'chama', ['m']), ('chamas', 'n', 'pl', 'chama', ['f'])]
 
     res = fixer.replace_pos(title, text, declared_forms, "n")
     #res = fixer.add_missing_forms(title, text, declared_forms)
@@ -2369,6 +2369,5 @@ def test_ababillarse(fixer, allforms):
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
-    assert missing_forms == [('descomida', 'v', 'neg_imp_2sf', 'descomedirse', [])]
-
+    assert missing_forms == []
     assert unexpected_forms == set()
