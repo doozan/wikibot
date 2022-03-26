@@ -1,0 +1,727 @@
+#!/usr/bin/python3
+
+from collections import defaultdict, namedtuple
+from enwiktionary_wordlist.wikiextract import WikiExtract, WikiExtractWithRev
+from autodooz.wikimatch import get_matches, format_match, format_fix, get_fixed_text
+import re
+import sys
+
+import pywikibot
+from pywikibot import pagegenerators, textlib
+from pywikibot import fixes as user_fixes
+from pywikibot.bot import (
+    AutomaticTWSummaryBot,
+    ConfigParserBot,
+    ExistingPageBot,
+    NoRedirectPageBot,
+    SingleSiteBot,
+)
+
+# This is required for the text that is shown when you run this script
+# with the parameter -help.
+docuReplacements = {'&params;': pagegenerators.parameterHelp}  # noqa: N816
+
+# A safety check, if this appears in a patch, it will never be written to the live site
+FAILSAFE_TEXT="AUTODOOZ"
+
+class Logger:
+    def __init__(self, matchFilename, fixesFilename, compact):
+        self.matches = None
+        self.fixes = None
+        self.compact = compact
+
+        if matchFilename:
+            self.matches = sys.stdout if matchFilename == "-" else open(matchFilename, 'w')
+
+        if fixesFilename:
+            self.fixes = sys.stdout if fixesFilename == "-" else open(fixesFilename, 'w')
+
+    def log_patch(self, patch, entry):
+        match, fix = patch
+
+        if self.matches:
+            lines = format_match(match, entry.text, compact=self.compact)
+            if lines:
+                print("\n".join(lines), file=self.matches)
+
+        if self.fixes:
+            lines = format_fix(match, fix, entry.text, compact=self.compact)
+            if lines:
+                print("\n".join(lines), file=self.fixes)
+
+log = None
+
+def load_fixfile(filename):
+
+    with open(filename) as infile:
+        first_line = next(infile)
+        infile.seek(0)
+
+        if first_line.startswith("_____"):
+            return {k:v for k,v in WikiExtract.iter_articles(infile)}
+
+        else:
+            res = {}
+            count = 0
+            for item in infile:
+                count += 1
+                header, _, line = item.partition(": ")
+                if _ != ": ":
+                    print(f"Invalid line {count}: {item}", file=sys.stderr)
+                    exit(1)
+                res[header] = line.rstrip("\n")
+            return res
+
+def make_patches(fixes, text, title, path_filter, match_context):
+    """ Returns a list of (Match, Fix) """
+
+    global_fixes = fixes.get('', []) # global fixes
+    page_fixes = fixes.get(title, []) # page-specific fixes
+
+    if global_fixes and page_fixes:
+        raise ValueError("Don't mix page-specific fixes and global fixes")
+
+    fixes = global_fixes + page_fixes
+
+    if not fixes:
+        raise ValueError(f"no fixes available for '{title}', this should never happen")
+
+    patches = []
+    for fix in fixes:
+        matches = get_fix_matches(fix, text, title, path_filter, match_context)
+        if not matches:
+            if page_fixes:
+                raise ValueError(f"Failed to prepare patch for '{title}', page has probably changed")
+            continue
+
+        # wildcards and regexes may generate multiple matches
+        for match in matches:
+            patches.append((match, fix))
+
+    return patches
+
+def get_fix_matches(fix, text, title, path_filter, match_context):
+    """Returns start, end line numbers affected by the given fix
+    Returns None if fix can't be applied unambiguously to the given text
+    """
+
+    multiline = fix.type != "line"
+
+    if fix.type == "function":
+        return fix.old(text, title, path_filter, match_context)
+
+    if callable(fix.old):
+        raise ValueError("search pattern is callable, use --mode function")
+
+    if fix.type == "regex":
+        re_match = fix.old
+    elif fix.type == "text":
+        re_match = re.escape(fix.old)
+    elif fix.type in ["section", "line"]:
+        re_match = r"^" + re.escape(fix.old) + r"$"
+    else:
+        raise ValueError("unhandled fix.type", fix.type)
+
+    matches = get_matches(
+            title,
+            text,
+            re_match,
+            re_not = None,
+            match_context=match_context,
+            no_path = False,
+            path_filter=path_filter)
+
+    if not matches:
+        return
+
+    if fix.type in ["section", "line"] and not validate_matches(matches, fix):
+        return
+
+    return matches
+
+def validate_matches(matches, fix):
+
+    if fix.pos.target_max and (fix.pos.target_max == "*" or fix.pos.target_max > 1):
+        if fix.pos.target_max != "*" and fix.pos.target_max != len(matches):
+            print("matches {len(matches)} times but expected to match {fix.pos.target_max} times")
+            return
+
+        # Trim matches to just the indexed match
+        if fix.pos.target_idx != "*":
+            matches=[matches[fix.pos.target_idx]]
+    else:
+        if len(matches) > 1:
+            print("unexpectedly matches multiple options", fix)
+            return
+
+    if fix.pos.section_max:
+        raise ValueError("duplicate section matches, not implemented yet")
+
+    for match in matches:
+        # Ensure the match exactly matches the old
+        # Mosty a sanity check, but also important when doing section matches
+        # to detect if lines have been appended to the section (the new lines
+        # will be in the match, but won't be in the fix.old)
+        if text[match.start:match.end] != fix.old:
+            print("section doesn't match exactly, not matching")
+
+            print('-'*40, "Detected:")
+            print(text[match.start:match.end])
+            print('-'*40, "Expected:")
+            print(fix.old)
+            print('-'*40)
+            return
+
+    return True
+
+
+def check_balanced(text):
+    """Verifies that a given replacement string has an equal number of paired characters """
+
+    for a,b in [("{","}"), ("(",")"), ("[","]"), ("<",">"), ("<--", "-->")]:
+        if text.count(a) != text.count(b):
+            return f"mismatched {a} and {b}"
+
+
+Fix = namedtuple("Fix", ["path", "pos", "old", "new", "type"])
+def load_fixes(oldFile, newFile):
+    """ returns a list of Fix objects """
+    errors = set()
+
+    old = load_fixfile(oldFile)
+    new = load_fixfile(newFile)
+
+    if len(old) != len(new):
+        errors.add("mismatched_fixes")
+        print(f"Mismatched fixes: old has {len(old)}, new has {len(new)}")
+
+    all_fixes = defaultdict(list)
+
+    first = True
+    indexed = defaultdict(lambda: defaultdict(list))
+    for k,v in new.items():
+        if first:
+            # TODO: skip items that start with "00-"
+            first = False
+
+        # TODO: support for "range" fixes?
+        fix_type = "line" if "\n" not in v else "section"
+
+        # New file references a page that wasn't in the oldfile
+        if k not in old:
+            errors.add("new_page")
+            print(f"{k} not found in {old}")
+            continue
+
+        # No changes between the two targets
+        if old[k] == v:
+            continue
+
+        page,*path,position = k.split(":")
+        if path:
+            path = tuple(path)
+
+        if v.strip() == "":
+            errors.add("blank_replacement")
+            print(f"ERROR: {k}: replacement text is empty", file=sys.stderr)
+
+        error = check_balanced(v)
+        if error:
+            errors.add("bad_replacement")
+            print(f"ERROR: {k}: {error}", file=sys.stderr)
+
+        if FAILSAFE_TEXT in v:
+            errors.add("fix_has_failsafe")
+            print(f"ERROR: {k}: fix contains failsafe text '{FAILSAFE_TEXT}': '{v}' ", file=sys.stderr)
+
+        pos = parse_position(position)
+        fix = Fix(path, pos, old[k], v, fix_type)
+
+        if pos.section_max:
+            raise ValueError("indexed sections not yet supported")
+
+        # indexed patches are grouped and buffered so they can be validated
+        if pos and pos.target_max:
+            indexed[page][path].append(fix)
+        else:
+            all_fixes[page].append(fix)
+
+
+    # Validate indexed patches
+    for page, sections in indexed.items():
+        for section, fixes in sections.items():
+
+            unique_max = list({f.pos.target_max for f in fixes})
+            if len(unique_max) != 1:
+                errors.add("multi_target_max")
+                print(f"ERROR: {k}: has differing max values {[f.pos for f in fixes]}", file=sys.stderr)
+                continue
+
+            # fail on duplicate index keys
+            unique_idx = list({f.pos.target_idx for f in fixes})
+            if len(unique_idx) != len(fixes):
+                errors.add("dup_index")
+                print(f"ERROR: {k}: has duplicate index values {[f.pos for f in fixes]}", file=sys.stderr)
+                continue
+
+            if "*" in unique_idx:
+                if len(unique_idx) != 1:
+                    errors.add("mixed_wildcard")
+                    print(f"ERROR: {k}: has wildcard with other index values {[f.pos for f in fixes]}", file=sys.stderr)
+                    continue
+
+            elif len(fixes) != unique_max[0]:
+                print(f"WARNING: {k}: is missing an indexed item seen: {sorted(unique_indices)}", file=sys.stderr)
+
+            all_fixes[page] += fixes
+
+    if not len(all_fixes):
+        errors.add("no_fixes")
+        print(f"Mismatched fixes: old has {len(old)}, new has {len(new)}, 0 in common")
+
+    if errors:
+        # TODO: check if it's allowed to run with errors
+        raise ValueError("fix files have errors, not running")
+
+#        self.revisions = {}
+#        print("Loading revisions")
+#        for article in WikiExtractWithRev.iter_articles_from_bz2(self.opt.dump):
+#            if article.title in self.fixes:
+#                self.revisions[article.title] = int(article.revision)
+#        print("Ready to rock")
+
+    return all_fixes
+
+
+Position = namedtuple("Position", ["section_idx", "section_max", "target_idx", "target_max"])
+def parse_position(position):
+    section_idx = None
+    section_max = None
+    target_idx = None
+    target_max = None
+
+    # check for {x,y} sections index
+    match = re.match(r"{(.*?)}", position)
+    if match:
+        items = map(str.strip, match.group(1).split(","))
+        if len(items) != 2 or any(not x.isnumeric() for x in items):
+            raise ValueError(f"invalid section index: {match.group(0)} (expected: {{x,y}})")
+        section_start, section_end = map(int,items)
+        if section_start > section_end:
+            raise ValueError(f"invalid section index: {match.group(0)} pos>idx")
+
+    # check for [x,y] match index
+    match = re.match(r"\[(.*?)\]", position)
+    if match:
+        items = list(map(str.strip, match.group(1).split(",")))
+        if len(items) == 1 and items[0] == "*":
+            target_idx = target_max = "*"
+        elif len(items) != 2:
+            raise ValueError(f"invalid section index: {match.group(0)} (expected: [x,y])")
+        else:
+            for item in items:
+                if not (item == "*" or item.isnumeric()):
+                    raise ValueError(f"invalid section index: {match.group(0)} (expected: [x,y])")
+            target_idx = int(items[0]) if items[0].isnumeric() else items[0]
+            target_max = int(items[1]) if items[1].isnumeric() else items[1]
+            if target_idx.isnumeric() and target_max.isnumeric() and target_idx > target_max:
+                raise ValueError(f"invalid section index: {match.group(0)} pos>idx")
+        if target_max == "*" and target_idx != "*":
+            raise ValueError(f"invalid section index: {match.group(0)}, cannot mix index with undefined limit")
+
+
+    return Position(section_idx, section_max, target_idx, target_max)
+
+
+class WikiExtractReplacePageGenerator:
+
+    """
+    Iterator that will yield Pages that might contain text to replace.
+
+    These pages will be retrieved from a local wixi extract file.
+
+    :param xmlFilename: The dump's path, either absolute or relative
+    :type xmlFilename: str
+    :param xmlStart: Skip all articles in the dump before this one
+    :type xmlStart: str
+    :param fixes: A list of Fix objects
+    :type fixes: list of Fix objects
+    :param exceptions: A dictionary which defines when to ignore an
+        occurrence. See docu of the ReplaceRobot initializer below.
+    :type exceptions: dict
+    """
+
+    def __init__(self, wxtFilename, wxtStart, fixes, exceptions, site, context, path_filter=None, read_only=False, limit=0):
+        """Initializer."""
+        self.wxtFilename = wxtFilename
+        self.exceptions = exceptions
+        self.wxtStart = wxtStart
+        self.skipping = bool(wxtStart)
+        self.fixes = fixes
+        self.path_filter = path_filter
+        self.read_only = read_only
+        self.limit = limit
+        self.count = 0
+        self.context = context
+
+#        self.replacements = []
+#        for fix in fixes:
+#            self.replacements.append(Replacement(fix.old, fix.new))
+
+#        for replacement in self.replacements:
+#            #replacement.compile(regex, flags)
+#            replacement.compile(True, 0)
+
+        self.excsInside = []
+        if 'inside-tags' in self.exceptions:
+            self.excsInside += self.exceptions['inside-tags']
+        if 'inside' in self.exceptions:
+            self.excsInside += self.exceptions['inside']
+
+
+        from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
+        if site:
+            self.site = site
+        else:
+            self.site = pywikibot.Site()
+        self.parser = WikiExtractWithRev.iter_articles_from_bz2(wxtFilename)
+
+    def __iter__(self):
+        """Iterator method."""
+        try:
+            for entry in self.parser:
+                if self.skipping:
+                    if entry.title != self.wxtStart:
+                        continue
+                    self.skipping = False
+                    continue
+                if self.isTitleExcepted(entry.title) \
+                        or self.isTextExcepted(entry.text):
+                    continue
+
+                patches = make_patches(self.fixes, entry.text, entry.title, self.path_filter, self.context)
+                if not patches:
+                    continue
+
+                for patch in patches:
+                    log.log_patch(patch, entry)
+
+                self.count += 1
+                if self.limit and self.count > self.limit:
+                    print("limit reached, exiting", file=sys.stderr)
+                    exit()
+
+                if self.read_only:
+                    continue
+
+                yield pywikibot.Page(self.site, entry.title)
+
+        except KeyboardInterrupt:
+            with suppress(NameError):
+                if not self.skipping:
+                    pywikibot.output(
+                        'To resume, use "-wxtstart:{}" on the command line.'
+                        .format(entry.title))
+
+    def isTitleExcepted(self, title):
+        """
+        Return True if one of the exceptions applies for the given title.
+
+        :rtype: bool
+        """
+        if 'title' in self.exceptions:
+            for exc in self.exceptions['title']:
+                if exc.search(title):
+                    return True
+        if 'require-title' in self.exceptions:
+            for req in self.exceptions['require-title']:
+                if not req.search(title):  # if not all requirements are met:
+                    return True
+
+        return False
+
+    def isTextExcepted(self, text):
+        """
+        Return True if one of the exceptions applies for the given text.
+
+        :rtype: bool
+        """
+        if 'text-contains' in self.exceptions:
+            for exc in self.exceptions['text-contains']:
+                if exc.search(text):
+                    return True
+        return False
+
+class ListPageGenerator:
+    def __init__(self, pages, site):
+        self.site = site
+        self.pages = pages
+
+    def __iter__(self):
+        for title in self.pages:
+            yield pywikibot.Page(self.site, title)
+
+
+class AutoDooz(
+    # Refer pywikobot.bot for generic bot classes
+    SingleSiteBot,  # A bot only working on one site
+    ConfigParserBot,  # A bot which reads options from scripts.ini setting file
+    # CurrentPageBot,  # Sets 'current_page'. Process it in treat_page method.
+    #                  # Not needed here because we have subclasses
+    ExistingPageBot,  # CurrentPageBot which only treats existing pages
+    NoRedirectPageBot,  # CurrentPageBot which only treats non-redirects
+):
+
+    def __init__(self, generator, fixes, **kwargs):
+        """Initializer."""
+        self.available_options.update({
+            'read_only': None,
+            'summary': None,
+            'path_filter': None,
+            'limit': None,
+            'context': None
+        })
+        super().__init__(generator=generator, **kwargs)
+        self.fixes = fixes
+        self.count = 0
+
+    def apply_patches(self, text, patches):
+
+        # Apply patches from end to the beginning so their edits won't affect
+        # the offsets of remaining patches
+
+        t = list(text)
+
+        prev_match = None
+        for match, fix in sorted(patches, key=lambda x: x[0], reverse=True):
+            if prev_match and prev_match.start < match.end:
+                raise ValueError("Patches overlap", prev_match, match)
+            prev_match = match
+
+            messages = []
+            new_text = get_fixed_text(match, fix, text, self.current_page.title, messages)
+
+            t[match.start:match.end] = new_text
+
+        return "".join(t)
+
+
+    def treat_page(self) -> None:
+        text = self.current_page.text
+        title = self.current_page.title()
+
+        patches = make_patches(self.fixes, text, title, self.opt.path_filter, self.opt.context)
+        if not patches:
+            return
+
+        for patch in patches:
+            log.log_patch(patch, self.current_page)
+
+        self.count += 1
+        if self.opt.limit and self.count > self.opt.limit:
+            print("limit reached, exiting", file=sys.stderr)
+            exit()
+
+        if self.opt.read_only:
+            return
+
+        new_text = self.apply_patches(text, patches)
+        if not new_text:
+            return
+
+        if FAILSAFE_TEXT in new_text:
+            raise ValueError(title, "Failsafe detected in text about to be written to site, failing")
+
+        self.put_current(new_text, summary=self.opt.summary)
+
+
+def main(*args: str) -> None:
+    options = {}
+
+    local_args = pywikibot.handle_args(args)
+    gen_factory = pagegenerators.GeneratorFactory()
+    local_args = gen_factory.handle_args(local_args)
+
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Search language extract for articles matching a given pattern")
+    parser.add_argument("--load-matches", help="Load per-page match data from specified file")
+    parser.add_argument("--load-fixes", help="Load per-page replacement data from specified file (requires --load-matches)")
+    parser.add_argument("--path-filter", help="Search only inside pages/sections('page:section:subsection:...') that match the given regex")
+    parser.add_argument("--wxtfilename", help="Read pages from a wiki extract file")
+    parser.add_argument("--wxtstart", help="Resume from a given page in the wiki extract file")
+
+    parser.add_argument("--read-only", help="Only log matches/replacements, don't write any changes to wiki", action='store_true')
+    parser.add_argument("--log-matches", help="Write matches to the given file (use - for stdout)")
+    parser.add_argument("--log-fixes", help="Write replacements to the given file (use - for stdout)")
+
+    parser.add_argument("--fix", help="Run a fix declared in user-fixes")
+
+    parser.add_argument("--summary", help="Summary message to use when saving wiki page")
+
+    parser.add_argument("--search", help="Treats all input as search paramaters, makes no replacements (implies --read-only and --log-matches -)", action="store_true")
+
+    parser.add_argument("--nocompact", help="Don't log matches in compact mode", action='store_true')
+    parser.add_argument("--regex", help="Search/replace with regex patterns", action='store_true')
+    parser.add_argument("--context", help="How much surrounding data in included with the match", choices=["line", "section", "none"], default="line")
+    parser.add_argument("--limit", type=int, help="Stop after N pages have been fixed")
+
+    parser.add_argument("match", nargs='*')
+
+    args = parser.parse_args(local_args)
+
+    site = pywikibot.Site()
+
+    gen = None
+    fixes = None
+
+    # Load user fixes first because it can modify the args
+    if args.fix:
+
+        declared_fixes = []
+        try:
+            fix = user_fixes.fixes[args.fix]
+        except KeyError:
+            pywikibot.output('Available predefined fixes are: {}'
+                             .format(', '.join(fixes.fixes.keys())))
+            if not user_fixes.user_fixes_loaded:
+                pywikibot.output('The user fixes file could not be found: {}'
+                                 .format(fixes.filename))
+            exit(1)
+
+        if not fix['fixes']:
+            pywikibot.warning('No fixes defined for fix "{}"'
+                              .format(fix_name))
+            exit(1)
+
+
+        # override command line options with fix values? (maybe better the other way around?)
+        for key in ["mode", "context", "path_filter", "summary"]:
+            if key in fix:
+                setattr(args, key, fix[key])
+
+        for search, replacement in fix['fixes']:
+            declared_fixes.append(Fix(None, None, search, replacement, args.mode))
+
+        # apply fixes to all pages
+        fixes = {'': declared_fixes}
+
+
+    # Setup logging as early as possible
+
+    if args.search:
+        args.read_only = True
+        if not args.log_matches:
+            args.log_matches = "-"
+
+    global log
+
+    if args.nocompact:
+        compact = False
+    else:
+        # TODO: when adding --dotall, don't use compact mode
+        compact = args.context in ["line", "none"]
+    log = Logger(args.log_matches, args.log_fixes, compact)
+
+
+    if not args.read_only and not args.summary:
+        print("--summary required when making changes")
+        exit(1)
+
+
+    if args.regex:
+        args.mode = "regex"
+    else:
+        args.mode = "text"
+
+    if args.load_fixes and not args.load_matches:
+        print("--load-fixes requires --load-matches")
+        exit(1)
+
+    if args.search and args.log_fixes:
+        print("Running in read-only mode, data for --log-fixes will not be generated")
+        exit(1)
+
+#    if args.read_only and args.summary:
+#        print("Running in read-only mode, --summary will not be used because no changes will be saved")
+#        exit(1)
+
+    if args.read_only and not (args.log_matches or args.log_fixes):
+        print("--read-only requires at least on of --log-matches or --log-fixes")
+        exit(1)
+
+    if args.fix and args.load_matches:
+        print("--fix and --load-matches can't be combined")
+        exit(1)
+
+    if args.fix and args.match:
+        print("--fix can't be mixed with command-line search/replace options")
+        exit(1)
+
+    if args.load_matches and args.wxtfilename:
+        print("--load-matches can't be used with --wxtfilename")
+        exit(1)
+
+    if args.load_matches and args.fix:
+        print("--load-matches can't be used with --fix")
+        exit(1)
+
+    if args.load_matches:
+        fixes = load_fixes(args.load_matches, args.load_fixes)
+        gen = ListPageGenerator(fixes.keys(), site)
+
+    if args.wxtfilename:
+        if not args.read_only and not args.path_filter:
+            print("--path-filter must be specified when making changes using wikiextracts (recommended --path-filter '.*?:Language:')")
+            exit(1)
+
+        gen = WikiExtractReplacePageGenerator(args.wxtfilename, args.wxtstart,
+                fixes, {}, site, args.context, args.path_filter, args.read_only, args.limit)
+
+    if not args.fix:
+        generated_fixes = []
+
+        if not args.match:
+            print("no search/replace values provided")
+            exit(1)
+
+        if args.search:
+            replacement = FAILSAFE_TEXT
+            for search in args.match:
+                generated_fixes.append(Fix(None, None, search, replacement, args.mode))
+
+        else:
+            if len(args.match)%2 != 0:
+                print(f"unmatched search/value pairs, {len(args.match)} values supplied")
+                exit(1)
+
+            for i in range(0,len(args.match),2):
+                search = args.match[i]
+                replacement = args.match[i+1]
+                generated_fixes.append(Fix(None, None, search, replacement, args.mode))
+
+        fixes = {'': generated_fixes}
+
+        if not args.match:
+            print("no SEARCH term provided")
+            exit(1)
+
+        if not len(args.match) == 2 and not args.search:
+            print("no REPLACEMENT value provided, please specify or use --search to search without replacements", file=sys.stderr)
+            exit(1)
+
+
+    if not args.summary and not args.read_only:
+        print("--summary must be provided when editing pages")
+        exit(1)
+
+    gen = gen_factory.getCombinedGenerator(gen, preload=True)
+    if gen:
+        bot = AutoDooz(generator=gen, fixes=fixes, **vars(args))
+        bot.run()
+    else:
+        pywikibot.bot.suggest_help(missing_generator=True)
+
+if __name__ == '__main__':
+    main()

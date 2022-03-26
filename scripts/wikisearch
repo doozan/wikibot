@@ -16,10 +16,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import bz2
+from collections import defaultdict
 import re
 import os
 from enwiktionary_wordlist.utils import wiki_to_text
+from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
 from enwiktionary_parser.languages.all_ids import languages as lang_ids
+
+from autodooz.wikimatch import get_matches, format_matches
+
 
 def main():
 
@@ -29,66 +34,63 @@ def main():
     parser.add_argument("filename", help="Search the given file")
     parser.add_argument("pattern", help="regex pattern")
     parser.add_argument("--not", help="not matching regex pattern", dest="re_not")
-    parser.add_argument("--multiline", help="search patterns across multiple lines")
+
+    parser.add_argument("--dotall", help="use re.DOTALL when searching")
+    parser.add_argument("--path-filter", help="Search only inside pages/sections('page:section:subsection:...') that match the given regex")
+
+    parser.add_argument("--sort", help="sort results", action="store_true")
+
+    parser.add_argument("--nopath", help="Don't print path information", action="store_true")
+    parser.add_argument("--full", help="Use full output", action="store_true")
+    parser.add_argument("--section", help="Print entire section if it has matches", action="store_true")
+    parser.add_argument("--expand-matches", help="Print duplicate items individually", action="store_true")
+
 #    parser.add_argument("--in-template", help="search only within templates matching TEMPLATE pattern")
 #    parser.add_argument("--or", help="not matching regex pattern")
 #    parser.add_argument("--and", help="not matching regex pattern")
 #    parser.add_argument("wordlist2", help="wordlist")
     args = parser.parse_args()
 
-#    if not args.lang:
-#        args.lang = "Spanish"
-#    else:
-#        args.lang = lang_ids.get(args.lang, args.lang)
-#
-#    filename = args.lang + ".txt.bz2"
+    if args.section:
+        args.full = True
 
     if not os.path.exists(args.filename):
-        print(f"Language does not exist: {args.filename}")
+        print(f"File not found: {args.filename}")
         exit(1)
 
     re_not = re.compile(args.re_not) if args.re_not else None
-    re_match = re.compile(args.pattern)
+    re_match = args.pattern
 
-    for entry_title, entry in iter_entries(args.filename):
+    all_matches = []
 
-        matches = []
-        for line in entry:
-            if re.search(re_match, line):
-                matches.append(line)
-#        matches = re.search(re_match, "".join(entry))
+    for article in WikiExtractWithRev.iter_articles_from_bz2(args.filename):
 
+        match_context = "section" if args.section else "line"
+        matches = get_matches(article.title, article.text, re_match, re_not, match_context, args.nopath, path_filter=args.path_filter)
         if not matches:
             continue
 
-        if re_not and re.search(re_not, "".join(entry)):
+        full_matches = []
+        for path, section_target, match_target, start, end in matches:
+            match_text = article.text[start:end]
+            full_matches.append((path, section_target, match_text))
+
+        lines = format_matches(matches, article.text, args.nopath,
+                    expand_matches=args.expand_matches,
+                    compact=not args.full, revision=article.revision)
+
+        if not lines:
             continue
 
-        for match in matches:
-            print(f"{entry_title}: {match.rstrip()}")
+        if args.sort:
+            all_matches[article.title] = lines
+        else:
+            print("\n".join(lines))
 
-
-
-
-
-def iter_entries(filename):
-    with bz2.open(filename, "rt") as infile:
-        entry_title = None
-        entry = []
-
-        for line in infile:
-            if line.startswith("_____") and line.endswith("_____\n"):
-                if entry_title:
-                    yield entry_title, entry
-                entry_title = line[5:-6]
-                entry = []
-            else:
-                if entry_title is None:
-                    raise ValueError("File is not a recognized format")
-                entry.append(line)
-        if entry_title:
-            yield entry_title, entry
+    if args.sort:
+        for page, lines in sorted(all_matches.items(), key=lambda x: x[0]):
+            print("\n".join(lines))
 
 if __name__ == "__main__":
-
     main()
+
