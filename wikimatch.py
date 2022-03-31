@@ -94,6 +94,9 @@ def is_allowed(path_filter, section):
 
 def get_matches(title, full_text, re_match, re_not, match_context, no_path, dotall=False, path_filter=None):
 
+    if match_context not in ["page", "L2", "section", "line", "none"]:
+        raise ValueError("unhandled context", match_context)
+
     if dotall:
         raise ValueError("not implemented")
 
@@ -104,11 +107,9 @@ def get_matches(title, full_text, re_match, re_not, match_context, no_path, dota
     section = add_section(all_sections, title, 0)
 
     needs_sections = False
-    if path_filter:
-        needs_sections = True
-    if match_context == "section":
-        needs_sections = True
-    if not no_path:
+    if path_filter \
+            or match_context in ["L2", "section"] \
+            or not no_path:
         needs_sections = True
 
     pattern = rf"(?P<pat>{re_match})|(?P<section>^==+.*?==+)" if needs_sections else re_match
@@ -161,7 +162,26 @@ def get_matches(title, full_text, re_match, re_not, match_context, no_path, dota
         section_max = _path_count[section.path]
         section_index = (section.index, section_max) if section_max > 1 else None
 
-        if match_context == "section":
+        if match_context == "page":
+            if matches:
+                continue
+            match_start = 0
+            match_end = len(full_text)
+        elif match_context == "L2":
+            l2 = section
+            while l2.level > 2 and l2.parent:
+                l2 = l2.parent
+            if l2.level != 2:
+                raise ValueError("no l2 section", title, section.path)
+
+            if l2 in matched_sections:
+                continue
+
+            matched_sections.add(l2)
+            match_start = l2.start
+            match_end = l2.end
+
+        elif match_context == "section":
             # Limit each section to a single match
             # TODO: child sections should be ignored if their parent has already been included
             # this is difficult (impossible?) if the parent is ambiguous
