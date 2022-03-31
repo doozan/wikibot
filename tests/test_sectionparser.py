@@ -93,6 +93,10 @@ blah
     assert len(parsed._children) == 3
     assert len(list(parsed.ifilter_sections())) == 9
 
+    notes = list(parsed.ifilter_sections(matches=lambda x: x.title == "Usage notes"))
+    assert len(notes) == 1
+    assert notes[0].path == "Spanish:Noun=:Usage notes"
+
     res = str(parsed)
     assert res.splitlines() == result.splitlines()
 

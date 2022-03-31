@@ -252,12 +252,17 @@ class Section():
         item = self
         while item:
             if getattr(item, "count", None):
-                yield(item.title + " " + item.count)
+                yield item.title + " " + item.count
             else:
-                yield(item.title)
-            if not (hasattr(item, "parent")):
+                yield item.title
+            if not hasattr(item, "parent"):
                 break
             item = item.parent
+
+    @property
+    def path(self):
+        lineage = list(self.lineage)
+        return ":".join(reversed(lineage[:-1]))
 
     def ifilter_sections(self, recursive=True, matches=lambda x: True):
         for child in self._children:
