@@ -257,8 +257,10 @@ $(LIST)es_untagged_demonyms: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 >   DEST="User:JeffDoozan/lists/es_untagged_demonyms"
 >   SUMMARY="Entries that may be untagged demonyms"
-
->   $(WIKISEARCH) $< '^# .*(((one|body|person) from)|((native|resident|inhabitant) of|of or relat))' --not Demonyms \
+>   $(WIKISEARCH) $< \
+>       '^# .*(((one|body|person) from)|((native|resident|inhabitant) of|of or relat))' \
+>       --path-filter ".*:Noun" \
+>       --not Demonyms \
 >   | grep -iv "President of" \
 >   | $(WIKI2TEXT) \
 >   | sed -e 's/: [#*: ]*/: /' \
