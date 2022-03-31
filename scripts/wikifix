@@ -493,13 +493,13 @@ class AutoDooz(
         t = list(text)
 
         prev_match = None
-        for match, fix in sorted(patches, key=lambda x: x[0], reverse=True):
+        for match, fix in sorted(patches, key=lambda x: x[0].start, reverse=True):
             if prev_match and prev_match.start < match.end:
                 raise ValueError("Patches overlap", prev_match, match)
             prev_match = match
 
             messages = []
-            new_text = get_fixed_text(match, fix, text, self.current_page.title, messages)
+            new_text = get_fixed_text(match, fix, text, self.current_page.title(), messages)
 
             t[match.start:match.end] = new_text
 
@@ -532,6 +532,7 @@ class AutoDooz(
         if FAILSAFE_TEXT in new_text:
             raise ValueError(title, "Failsafe detected in text about to be written to site, failing")
 
+        pywikibot.showDiff(text, new_text, context=10)
         self.put_current(new_text, summary=self.opt.summary)
 
 
