@@ -6,7 +6,7 @@ import re
 import sys
 from collections import defaultdict
 from enwiktionary_wordlist.utils import wiki_to_text
-from enwiktionary_wordlist.language_extract import LanguageFile
+from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
 
 parser = argparse.ArgumentParser(description="Find fixable entries")
 parser.add_argument("extract", help="language extract file")
@@ -23,8 +23,10 @@ if not len(search_articles):
 print(f"Searching {len(search_articles)} articles", file=sys.stderr)
 
 seen = defaultdict(list)
-for item in LanguageFile.iter_articles(args.extract):
-    title, data = item
+for article in WikiExtractWithRev.iter_articles_from_bz2(args.extract):
+    title = article.title
+    data = article.text
+
     if title not in search_articles:
         continue
 
@@ -44,4 +46,4 @@ for item in LanguageFile.iter_articles(args.extract):
 
 for k,v in sorted(seen.items(), key=lambda x: (len(x[1]), x[1]), reverse=True):
     if len(v) > 1:
-        print("; [[" + "]], [[".join(sorted(v)) + "]]: <nowiki>" + k[len("passage="):] + "</nowiki>")
+        print("; [[" + "]], [[".join(sorted(v)) + "]]: <nowiki>" + k + "</nowiki>")

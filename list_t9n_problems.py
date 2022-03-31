@@ -29,7 +29,7 @@ from autodooz.wikilog_language import WikiByLanguage as BaseWikiByLanguage
 from enwiktionary_translations import TranslationTable, TranslationLine, UNKNOWN_LANGS, LANG_PARENTS
 from enwiktionary_translations.language_aliases import language_aliases as LANG_ALIASES
 from enwiktionary_wordlist.all_forms import AllForms
-from enwiktionary_wordlist.language_extract import LanguageFile
+from enwiktionary_wordlist.wikiextract import WikiExtract
 from collections import namedtuple
 from enwiktionary_parser.sections.pos import ALL_POS
 from enwiktionary_parser.languages.all_ids import languages as lang_ids
@@ -289,8 +289,10 @@ def main():
     count = 0
     max_val = 0
     pages_with_tables = set()
-    for pathstr, text in LanguageFile.iter_articles(args.trans):
-        path = pathstr.split(":")
+
+    for article in WikiExtract.iter_articles_from_bz2(args.trans):
+        text = article.text
+        path = article.title.split(":")
         page = path[0]
         pos = path[-1]
 

@@ -37,7 +37,7 @@ from enwiktionary_parser.wtnodes.word import Word
 from enwiktionary_parser.sections.pos import ALL_POS
 
 from enwiktionary_wordlist.wordlist import Wordlist
-from enwiktionary_wordlist.language_extract import LanguageFile
+from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
 from enwiktionary_parser.languages.all_ids import languages as lang_ids
 
 class NymSectionToTag:
@@ -476,7 +476,9 @@ def main():
         with open(args.ignore) as infile:
             ignore = set(infile.read().splitlines())
 
-    for entry_title, lang_entry in LanguageFile.iter_articles(args.langdata):
+    for article in WikiExtractWithRev.iter_articles_from_bz2(args.langdata):
+        entry_title = article.title
+        lang_entry = article.text
 
         if args.article_limit and count > args.article_limit:
             break

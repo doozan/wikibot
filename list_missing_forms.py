@@ -10,7 +10,7 @@ import re
 import sys
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
-from enwiktionary_wordlist.language_extract import LanguageFile
+from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
 from form_fixer import FormFixer, FixRunner, ExistingForm
 from autodooz.wikilog import WikiLogger, BaseHandler
 
@@ -197,8 +197,9 @@ def filter_items(errors):
     for e in errors:
         search_titles[e.form].append(e)
 
-    for item in LanguageFile.iter_articles(ARTICLE_FILE):
-        title, entry = item
+    for article in WikiExtractWithRev.iter_articles_from_bz2(ARTICLE_FILE):
+        title = article.title
+        entry = article.text
         if title not in search_titles:
             continue
 
