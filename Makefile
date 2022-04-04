@@ -348,7 +348,7 @@ $(LIST)es_verbs_missing_type: $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-en.en
 
 
 # Fixes
-$(FIX)fr_missing_tlfi: $(LIST)fr_missing_tlfi
+$(FIX)fr_missing_tlfi:
 >   @
 >   FIX="-fix:add_tlfi"
 >   SRC="User:JeffDoozan/lists/fr_missing_tlfi"
@@ -360,7 +360,7 @@ $(FIX)fr_missing_tlfi: $(LIST)fr_missing_tlfi
 >   $(REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)es_missing_drae: $(LIST)es_missing_drae
+$(FIX)es_missing_drae:
 >   @
 >   FIX="-fix:add_drae"
 >   SRC="User:JeffDoozan/lists/es_missing_drae"
@@ -373,9 +373,9 @@ $(FIX)es_missing_drae: $(LIST)es_missing_drae
 >   echo $$LINKS > $@
 
 # TODO: some sort of list maker to check if they can be auto fixed
-$(FIX)es_syns: $(BUILDDIR)/es-en.enwikt.data-full
+$(FIX)es_syns:
 >   @
->   FIX="-fix:simple_nyms --lang:es --wordlist:$(BUILDDIR)/es-en.enwikt.data-full --sections:Synonyms"
+>   FIX="-fix:simple_nyms --lang:es --wordlist:$(SPANISH_DATA)/es-en.data --sections:Synonyms"
 >   SRC="User:JeffDoozan/lists/es_with_synonyms"
 >   MAX=200
 
@@ -385,7 +385,7 @@ $(FIX)es_syns: $(BUILDDIR)/es-en.enwikt.data-full
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)pt_syns: $(BUILDDIR)/pt-en.enwikt.data-full
+$(FIX)pt_syns:
 >   @
 >   FIX="-fix:simple_nyms --lang:pt --wordlist:$(BUILDDIR)/pt-en.enwikt.data-full --sections:Synonyms"
 >   SRC="User:JeffDoozan/lists/Portuguese_with_Synonyms"
@@ -397,11 +397,11 @@ $(FIX)pt_syns: $(BUILDDIR)/pt-en.enwikt.data-full
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)autofix_title: $(LIST)section_stats
+$(FIX)autofix_title:
 >   @
 >   FIX="-fix:cleanup_sections"
 >   SRC="User:JeffDoozan/lists/autofix_title"
->   MAX=300
+>   MAX=500
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
@@ -409,7 +409,7 @@ $(FIX)autofix_title: $(LIST)section_stats
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)autofix_numbered_pos: $(LIST)section_stats
+$(FIX)autofix_numbered_pos:
 >   @
 >   FIX="-fix:cleanup_sections"
 >   SRC="User:JeffDoozan/lists/autofix_numbered_pos"
@@ -421,19 +421,7 @@ $(FIX)autofix_numbered_pos: $(LIST)section_stats
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)misplaced_translations_section: $(LIST)section_stats
->   @
->   SRC="User:JeffDoozan/lists/translations/by_error/outside_pos"
->   FIX="-fix:cleanup_sections"
->   MAX=300
-
->   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
->   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
->   echo $$LINKS > $@
-
-$(FIX)autofix_missing_references: $(LIST)section_stats
+$(FIX)autofix_missing_references:
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_missing_references"
 >   FIX="-fix:cleanup_sections"
@@ -445,7 +433,7 @@ $(FIX)autofix_missing_references: $(LIST)section_stats
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)autofix_bad_l2: $(LIST)section_stats
+$(FIX)autofix_bad_l2:
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_bad_l2"
 >   FIX="-fix:cleanup_sections"
@@ -457,10 +445,10 @@ $(FIX)autofix_bad_l2: $(LIST)section_stats
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)botfix_consolidate_forms: $(LIST)t9n_problems
+$(FIX)botfix_consolidate_forms:
 >   @
 >   SRC="User:JeffDoozan/lists/translations/by_error/botfix_consolidate_forms"
->   FIX="-fix:fix_t9n"
+>   FIX="-fix:fix_t9n" --allforms:$(SPANISH_DATA)/es_allforms.csv
 >   MAX=300
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -469,10 +457,10 @@ $(FIX)botfix_consolidate_forms: $(LIST)t9n_problems
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)es_missing_entry: $(LIST)missing_forms
+$(FIX)es_missing_entry:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_entry_autofix"
->   FIX="-fix:es_add_forms"
+>   FIX="-fix:es_add_forms --lang:es --allforms:$(SPANISH_DATA)/es_allforms.csv --wordlist:$(SPANISH_DATA)/es-en.data"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -481,10 +469,10 @@ $(FIX)es_missing_entry: $(LIST)missing_forms
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)es_missing_pos: $(LIST)missing_forms
+$(FIX)es_missing_pos:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_pos_autofix"
->   FIX="-fix:es_add_forms"
+>   FIX="-fix:es_add_forms --lang:es --allforms:$(SPANISH_DATA)/es_allforms.csv --wordlist:$(SPANISH_DATA)/es-en.data"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -493,10 +481,10 @@ $(FIX)es_missing_pos: $(LIST)missing_forms
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)es_missing_sense: $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/es-en.enwikt.allforms.csv
+$(FIX)es_missing_sense:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_sense_autofix"
->   FIX="-fix:es_replace_forms -fix:es_add_forms --lang:es --wordlist:$(BUILDDIR)/es-en.enwikt.data-full --allforms:$(BUILDDIR)/es-en.enwikt.allforms.csv --pos:v,n,adj"
+>   FIX="-fix:es_replace -fix:es_add_forms --lang:es --wordlist:$(SPANISH_DATA)/es-en.data --allforms:$(SPANISH_DATA)/es_allforms.csv --pos:v,n,adj"
 >   MAX=1000
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -508,7 +496,19 @@ $(FIX)es_missing_sense: $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/es-en.enw
 
 
 # not safe to run automatically
-$(FIX)misnamed_references_section: $(LIST)section_stats
+$(FIX)misplaced_translations_section:
+>   @
+>   SRC="User:JeffDoozan/lists/translations/by_error/outside_pos"
+>   FIX="-fix:cleanup_sections"
+>   MAX=300
+
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   echo $$LINKS > $@
+
+$(FIX)misnamed_references_section:
 >   @
 >   SRC="User:JeffDoozan/lists/misnamed_references_section"
 >   FIX="-fix:cleanup_sections"
@@ -520,7 +520,7 @@ $(FIX)misnamed_references_section: $(LIST)section_stats
 >   $(FUN_REPLACE) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-$(FIX)autofix_empty_section: $(LIST)section_stats
+$(FIX)autofix_empty_section:
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_empty_section"
 >   FIX="-fix:cleanup_sections"
@@ -532,7 +532,7 @@ $(FIX)autofix_empty_section: $(LIST)section_stats
 >   $(FUN_REPLACE) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-$(FIX)es_unexpected_form: $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/es-en.enwikt.allforms.csv
+$(FIX)es_unexpected_form:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/unexpected_form_autofix"
 >   FIX="-fix:es_replace_forms -fix:es_remove_forms --lang:es --wordlist:$(BUILDDIR)/es-en.enwikt.data-full --allforms:$(BUILDDIR)/es-en.enwikt.allforms.csv"
@@ -552,6 +552,6 @@ all: lists
 #forms_with_data
 lists: $(patsubst %,$(LIST)%,t9n_problems section_stats  mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_untagged_demonyms es_duplicate_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type)
 
-#fixes: .fix.add_tlfi_links .fix.add_drae_links .fix.es_syns .fix.pt_syns .fix.autofix_title .fix.autofix_numbered_pos .fix.misnamed_references_section .fix.misplaced_translations_section .fix.autofix_empty_section .fix.autofix_bad_l2 .fix.autofix_missing_references .fix.botfix_consolidate_forms .fix.es_missing_entry .fix.es_missing_pos .fix.es_missing_sense .fix.es_unexpected_form
+fixes: $(FIX)fr_missing_tlfi $(FIX)es_missing_drae $(FIX)es_syns $(FIX)pt_syns $(FIX)autofix_title $(FIX)autofix_numbered_pos $(FIX)misplaced_translations_section $(FIX)autofix_missing_references $(FIX)autofix_bad_l2 $(FIX)botfix_consolidate_forms $(FIX)es_missing_entry $(FIX)es_missing_pos $(FIX)es_missing_sense
 
 .PHONY: all data lists fixes
