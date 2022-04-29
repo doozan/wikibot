@@ -57,6 +57,8 @@ WT_POS = {
     "Hanja": "hanja",
 
     "Romanization": "rom",
+    "Logogram": "logo",
+    "Determinative": "dtv",
 }
 
 ALL_POS = WT_POS | {
