@@ -510,6 +510,9 @@ class AutoDooz(
         text = self.current_page.text
         title = self.current_page.title()
 
+        if ":" in title:
+            return
+
         patches = make_patches(self.fixes, text, title, self.opt.path_filter, self.opt.context)
         if not patches:
             return
@@ -532,7 +535,7 @@ class AutoDooz(
         if FAILSAFE_TEXT in new_text:
             raise ValueError(title, "Failsafe detected in text about to be written to site, failing")
 
-        pywikibot.showDiff(text, new_text, context=10)
+#        pywikibot.showDiff(text, new_text, context=10)
         self.put_current(new_text, summary=self.opt.summary)
 
 
@@ -550,7 +553,7 @@ def main(*args: str) -> None:
     parser.add_argument("--load-matches", help="Load per-page match data from specified file")
     parser.add_argument("--load-fixes", help="Load per-page replacement data from specified file (requires --load-matches)")
     parser.add_argument("--path-filter", help="Search only inside pages/sections('page:section:subsection:...') that match the given regex")
-    parser.add_argument("--wxtfilename", help="Read pages from a wiki extract file")
+    parser.add_argument("--wxt", help="Read pages from a wiki extract file")
     parser.add_argument("--wxtstart", help="Resume from a given page in the wiki extract file")
 
     parser.add_argument("--read-only", help="Only log matches/replacements, don't write any changes to wiki", action='store_true')
@@ -660,8 +663,8 @@ def main(*args: str) -> None:
         print("--fix can't be mixed with command-line search/replace options")
         exit(1)
 
-    if args.load_matches and args.wxtfilename:
-        print("--load-matches can't be used with --wxtfilename")
+    if args.load_matches and args.wxt:
+        print("--load-matches can't be used with --wxt")
         exit(1)
 
     if args.load_matches and args.fix:
@@ -672,12 +675,12 @@ def main(*args: str) -> None:
         fixes = load_fixes(args.load_matches, args.load_fixes)
         gen = ListPageGenerator(fixes.keys(), site)
 
-    if args.wxtfilename:
+    if args.wxt:
         if not args.read_only and not args.path_filter:
             print("--path-filter must be specified when making changes using wikiextracts (recommended --path-filter '.*?:Language:')")
             exit(1)
 
-        gen = WikiExtractReplacePageGenerator(args.wxtfilename, args.wxtstart,
+        gen = WikiExtractReplacePageGenerator(args.wxt, args.wxtstart,
                 fixes, {}, site, args.context, args.path_filter, args.read_only, args.limit)
 
     if not args.fix:
