@@ -41,10 +41,10 @@ LIST_MISMATCHED_HEADLINES := $(PYPATH) ./list_mismatched_headlines.py
 LIST_FORMS_WITH_DATA := $(PYPATH) ./list_forms_with_data.py
 MAKE_SECTION_STATS := $(PYPATH) ./make_section_stats.py
 LIST_T9N_PROBLEMS := $(PYPATH) ./list_t9n_problems.py
+LIST_ISMO_ISTA := $(PYPATH) ./list_ismo_ista.py
 
 EXTERNAL := ../..
 PUT := $(EXTERNAL)/put.py
-REPLACE := $(EXTERNAL)/replace.py
 FUN_REPLACE := $(EXTERNAL)/fun_replace.py
 TLFI_LEMMAS := $(EXTERNAL)/tlfi.lemmas
 
@@ -281,11 +281,25 @@ $(LIST)es_duplicate_passages: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   DEST="User:JeffDoozan/lists/es duplicate passages"
 >   SUMMARY="Entries with duplicate untranslated passages"
 
->   $(WIKIGREP) $< "passage=" | grep -v "t=" | cut -d ":" -f 1 > $@.with_passage
->   $(LIST_DUPLICATE_PASSAGES) $(BUILDDIR)/es-en.enwikt.txt.bz2 $@.with_passage > $@.wiki.base
+>   $(LIST_DUPLICATE_PASSAGES) $(BUILDDIR)/es-en.enwikt.txt.bz2 --missing-trans > $@.wiki.base
 
 >   COUNT=`wc -l $@.wiki.base | cut -d " " -f 1`
 >   echo "$$SUMMARY as of $(DATETAG_PRETTY) ($$COUNT entries)" > $@.wiki
+>   cat $@.wiki.base >> $@.wiki
+
+>   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
+>   rm -f $@.wiki.base $@.with_passage
+>   mv $@.wiki $@
+
+$(LIST)es_mismatched_passages: $(BUILDDIR)/es-en.enwikt.txt.bz2
+>   @echo "Running $@..."
+>   DEST="User:JeffDoozan/lists/es mismatched passages"
+>   SUMMARY="Entries with mismatched passage translations"
+
+>   $(LIST_DUPLICATE_PASSAGES) $(BUILDDIR)/es-en.enwikt.txt.bz2 --mismatched-trans > $@.wiki.base
+
+>   COUNT=`grep "^'''" $@.wiki.base | wc -l | cut -d " " -f 1`
+>   echo -e "$$SUMMARY as of $(DATETAG_PRETTY) ($$COUNT entries)\n" > $@.wiki
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
@@ -346,6 +360,11 @@ $(LIST)es_verbs_missing_type: $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-en.en
 >   rm -f $@.wiki.base $@.unsorted
 >   mv $@.wiki $@
 
+$(LIST)ismo_ista: $(BUILDDIR)/es-en.enwikt.allforms.csv
+>   @echo "Running $@..."
+
+>   $(LIST_ISMO_ISTA) $< --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv $(SAVE)
+>   touch $@
 
 # Fixes
 $(FIX)fr_missing_tlfi:
@@ -357,7 +376,7 @@ $(FIX)fr_missing_tlfi:
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)es_missing_drae:
@@ -369,7 +388,7 @@ $(FIX)es_missing_drae:
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 # TODO: some sort of list maker to check if they can be auto fixed
@@ -448,7 +467,7 @@ $(FIX)autofix_bad_l2:
 $(FIX)botfix_consolidate_forms:
 >   @
 >   SRC="User:JeffDoozan/lists/translations/by_error/botfix_consolidate_forms"
->   FIX="-fix:fix_t9n" --allforms:$(SPANISH_DATA)/es_allforms.csv
+>   FIX="-fix:fix_t9n --allforms:$(SPANISH_DATA)/es_allforms.csv"
 >   MAX=300
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -473,7 +492,7 @@ $(FIX)es_missing_pos:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_pos_autofix"
 >   FIX="-fix:es_add_forms --lang:es --allforms:$(SPANISH_DATA)/es_allforms.csv --wordlist:$(SPANISH_DATA)/es-en.data"
->   MAX=200
+>   MAX=300
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
@@ -549,7 +568,7 @@ all: lists
 
 #data: enwiktionary-$(DATETAG)-pages-articles.xml.bz2 es-en.txt.bz2 pt-en.txt.bz2 fr-en.txt.bz2 spanish_data/es-en.data-full spanish_data/es-en.data es.allpages fr-en.data pt-en.data $(BUILDDIR)/wiki.pages translations.bz2 es.sortorder fr.lemmas fr.allpages es.lemmas drae.lemmas drae.with_etymology es.with_etymology es.lemmas_without_etymology
 
-lists: $(patsubst %,$(LIST)%,t9n_problems section_stats  mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_untagged_demonyms es_duplicate_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type forms_with_data)
+lists: $(patsubst %,$(LIST)%,t9n_problems section_stats  mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_untagged_demonyms es_duplicate_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type forms_with_data ismo_ista es_mismatched_passages)
 
 autofixes: $(FIX)fr_missing_tlfi $(FIX)es_missing_drae $(FIX)es_syns $(FIX)pt_syns $(FIX)autofix_title $(FIX)autofix_numbered_pos $(FIX)misplaced_translations_section $(FIX)autofix_missing_references $(FIX)autofix_bad_l2
 allfixes: autofixes $(FIX)botfix_consolidate_forms $(FIX)es_missing_entry $(FIX)es_missing_pos $(FIX)es_missing_sense $(FIX)es_unexpected_form
