@@ -22,6 +22,7 @@ DATETAG := $(shell curl -s https://dumps.wikimedia.org/enwiktionary/ | grep '>[0
 DATETAG_PRETTY := $(shell date --date="$(DATETAG)" +%Y-%m-%d)
 
 SPANISH_DATA := ../spanish_data
+NGRAMDIR := ../ngrams
 BUILDDIR := $(SPANISH_DATA)/$(DATETAG_PRETTY)
 PYPATH := PYTHONPATH=$(BUILDDIR)
 
@@ -42,6 +43,7 @@ LIST_FORMS_WITH_DATA := $(PYPATH) ./list_forms_with_data.py
 MAKE_SECTION_STATS := $(PYPATH) ./make_section_stats.py
 LIST_T9N_PROBLEMS := $(PYPATH) ./list_t9n_problems.py
 LIST_ISMO_ISTA := $(PYPATH) ./list_ismo_ista.py
+LIST_COORD_TERMS := $(PYPATH) ./list_coord_terms.py
 
 EXTERNAL := ../..
 PUT := $(EXTERNAL)/put.py
@@ -363,7 +365,20 @@ $(LIST)es_verbs_missing_type: $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-en.en
 $(LIST)ismo_ista: $(BUILDDIR)/es-en.enwikt.allforms.csv
 >   @echo "Running $@..."
 
->   $(LIST_ISMO_ISTA) $< --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv $(SAVE)
+>   $(LIST_ISMO_ISTA) --allforms $< $(SAVE)
+>   touch $@
+
+IGNORE_COORD2 := $(patsubst %,--ignore2 %,el la lo las los un una y i o u a al de del en se me te su mi tu nos os sus tus mis es que no en ha he has hemos había habían por con sin)
+$(LIST)es_coord_terms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-1-1950.ngprobs $(NGRAMDIR)/spa/2-1950.coord
+>   @echo "Running $@..."
+
+>   $(LIST_COORD_TERMS) --min-count 1000 --min-percent 25 --allforms $< $(SAVE) --ngprobs $(BUILDDIR)/es-1-1950.ngprobs $(IGNORE_COORD2) --coord2 $(NGRAMDIR)/spa/2-1950.coord --coord3 $(NGRAMDIR)/spa/3-1950.coord
+>   touch $@
+
+$(LIST)es_usually_plural:  $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-1-1950.ngprobs
+>   @echo "Running $@..."
+
+>   $(LIST_USUALLY_PLURAL) $(SAVE) --dictionary $< --ngprobs $(BUILDDIR)/es-1-1950.ngprobs
 >   touch $@
 
 # Fixes
