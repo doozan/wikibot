@@ -153,16 +153,14 @@ class BaseHandler():
     def make_index(self, base_path, page_name, pages):
         """ Returns a list of strings to be used as the index page """
         index_items = self.make_index_items(base_path, page_name, pages)
-
-
-        index_header = self.index_header(index_items)
-        index_footer = self.index_footer(index_items)
-        index_items = index_header + self.index_sort(index_items) + index_footer
-
         if not index_items:
             return []
 
-        return self.make_wiki_table(index_items, extra_class="sortable", num_headers=len(index_header), num_footers=len(index_footer))
+        index_header = self.index_header(index_items)
+        index_footer = self.index_footer(index_items)
+        index_items = self.index_sort(index_items)
+
+        return self.make_wiki_table(index_items, extra_class="sortable", headers=index_header, footers=index_footer)
 
     def make_index_items(self, base_path, page_name, pages):
         index_items = []
@@ -174,15 +172,26 @@ class BaseHandler():
 
         return index_items
 
-    def make_wiki_table(self, rows, caption=None, extra_class=None, num_headers=0, num_footers=0):
+    def make_wiki_table(self, rows, caption=None, extra_class=None, headers=[], footers=[]):
         """ Formats a list of rows as a wiki table """
         cls = f"wikitable {extra_class}" if extra_class else "wikitable"
         lines = ['{| class="' + cls + '"' ]
         if caption:
             lines.append(f'|+ class="nowrap" | {caption}')
-        for i, row in enumerate(rows):
+
+        divider = "!"
+        for row in headers:
             lines.append("|-")
-            divider = "!" if i<num_footers or i>len(rows)-1-num_footers else "|"
+            lines.append(divider + (divider*2).join(map(str,row)))
+
+        divider = "|"
+        for row in rows:
+            lines.append("|-")
+            lines.append(divider + (divider*2).join(map(str,row)))
+
+        divider = "!"
+        for row in footers:
+            lines.append("|-")
             lines.append(divider + (divider*2).join(map(str,row)))
 
         lines.append("|}")
