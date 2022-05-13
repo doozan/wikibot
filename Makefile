@@ -22,7 +22,7 @@ DATETAG := $(shell curl -s https://dumps.wikimedia.org/enwiktionary/ | grep '>[0
 DATETAG_PRETTY := $(shell date --date="$(DATETAG)" +%Y-%m-%d)
 
 SPANISH_DATA := ../spanish_data
-NGRAMDIR := ../ngrams
+NGRAMDIR := ../ngram
 BUILDDIR := $(SPANISH_DATA)/$(DATETAG_PRETTY)
 PYPATH := PYTHONPATH=$(BUILDDIR)
 
@@ -44,6 +44,7 @@ MAKE_SECTION_STATS := $(PYPATH) ./make_section_stats.py
 LIST_T9N_PROBLEMS := $(PYPATH) ./list_t9n_problems.py
 LIST_ISMO_ISTA := $(PYPATH) ./list_ismo_ista.py
 LIST_COORD_TERMS := $(PYPATH) ./list_coord_terms.py
+LIST_USUALLY_PLURAL := $(PYPATH) ./list_usually_plural.py
 
 EXTERNAL := ../..
 PUT := $(EXTERNAL)/put.py
