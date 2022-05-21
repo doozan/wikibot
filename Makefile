@@ -363,10 +363,10 @@ $(LIST)es_verbs_missing_type: $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-en.en
 >   rm -f $@.wiki.base $@.unsorted
 >   mv $@.wiki $@
 
-$(LIST)ismo_ista: $(BUILDDIR)/es-en.enwikt.allforms.csv
+$(LIST)ismo_ista: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
->   $(LIST_ISMO_ISTA) --allforms $< $(SAVE)
+>   $(LIST_ISMO_ISTA) $(SAVE) --allforms $< $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   touch $@
 
 IGNORE_COORD2 := $(patsubst %,--ignore2 %,el la lo las los un una y i o u a al de del en se me te su mi tu nos os sus tus mis es que no en ha he has hemos había habían por con sin)
