@@ -59,14 +59,23 @@ def get_form_lemma(ngprobs, allforms, form):
 
     form_pos = ngprobs.get_preferred_pos(form)
 
-    # TODO: handle m/f adj separately?
-    lemmas = allforms.get_lemmas(form, form_pos)
-    lemma = lemmas[0].split("|")[1] if lemmas else form
+    if form in ["me", "te", "os", "nos", "les"]:
+        lemma = "se"
+    elif form in ["mi", "tu", "nuestro", "nuestra", "vuestro", "vuestra"]:
+        lemma = "su"
+    else:
+        # TODO: handle m/f adj separately?
+        lemmas = allforms.get_lemmas(form, form_pos)
+        # ngprobs doesn't always have the correct pos (reharás detected as n instead of v)
+        if not lemmas:
+            lemmas = allforms.get_lemmas(form)
+        lemma = lemmas[0].split("|")[1] if lemmas else form
 
-    if " " in lemma:
-        lemma = form
+        if " " in lemma:
+            lemma = form
 
     _cache[form] = lemma
+
     return lemma
 
 def get_coord_lemma(ngprobs, allforms, words):
@@ -137,6 +146,7 @@ def main():
     parser.add_argument("--ngprobs", help="Ngram probability data file")
     parser.add_argument("--coord2", help="File containing 2 word coordinate terms to check")
     parser.add_argument("--coord3", help="File containing 3 word coordinate terms to check")
+    parser.add_argument("--coord4", help="File containing 4 word coordinate terms to check")
     args = parser.parse_args()
 
     allforms = AllForms.from_file(args.allforms)
@@ -152,6 +162,11 @@ def main():
     ngprobs = NgramPosProbability(args.ngprobs)
 
     if False:
+        coord = "reharás tu vida"
+        words = coord.split(" ")
+        print([coord, get_coord_lemma(ngprobs, allforms, words)])
+        exit()
+
         form = "fijamente"
         form_pos = ngprobs.get_preferred_pos(form)
         form_lemma = get_form_lemma(ngprobs, allforms, form)
@@ -165,6 +180,8 @@ def main():
         all_coords |= find_coords(allforms, all_forms, ngprobs, alt_case, args.coord2, args.ignore2)
     if args.coord3:
         all_coords |= find_coords(allforms, all_forms, ngprobs, alt_case, args.coord3)
+    if args.coord4:
+        all_coords |= find_coords(allforms, all_forms, ngprobs, alt_case, args.coord4)
 
 #    seen2 = set()
 #    all_coords = {}
