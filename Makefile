@@ -45,6 +45,8 @@ LIST_T9N_PROBLEMS := $(PYPATH) ./list_t9n_problems.py
 LIST_ISMO_ISTA := $(PYPATH) ./list_ismo_ista.py
 LIST_COORD_TERMS := $(PYPATH) ./list_coord_terms.py
 LIST_USUALLY_PLURAL := $(PYPATH) ./list_usually_plural.py
+LIST_SPLIT_NOUN_PLURALS := $(PYPATH) ./list_split_noun_plurals.py
+LIST_SPLIT_VERB_DATA := $(PYPATH) ./list_split_verb_data.py
 
 EXTERNAL := ../..
 PUT := $(EXTERNAL)/put.py
@@ -382,6 +384,18 @@ $(LIST)es_usually_plural:  $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-1-1950.n
 >   $(LIST_USUALLY_PLURAL) $(SAVE) --dictionary $< --ngprobs $(BUILDDIR)/es-1-1950.ngprobs
 >   touch $@
 
+$(LIST)es_split_verb_data:  $(BUILDDIR)/es-en.enwikt.data
+>   @echo "Running $@..."
+
+>   $(LIST_SPLIT_VERB_DATA) $(SAVE) --dictionary $<
+>   touch $@
+
+$(LIST)es_split_noun_plurals:  $(BUILDDIR)/es-en.enwikt.data
+>   @echo "Running $@..."
+
+>   $(LIST_SPLIT_NOUN_PLURALS) $(SAVE) --dictionary $<
+>   touch $@
+
 # Fixes
 $(FIX)fr_missing_tlfi:
 >   @
@@ -596,7 +610,7 @@ all: lists
 
 #data: enwiktionary-$(DATETAG)-pages-articles.xml.bz2 es-en.txt.bz2 pt-en.txt.bz2 fr-en.txt.bz2 spanish_data/es-en.data-full spanish_data/es-en.data es.allpages fr-en.data pt-en.data $(BUILDDIR)/wiki.pages translations.bz2 es.sortorder fr.lemmas fr.allpages es.lemmas drae.lemmas drae.with_etymology es.with_etymology es.lemmas_without_etymology
 
-lists: $(patsubst %,$(LIST)%,t9n_problems section_stats mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_untagged_demonyms es_duplicate_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type forms_with_data ismo_ista es_mismatched_passages)
+lists: $(patsubst %,$(LIST)%,t9n_problems section_stats mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_untagged_demonyms es_duplicate_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type forms_with_data ismo_ista es_mismatched_passages es_usually_plural es_split_verb_data es_split_noun_plurals)
 
 autofixes: $(FIX)fr_missing_tlfi $(FIX)es_missing_drae $(FIX)es_syns $(FIX)pt_syns $(FIX)autofix_title $(FIX)autofix_numbered_pos $(FIX)misplaced_translations_section $(FIX)autofix_missing_references $(FIX)autofix_bad_l2 $(FIX)botfix_consolidate_forms $(FIX)botfix_remove_gendertags
 allfixes: autofixes $(FIX)es_missing_entry $(FIX)es_missing_pos $(FIX)es_missing_sense $(FIX)es_unexpected_form
