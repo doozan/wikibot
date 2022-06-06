@@ -22,7 +22,7 @@ DATETAG := $(shell curl -s https://dumps.wikimedia.org/enwiktionary/ | grep '>[0
 DATETAG_PRETTY := $(shell date --date="$(DATETAG)" +%Y-%m-%d)
 
 SPANISH_DATA := ../spanish_data
-NGRAMDIR := ../ngram
+NGRAMDATA := ../ngram_data
 BUILDDIR := $(SPANISH_DATA)/$(DATETAG_PRETTY)
 PYPATH := PYTHONPATH=$(BUILDDIR)
 
@@ -372,10 +372,10 @@ $(LIST)ismo_ista: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-en.enwikt
 >   touch $@
 
 IGNORE_COORD2 := $(patsubst %,--ignore2 %,el la lo las los un una y i o u a al de del en se me te su mi tu nos os sus tus mis es que no en ha he has hemos había habían por con sin)
-$(LIST)es_coord_terms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-1-1950.ngprobs $(patsubst %, $(NGRAMDIR)/spa/%-1950.coord,2 3 4)
+$(LIST)es_coord_terms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-1-1950.ngprobs $(patsubst %, $(NGRAMDATA)/spa/%-1950.coord,2 3 4)
 >   @echo "Running $@..."
 
->   echo $(LIST_COORD_TERMS) --min-count 1000 --min-percent 25 --allforms $< $(SAVE) --ngprobs $(BUILDDIR)/es-1-1950.ngprobs $(IGNORE_COORD2) --coord2 $(NGRAMDIR)/spa/2-1950.coord --coord3 $(NGRAMDIR)/spa/3-1950.coord --coord4 $(NGRAMDIR)/spa/4-1950.coord
+>   echo $(LIST_COORD_TERMS) --min-count 1000 --min-percent 25 --allforms $< $(SAVE) --ngprobs $(BUILDDIR)/es-1-1950.ngprobs $(IGNORE_COORD2) --coord2 $(NGRAMDATA)/spa/2-1950.coord --coord3 $(NGRAMDATA)/spa/3-1950.coord --coord4 $(NGRAMDATA)/spa/4-1950.coord
 >   touch $@
 
 $(LIST)es_usually_plural:  $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-1-1950.ngprobs
