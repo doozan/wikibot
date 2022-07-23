@@ -355,7 +355,7 @@ class FormFixer():
         if form_obj.formtype == "pp_ms":
             if not form_obj.form.endswith("o"):
                 raise ValueError("Unexpected singular past participle")
-            return "{{es-past participle|" + form_obj.form[:-1] + "}}"
+            return "{{es-past participle}}"
 
         elif form_obj.formtype in [ "pp_mp", "pp_fs", "pp_fp" ]:
             g = form_obj.formtype[-2] + "-" + form_obj.formtype[-1]
