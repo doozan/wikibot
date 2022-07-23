@@ -46,6 +46,27 @@ pos_to_inflection = {
 DeclaredForm = collections.namedtuple("Form", [ "form", "pos", "formtype", "lemma", "lemma_genders" ])
 ExistingForm = collections.namedtuple("ExistingForm", [ "form", "pos", "formtype", "lemma" ])
 
+smart_inflection_formtypes = {
+    'cond_1p', 'cond_1s', 'cond_2p', 'cond_2pf', 'cond_2s', 'cond_2sf', 'cond_3p', 'cond_3s',
+    'fut_1p', 'fut_1s', 'fut_2p', 'fut_2pf', 'fut_2s', 'fut_2sf', 'fut_3p', 'fut_3s',
+    'fut_sub_1p', 'fut_sub_1s', 'fut_sub_2p', 'fut_sub_2pf', 'fut_sub_2s', 'fut_sub_2sf', 'fut_sub_3p', 'fut_sub_3s',
+    'gerund',
+    'imp_1p', 'imp_1s', 'imp_2p', 'imp_2pf', 'imp_2s', 'imp_2sf', 'imp_2sv',
+    'imp_1p_comb_nos',
+    'imp_2s_comb_te',
+    'imp_2p_comb_os',
+    'imp_2sf_comb_se',
+    'imp_2pf_comb_se',
+    'imp_3p_comb_se',
+    'impf_1p', 'impf_1s', 'impf_2p', 'impf_2pf', 'impf_2s', 'impf_2sf', 'impf_3p', 'impf_3s',
+    'impf_sub_ra_1p', 'impf_sub_ra_1s', 'impf_sub_ra_2p', 'impf_sub_ra_2pf', 'impf_sub_ra_2s', 'impf_sub_ra_2sf', 'impf_sub_ra_3p', 'impf_sub_ra_3s',
+    'impf_sub_se_1p', 'impf_sub_se_1s', 'impf_sub_se_2p', 'impf_sub_se_2pf', 'impf_sub_se_2s', 'impf_sub_se_2sf', 'impf_sub_se_3p', 'impf_sub_se_3s',
+    'neg_imp_1p', 'neg_imp_2p', 'neg_imp_2pf', 'neg_imp_2s', 'neg_imp_2sf',
+    'pp_fp', 'pp_fs', 'pp_mp', 'pp_ms',
+    'pres_1p', 'pres_1s', 'pres_2p', 'pres_2pf', 'pres_2s', 'pres_2sf', 'pres_2sv', 'pres_3p', 'pres_3s',
+    'pres_sub_1p', 'pres_sub_1s', 'pres_sub_2p', 'pres_sub_2pf', 'pres_sub_2s', 'pres_sub_2sf', 'pres_sub_2sv', 'pres_sub_3p', 'pres_sub_3s',
+    'pret_1p', 'pret_1s', 'pret_2p', 'pret_2pf', 'pret_2s', 'pret_2sf', 'pret_3p', 'pret_3s'
+}
 
 _unstresstab = str.maketrans("áéíóú", "aeiou")
 def unstress(text):
@@ -55,6 +76,7 @@ class FormFixer():
 
     def __init__(self, wordlist):
         self.wordlist = wordlist
+        self._conj_cache = {}
 
     @staticmethod
     def can_handle(item):
@@ -145,6 +167,9 @@ class FormFixer():
                 genders = cls.get_word_genders(word)
                 for formtype, forms in word.forms.items():
 
+                    if form not in forms:
+                        continue
+
                     if not cls.can_handle_formtype(formtype):
                         continue
 
@@ -152,18 +177,10 @@ class FormFixer():
                     if has_reflexive and formtype == "infinitive_comb_se":
                         formtype = "reflexive"
 
-
-                    # As for a wiktionary is concerned, "no hables" should be on the "hables" page
-                    # likewise "no te quejas" should be on "quejas". Luckily, for single verbs (not phrases)
-                    # these will always appear at the beginning of the line and can be stripped off
-#                    if " " not in word.word:
-#                        forms = [re.sub("^(?:(?:me|te|se|nos|os|lo|la|le|los|las|les|no) )*(.*)$", r"\1", f) for f in forms]
-
-                    # negative imperative second person changes the verb from the affirmative imperative
-                    # existing wiktionary entries include this inflection without the "no " prefix, so
-                    # we'll do the same
-#                    if formtype in ["neg_imp_2s", "neg_imp_2p"]:
-#                        forms = [f[3:] if f.startswith("no ") else f for f in forms]
+                    if pos == "v" \
+                        and (formtype in smart_inflection_formtypes) \
+                        or (word.word.endswith("rse") and formtype == 'gerund_comb_se'):
+                           formtype = "smart_inflection"
 
                     # with condensed verbs, the neg_imp will be the same as the imp_ forms in the 3rds person
 #                    # imp_2sf', 'abandonar', []), ('v', 'neg_imp_2sf',
@@ -176,49 +193,48 @@ class FormFixer():
                         #print("skipping non-rse", formtype)
                         continue
 
-                    if form in forms:
-                        # convert feminine plural of masculine noun to plural of feminine
-                        if pos == "n" and formtype == "fpl":
-                            new_lemma = cls.fpl_to_f(form, word)
+                    # convert feminine plural of masculine noun to plural of feminine
+                    if pos == "n" and formtype == "fpl":
+                        new_lemma = cls.fpl_to_f(form, word)
 
-                            if new_lemma:
-                                lemma = new_lemma
-                                genders = ["f"]
-                                formtype = "pl"
+                        if new_lemma:
+                            lemma = new_lemma
+                            genders = ["f"]
+                            formtype = "pl"
 
-                        # convert "pl" to "mpl" for words that have separate masculine/feminine forms
-                        elif pos not in ["n", "prop"] and formtype == "pl" and "fpl" in word.forms:
-                            formtype = "mpl"
+                    # convert "pl" to "mpl" for words that have separate masculine/feminine forms
+                    elif pos not in ["n", "prop"] and formtype == "pl" and "fpl" in word.forms:
+                        formtype = "mpl"
 
-                        item = DeclaredForm(form, pos, formtype, lemma, genders)
-                        if item not in declared_forms:
+                    item = DeclaredForm(form, pos, formtype, lemma, genders)
+                    if item not in declared_forms:
 
-                            # There's a conflict between imp_xxx and imp_xxx_comb on -se verb conjugations
-                            # when a non -se verb include {{es-conj|xxxse}}, it will generate the same form for imp_2s
-                            # that the -r verb generates for imp_2s_comb_te
-                            #
-                            # When there are both -se and -r verbs, prefer the imp_2s_comb_te entry, but when
-                            # there is only a -se verb or only a -r verb, we want to prefer the imp_2s entry
-                            if formtype in comb_to_imp or formtype in imp_to_comb:
-                                if lemma in se_and_non_se_verbs:
-                                    remove_form = comb_to_imp.get(formtype)
-                                    prefer_form = imp_to_comb.get(formtype)
-                                else:
-                                    remove_form = imp_to_comb.get(formtype)
-                                    prefer_form = comb_to_imp.get(formtype)
+                        # There's a conflict between imp_xxx and imp_xxx_comb on -se verb conjugations
+                        # when a non -se verb include {{es-conj|xxxse}}, it will generate the same form for imp_2s
+                        # that the -r verb generates for imp_2s_comb_te
+                        #
+                        # When there are both -se and -r verbs, prefer the imp_2s_comb_te entry, but when
+                        # there is only a -se verb or only a -r verb, we want to prefer the imp_2s entry
+                        if formtype in comb_to_imp or formtype in imp_to_comb:
+                            if lemma in se_and_non_se_verbs:
+                                remove_form = comb_to_imp.get(formtype)
+                                prefer_form = imp_to_comb.get(formtype)
+                            else:
+                                remove_form = imp_to_comb.get(formtype)
+                                prefer_form = comb_to_imp.get(formtype)
 
-                                if remove_form:
-                                    remove_item = DeclaredForm(item.form, pos, remove_form, lemma, genders)
-                                    if remove_item in declared_forms:
-                                        declared_forms.remove(remove_item)
+                            if remove_form:
+                                remove_item = DeclaredForm(item.form, pos, remove_form, lemma, genders)
+                                if remove_item in declared_forms:
+                                    declared_forms.remove(remove_item)
 
 
-                                elif prefer_form:
-                                    prefer_item = DeclaredForm(item.form, pos, prefer_form, lemma, genders)
-                                    if prefer_item in declared_forms:
-                                        continue
+                            elif prefer_form:
+                                prefer_item = DeclaredForm(item.form, pos, prefer_form, lemma, genders)
+                                if prefer_item in declared_forms:
+                                    continue
 
-                            declared_forms.append(item)
+                        declared_forms.append(item)
 
         return declared_forms
 
@@ -247,22 +263,24 @@ class FormFixer():
         if formtype == "infinitive_linked":
             return False
 
-#        if formtype in {
+        if formtype in {
 #        "reflexive",
 #        "infinitive",
 #        "infinitive_comb_se",
-#        "gerund",
+        "gerund",
 #        "pp_ms",
 #        "pp_mp",
 #        "pp_fs",
 #        "pp_fp",
-#        }:
+        }:
 #            return False
-#            return True
+            return True
+
+        if formtype == "smart_inflection":
+             return True
 
         if "_" in formtype:
             return True
-
 
     @classmethod
     def get_gender_plural(cls, formtype):
@@ -453,6 +471,44 @@ class FormFixer():
             return self.get_verb_form_gloss(form_obj)
 
     def get_verb_form_gloss(self, form_obj):
+        if form_obj.formtype == "smart_inflection":
+            return self.get_smart_verb_form_gloss(form_obj)
+        return self.get_param_verb_form_gloss(form_obj)
+
+    def get_verb_conj_params(self, form_obj):
+
+        meta = self._conj_cache.get(form_obj.lemma)
+        if meta is not None:
+            return meta
+
+        words = self.wordlist.get_words(form_obj.lemma, form_obj.pos)
+
+        can_cache = True
+        if len(words) > 1:
+            can_cache = False
+            words = [w for w in words if form_obj.formtype in w.forms and form_obj.form in w.forms[form_obj.formtype]]
+            if not words:
+                raise ValueError("No word matches entry for", form_obj)
+
+        meta = re.sub(r".*{{es-conj[|]?([^}]*)}}.*", r"\1", words[0].meta)
+        if meta == "nocomb=1":
+            meta = ""
+        if "|" in meta or "{" in meta or "=" in meta:
+            raise ValueError("bad meta", form_obj, [words[0].meta, meta])
+
+        if can_cache:
+            self._conj_cache[form_obj.lemma] = meta
+
+        return meta
+
+    def get_smart_verb_form_gloss(self, form_obj):
+        # TODO: some verbs have multiple conj params, only need one but it must be correct for this form
+        conj_params = self.get_verb_conj_params(form_obj)
+        if not conj_params:
+            conj_params = ""
+        return "# {{es-verb form of|" + form_obj.lemma + conj_params + "}}"
+
+    def get_param_verb_form_gloss(self, form_obj):
         # TODO: handle this better
         if " " in form_obj.lemma:
             raise ValueError("unsupported lemma", form_obj.lemma)
@@ -467,7 +523,7 @@ class FormFixer():
 
         item = "_".join(parts)
         if item not in self.slot_to_props:
-            raise ValueError("invalid verb type", item)
+            raise ValueError("invalid verb type", item, form_obj)
 
         data.update(self.slot_to_props[item])
 
@@ -638,6 +694,7 @@ class FormFixer():
         unexpected_forms = set(existing_forms)
 
         for x in declared_forms:
+
             item = ExistingForm(x.form, x.pos, x.formtype, x.lemma)
 
             # Consider mpl and pl to be the same
@@ -647,6 +704,7 @@ class FormFixer():
                 alt_item = item._replace(formtype=alt)
 
             # combined forms of reflexive verbs use the infinitive
+            # TODO: unless it's exclusively a reflexive verb
             elif "_comb" in item.formtype and item.lemma.endswith("rse"):
                 alt_item = item._replace(lemma=item.lemma[:-2])
 
