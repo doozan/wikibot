@@ -50,7 +50,7 @@ smart_inflection_formtypes = {
     'cond_1p', 'cond_1s', 'cond_2p', 'cond_2pf', 'cond_2s', 'cond_2sf', 'cond_3p', 'cond_3s',
     'fut_1p', 'fut_1s', 'fut_2p', 'fut_2pf', 'fut_2s', 'fut_2sf', 'fut_3p', 'fut_3s',
     'fut_sub_1p', 'fut_sub_1s', 'fut_sub_2p', 'fut_sub_2pf', 'fut_sub_2s', 'fut_sub_2sf', 'fut_sub_3p', 'fut_sub_3s',
-    'gerund',
+    'gerund', 'gerund_comb_se',
     'imp_1p', 'imp_1s', 'imp_2p', 'imp_2pf', 'imp_2s', 'imp_2sf', 'imp_2sv',
     'imp_1p_comb_nos',
     'imp_2s_comb_te',
@@ -235,6 +235,7 @@ class FormFixer():
                                     continue
 
                         declared_forms.append(item)
+
 
         return declared_forms
 
@@ -483,6 +484,8 @@ class FormFixer():
 
         words = self.wordlist.get_words(form_obj.lemma, form_obj.pos)
 
+        # It's possible the same word has multiple conjections (acostar)
+
         can_cache = True
         if len(words) > 1:
             can_cache = False
@@ -490,11 +493,25 @@ class FormFixer():
             if not words:
                 raise ValueError("No word matches entry for", form_obj)
 
-        meta = re.sub(r".*{{es-conj[|]?([^}]*)}}.*", r"\1", words[0].meta)
-        if meta == "nocomb=1":
-            meta = ""
-        if "|" in meta or "{" in meta or "=" in meta:
-            raise ValueError("bad meta", form_obj, [words[0].meta, meta])
+        all_meta = []
+        for word in words:
+            for meta in re.findall("{{es-conj[|]?[^<]*([^|}]*)}}", word.meta):
+                if (meta == "" or "<" in meta) and meta not in all_meta:
+                    all_meta.append(meta)
+
+        if len(all_meta) > 1:
+            can_cache = False
+            print("MULTI META", form_obj.lemma, all_meta)
+
+        if not all_meta:
+            raise ValueError("no meta", form_obj)
+        meta = all_meta[0]
+
+#        meta = re.sub(r".*{{es-conj[|]?([^}]*)}}.*", r"\1", words[0].meta)
+#        if "<" not in meta:
+#            meta = ""
+#        if "|" in meta or "{" in meta or "=" in meta:
+#            raise ValueError("bad meta", form_obj, [words[0].meta, meta])
 
         if can_cache:
             self._conj_cache[form_obj.lemma] = meta

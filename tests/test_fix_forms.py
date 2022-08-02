@@ -37,6 +37,11 @@ pos: n
   gloss: abjad (writing system)
     q: linguistics
 _____
+abanar
+pos: v
+  meta: {{es-verb}} {{es-conj}} {{es-conj|abanarse}}
+  gloss: to fan
+_____
 abatir
 pos: v
   meta: {{es-verb}} {{es-conj}}
@@ -84,6 +89,11 @@ accidentarse
 pos: v
   meta: {{es-verb}} {{es-conj|nocomb=1}}
   gloss: to have an accident, get into an accident, crash
+_____
+acostar
+pos: v
+  meta: {{es-verb|<ue>}} {{es-conj|<ue>}} {{es-conj}}
+  gloss: to lie down
 _____
 actor
 pos: n
@@ -2415,20 +2425,33 @@ def test_replace_verb_form2(fixer, allforms):
 ===Verb===
 {{head|es|verb form}}
 
-# {{es-verb form of|abatir}}
+# {{es-compound of|aban|ar|abanando|se|mood=gerund}}
 """
 
-    result = text
+    result = """
+==Spanish==
 
-    title = "abatámonos"
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|abanar}}
+"""
+
+    title = "abanándose"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
+    assert declared_forms == [('abanándose', 'v', 'smart_inflection', 'abanar', [])]
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
-    assert missing_forms == []
-    assert unexpected_forms == set()
+    assert missing_forms == [('abanándose', 'v', 'smart_inflection', 'abanar', [])]
+    assert unexpected_forms == {('abanándose', 'v', 'gerund_comb_se', 'abanar')}
+
+    print("missing", missing_forms)
+    print("unex", unexpected_forms)
     res = fixer.replace_pos(title, text, declared_forms, "v")
+
+    print(res)
 
     assert res.split("\n") == result.split("\n")
     assert res == result
@@ -2468,3 +2491,10 @@ def test_convert_old_style_verbs(fixer, allforms):
 
     assert res.split("\n") == result.split("\n")
     assert res == result
+
+def test_get_verb_conj_params(fixer, allforms):
+
+    form_obj = DeclaredForm("acuéstense", "v", "smart_inflection", "acostar", [])
+    assert fixer.get_verb_conj_params(form_obj) == "<ue>"
+
+
