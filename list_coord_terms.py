@@ -147,6 +147,7 @@ def main():
     parser.add_argument("--coord2", help="File containing 2 word coordinate terms to check")
     parser.add_argument("--coord3", help="File containing 3 word coordinate terms to check")
     parser.add_argument("--coord4", help="File containing 4 word coordinate terms to check")
+    parser.add_argument("--coord5", help="File containing 5 word coordinate terms to check")
     args = parser.parse_args()
 
     allforms = AllForms.from_file(args.allforms)
@@ -182,6 +183,8 @@ def main():
         all_coords |= find_coords(allforms, all_forms, ngprobs, alt_case, args.coord3)
     if args.coord4:
         all_coords |= find_coords(allforms, all_forms, ngprobs, alt_case, args.coord4)
+    if args.coord5:
+        all_coords |= find_coords(allforms, all_forms, ngprobs, alt_case, args.coord5)
 
 #    seen2 = set()
 #    all_coords = {}
