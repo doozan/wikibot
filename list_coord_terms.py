@@ -18,7 +18,7 @@ class WikiSaver(BaseHandler):
         return f"es/coordinate_terms"
 
     def page_header(self, base_path, page_name, page_sections, pages):
-        return [f"Words that may be coordinate terms, still buggy"]
+        return [f"Words that may be coordinate terms"]
 
     def make_rows(self, entries):
         for x in entries:
@@ -115,6 +115,13 @@ def find_coords(allforms, all_forms, ngprobs, alt_case, filename, ignore=None):
             existing = coord if coord in all_forms else coord.lower() if coord.lower() in all_forms else alt_case.get(coord.lower())
 
             form_pos = ngprobs.get_preferred_pos(form)
+            # Verify form_pos exists
+            if not(allforms.get_lemmas(form, form_pos)):
+                lemmas = allforms.get_lemmas(form)
+                new_form_pos = lemmas[0].split("|")[0]
+                #print(f"{form}:{form_pos} not in allforms, using pos {new_form_pos}")
+                form_pos = new_form_pos
+
             form_lemma = get_form_lemma(ngprobs, allforms, form)
 
             if existing:
@@ -128,7 +135,7 @@ def find_coords(allforms, all_forms, ngprobs, alt_case, filename, ignore=None):
             #if coord_lemma == "mirar fijamente":
 #            if coord_lemma == "muy poco":
 #                print(line)
-            coord_lemmas[(coord_lemma, form_lemma, form_pos)] += coord_count
+            coord_lemmas[(coord_lemma, form_lemma, form_pos, form)] += coord_count
 
     return coord_lemmas
 
@@ -206,7 +213,7 @@ def main():
 #            all_coords[k] = count
 
     for k,coord_count in all_coords.items():
-        coord_lemma, form_lemma, form_pos = k
+        coord_lemma, form_lemma, form_pos, form = k
         form_count = get_lemma_count(ngprobs, lemma_forms, form_lemma, form_pos)
 
         # Skip uncommon forms
