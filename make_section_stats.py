@@ -174,7 +174,9 @@ def main():
         validate_entry(entry)
 
         for section in entry.ifilter_sections():
-            item = f"{section.level}:{section.title}"
+            title = section.title if section.title else "(no section title)"
+
+            item = f"{section.level}:{title}"
             stats[item] += 1
             if samples[item] is not None:
                 samples[item].add(page.title)
