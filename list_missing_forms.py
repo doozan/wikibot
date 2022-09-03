@@ -74,7 +74,7 @@ class WikiSaver(BaseHandler):
         #if entry.error in [ "missing_sense", "missing_pos_multi_ety", "missing_pos" ]:
         if error == "missing_sense":
             try:
-                data = f"{f.pos} <nowiki>" + fixer.get_form_gloss(entry.item) + "</nowiki>"
+                data = f"{f.pos} ({f.formtype}) <nowiki>" + fixer.get_form_gloss(entry.item) + "</nowiki>"
             except ValueError:
                 data = f"{f.pos} ({f.formtype} of {lemmalink})"
 
