@@ -49,8 +49,8 @@ LIST_SPLIT_NOUN_PLURALS := $(PYPATH) ./list_split_noun_plurals.py
 LIST_SPLIT_VERB_DATA := $(PYPATH) ./list_split_verb_data.py
 
 EXTERNAL := ../..
-PUT := $(EXTERNAL)/put.py
-FUN_REPLACE := $(EXTERNAL)/fun_replace.py
+PUT := $(PYPATH) $(EXTERNAL)/put.py
+FUN_REPLACE := $(PYPATH) $(EXTERNAL)/fun_replace.py
 TLFI_LEMMAS := $(EXTERNAL)/tlfi.lemmas
 
 
@@ -243,7 +243,7 @@ $(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwik
 >   DEST="User:JeffDoozan/lists/es_missing_drae"
 >   SUMMARY="Entries missing a link to DRAE"
 
->   $(WIKIGREP) $< "{{R:(D)?RAE" | cut -d ":" -f 1 | sort -u > $@.with_drae
+>   $(WIKIGREP) $< "{{R:(es:)?(D)?RAE" | cut -d ":" -f 1 | sort -u > $@.with_drae
 >   comm -23 $(BUILDDIR)/es-en.enwikt.lemmas $@.with_drae > $@.without_drae
 >   comm -12 $@.without_drae $(BUILDDIR)/es-es.drae.lemmas \
 >   | grep -v "^.$$" \
