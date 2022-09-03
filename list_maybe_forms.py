@@ -37,7 +37,9 @@ class WikiSaver(BaseHandler):
 
     def format_entry(self, entry, prev_entry):
         page = entry.page
-        section = POS_TO_TITLE[entry.pos]
+        section = POS_TO_TITLE.get(entry.pos)
+        if not section:
+            return []
         language = "Spanish"
         return [f": [[{page}#{language}|{page}:{section}]]"]
 
