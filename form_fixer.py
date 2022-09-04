@@ -21,6 +21,7 @@ POS_TO_TITLE.update({
     "adv": "Adverb",
     "det": "Determiner",
     "n": "Noun",
+    "part": "Participle",
     "prep": "Preposition",
     "v": "Verb",
 })
@@ -36,6 +37,7 @@ pos_to_inflection = {
     "n": "n",
     "num": "num",
     "onum": "onum",
+    "part": "part",
     "postp": "postp",
     "prep": "prep",
     "pron": "pron",
@@ -175,9 +177,12 @@ class FormFixer():
                     if not cls.can_handle_formtype(formtype):
                         continue
 
-
                     if has_reflexive and formtype == "infinitive_comb_se":
                         formtype = "reflexive"
+
+                    # Force verb participle forms to use "part" instead of "v"
+                    if pos == "v" and formtype in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
+                        pos = "part"
 
                     if pos == "v" \
                         and (formtype in smart_inflection_formtypes) \
@@ -371,12 +376,15 @@ class FormFixer():
         if self.get_es_noun_plurals(form_obj.form, form_obj.pos) != plurals:
             return plurals[0]
 
-    def get_verb_head(self, form_obj):
+    def get_part_head(self, form_obj):
         #pos, formtype, lemma, lemma_genders = form_obj
         if form_obj.formtype == "pp_ms":
             if not form_obj.form.endswith("o"):
                 raise ValueError("Unexpected singular past participle")
-            return "{{es-past participle}}"
+
+            conj_params = self.get_verb_conj_params(form_obj)
+            impersonal = "|inv=1" if "only3s" in conj_params else ""
+            return "{{es-past participle" + impersonal + "}}"
 
         elif form_obj.formtype in [ "pp_mp", "pp_fs", "pp_fp" ]:
             g = form_obj.formtype[-2] + "-" + form_obj.formtype[-1]
@@ -407,8 +415,8 @@ class FormFixer():
         if form_obj.pos == "n":
             return self.get_noun_head(form_obj)
 
-        if form_obj.pos == "v":
-            return self.get_verb_head(form_obj)
+        if form_obj.pos == "part":
+            return self.get_part_head(form_obj)
 
         return self.get_generic_head(form_obj)
 
@@ -484,7 +492,7 @@ class FormFixer():
         if meta is not None:
             return meta
 
-        words = self.wordlist.get_words(form_obj.lemma, form_obj.pos)
+        words = self.wordlist.get_words(form_obj.lemma, "v")
 
         # It's possible the same word has multiple conjections (acostar)
 
@@ -648,6 +656,8 @@ class FormFixer():
             return self.get_noun_gloss(form_obj)
         elif pos == "v":
             return self.get_verb_gloss(form_obj)
+        elif pos == "part":
+            return self.get_smart_verb_form_gloss(form_obj)
         elif self.can_handle(form_obj):
             return self.get_generic_gloss(form_obj)
 
@@ -1328,7 +1338,7 @@ class FixRunner():
 #            pass
         except BaseException as e:
             print("ERROR:", e)
-            #raise e
+            raise e
             with open("error.log", "a") as outfile:
                 print(f"{title} failed during add forms {e}")
                 outfile.write(f"{title}: failed during add forms {e}\n")
@@ -1337,7 +1347,7 @@ class FixRunner():
 
     def _replace_pos(self, page_text, title, pos):
         forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
-        #print(title, "forms", forms)
+        print(title, "forms", forms)
 
         forms = [f for f in forms if f.pos in pos]
         return self.fixer.replace_pos(title, page_text, forms, pos)
@@ -1356,6 +1366,7 @@ class FixRunner():
             new_text = self.fixer.remove_undeclared_forms(title, page_text, declared_forms, ignore_errors)
         except BaseException as e:
             print("ERROR:", e)
+            raise e
             with open("error.log", "a") as outfile:
                 outfile.write(f"{title}: failed during form removal {e}\n")
             return page_text
@@ -1373,7 +1384,7 @@ class FixRunner():
         res = re.search(r"(?<![=\n])===*[^\n=]+===", new_text)
         if res:
             with open("error.log", "a") as outfile:
-                #raise e
+                raise e
                 print(f"{title} failed during add forms, matched === header not at the start of a line")
                 outfile.write(f"{title}: failed during add forms, matched === header not at the start of a line\n")
                 #print(res)
@@ -1412,7 +1423,7 @@ class FixRunner():
             return self._add_forms(page_text, title, skip_errors=True)
         except BaseException as e:
             print("ERROR:", e)
-            #raise e
+            raise e
             with open("error.log", "a") as outfile:
                 print(f"{title} failed during add forms {e}")
                 outfile.write(f"{title}: failed during add forms {e}\n")
@@ -1447,7 +1458,7 @@ class FixRunner():
 
             except BaseException as e:
                 print("ERROR:", title, e)
-                #raise e
+                raise e
                 with open("error.log", "a") as outfile:
                     print(f"{title} failed during replace pos {pos} {e}")
                     outfile.write(f"{title}: failed during replace pos {e}\n")
