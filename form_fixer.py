@@ -878,9 +878,6 @@ class FormFixer():
 
         existing_forms = self.get_existing_forms(title, wikt)
 
-        print("existing", existing_forms)
-        print("unexpected", unexpected_forms)
-
         for uf in unexpected_forms:
 
             # Only remove forms from words that have good support
@@ -889,6 +886,7 @@ class FormFixer():
 
             wordsense = existing_forms[uf]
 
+            # Don't remove matches
             if not wordsense:
                 continue
 
@@ -1361,7 +1359,6 @@ class FixRunner():
 
     def _replace_pos(self, page_text, title, pos):
         forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
-        print(title, "forms", forms)
 
         forms = [f for f in forms if f.pos in pos]
         return self.fixer.replace_pos(title, page_text, forms, pos)
