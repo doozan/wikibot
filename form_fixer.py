@@ -486,6 +486,7 @@ class FormFixer():
             return self.get_smart_verb_form_gloss(form_obj)
         return self.get_param_verb_form_gloss(form_obj)
 
+
     def get_verb_conj_params(self, form_obj):
 
         meta = self._conj_cache.get(form_obj.lemma)
@@ -499,9 +500,16 @@ class FormFixer():
         can_cache = True
         if len(words) > 1:
             can_cache = False
+
+        if form_obj.formtype == "smart_inflection":
+            words = [w for w in words
+                        for formtype, forms in w.forms.items()
+                            if formtype in smart_inflection_formtypes
+                                and form_obj.form in forms]
+        else:
             words = [w for w in words if form_obj.formtype in w.forms and form_obj.form in w.forms[form_obj.formtype]]
-            if not words:
-                raise ValueError("No word matches entry for", form_obj)
+        if not words:
+            raise ValueError("No word matches entry for", form_obj)
 
         all_meta = []
         for word in words:
@@ -509,12 +517,13 @@ class FormFixer():
                 if (meta == "" or "<" in meta) and meta not in all_meta:
                     all_meta.append(meta)
 
+        if not all_meta:
+            raise ValueError("no meta", form_obj, words)
+
         if len(all_meta) > 1:
             can_cache = False
-            print("MULTI META", form_obj.lemma, all_meta)
 
-        if not all_meta:
-            raise ValueError("no meta", form_obj)
+        # Use the first possible matching meta that can generate the given form
         meta = all_meta[0]
 
 #        meta = re.sub(r".*{{es-conj[|]?([^}]*)}}.*", r"\1", words[0].meta)
@@ -529,7 +538,6 @@ class FormFixer():
         return meta
 
     def get_smart_verb_form_gloss(self, form_obj):
-        # TODO: some verbs have multiple conj params, only need one but it must be correct for this form
         conj_params = self.get_verb_conj_params(form_obj)
         if not conj_params:
             conj_params = ""
