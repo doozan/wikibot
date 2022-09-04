@@ -226,6 +226,14 @@ pos: n
   gloss: kid, child
     q: Venezuela, colloquial
 _____
+colar
+pos: v
+  meta: {{es-verb|<ue>}} {{es-conj|<ue>}}
+  gloss: to sift, to strain
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: to canonically confer (an ecclesiastical benefit)
+_____
 comer
 pos: v
   meta: {{es-verb}} {{es-conj}}
@@ -461,7 +469,7 @@ def test_get_declared_forms(fixer, allforms):
         "alegres": [('alegres', 'adj', 'pl', 'alegre', ['m', 'f'])],
 
         # when declared by both -r and -se verbs, skip the -se
-        "accidentada": [('accidentada', 'v', 'smart_inflection', 'accidentar', [])],
+        "accidentada": [('accidentada', 'part', 'pp_fs', 'accidentar', [])],
 
         # gender neutral plurals
         "amigues": [('amigues', 'n', 'pl', 'amigue', ['m', 'f']), ('amigues', 'v', 'smart_inflection', 'amigar', []) ],
@@ -520,8 +528,8 @@ def test_get_declared_forms(fixer, allforms):
         "bosniacas": [('bosniacas', 'n', 'pl', 'bosniaca', ['f'])],
 
         # verbs
-        "comida": [('comida', 'v', 'smart_inflection', 'comer', [])],
-        "comidas": [('comidas', 'n', 'pl', 'comida', ['f']), ('comidas', 'v', 'smart_inflection', 'comer', [])],
+        "comida": [('comida', 'part', 'pp_fs', 'comer', [])],
+        "comidas": [('comidas', 'n', 'pl', 'comida', ['f']), ('comidas', 'part', 'pp_fp', 'comer', [])],
     }
 
     for title, forms in tests.items():
@@ -694,8 +702,8 @@ def test_full_entries(fixer, allforms):
 
 # {{noun form of|es|comida||p}}
 
-===Verb===
-{{head|es|verb form}}
+===Participle===
+{{head|es|past participle form|g=f-p}}
 
 # {{es-verb form of|comer}}""",
 
@@ -2336,9 +2344,10 @@ def test_descomida(fixer, allforms):
 """
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+    print(declared_forms)
     assert declared_forms == [
         ('descomida', 'v', 'smart_inflection', 'descomedirse', []),
-        ('descomida', 'v', 'smart_inflection', 'descomer', []),
+        ('descomida', 'part', 'pp_fs', 'descomer', []),
     ]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
@@ -2346,11 +2355,9 @@ def test_descomida(fixer, allforms):
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
-    assert missing_forms == []
-    #assert missing_forms == [('descomida', 'v', 'neg_imp_2sf', 'descomedirse', [])]
+    assert missing_forms == [('descomida', 'part', 'pp_fs', 'descomer', [])]
 
-    assert unexpected_forms == set()
-
+    assert unexpected_forms == {('descomida', 'v', 'smart_inflection', 'descomer')}
 
 
 def test_ababillarse(fixer, allforms):
@@ -2474,11 +2481,15 @@ def test_convert_old_style_verbs(fixer, allforms):
     result = """
 ==Spanish==
 
+===Participle===
+{{head|es|past participle form|g=f-s}}
+
+# {{es-verb form of|descomer}}
+
 ===Verb===
 {{head|es|verb form}}
 
 # {{es-verb form of|descomedirse<i>}}
-# {{es-verb form of|descomer}}
 """
 
 
@@ -2488,7 +2499,9 @@ def test_convert_old_style_verbs(fixer, allforms):
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     res = fixer.replace_pos(title, text, declared_forms, "v")
+    res = fixer.add_missing_forms(title, res, declared_forms, "part")
 
+    print(res)
     assert res.split("\n") == result.split("\n")
     assert res == result
 
@@ -2496,5 +2509,12 @@ def test_get_verb_conj_params(fixer, allforms):
 
     form_obj = DeclaredForm("acuéstense", "v", "smart_inflection", "acostar", [])
     assert fixer.get_verb_conj_params(form_obj) == "<ue>"
+
+    form_obj = DeclaredForm("cuelo", "v", "smart_inflection", "colar", [])
+    assert fixer.get_verb_conj_params(form_obj) == "<ue>"
+
+    form_obj = DeclaredForm("colo", "v", "smart_inflection", "colar", [])
+    assert fixer.get_verb_conj_params(form_obj) == ""
+
 
 

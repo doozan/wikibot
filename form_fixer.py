@@ -1346,7 +1346,7 @@ class FixRunner():
 #            pass
         except BaseException as e:
             print("ERROR:", e)
-            raise e
+            #raise e
             with open("error.log", "a") as outfile:
                 print(f"{title} failed during add forms {e}")
                 outfile.write(f"{title}: failed during add forms {e}\n")
@@ -1374,7 +1374,7 @@ class FixRunner():
             new_text = self.fixer.remove_undeclared_forms(title, page_text, declared_forms, ignore_errors)
         except BaseException as e:
             print("ERROR:", e)
-            raise e
+            #raise e
             with open("error.log", "a") as outfile:
                 outfile.write(f"{title}: failed during form removal {e}\n")
             return page_text
@@ -1392,7 +1392,7 @@ class FixRunner():
         res = re.search(r"(?<![=\n])===*[^\n=]+===", new_text)
         if res:
             with open("error.log", "a") as outfile:
-                raise e
+                #raise e
                 print(f"{title} failed during add forms, matched === header not at the start of a line")
                 outfile.write(f"{title}: failed during add forms, matched === header not at the start of a line\n")
                 #print(res)
@@ -1431,7 +1431,7 @@ class FixRunner():
             return self._add_forms(page_text, title, skip_errors=True)
         except BaseException as e:
             print("ERROR:", e)
-            raise e
+            #raise e
             with open("error.log", "a") as outfile:
                 print(f"{title} failed during add forms {e}")
                 outfile.write(f"{title}: failed during add forms {e}\n")
@@ -1466,7 +1466,7 @@ class FixRunner():
 
             except BaseException as e:
                 print("ERROR:", title, e)
-                raise e
+                #raise e
                 with open("error.log", "a") as outfile:
                     print(f"{title} failed during replace pos {pos} {e}")
                     outfile.write(f"{title}: failed during replace pos {e}\n")
