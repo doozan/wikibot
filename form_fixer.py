@@ -727,6 +727,9 @@ class FormFixer():
             elif "_comb" in item.formtype and item.lemma.endswith("rse"):
                 alt_item = item._replace(lemma=item.lemma[:-2])
 
+            elif item.formtype in smart_inflection_formtypes:
+                alt_item = item._replace(formtype = "smart_inflection")
+
             if item in existing_forms:
                 if item in unexpected_forms:
                     unexpected_forms.remove(item)
