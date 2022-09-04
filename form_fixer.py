@@ -497,7 +497,7 @@ class FormFixer():
 
         all_meta = []
         for word in words:
-            for meta in re.findall("{{es-conj[|]?[^<]*([^|}]*)}}", word.meta):
+            for meta in re.findall("{{es-conj[|]?[^<]*([^|}]*)", word.meta):
                 if (meta == "" or "<" in meta) and meta not in all_meta:
                     all_meta.append(meta)
 
