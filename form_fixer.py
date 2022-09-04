@@ -1175,7 +1175,7 @@ class FormFixer():
         res += "\n"
 
         # if the only difference is "|g=m-p" and just return the normal page
-        if re.sub(r" form\|g=(m|m-s|f|f-s)}}", " form}}", res.rstrip()) == re.sub(r" form\|g=(m|m-s|f|f-s)}}", " form}}", page_text.rstrip()):
+        if re.sub(r" form\|g=([mfps-]*)}}", " form}}", res.rstrip()) == re.sub(r" form\|g=([mfps-]*)}}", " form}}", page_text.rstrip()):
             return page_text
 
         return res
