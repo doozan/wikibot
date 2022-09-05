@@ -983,6 +983,11 @@ class FormFixer():
         #pos, formtype, lemma, lemma_genders = missing_form
 
         # If the gender isn't part of the formtype, use the lemma's gender(s)
+        if missing_form.pos == "v":
+            if len(word_targets) > 1:
+                raise ValueError("Multiple word matches")
+            return word_targets[0]
+
         if missing_form.formtype == "pl":
             match_genders = sorted(set(missing_form.lemma_genders))
         else:
