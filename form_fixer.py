@@ -134,18 +134,18 @@ class FormFixer():
         se_verbs = set()
         non_se_verbs = set()
         for pos, lemma in [poslemma.split("|") for poslemma in poslemmas]:
-            if pos != "v":
+            if pos not in ["v", "part"]:
                 continue
 
             if lemma.endswith("rse") and \
                 any(form in forms
-                    for word in wordlist.get_words(lemma, pos)
+                    for word in wordlist.get_words(lemma, "v")
                     for formtype, forms in word.forms.items()):
                     se_verbs.add(lemma[:-2])
 
             elif lemma[-2:] in ["ar", "er", "ir", "ír"] and \
                 any(form in forms
-                    for word in wordlist.get_words(lemma, pos)
+                    for word in wordlist.get_words(lemma, "v")
                     for formtype, forms in word.forms.items()):
                     non_se_verbs.add(lemma)
 
@@ -161,7 +161,9 @@ class FormFixer():
             if lemma == form:
                 continue
 
-            for word in wordlist.get_words(lemma, pos):
+            # If pos is 'part', the lemma will be a verb, not a "part"
+            all_words =  wordlist.get_words(lemma, "v") if pos == "part" else wordlist.get_words(lemma, pos)
+            for word in all_words:
                 if se_and_non_se_verbs and word.word.endswith("rse") and word.word[:-2] in se_and_non_se_verbs:
                     continue
 
@@ -169,6 +171,14 @@ class FormFixer():
 
                 genders = cls.get_word_genders(word)
                 for formtype, forms in word.forms.items():
+
+                    # part will return all verb forms, limit to just the part forms
+                    if pos == "part" and formtype not in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
+                        continue
+
+                    # Likewise, verb will still contain the part forms, but they should be ignored
+                    if pos == "v" and formtype in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
+                        continue
 
                     if form not in forms:
                         continue
@@ -178,10 +188,6 @@ class FormFixer():
 
                     if has_reflexive and formtype == "infinitive_comb_se":
                         formtype = "reflexive"
-
-                    # Force verb participle forms to use "part" instead of "v"
-                    if pos == "v" and formtype in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
-                        pos = "part"
 
                     if pos == "v" \
                         and (formtype in smart_inflection_formtypes) \
@@ -1013,6 +1019,7 @@ class FormFixer():
         if not missing_forms:
             return
 
+
         changes = []
         missing = collections.defaultdict(list)
         for missing_form in sorted(missing_forms, key=lambda x: (x.pos, x.lemma, x.formtype)):
@@ -1046,7 +1053,7 @@ class FormFixer():
                     if item in added_forms:
                         continue
 
-#                    print("Inserting new sense", pos, formtype, lemma)
+                    #print("Inserting new sense", pos, formtype, lemma)
                     self._add_sense(title, word_target, missing_form)
                     added_forms.add(item)
 
@@ -1122,6 +1129,7 @@ class FormFixer():
             self.add_language_entry(wikt, self.generate_full_entry(title, declared_forms), "Spanish")
         else:
             missing_forms, unexpected_forms = self.compare_forms(declared_forms, self.get_existing_forms(title, entry).keys())
+
             if not missing_forms:
                 return text
 
@@ -1381,7 +1389,7 @@ class FixRunner():
             new_text = self.fixer.remove_undeclared_forms(title, page_text, declared_forms, ignore_errors)
         except BaseException as e:
             print("ERROR:", e)
-            raise e
+            #raise e
             with open("error.log", "a") as outfile:
                 outfile.write(f"{title}: failed during form removal {e}\n")
             return page_text
@@ -1399,7 +1407,7 @@ class FixRunner():
         res = re.search(r"(?<![=\n])===*[^\n=]+===", new_text)
         if res:
             with open("error.log", "a") as outfile:
-                raise e
+                #raise e
                 print(f"{title} failed during add forms, matched === header not at the start of a line")
                 outfile.write(f"{title}: failed during add forms, matched === header not at the start of a line\n")
                 #print(res)
@@ -1438,7 +1446,7 @@ class FixRunner():
             return self._add_forms(page_text, title, skip_errors=True)
         except BaseException as e:
             print("ERROR:", e)
-            raise e
+            #raise e
             with open("error.log", "a") as outfile:
                 print(f"{title} failed during add forms {e}")
                 outfile.write(f"{title}: failed during add forms {e}\n")
@@ -1473,7 +1481,7 @@ class FixRunner():
 
             except BaseException as e:
                 print("ERROR:", title, e)
-                raise e
+                #raise e
                 with open("error.log", "a") as outfile:
                     print(f"{title} failed during replace pos {pos} {e}")
                     outfile.write(f"{title}: failed during replace pos {e}\n")

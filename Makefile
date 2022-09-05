@@ -48,7 +48,7 @@ LIST_USUALLY_PLURAL := $(PYPATH) ./list_usually_plural.py
 LIST_SPLIT_NOUN_PLURALS := $(PYPATH) ./list_split_noun_plurals.py
 LIST_SPLIT_VERB_DATA := $(PYPATH) ./list_split_verb_data.py
 
-EXTERNAL := ../..
+EXTERNAL := ..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
 FUN_REPLACE := $(PYPATH) $(EXTERNAL)/fun_replace.py
 TLFI_LEMMAS := $(EXTERNAL)/tlfi.lemmas
@@ -597,7 +597,7 @@ $(FIX)es_unexpected_form:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/unexpected_form_autofix"
 >   FIX="-fix:es_replace -fix:es_remove_forms --lang:es --wordlist:$(SPANISH_DATA)/es-en.data --allforms:$(SPANISH_DATA)/es_allforms.csv --pos:v,n,adj"
->   MAX=200
+>   MAX=20000
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit

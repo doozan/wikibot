@@ -2346,8 +2346,8 @@ def test_descomida(fixer, allforms):
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
     print(declared_forms)
     assert declared_forms == [
-        ('descomida', 'v', 'smart_inflection', 'descomedirse', []),
         ('descomida', 'part', 'pp_fs', 'descomer', []),
+        ('descomida', 'v', 'smart_inflection', 'descomedirse', []),
     ]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
@@ -2517,4 +2517,39 @@ def test_get_verb_conj_params(fixer, allforms):
     assert fixer.get_verb_conj_params(form_obj) == ""
 
 
+def test_convert_verb_to_part(fixer, allforms):
+    title = "comido"
 
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|comer}}
+"""
+
+    result = """
+==Spanish==
+
+===Participle===
+{{es-past participle}}
+
+# {{es-verb form of|comer}}
+
+"""
+
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    assert declared_forms == [('comido', 'part', 'pp_ms', 'comer', [])]
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
+    res = fixer.add_missing_forms(title, text, declared_forms, "part")
+    res = fixer.remove_undeclared_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result

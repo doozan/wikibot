@@ -327,9 +327,9 @@ def move_misplaced_translations(entry):
     target = None
     found = False
     for section in entry.ifilter_sections():
-        print("scanning", section.level, section.title)
+        #print("scanning", section.level, section.title)
         if section.title in ALL_POS:
-            print("target is", section.title)
+            #print("target is", section.title)
             target = section
 
         elif section.title == "Translations" and section.parent.title not in ALL_POS:
