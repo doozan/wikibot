@@ -56,6 +56,7 @@ smart_inflection_formtypes = {
     'infinitive_comb_se',
     'imp_1p', 'imp_1s', 'imp_2p', 'imp_2pf', 'imp_2s', 'imp_2sf', 'imp_2sv',
     'imp_1p_comb_nos',
+    'imp_2s_comb_te',
     'imp_2p_comb_lo', 'imp_2p_comb_la' 'imp_2p_comb_los', 'imp_2p_comb_les', 'imp_2p_comb_nos', 'imp_2p_comb_os',
     'imp_2pf_comb_lo', 'imp_2pf_comb_la' 'imp_2pf_comb_los', 'imp_2pf_comb_les', 'imp_2pf_comb_nos', 'imp_2pf_comb_os',
     'imp_2sf_comb_se',
