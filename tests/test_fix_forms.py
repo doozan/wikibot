@@ -2387,6 +2387,45 @@ def test_ababillarse(fixer, allforms):
     assert unexpected_forms == {('ababillándose', 'v', 'gerund_comb_se', 'ababillar')}
 
 
+def test_gerund_reflexive(fixer, allforms):
+
+    # generate something for the gerund without -se for -rse verbs
+    title = "ababillando"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|ababillar|ending=-ar|mood=gerund}}
+"""
+
+    result = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|mood=gerund|ending=ar|ababillarse}}
+"""
+
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    assert declared_forms == [('ababillando', 'v', 'gerund', 'ababillarse', [])]
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
+    res = fixer.add_missing_forms(title, text, declared_forms, "v")
+    res = fixer.remove_undeclared_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result
+
+
 def test_replace_verb_form(fixer, allforms):
 
     text = """
@@ -2553,3 +2592,5 @@ def test_convert_verb_to_part(fixer, allforms):
     print(res)
     assert res.split("\n") == result.split("\n")
     assert res == result
+
+

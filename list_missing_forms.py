@@ -325,12 +325,12 @@ def main():
                 continue
 
             if item.pos == "n" and item.formtype == "m":
-                error("should_be_lemma", form, item)
+                error("should_be_lemma", item.form, item)
                 continue
 
-            words = list(wordlist.get_words(form, item.pos))
+            words = list(wordlist.get_words(item.form, item.pos))
             if not words:
-                matches = list(wordlist.get_words(form))
+                matches = list(wordlist.get_words(item.form))
                 if matches:
                     if item.pos in missing_pos:
                         continue
@@ -346,7 +346,7 @@ def main():
                     error("missing_pos", form, item, pos_text)
                     missing_pos.append(item.pos)
                 else:
-                    if form in allpages:
+                    if item.form in allpages:
                          error("missing_entry", form, item)
 
                 continue

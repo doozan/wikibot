@@ -195,6 +195,15 @@ class FormFixer():
                         or (word.word.endswith("rse") and formtype == 'gerund_comb_se'):
                            formtype = "smart_inflection"
 
+                    # for non-reflexive verbs, the "gerund_without_se" will be the same as the "gerund" and
+                    # should be ignored
+                    elif pos == "v" and formtype == "gerund_without_se":
+                        if not word.word.endswith("rse"):
+                            continue
+                        if se_and_non_se_verbs:
+                            continue
+                        formtype = "gerund"
+
                     # with condensed verbs, the neg_imp will be the same as the imp_ forms in the 3rds person
 #                    # imp_2sf', 'abandonar', []), ('v', 'neg_imp_2sf',
                     if formtype in ["neg_imp_3s", "neg_imp_3p"]:
