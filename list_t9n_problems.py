@@ -170,9 +170,9 @@ class WikiByError(BaseHandler):
 
     def make_page(self, *args, **nargs):
         page_lines = super().make_page(*args, **nargs)
-#        limit = 15000
-#        if len(page_lines) > limit:
-#            return page_lines[:limit] + [f"Page truncated to {limit} lines"]
+        limit = 15000
+        if len(page_lines) > limit:
+            return page_lines[:limit] + [f"Page truncated to {limit} lines"]
         return page_lines
 
     def format_entry(self, entry, prev_entry):
