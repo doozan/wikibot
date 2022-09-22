@@ -45,7 +45,7 @@ pos_to_inflection = {
     "v": "v",
 }
 
-DeclaredForm = collections.namedtuple("Form", [ "form", "pos", "formtype", "lemma", "lemma_genders" ])
+DeclaredForm = collections.namedtuple("DeclaredForm", [ "form", "pos", "formtype", "lemma", "lemma_genders" ])
 ExistingForm = collections.namedtuple("ExistingForm", [ "form", "pos", "formtype", "lemma" ])
 
 smart_inflection_formtypes = {
@@ -56,9 +56,9 @@ smart_inflection_formtypes = {
     'infinitive_comb_se',
     'imp_1p', 'imp_1s', 'imp_2p', 'imp_2pf', 'imp_2s', 'imp_2sf', 'imp_2sv',
     'imp_1p_comb_nos',
-    'imp_2s_comb_te',
-    'imp_2p_comb_lo', 'imp_2p_comb_la' 'imp_2p_comb_los', 'imp_2p_comb_les', 'imp_2p_comb_nos', 'imp_2p_comb_os',
-    'imp_2pf_comb_lo', 'imp_2pf_comb_la' 'imp_2pf_comb_los', 'imp_2pf_comb_les', 'imp_2pf_comb_nos', 'imp_2pf_comb_os',
+    'imp_2s_comb_la', 'imp_2s_comb_las', 'imp_2s_comb_les', 'imp_2s_comb_lo', 'imp_2s_comb_los', 'imp_2s_comb_nos', 'imp_2s_comb_te', 'imp_2s_comb_le',
+    'imp_2p_comb_lo', 'imp_2p_comb_la', 'imp_2p_comb_los', 'imp_2p_comb_les', 'imp_2p_comb_nos', 'imp_2p_comb_os',
+    'imp_2pf_comb_lo', 'imp_2pf_comb_la', 'imp_2pf_comb_los', 'imp_2pf_comb_les', 'imp_2pf_comb_nos', 'imp_2pf_comb_os',
     'imp_2sf_comb_se',
     'imp_2pf_comb_se',
     'imp_3p_comb_se',
@@ -173,15 +173,15 @@ class FormFixer():
                 genders = cls.get_word_genders(word)
                 for formtype, forms in word.forms.items():
 
+                    if form not in forms:
+                        continue
+
                     # part will return all verb forms, limit to just the part forms
                     if pos == "part" and formtype not in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
                         continue
 
                     # Likewise, verb will still contain the part forms, but they should be ignored
                     if pos == "v" and formtype in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
-                        continue
-
-                    if form not in forms:
                         continue
 
                     if not cls.can_handle_formtype(formtype):
@@ -287,7 +287,7 @@ class FormFixer():
             return False
 
         if formtype in {
-#        "reflexive",
+        "reflexive",
 #        "infinitive",
 #        "infinitive_comb_se",
         "gerund",
@@ -1202,21 +1202,21 @@ class FormFixer():
                     if not formtype:
                         raise ValueError(title, "Can't remove - sense has non-form gloss", str(sense))
 
+        has_separator = removeable[-1].rstrip().endswith("----")
+
         for i, item in enumerate(removeable):
             if i == 0:
                 new_lines = self.full_pos(title, item._level, forms) + ["", ""]
                 new_text = "\n".join(new_lines)
                 item._parent.insert_before(item, new_text)
 
+            # Sloppy workaround for removing the an item with a language separator
+            if has_separator and i == len(removeable)-1:
+                item._parent.insert_before(item, "----\n\n")
+
             item._parent.remove_child(item)
 
-        res = str(wikt).rstrip()
-
-        # Sloppy workaround when the last item has been replaced
-        if not res.endswith("----") and page_text.rstrip().endswith("----"):
-            res = res + "\n----"
-
-        res += "\n"
+        res = str(wikt).rstrip() + "\n"
 
         # if the only difference is "|g=m-p" and just return the normal page
         if re.sub(r" form\|g=([mfps-]*)}}", " form}}", res.rstrip()) == re.sub(r" form\|g=([mfps-]*)}}", " form}}", page_text.rstrip()):

@@ -46,7 +46,17 @@ abatir
 pos: v
   meta: {{es-verb}} {{es-conj}}
   gloss: to bring down, to shoot down
- _____
+_____
+abonar
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: to subscribe to a service
+    q: takes a reflexive pronoun
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: to fertilize (to provide nutrients to crops using fertilizers)
+    q: transitive
+_____
 aborregarse
 pos: v
   meta: {{es-verb}} {{es-conj}}
@@ -151,6 +161,11 @@ pos: n
   gloss: friend
     q: gender-neutral, neologism
 _____
+antojarse
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: verb
+_____
 aparecido
 pos: adj
   meta: {{es-adj}}
@@ -165,6 +180,16 @@ pos: pron
   meta: {{head|es|pronoun|demonstrative||feminine|aquélla|neuter|aquello|masculine plural|aquéllos|feminine plural|aquéllas|g=m}}
   g: m
   gloss: that one (far from speaker and listener)
+_____
+atener
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: verb
+_____
+atentar
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: verb
 _____
 ayuda
 pos: n
@@ -264,6 +289,11 @@ pos: n
   meta: {{es-noun|m|f=crudívora}}
   g: m
   gloss: crudivore
+_____
+dar
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: verb
 _____
 del mismo
 pos: adj
@@ -684,7 +714,7 @@ def test_full_entries(fixer, allforms):
 ===Verb===
 {{head|es|verb form}}
 
-# {{es-compound of|com|er|come|lo|mood=imperative|person=tú}}""",
+# {{es-verb form of|comer}}""",
 
         "comiéndosele": """\
 ==Spanish==
@@ -2588,6 +2618,194 @@ def test_convert_verb_to_part(fixer, allforms):
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
     res = fixer.add_missing_forms(title, text, declared_forms, "part")
     res = fixer.remove_undeclared_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result
+
+
+def test_abonarse(fixer, allforms):
+
+    # generate something for the gerund without -se for -rse verbs
+    title = "abonarse"
+
+    text = """
+==Spanish==
+
+===Pronunciation===
+{{es-IPA}}
+
+===Verb===
+{{head|es|verb form}}
+
+# {{reflexive of|es|abonar}}
+"""
+
+    result = """
+==Spanish==
+
+===Pronunciation===
+{{es-IPA}}
+
+===Verb===
+{{head|es|verb form}}
+
+# {{reflexive of|es|abonar}}
+# {{es-verb form of|abonar}}
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    assert declared_forms == [
+        DeclaredForm(form='abonarse', pos='v', formtype='reflexive', lemma='abonar', lemma_genders=[]),
+        DeclaredForm(form='abonarse', pos='v', formtype='smart_inflection', lemma='abonar', lemma_genders=[])]
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+
+    existing_forms = fixer.get_existing_forms(title, wikt)
+
+    assert existing_forms == {ExistingForm(form='abonarse', pos='v', formtype='reflexive', lemma='abonar'): '# {{reflexive of|es|abonar}}\n'}
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+
+    assert missing_forms == [DeclaredForm(form='abonarse', pos='v', formtype='smart_inflection', lemma='abonar', lemma_genders=[])] 
+
+    res = fixer.remove_undeclared_forms(title, text, declared_forms, "v")
+    res = fixer.add_missing_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result
+
+def test_antojando(fixer, allforms):
+
+    # generate something for the gerund without -se for -rse verbs
+    title = "antojando"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|ending=ar|mood=gerund|antojar}}
+"""
+
+    result = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|mood=gerund|ending=ar|antojarse}}\
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    assert declared_forms == [DeclaredForm(form='antojando', pos='v', formtype='gerund', lemma='antojarse', lemma_genders=[])]
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
+    res = fixer.remove_undeclared_forms(title, text, declared_forms, "v")
+    res = fixer.add_missing_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result
+
+
+def test_atente(fixer, allforms):
+
+    # generate something for the gerund without -se for -rse verbs
+    title = "atente"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|atentar}}
+# {{es-compound of|aten|er|aten|te|mood=imperative|person=tú}}
+
+----
+
+==Venetian==
+
+===Adjective===
+{{head|vec|adjective form}}
+
+# {{feminine plural of|vec|atento}}
+"""
+
+    result = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|atener}}
+# {{es-verb form of|atentar}}
+
+----
+
+==Venetian==
+
+===Adjective===
+{{head|vec|adjective form}}
+
+# {{feminine plural of|vec|atento}}
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
+    res = fixer.replace_pos(title, text, declared_forms, "v")
+    #res = fixer.add_missing_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result
+
+
+def test_dadlos(fixer, allforms):
+
+    # generate something for the gerund without -se for -rse verbs
+    title = "dadlos"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|dar}}
+"""
+
+    result = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|dar}}
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+    print("existing", existing_forms)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+    print("missing", missing_forms)
+    print("missing", unexpected_forms)
+
+
+    res = fixer.replace_pos(title, text, declared_forms, "v")
+    #res = fixer.add_missing_forms(title, res, declared_forms, "v")
 
     print(res)
     assert res.split("\n") == result.split("\n")
