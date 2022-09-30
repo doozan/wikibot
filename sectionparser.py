@@ -175,6 +175,11 @@ class SectionParser():
 
 class Section():
 
+    templates = [ "c", "C", "cat", "top", "topic", "topics", "categorize", "catlangname", "catlangcode", "cln" ]
+    re_templates = r"\{\{\s*(" + "|".join(templates) + r")\s*[|}][^{}]*\}*"
+    re_categories = r"\[\[\s*Category\s*:[^\]]*\]\]"
+    re_match_categories = fr"({re_templates}|{re_categories})"
+
     def __init__(self, parent, level, title, count=None):
         self.parent = parent
         self.level = level
@@ -186,16 +191,33 @@ class Section():
         self._children = []
         self._categories = []
 
-    @staticmethod
-    def is_category(line):
-        #templates = [ "c", "C", "cat", "top", "topic", "topics", "categorize", "catlangname", "catlangcode", "cln", "DEFAULTSORT" ]
-        templates = [ "c", "C", "cat", "top", "topic", "topics", "categorize", "catlangname", "catlangcode", "cln" ]
-        re_templates = r"\{\{\s*(" + "|".join(templates) + r")\s*[|}][^{}]*\}*"
-        re_categories = r"\[\[\s*Category\s*:[^\]]*\]\]"
+    @classmethod
+    def has_category(cls, line):
+        # Returns True if there is a category classifier anywhere on the line
+        return bool(re.search(cls.re_match_categories, line))
 
-        pattern = fr"(\s*({re_templates}|{re_categories})\s*)+"
-        m = re.match(pattern, line)
-        if m:
+    @classmethod
+    def is_category(cls, line):
+        # Returns True if a line contains at least one category and no text outside of the category templates or HTML comments
+
+        # Remove HTML comments first
+        line = re.sub("(<!--.*?-->)", "", line)
+
+        line_without_cats = re.sub(cls.re_match_categories, '', line)
+        if line_without_cats != line and line_without_cats.strip() == "":
+            return True
+
+        return False
+
+    @classmethod
+    def extract_categories(csl, line):
+        # Returns (line_without_categories, [categories])
+
+        # Remove HTML comments first
+        line = re.sub("(<!--.*?-->)", "", line)
+
+        line_without_cats = re.sub(cls.re_match_categories, '', line)
+        if line_without_cats != line and line_without_cats.strip() == "":
             return True
 
     def add(self, item):

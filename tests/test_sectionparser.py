@@ -1,5 +1,18 @@
 import pytest
-from ..sectionparser import SectionParser
+from ..sectionparser import SectionParser, Section
+
+def test_is_section():
+    assert Section.is_category("[[Category:en:Trees]]") == True
+    assert Section.is_category("{{c|en|Trees}}") == True
+    assert Section.is_category("# {{c|en|Trees}}") == False
+    assert Section.is_category("[[Category:en:Trees]] text") == False
+    assert Section.is_category("[[Category:en:Trees]] <!--text-->") == True
+    assert Section.is_category("<!-- [[Category:en:Trees]] -->") == False
+    assert Section.is_category("   [[Category:en:Trees]]    {{c|en|Trees}}   ") == True
+
+def test_has_category():
+    assert Section.has_category("[[Category:en:Trees]] text") == True
+    assert Section.has_category("test text") == False
 
 def test_basic1():
     text = """\
