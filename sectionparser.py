@@ -30,8 +30,6 @@ class SectionParser():
 
         self._parse(text)
 
-
-
     def add(self, item):
         if isinstance(item, str):
             self._header.append(item)
@@ -45,6 +43,8 @@ class SectionParser():
             if recursive:
                 yield from(child.ifilter_sections(recursive, matches))
 
+    def filter_sections(self, *args, **kwargs):
+        return list(self.ifilter_sections(*args, **kwargs))
 
     @property
     def header(self):
@@ -292,6 +292,9 @@ class Section():
                 yield child
             if recursive:
                 yield from(child.ifilter_sections(recursive, matches))
+
+    def filter_sections(self, *args, **kwargs):
+        return list(self.ifilter_sections(*args, **kwargs))
 
     def __str__(self):
         return self.header + self.lines + "".join(list(map(str, self._children))) + self.categories
