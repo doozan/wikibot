@@ -1,7 +1,15 @@
 #import locale
+import re
 
 # this reads the environment and inits the right locale
 #locale.setlocale(locale.LC_ALL, "")
+
+COUNTABLE_SECTIONS = {
+    "Etymology",
+    "Pronunciation",
+    "Glyph origin",
+    "Glyph"
+}
 
 WT_POS = {
     # Parts of speech
@@ -72,18 +80,26 @@ ALL_POS = WT_POS | {
     "Abbreviations": "abbrev",
 }
 
+import unicodedata
+def strip_accents(s):
+   return ''.join(c for c in unicodedata.normalize('NFD', s)
+                  if unicodedata.category(c) != 'Mn')
+
 def get_language_key(title):
 
     if title == "Translingual":
-        return " A" + title
+        return (0, title)
 
     elif title == "English":
-        return " B" + title
+        return (1, title)
 
-    return title
-    #return locale.strxfrm(title)
+    return (2, strip_accents(title))
 
 def sort_languages(parsed):
+
+    if not parsed._children or parsed._children[0].level != 2:
+        return False
+
     sorted_sections = sorted(parsed._children, key=lambda x: get_language_key(x.title))
     if sorted_sections == parsed._children:
         return False
@@ -91,29 +107,29 @@ def sort_languages(parsed):
     parsed._children = sorted_sections
     return True
 
-def sort_pos(parsed):
+def sort_pos(language):
 
-    for section in parsed._children:
+    # Anything with a section number is sortable, otherwise just sort the top sections
+    sortable = language.filter_sections(matches=lambda x: x.title in COUNTABLE_SECTIONS and x.count)
+    if not sortable:
+        sortable = [ language ]
 
-        # Anything with a section number is sortable, otherwise just sort the top sections
-        # TODO: instead of checking x.count, check if title is in COUNTABLE_SECTIONS (in fix_section_headers)
-        sortable = list(section.ifilter_sections(lambda x: x.count))
-        if not sortable:
-            sortable = [ section ]
+    for sort_section in sortable:
+        # Special case sorting for "Alternative forms" or "Alternative scripts"
+        # per WT:ETE, "Alternative forms" must be the first item IFF it appears before a POS item
+        # Otherwise, it can be sorted below the POS according to the normal sort order
+        alt_first = False
+        for c in sort_section._children:
+            if c.title in ["Alternative forms", "Alternative scripts"]:
+                alt_first = True
+                break
+            elif c.title in ALL_POS:
+                break
 
-        for sort_section in sortable:
-            # Special case sorting for "Alternative forms" or "Alternative scripts"
-            # per WT:ETE, "Alternative forms" must be the first item IFF it appears before a POS item
-            # Otherwise, it can be sorted below the POS according to the normal sort order
-            alt_first = False
-            for i,c in enumerate(sort_section._children):
-                if c.title in ["Alterative forms", "Alternative scripts"]:
-                    alt_first = True
-                    break
-                elif c.title in ALL_POS:
-                    break
+        if not all(x.title in top_sort or x.title in bottom_sort or x.title in ALL_POS for x in sort_section._children):
+            break
 
-            sort_section._children = sorted(sort_section._children, key=lambda x: get_l3_sort_key(x.title, alt_first=alt_first))
+        sort_section._children.sort(key=lambda x: get_l3_sort_key(x, alt_first=alt_first))
 
 
 
@@ -160,14 +176,14 @@ WT_ELE = {
 }
 
 # Sections that will be a the very top, ranked as they appear here
-top_sort = [
+top_sort = {k:v for v,k in enumerate([
         #"Alternative forms",
         "Description",
         "Glyph origin",
         "Etymology",
         "Pronunciation",
         "Production",
-    ]
+    ])}
 
 #NONSTANDARD_OTHER = {
 #    "Transliteration",
@@ -178,7 +194,7 @@ top_sort = [
 
 
 # Sections that will be at the very bottom, ranked as they appear here
-bottom_sort = [
+bottom_sort = {k:v for v,k in enumerate([
         "Definitions",
 
         "Usage notes",
@@ -212,24 +228,34 @@ bottom_sort = [
         "References",
         "Further reading",
         "Anagrams",
-    ]
+    ])}
 
-sort_prefix = {k:" "+chr(64+i) for i,k in enumerate(top_sort)}
-sort_prefix.update({k:"~"+chr(64+i) for i,k in enumerate(bottom_sort)})
+ALL_L3_SECTIONS = COUNTABLE_SECTIONS | WT_ELE | ALL_POS.keys() | top_sort.keys() | bottom_sort.keys()
 
-sort_prefix_alt_first = dict(sort_prefix)
-sort_prefix_alt_first["Alternative forms"] = " 0"
-sort_prefix_alt_first["Alternative scripts"] = " 0"
+L3_SORT_LANGUAGES = ["Spanish"]
 
-def get_l3_sort_key(title, alt_first=False):
+def is_form(section):
+    return bool(re.search(r"{{head\s*\|[^}]* form", str(section))) or "{{es-past participle}}" in str(section)
 
-    if alt_first:
-        return sort_prefix_alt_first.get(title)
+def get_l3_sort_key(item, alt_first=False):
 
-    if title in sort_prefix:
-        return sort_prefix.get(title) + title
+    if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
+        return (0, -1, item.title)
 
-    if title not in ALL_POS:
-        self.error("Unexpected section:", title)
+    if item.title in top_sort:
+        sort_group = 0
+        sort_class = 0
+        sort_item = str(top_sort[item.title])
+    elif item.title in ALL_POS:
+        sort_group = 1
+        sort_class = is_form(item.title)
+        sort_item = item.title
+    elif item.title in bottom_sort:
+        sort_group = 2
+        sort_class = 0
+        sort_item = bottom_sort[item.title]
+    else:
+        raise ValueError("Unhandled section:", item.path)
+        #error("Unexpected section:", item.title)
 
-    return title
+    return (sort_group, sort_class, sort_item)

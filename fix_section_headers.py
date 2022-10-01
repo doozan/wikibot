@@ -6,7 +6,7 @@ from enwiktionary_parser.languages import all_ids as language_constants
 from Levenshtein import distance as fuzzy_distance
 
 from autodooz.sectionparser import Section
-from autodooz.sort_sections import sort_prefix, ALL_POS
+from autodooz.sort_sections import ALL_L3_SECTIONS, ALL_POS, COUNTABLE_SECTIONS
 
 
 # Tags that generate a <ref> link
@@ -18,15 +18,6 @@ PATTERN_REFS = r"(?i)(<\s*references|{{reflist)"
 
 ALL_LANGUAGE_IDS = language_constants.languages
 ALL_LANGUAGE_NAMES = { v:k for k,v in ALL_LANGUAGE_IDS.items() }
-
-COUNTABLE_SECTIONS = {
-    "Etymology",
-    "Pronunciation",
-    "Glyph origin",
-    "Glyph"
-}
-
-ALL_SECTIONS = ALL_POS.keys() | COUNTABLE_SECTIONS | sort_prefix.keys()
 
 # Words will be fuzzy matched for typos
 # WARNING: do not use this for titles that have a similar form, EX: "Prxverb" -> ("Proverb", "Preverb")
@@ -46,7 +37,7 @@ COMMON_TYPOS = [
 MAX_TYPOS = 2
 
 for word in COMMON_TYPOS:
-    similar = [x for x in ALL_SECTIONS if x != word and fuzzy_distance(word, x)<=MAX_TYPOS+1]
+    similar = [x for x in ALL_L3_SECTIONS if x != word and fuzzy_distance(word, x)<=MAX_TYPOS+1]
     if len(similar):
         raise ValueError(f"{word} is not a candidate for typo matching, because it's too similar to {similar}")
 
@@ -102,7 +93,7 @@ def fix_section_titles(entry):
             continue
         if section.level == 2:
             continue
-        if section.title in ALL_SECTIONS:
+        if section.title in ALL_L3_SECTIONS:
             continue
         if section.title in ALLOWED_VARIATIONS:
             continue
@@ -110,12 +101,12 @@ def fix_section_titles(entry):
 
         title = section.title.capitalize()
 
-        if title in ALL_SECTIONS:
+        if title in ALL_L3_SECTIONS:
             changed = True
             section.title = title
 
 
-        elif title.endswith("s") and title[:-1] in ALL_SECTIONS:
+        elif title.endswith("s") and title[:-1] in ALL_L3_SECTIONS:
             # Special handling for items like "Proverbs", "Idioms" that are allowed to appear below a POS section
             if section.level > 3 and section.parent.title not in COUNTABLE_SECTIONS:
                 #print(f"{entry.title}: {section.title} should be allowed")
@@ -125,7 +116,7 @@ def fix_section_titles(entry):
                 changed = True
                 section.title = title[:-1]
 #
-#        elif not title.endswith("s") and title + "s" in ALL_SECTIONS:
+#        elif not title.endswith("s") and title + "s" in ALL_L3_SECTIONS:
 #            changed = True
 #            section.title = title + "s"
 
@@ -183,7 +174,7 @@ def fix_bad_l2(entry):
         if child.level != 2:
             return
 
-        if prev and child.title in ALL_SECTIONS:
+        if prev and child.title in ALL_L3_SECTIONS:
             reparent.append((i, prev))
         prev = child
 

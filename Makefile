@@ -47,6 +47,7 @@ LIST_COORD_TERMS := $(PYPATH) ./list_coord_terms.py
 LIST_USUALLY_PLURAL := $(PYPATH) ./list_usually_plural.py
 LIST_SPLIT_NOUN_PLURALS := $(PYPATH) ./list_split_noun_plurals.py
 LIST_SPLIT_VERB_DATA := $(PYPATH) ./list_split_verb_data.py
+LIST_UNSORTED := $(PYPATH) ./list_unsorted.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
@@ -396,6 +397,12 @@ $(LIST)es_split_noun_plurals:  $(BUILDDIR)/es-en.enwikt.data
 >   $(LIST_SPLIT_NOUN_PLURALS) $(SAVE) --dictionary $<
 >   touch $@
 
+$(LIST)unsorted: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+>   @echo "Running $@..."
+
+>   $(LIST_UNSORTED) $(SAVE) $^
+>   touch $@
+
 # Fixes
 $(FIX)fr_missing_tlfi:
 >   @
@@ -605,12 +612,33 @@ $(FIX)es_unexpected_form:
 >   $(FUN_REPLACE) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
+$(FIX)l2_unsorted:
+>   SRC="User:JeffDoozan/lists/l2_unsorted"
+>   FIX="-fix:cleanup_sections -fix:sort_l2"
+>   MAX=200
+
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   echo $$LINKS > $@
+
+$(FIX)l3_unsorted:
+>   SRC="User:JeffDoozan/lists/l3_unsorted"
+>   FIX="-fix:cleanup_sections -fix:sort_l3"
+>   MAX=200
+
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   echo $$LINKS > $@
 
 all: lists
 
 #data: enwiktionary-$(DATETAG)-pages-articles.xml.bz2 es-en.txt.bz2 pt-en.txt.bz2 fr-en.txt.bz2 spanish_data/es-en.data-full spanish_data/es-en.data es.allpages fr-en.data pt-en.data $(BUILDDIR)/wiki.pages translations.bz2 es.sortorder fr.lemmas fr.allpages es.lemmas drae.lemmas drae.with_etymology es.with_etymology es.lemmas_without_etymology
 
-lists: $(patsubst %,$(LIST)%,t9n_problems section_stats mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_untagged_demonyms es_duplicate_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type forms_with_data ismo_ista es_mismatched_passages es_usually_plural es_split_verb_data es_split_noun_plurals)
+lists: $(patsubst %,$(LIST)%,t9n_problems section_stats mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_untagged_demonyms es_duplicate_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type forms_with_data ismo_ista es_mismatched_passages es_usually_plural es_split_verb_data es_split_noun_plurals unsorted)
 
 autofixes: $(FIX)fr_missing_tlfi $(FIX)es_missing_drae $(FIX)es_syns $(FIX)pt_syns $(FIX)autofix_title $(FIX)autofix_numbered_pos $(FIX)misplaced_translations_section $(FIX)autofix_missing_references $(FIX)autofix_bad_l2 $(FIX)botfix_consolidate_forms $(FIX)botfix_remove_gendertags
 allfixes: autofixes $(FIX)es_missing_entry $(FIX)es_missing_pos $(FIX)es_missing_sense $(FIX)es_unexpected_form
