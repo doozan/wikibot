@@ -189,7 +189,16 @@ class Section():
         self._lines = []
         self._trailing_empty_lines = []
         self._children = []
-        self._categories = []
+
+        # Categories are collected in the topmost Section
+        target = self
+        while hasattr(target.parent, "_add_category"):
+            target = target.parent
+        if target == self:
+            self._categories = []
+            self._moved_categories = False
+            self._duplicate_categories = False
+        self._topmost = target
 
     @classmethod
     def has_category(cls, line):
@@ -223,7 +232,7 @@ class Section():
     def add(self, item):
         if isinstance(item, str):
             # Ignore empty lines before first data item
-            if re.match(r"^(----)?\s*$", item):
+            if re.match(r"^(----+)?\s*$", item):
                 if not self._lines:
                     return
                 # buffer empty lines until there is a data line
@@ -238,6 +247,10 @@ class Section():
                     self._trailing_empty_lines = []
 
                 self._lines.append(item)
+                # Raise flag if there are additional lines after any category declaration
+                if self._topmost._categories:
+                    self._topmost._moved_categories = True
+
             return
 
         self._children.append(item)
@@ -246,7 +259,10 @@ class Section():
         if hasattr(self.parent, "_add_category"):
             self.parent._add_category(line)
         else:
-            self._categories.append(line)
+            if line in self._categories:
+                self._duplicate_categories = True
+            else:
+                self._categories.append(line)
 
     @property
     def header(self):
@@ -257,7 +273,7 @@ class Section():
 
     @property
     def categories(self):
-        if not self._categories:
+        if not hasattr(self, "_categories") or not self._categories:
             return ""
 
         return "\n" + "\n".join(self._categories) + "\n"
