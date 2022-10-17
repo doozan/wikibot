@@ -63,7 +63,7 @@ POS_TEMPLATES = {
     "number": ['-number', '-numeral'],
     "numeral": ["-num", "-card"],
     "ordinal number": ["-ordinal"],
-    "participle": ["-part", "-pp", '-presp', "-past"],
+    "participle": ["-part", "-pp", '-presp', "-past", "-active participle"],
     "particle": ["-part"],
     "postposition": ["-post"],
     "prefix": ["-pref"],
