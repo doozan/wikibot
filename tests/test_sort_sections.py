@@ -101,29 +101,59 @@ Borrowed from {{bor|es|la|āctiō|āctiō, āctiōnem}}, from {{m|la|ago|agere}}
 # [[action]] {{gloss|demanding the start of something}}\
 """
 
-    result = """\
-==Spanish==
-{{wikipedia|lang=es}}
+    # out of order lemmas retain their original order
+    result = text
 
-===Etymology===
-Borrowed from {{bor|es|la|āctiō|āctiō, āctiōnem}}, from {{m|la|ago|agere}}.
+    entry = SectionParser(text, "test")
+    spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False))
+    sort_pos(spanish)
+
+    res = str(entry)
+    print(res)
+    assert res.splitlines() == result.splitlines()
+
+
+
+
+def test_l3_sort_lemma_first():
+    text = """\
+==Spanish==
 
 ===Pronunciation===
 {{es-IPA}}
-* {{rhymes|es|on|s=2}}
-* {{hyphenation|es|ac|ción}}
-* {{audio|es|Es-am-lat-acción.ogg|Audio (Latin America)}}
 
-===Interjection===
-{{head|es|interjection}}
+===Adjective===
+{{head|es|adjective form}}
 
-# [[action]] {{gloss|demanding the start of something}}
+# {{adj form of|es|abajero||f|s}}
 
 ===Noun===
 {{es-noun|f}}
 
-# [[action]], [[act]], [[deed]] {{gloss|something done}}
-#: {{syn|es|acto}}\
+# {{lb|es|Argentina|Chile|Uruguay}} [[saddlecloth]]
+
+===Further reading===
+* {{R:es:DRAE}}\
+"""
+
+    result = """\
+==Spanish==
+
+===Pronunciation===
+{{es-IPA}}
+
+===Noun===
+{{es-noun|f}}
+
+# {{lb|es|Argentina|Chile|Uruguay}} [[saddlecloth]]
+
+===Adjective===
+{{head|es|adjective form}}
+
+# {{adj form of|es|abajero||f|s}}
+
+===Further reading===
+* {{R:es:DRAE}}\
 """
 
     entry = SectionParser(text, "test")

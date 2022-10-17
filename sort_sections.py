@@ -109,7 +109,6 @@ def sort_languages(parsed):
 
 def sort_pos(language):
 
-    # Anything with a section number is sortable, otherwise just sort the top sections
     sortable = language.filter_sections(matches=lambda x: x.title in COUNTABLE_SECTIONS and x.count)
     if not sortable:
         sortable = [ language ]
@@ -126,8 +125,14 @@ def sort_pos(language):
             elif c.title in ALL_POS:
                 break
 
-        if not all(x.title in top_sort or x.title in bottom_sort or x.title in ALL_POS for x in sort_section._children):
-            break
+        unhandled = [x.title for x in sort_section._children if
+                x.title not in top_sort
+                and x.title not in bottom_sort
+                and x.title not in ALL_POS]
+        if unhandled:
+            print("unhandled section, not sorting", unhandled)
+#            # TODO: log these
+            continue
 
         sort_section._children.sort(key=lambda x: get_l3_sort_key(x, alt_first=alt_first))
 
@@ -235,7 +240,7 @@ ALL_L3_SECTIONS = COUNTABLE_SECTIONS | WT_ELE | ALL_POS.keys() | top_sort.keys()
 L3_SORT_LANGUAGES = ["Spanish"]
 
 def is_form(section):
-    return bool(re.search(r"{{head\s*\|[^}]* form", str(section))) or "{{es-past participle}}" in str(section)
+    return bool(re.search(r"{{(head|head-lite)\s*\|[^}]* form", str(section))) or "{{es-past participle}}" in str(section)
 
 def get_l3_sort_key(item, alt_first=False):
 
@@ -248,8 +253,12 @@ def get_l3_sort_key(item, alt_first=False):
         sort_item = str(top_sort[item.title])
     elif item.title in ALL_POS:
         sort_group = 1
-        sort_class = is_form(item.title)
-        sort_item = item.title
+        if not is_form(item):
+            sort_class = 0
+            sort_item = 0
+        else:
+            sort_class = 1
+            sort_item = item.title
     elif item.title in bottom_sort:
         sort_group = 2
         sort_class = 0
