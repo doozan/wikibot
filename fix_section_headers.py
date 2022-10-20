@@ -21,23 +21,24 @@ ALL_LANGUAGE_NAMES = { v:k for k,v in ALL_LANGUAGE_IDS.items() }
 
 # Words will be fuzzy matched for typos
 # WARNING: do not use this for titles that have a similar form, EX: "Prxverb" -> ("Proverb", "Preverb")
-COMMON_TYPOS = [
-    "Alternative forms",
-    "Alternative scripts",
-    "Adjective",
-    "Declension",
-    "Etymology",
-    "Derived terms",
-    "Further reading",
-    "Pronunciation",
-    "References",
-    "Related terms",
-    "Usage notes",
-]
-MAX_TYPOS = 2
+COMMON_TYPOS = {
+    "Alternative forms": 2,
+    "Alternative scripts": 2,
+    "Adjective": 2,
+    "Declension": 2,
+    "Etymology": 2,
+    "Derived terms": 2,
+    "Further reading": 2,
+    "Pronunciation": 2,
+    "References": 2,
+    "Related terms": 2,
+    "Synonyms": 1,
+    "Noun": 1,
+    "Usage notes": 2,
+}
 
-for word in COMMON_TYPOS:
-    similar = [x for x in ALL_L3_SECTIONS if x != word and fuzzy_distance(word, x)<=MAX_TYPOS+1]
+for word, max_typos in COMMON_TYPOS.items():
+    similar = [x for x in ALL_L3_SECTIONS if x != word and fuzzy_distance(word, x)<=max_typos]
     if len(similar):
         raise ValueError(f"{word} is not a candidate for typo matching, because it's too similar to {similar}")
 
@@ -65,7 +66,7 @@ TITLE_FIXES = {
     "Derived forms": "Derived terms",
     "Derived words": "Derived terms",
 
-
+    "Nouon": "Noun",
 #    "Note": "Usage notes",
 #    "Notes": "Usage notes",
 #    "Usage": "Usage notes",
@@ -125,8 +126,8 @@ def fix_section_titles(entry):
             section.title = TITLE_FIXES[title]
 
         else:
-            for word in COMMON_TYPOS:
-                if fuzzy_distance(word, title) <= 2:
+            for word, max_typos in COMMON_TYPOS.items():
+                if fuzzy_distance(word, title) <= max_typos:
                     section.title = word
                     changed = True
                     break
