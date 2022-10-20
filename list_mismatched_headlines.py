@@ -58,6 +58,7 @@ POS_TEMPLATES = {
     "conjunction": ["-con"],
     "contraction": ["-cont"],
     "determiner": ["-det"],
+    "diacritical mark": ["diacritic"],
     "interjection": ["-int"],
     "noun": ["-noun", "-plural noun", "-npf", "-verbal noun"],
     "number": ['-number', '-numeral'],
