@@ -54,10 +54,11 @@ def main():
     parser = argparse.ArgumentParser(description="Find usually plural nouns")
     parser.add_argument("--dictionary", help="Dictionary file name", required=True)
     parser.add_argument("--ngprobs", help="Ngram probability data file")
+    parser.add_argument("--ngcase", help="Ngram case data file")
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
     args = parser.parse_args()
 
-    probs = NgramPosProbability(args.ngprobs)
+    probs = NgramPosProbability(args.ngprobs, args.ngcase)
     wordlist = Wordlist.from_file(args.dictionary)
 
     for form, data in probs.form_probs.items():

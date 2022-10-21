@@ -379,10 +379,10 @@ $(LIST)es_coord_terms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-1-19
 >   echo $(LIST_COORD_TERMS) --min-count 1000 --min-percent 25 --allforms $< $(SAVE) --ngprobs $(BUILDDIR)/es-1-1950.ngprobs $(IGNORE_COORD2) --coord2 $(NGRAMDATA)/spa/2-filtered-1950.coord --coord3 $(NGRAMDATA)/spa/3-filtered-1950.coord --coord4 $(NGRAMDATA)/spa/4-filtered-1950.coord --coord5 $(NGRAMDATA)/spa/5-filtered-1950.coord
 >   touch $@
 
-$(LIST)es_usually_plural:  $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-1-1950.ngprobs
+$(LIST)es_usually_plural:  $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-1-1950.ngprobs $(NGRAMDATA)/spa/es-1-1950.ngcase
 >   @echo "Running $@..."
 
->   $(LIST_USUALLY_PLURAL) $(SAVE) --dictionary $< --ngprobs $(BUILDDIR)/es-1-1950.ngprobs
+>   $(LIST_USUALLY_PLURAL) $(SAVE) --dictionary $< --ngprobs $(BUILDDIR)/es-1-1950.ngprobs --ngcase $(NGRAMDATA)/spa/es-1-1950.ngcase
 >   touch $@
 
 $(LIST)es_split_verb_data:  $(BUILDDIR)/es-en.enwikt.data
