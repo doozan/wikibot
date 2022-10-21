@@ -5,7 +5,7 @@ import re
 import sys
 from collections import defaultdict
 from enwiktionary_parser.languages import all_ids as language_constants
-from autodooz.sort_sections import sort_prefix, ALL_POS, WT_POS, WT_ELE
+from autodooz.sort_sections import WT_POS, WT_ELE
 from autodooz.sectionparser import SectionParser
 import autodooz.fix_section_headers as headerfix
 
