@@ -130,14 +130,13 @@ def process(text, title, wordlist, fixer):
 def main():
     parser = argparse.ArgumentParser(description="Find fixable entries")
     parser.add_argument("--wordlist", help="wiktionary allforms")
-    parser.add_argument("--draeforms", help="drae allforms", required=True)
     parser.add_argument("--draelinks", help="drae links data")
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
     parser.add_argument("extract", help="language extract file")
     args = parser.parse_args()
 
     wordlist = Wordlist.from_file(args.wordlist)
-    fixer = DraeFixer(args.draeforms, args.draelinks, logger)
+    fixer = DraeFixer(args.draelinks, logger)
 
     for article in WikiExtractWithRev.iter_articles_from_bz2(args.extract):
         process(article.text, article.title, wordlist, fixer)

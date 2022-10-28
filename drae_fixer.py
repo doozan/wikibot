@@ -4,12 +4,10 @@ import sys
 
 from autodooz.sectionparser import SectionParser, Section
 from collections import defaultdict
-from enwiktionary_wordlist.all_forms import AllForms
 
 class DraeFixer():
 
-    def __init__(self, form_filename, link_filename, logger=None):
-        self.drae_forms = AllForms.from_file(form_filename)
+    def __init__(self, link_filename, logger=None):
         self.drae_links = self.load_drae_links(link_filename)
         self.logger = logger
 
@@ -33,61 +31,45 @@ class DraeFixer():
                 drae_links[lemma].append(link)
         return drae_links
 
-    @staticmethod
-    def strip_brackets(string):
-        return string.replace("[", "").replace("]", "")
-
-    def get_lemmas(self, text, title, check_verbs=True, get_all=False):
-
-        # drae.links entries do not use []
-        title = self.strip_brackets(title)
-
-        if not get_all:
-            if self.drae_forms.has_lemma(title):
-                return [title]
-            elif " " not in title:
-                return []
-
-        lemmas = [l.split("|") for l in self.drae_forms.get_lemmas(title)]
+    def get_targets(self, text, title):
+        links = sorted(set(self.drae_links.get(title, [])))
 
         # Handle cases where wiktionary uses -r for a lemma but DRAE uses -rse (and vice versa)
         # suicidar, autocensurarse
-        if not lemmas and check_verbs and ("{{es-verb}}" in str(text) or "{{es-verb|" in str(text)):
+        if not links and ("{{es-verb}}" in str(text) or "{{es-verb|" in str(text)):
             if title.endswith("r"):
-                lemmas = self.get_lemmas(text, title + "se", check_verbs=False)
+                links = sorted(set(self.drae_links.get(title + "se", [])))
             elif title.endswith("rse"):
-                lemmas = self.get_lemmas(text, title[:-2], check_verbs=False)
+                links = sorted(set(self.drae_links.get(title[:-2], [])))
 
-        if len(lemmas) == 1:
-            return [self.strip_brackets(l[1]) for l in lemmas]
-        else:
-            stripped = sorted(set(self.strip_brackets(l[1]) for l in lemmas if l[1] == title or l[0] not in ["v", "part"]))
-            if stripped:
-                return stripped
-            return sorted(set(self.strip_brackets(l[1]) for l in lemmas))
+        return links
+
 
     def fix_missing_drae(self, text, title, replacement=None):
 
         entry = SectionParser(text, title)
-        spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False))
-
-        lemmas = self.get_lemmas(spanish, title)
-        if not lemmas:
+        spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False), None)
+        if not spanish:
             return text
 
-        link = None
-        links = sorted(set(link for lemma in lemmas for link in self.drae_links.get(lemma, [])))
-        if not links:
+        targets = self.get_targets(text, title)
+        if not targets:
+            # TODO: Log lemma without DRAE
             return text
 
-        if len(links) > 1:
-            self.log("drae_link_missing", title, "('" + "', '".join(links) +"')")
+        if len(targets) > 1:
+            self.log("drae_link_missing", title, "('" + "', '".join(targets) +"')")
 
-        link = links[0]
-        self.log("drae_link_missing_autofix", title, link)
+        target = targets[0]
+        self.log("drae_link_missing_autofix", title, target)
 
+        line = "* " + self.make_drae_template(title, target)
         section = next(spanish.ifilter_sections(matches=lambda x: x.title == "Further reading"), None)
-        if not section:
+
+        if section:
+            if line in str(section):
+                return text
+        else:
             section = Section(spanish, 3, "Further reading")
 
             # New section goes before the first Anagrams section, if it exists
@@ -99,7 +81,6 @@ class DraeFixer():
             else:
                 spanish._children.append(section)
 
-        line = "* " + self.make_drae_template(title, link)
         section._lines.insert(0, line)
 
         if replacement:
@@ -122,27 +103,26 @@ class DraeFixer():
         for template in templates:
             target = self.get_template_target(template, title)
 
-            lemmas = self.get_lemmas(spanish, title, get_all=True)
-            links = sorted(set(link for lemma in lemmas for link in self.drae_links.get(lemma, [])))
-            if not target in links:
-                if links:
+            targets = self.get_targets(text, title)
+            if not target in targets:
+                if targets:
                     if target != title:
                         if " " in title and " " not in target:
-                            if len(links) > 1:
-                                self.log("drae_link_custom_target", title, "is '{target}', should be ('" + "', '".join(links) +"')")
+                            if len(targets) > 1:
+                                self.log("drae_link_custom_target", title, "is '{target}', should be ('" + "', '".join(targets) +"')")
                             else:
                                 # If the existing link is to a single word, but the page is a phrase
                                 # and there a matching phrase in drae, replace the link
-                                self.log("drae_link_wrong_target_autofix", title, links[0])
-                                fixes.append((template, self.make_drae_template(title, links[0])))
+                                self.log("drae_link_wrong_target_autofix", title, targets[0])
+                                fixes.append((template, self.make_drae_template(title, targets[0])))
                         else:
-                            self.log("drae_link_custom_target", title, "('" + "', '".join(links) +"')")
+                            self.log("drae_link_custom_target", title, "('" + "', '".join(targets) +"')")
                     else:
-                        if len(links) > 1:
-                            self.log("drae_link_wrong_target", title, "('" + "', '".join(links) +"')")
+                        if len(targets) > 1:
+                            self.log("drae_link_wrong_target", title, "('" + "', '".join(targets) +"')")
                         else:
-                            self.log("drae_link_wrong_target_autofix", title, links[0])
-                            fixes.append((template, self.make_drae_template(title, links[0])))
+                            self.log("drae_link_wrong_target_autofix", title, targets[0])
+                            fixes.append((template, self.make_drae_template(title, targets[0])))
                 else:
                     if target in self.drae_links:
                         self.log("drae_link_custom_target", title, f"('{target}')")

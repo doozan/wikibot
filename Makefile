@@ -54,7 +54,6 @@ EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
 FUN_REPLACE := $(PYPATH) $(EXTERNAL)/fun_replace.py
 TLFI_LEMMAS := $(EXTERNAL)/tlfi.lemmas
-DRAE_ALLFORMS := $(EXTERNAL)/drae.allforms.csv
 DRAE_LINKS := $(EXTERNAL)/drae.links
 
 
@@ -262,9 +261,9 @@ $(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwik
 >   rm -f $@.wiki.base $@.with_drae $@.without_drae
 >   mv $@.wiki $@
 
-$(LIST)es_drae_errors: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(SPANISH_DATA)/es-en.data $(DRAE_ALLFORMS) $(DRAE_LINKS)
+$(LIST)es_drae_errors: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(SPANISH_DATA)/es-en.data $(DRAE_LINKS)
 >   echo "Running $@..."
->   $(LIST_DRAE_ERRORS) --wordlist $(SPANISH_DATA)/es-en.data $(BUILDDIR)/es-en.enwikt.txt.bz2 --draeforms $(DRAE_ALLFORMS) --draelinks $(DRAE_LINKS) $(SAVE)
+>   $(LIST_DRAE_ERRORS) --wordlist $(SPANISH_DATA)/es-en.data $(BUILDDIR)/es-en.enwikt.txt.bz2 --draelinks $(DRAE_LINKS) $(SAVE)
 >   touch $@ 
 
 $(LIST)es_untagged_demonyms: $(BUILDDIR)/es-en.enwikt.txt.bz2
