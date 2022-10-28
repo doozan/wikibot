@@ -175,7 +175,9 @@ def fix_bad_l2(entry):
         if child.level != 2:
             return
 
-        if prev and child.title in ALL_L3_SECTIONS:
+        title = child.title.strip("=")
+
+        if prev and title in ALL_L3_SECTIONS:
             reparent.append((i, prev))
         prev = child
 
