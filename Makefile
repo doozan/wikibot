@@ -23,6 +23,7 @@ DATETAG_PRETTY := $(shell date --date="$(DATETAG)" +%Y-%m-%d)
 
 SPANISH_DATA := ../spanish_data
 NGRAMDATA := ../ngram_data
+DRAEDATA := ../drae_data
 BUILDDIR := $(SPANISH_DATA)/$(DATETAG_PRETTY)
 PYPATH := PYTHONPATH=$(BUILDDIR)
 
@@ -33,6 +34,7 @@ WIKIGREP := $(PYPATH) scripts/wikigrep
 WIKISEARCH := $(PYPATH) scripts/wikisearch
 WIKISORT := $(PYPATH) scripts/wikisort
 GETLINKS := $(PYPATH) scripts/getlinks
+GETIGNORE := $(PYPATH) scripts/getignore
 
 LIST_DUPLICATE_PASSAGES := $(PYPATH) ./list_duplicate_passages.py
 LIST_VERBS_MISSING_TYPE := $(PYPATH) ./list_verbs_missing_type.py
@@ -49,12 +51,12 @@ LIST_SPLIT_NOUN_PLURALS := $(PYPATH) ./list_split_noun_plurals.py
 LIST_SPLIT_VERB_DATA := $(PYPATH) ./list_split_verb_data.py
 LIST_UNSORTED := $(PYPATH) ./list_unsorted.py
 LIST_DRAE_ERRORS := $(PYPATH) ./list_drae_errors.py
+LIST_MISSING_DRAE := $(PYPATH) ./list_missing_drae.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
 FUN_REPLACE := $(PYPATH) $(EXTERNAL)/fun_replace.py
 TLFI_LEMMAS := $(EXTERNAL)/tlfi.lemmas
-DRAE_LINKS := $(EXTERNAL)/drae.links
 
 
 # prefix for list files
@@ -188,21 +190,6 @@ $(LIST)es_missing_lemmas: $(BUILDDIR)/es-en.enwikt.lemmas $(BUILDDIR)/es-es.drae
 >   rm -f $@.formonly $@.sorted_az $@.wiki.base
 >   mv $@.wiki $@
 
-$(LIST)pl_missing_ety: $(BUILDDIR)/pl-en.enwikt.lemmas_without_etymology
->   @echo "Running $@..."
->   DEST="User:JeffDoozan/lists/pl/missing_ety"
->   SUMMARY="Lemmas without etymology info"
-
->   cat $< | awk '{print ": [["$$0"#Polish|"$$0"]]"}' > $@.wiki.base
-
->   COUNT=`wc -l $@.wiki.base | cut -d " " -f 1`
->   echo "$$SUMMARY as of $(DATETAG_PRETTY) ($$COUNT entries)" > $@.wiki
->   cat $@.wiki.base >> $@.wiki
-
->   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.wiki.base  $@.sorted_az
->   mv $@.wiki $@
-
 $(LIST)es_missing_ety: $(BUILDDIR)/es-es.drae.with_etymology $(BUILDDIR)/es-en.enwikt.lemmas_without_etymology $(BUILDDIR)/es-en.enwikt.sortorder
 >   @echo "Running $@..."
 >   DEST="User:JeffDoozan/lists/es_missing_ety"
@@ -241,29 +228,35 @@ $(LIST)fr_missing_tlfi: $(BUILDDIR)/fr-en.enwikt.txt.bz2 $(BUILDDIR)/fr-en.enwik
 >   rm -f $@.with_tlf $@.without_tlfi $@.wiki.base
 >   mv $@.wiki $@
 
-$(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.lemmas $(BUILDDIR)/es-es.drae.lemmas
->   @echo "Running $@..."
+$(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.allforms.csv
+>   echo "Making $@..."
 >   DEST="User:JeffDoozan/lists/es_missing_drae"
->   SUMMARY="Entries missing a link to DRAE"
-
->   $(WIKIGREP) $< "{{R:(es:)?(D)?RAE" | cut -d ":" -f 1 | sort -u > $@.with_drae
->   comm -23 $(BUILDDIR)/es-en.enwikt.lemmas $@.with_drae > $@.without_drae
->   comm -12 $@.without_drae $(BUILDDIR)/es-es.drae.lemmas \
->   | grep -v "^.$$" \
->   | awk '{ print "; [["$$0"#Spanish|"$$0"]]" }' \
->   > $@.wiki.base
-
->   COUNT=`wc -l $@.wiki.base | cut -d " " -f 1`
->   echo "$$SUMMARY as of $(DATETAG_PRETTY) ($$COUNT entries)" > $@.wiki
+>   SUMMARY="DRAE entries missing from Wiktionary"
+>
+>   $(GETIGNORE) "$$DEST" > $@.ignore
+>
+>   $(LIST_MISSING_DRAE) \
+>       --min-use 5000 \
+>       --wikt $(BUILDDIR)/es-en.enwikt.allforms.csv \
+>       --drae $(DRAEDATA)/drae.allforms.csv \
+>       --drae-links $(DRAEDATA)/drae.links \
+>       --wordlist $(DRAEDATA)/drae.data \
+>       --freq $(DRAEDATA)/drae.freq.csv \
+>       --counts $(DRAEDATA)/drae.txt \
+>       --forced-forms $(DRAEDATA)/patterns.csv \
+>       --ignore $@.ignore \
+>       > $@.wiki.base
+>
+>   echo "$$SUMMARY as of $(DATETAG_PRETTY)" > $@.wiki
 >   cat $@.wiki.base >> $@.wiki
-
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.wiki.base $@.with_drae $@.without_drae
->   mv $@.wiki $@
+>
+>   rm -f $@.ignore $@.wiki $@.wiki.base
+>   touch $@
 
-$(LIST)es_drae_errors: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(SPANISH_DATA)/es-en.data $(DRAE_LINKS)
+$(LIST)es_drae_errors: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(SPANISH_DATA)/es-en.data
 >   echo "Running $@..."
->   $(LIST_DRAE_ERRORS) --wordlist $(SPANISH_DATA)/es-en.data $(BUILDDIR)/es-en.enwikt.txt.bz2 --draelinks $(DRAE_LINKS) $(SAVE)
+>   $(LIST_DRAE_ERRORS) --wordlist $(SPANISH_DATA)/es-en.data $(BUILDDIR)/es-en.enwikt.txt.bz2 --draelinks $(DRAEDATA)/drae.links $(SAVE)
 >   touch $@ 
 
 $(LIST)es_untagged_demonyms: $(BUILDDIR)/es-en.enwikt.txt.bz2
@@ -423,18 +416,6 @@ $(FIX)fr_missing_tlfi:
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
-$(FIX)es_missing_drae:
->   @
->   FIX="-fix:add_drae"
->   SRC="User:JeffDoozan/lists/es_missing_drae"
->   MAX=500
-
->   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
->   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
->   echo $$LINKS > $@
-
 # TODO: some sort of list maker to check if they can be auto fixed
 $(FIX)es_syns:
 >   @
@@ -452,7 +433,7 @@ $(FIX)pt_syns:
 >   @
 >   FIX="-fix:simple_nyms --lang:pt --wordlist:$(BUILDDIR)/pt-en.enwikt.data-full --sections:Synonyms"
 >   SRC="User:JeffDoozan/lists/Portuguese_with_Synonyms"
->   MAX=1000
+>   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
@@ -560,7 +541,7 @@ $(FIX)es_missing_sense:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_sense_autofix"
 >   FIX="-fix:es_replace -fix:es_add_forms --lang:es --wordlist:$(SPANISH_DATA)/es-en.data --allforms:$(SPANISH_DATA)/es_allforms.csv --pos:v,n,adj"
->   MAX=1000
+>   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
@@ -669,7 +650,7 @@ all: lists
 
 #data: enwiktionary-$(DATETAG)-pages-articles.xml.bz2 es-en.txt.bz2 pt-en.txt.bz2 fr-en.txt.bz2 spanish_data/es-en.data-full spanish_data/es-en.data es.allpages fr-en.data pt-en.data $(BUILDDIR)/wiki.pages translations.bz2 es.sortorder fr.lemmas fr.allpages es.lemmas drae.lemmas drae.with_etymology es.with_etymology es.lemmas_without_etymology
 
-lists: $(patsubst %,$(LIST)%,t9n_problems section_stats mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_drae_errors es_untagged_demonyms es_duplicate_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type forms_with_data ismo_ista es_mismatched_passages es_usually_plural es_split_verb_data es_split_noun_plurals unsorted)
+lists: $(patsubst %,$(LIST)%,t9n_problems section_stats forms_with_data mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals unsorted)
 
 autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi es_syns pt_syns autofix_title autofix_numbered_pos misplaced_translations_section autofix_missing_references autofix_bad_l2 botfix_consolidate_forms botfix_remove_gendertags l2_unsorted es_drae_missing es_drae_wrong)
 allfixes: autofixes $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form)
