@@ -168,7 +168,7 @@ $(LIST)fr_missing_lemmas: $(BUILDDIR)/fr-en.enwikt.lemmas $(BUILDDIR)/fr-en.enwi
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.formonly $@.wiki.base
+>   $(RM) $@.formonly $@.wiki.base
 >   mv $@.wiki $@
 
 $(LIST)es_missing_lemmas: $(BUILDDIR)/es-en.enwikt.lemmas $(BUILDDIR)/es-es.drae.lemmas $(BUILDDIR)/es-es.drae.sortorder $(BUILDDIR)/es-en.enwikt.allpages
@@ -187,7 +187,7 @@ $(LIST)es_missing_lemmas: $(BUILDDIR)/es-en.enwikt.lemmas $(BUILDDIR)/es-es.drae
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.formonly $@.sorted_az $@.wiki.base
+>   $(RM) $@.formonly $@.sorted_az $@.wiki.base
 >   mv $@.wiki $@
 
 $(LIST)es_missing_ety: $(BUILDDIR)/es-es.drae.with_etymology $(BUILDDIR)/es-en.enwikt.lemmas_without_etymology $(BUILDDIR)/es-en.enwikt.sortorder
@@ -205,7 +205,7 @@ $(LIST)es_missing_ety: $(BUILDDIR)/es-es.drae.with_etymology $(BUILDDIR)/es-en.e
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.wiki.base  $@.sorted_az
+>   $(RM) $@.wiki.base  $@.sorted_az
 >   mv $@.wiki $@
 
 $(LIST)fr_missing_tlfi: $(BUILDDIR)/fr-en.enwikt.txt.bz2 $(BUILDDIR)/fr-en.enwikt.lemmas $(TLFI_LEMMAS)
@@ -225,7 +225,7 @@ $(LIST)fr_missing_tlfi: $(BUILDDIR)/fr-en.enwikt.txt.bz2 $(BUILDDIR)/fr-en.enwik
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.with_tlf $@.without_tlfi $@.wiki.base
+>   $(RM) $@.with_tlf $@.without_tlfi $@.wiki.base
 >   mv $@.wiki $@
 
 $(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.allforms.csv
@@ -251,7 +251,7 @@ $(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.allforms.csv
 >   cat $@.wiki.base >> $@.wiki
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
 >
->   rm -f $@.ignore $@.wiki $@.wiki.base
+>   $(RM) $@.ignore $@.wiki $@.wiki.base
 >   touch $@
 
 $(LIST)es_drae_errors: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(SPANISH_DATA)/es-en.data
@@ -279,7 +279,7 @@ $(LIST)es_untagged_demonyms: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.wiki.base
+>   $(RM) $@.wiki.base
 >   mv $@.wiki $@
 
 $(LIST)es_duplicate_passages: $(BUILDDIR)/es-en.enwikt.txt.bz2
@@ -294,7 +294,7 @@ $(LIST)es_duplicate_passages: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.wiki.base $@.with_passage
+>   $(RM) $@.wiki.base $@.with_passage
 >   mv $@.wiki $@
 
 $(LIST)es_mismatched_passages: $(BUILDDIR)/es-en.enwikt.txt.bz2
@@ -309,7 +309,7 @@ $(LIST)es_mismatched_passages: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.wiki.base $@.with_passage
+>   $(RM) $@.wiki.base $@.with_passage
 >   mv $@.wiki $@
 
 $(LIST)es_with_synonyms: $(BUILDDIR)/es-en.enwikt.txt.bz2
@@ -328,7 +328,7 @@ $(LIST)es_with_synonyms: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.wiki.base
+>   $(RM) $@.wiki.base
 >   mv $@.wiki $@
 
 $(LIST)pt_with_synonyms: $(BUILDDIR)/pt-en.enwikt.txt.bz2
@@ -347,7 +347,7 @@ $(LIST)pt_with_synonyms: $(BUILDDIR)/pt-en.enwikt.txt.bz2
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.wiki.base
+>   $(RM) $@.wiki.base
 >   mv $@.wiki $@
 
 $(LIST)es_verbs_missing_type: $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-en.enwikt.sortorder
@@ -363,7 +363,7 @@ $(LIST)es_verbs_missing_type: $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-en.en
 >   cat $@.wiki.base >> $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   rm -f $@.wiki.base $@.unsorted
+>   $(RM) $@.wiki.base $@.unsorted
 >   mv $@.wiki $@
 
 $(LIST)ismo_ista: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-en.enwikt.txt.bz2
