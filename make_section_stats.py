@@ -44,6 +44,7 @@ error_header = {
     "autofix_empty_section": "Pages with empty sections that will automatically be removed by the bot",
 
     "first_section_not_l2": "First section on the page is not L2",
+    "duplicate_l2": "Duplicate L2 sections",
 
     "open_html_comment": "Pages containing a section header inside a HTML comment",
     "open_template": "Pages containing a section header inside a template",
@@ -111,6 +112,11 @@ def validate_entry(entry):
 
     if entry._children[0].level != 2:
         log("first_section_not_l2", entry._children[0])
+
+    l2_titles = [e.title for e in entry._children]
+    if len(l2_titles) != len(set(l2_titles)):
+        duplicates = [title for title in l2_titles if l2_titles.count(title) > 1]
+        log("duplicate_l2", entry, ", ".join(duplicates))
 
     if entry.state & 1:
         log("trailing_open_html_comment", entry)
