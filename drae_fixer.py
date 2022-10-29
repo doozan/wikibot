@@ -8,7 +8,9 @@ from collections import defaultdict
 class DraeFixer():
 
     def __init__(self, link_filename, logger=None):
-        self.drae_links = self.load_drae_links(link_filename)
+        drae_links, must_link_by_id = self.load_links(link_filename)
+        self.drae_links = drae_links
+        self.must_link_by_id = must_link_by_id
         self.logger = logger
 
     def log(self, *args, **kwargs):
@@ -16,20 +18,26 @@ class DraeFixer():
             self.logger.add(*args, **kwargs)
 
     @staticmethod
-    def load_drae_links(filename):
+    def load_links(filename):
         drae_links = defaultdict(list)
+        must_link_by_id = {}
         with open(filename) as infile:
             for line in infile:
                 items = line.strip().split("\t")
                 if len(items) == 3:
-                    lemma, link_id, link = items
+                    form, link_id, link = items
                 elif len(items) == 2:
-                    lemma, link_id = items
-                    link = lemma
+                    form, link_id = items
+                    link = form
                 else:
                     raise ValueError("unhandled line", line)
-                drae_links[lemma].append(link)
-        return drae_links
+
+                # forms with question marks must use direct link id
+                if "?" in link:
+                    must_link_by_id[link] = link_id
+
+                drae_links[form].append(link)
+        return drae_links, must_link_by_id
 
     def get_targets(self, text, title):
         links = sorted(set(self.drae_links.get(title, [])))
