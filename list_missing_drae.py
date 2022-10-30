@@ -21,6 +21,38 @@ def has_real_entry(wordlist, title):
                 return True
     return False
 
+def get_preferred_case(filename):
+    preferred_case = {}
+    seen = set()
+    with open(filename) as infile:
+        for line in infile:
+            word, count = line.strip().split('\t')
+            word_lc = word.lower()
+            if word_lc in seen:
+                continue
+            seen.add(word_lc)
+            if word_lc not in preferred_case:
+                preferred_case[word_lc] = word
+
+    return preferred_case
+
+def get_counts(filename):
+    counts = defaultdict(int)
+    with open(filename) as infile:
+        rows = csv.reader(infile)
+
+        for x, row in enumerate(rows):
+            if x == 0:
+                continue
+            count = row[0]
+            word = row[1]
+
+            # resolve phrase forms to phrase lemmas
+            lemmas = drae_links.get(word, [word])
+            for lemma in set(lemmas):
+                counts[lemma] += int(count)
+
+
 def main():
 
     import argparse
@@ -43,13 +75,11 @@ def main():
 
     forced_forms = load_forced_forms(args.forced_forms)
 
-    preferred_case = {}
-    with open(args.counts) as infile:
-        for line in infile:
-            word, count = line.strip().split('\t')
-            word_lc = word.lower()
-            if word_lc not in preferred_case:
-                preferred_case[word_lc] = word
+    preferred_case = get_preferred_case(args.counts)
+
+    drae_links, must_link_by_id = DraeFixer.load_links(args.drae_links)
+
+    counts = get_counts(args.freq)
 
     res = []
     res.append("<!--IGNORE (any items inside this comment block will be excluded from the report when this page is refreshed)")
@@ -59,26 +89,9 @@ def main():
             for line in infile:
                 line = line.rstrip()
                 res.append(line)
-                if line:
+                if line.startswith(":"):
                     ignore_lines.add(line)
     res.append("-->\n")
-
-    drae_links, must_link_by_id = DraeFixer.load_links(args.drae_links)
-
-    counts = defaultdict(int)
-    with open(args.freq) as infile:
-        rows = csv.reader(infile)
-
-        for x, row in enumerate(rows):
-            if x == 0:
-                continue
-            count = row[0]
-            word = row[1]
-
-            # resolve phrase forms to phrase lemmas
-            lemmas = drae_links.get(word, [word])
-            for lemma in set(lemmas):
-                counts[lemma] += int(count)
 
     results = []
     for lemma in wordlist.all_entries.keys():
@@ -104,7 +117,7 @@ def main():
             continue
 
         if not has_real_entry(wordlist, lemma):
-            print("Skipping", lemma, file=sys.stderr)
+            print("Skipping placeholder", lemma, file=sys.stderr)
             continue
 
         clean_lemma = lemma.replace("[", "").replace("]", "")
@@ -119,8 +132,11 @@ def main():
     total = 0
     for count, lemma, forms, targets in results:
 
-        if " " not in lemma and preferred_case.get(lemma, lemma) != lemma:
-            continue
+        if " " not in lemma:
+            alt_case = preferred_case.get(lemma, lemma)
+            if alt_case != lemma:
+                print("Skipping alt-case", lemma, alt_case, file=sys.stderr)
+                continue
 
         links = []
         for target in sorted(set(targets)):
