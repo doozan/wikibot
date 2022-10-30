@@ -58,9 +58,9 @@ def main():
         with open(args.ignore) as infile:
             for line in infile:
                 line = line.rstrip()
+                res.append(line)
                 if line:
                     ignore_lines.add(line)
-                    res.append(line)
     res.append("-->\n")
 
     drae_links, must_link_by_id = DraeFixer.load_links(args.drae_links)
