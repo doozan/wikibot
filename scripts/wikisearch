@@ -24,7 +24,15 @@ from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
 from enwiktionary_parser.languages.all_ids import languages as lang_ids
 
 from autodooz.wikimatch import get_matches, format_matches
+from pywikibot import xmlreader
 
+
+def iter_articles(filename):
+    if ".txt.bz2" in filename:
+        return WikiExtractWithRev.iter_articles_from_bz2(filename)
+    if ".xml.bz2" in filename:
+        dump = xmlreader.XmlDump(filename)
+        return dump.parse()
 
 def main():
 
@@ -63,7 +71,9 @@ def main():
 
     all_matches = []
 
-    for article in WikiExtractWithRev.iter_articles_from_bz2(args.filename):
+    for article in iter_articles(args.filename):
+        if ":" in article.title:
+            continue
 
         match_context = "section" if args.section else "line"
         matches = get_matches(article.title, article.text, re_match, re_not, match_context, args.nopath, path_filter=args.path_filter)
@@ -77,7 +87,7 @@ def main():
 
         lines = format_matches(matches, article.text, args.nopath,
                     expand_matches=args.expand_matches,
-                    compact=not args.full, revision=article.revision)
+                    compact=not args.full, revision=article.revisionid)
 
         if not lines:
             continue
