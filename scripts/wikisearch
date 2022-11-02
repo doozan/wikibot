@@ -51,6 +51,7 @@ def main():
     parser.add_argument("--nopath", help="Don't print path information", action="store_true")
     parser.add_argument("--full", help="Use full output", action="store_true")
     parser.add_argument("--section", help="Print entire section if it has matches", action="store_true")
+    parser.add_argument("--no-children", help="Don't print child sections of matching sections", action="store_true")
     parser.add_argument("--expand-matches", help="Print duplicate items individually", action="store_true")
 
 #    parser.add_argument("--in-template", help="search only within templates matching TEMPLATE pattern")
@@ -76,7 +77,15 @@ def main():
             continue
 
         match_context = "section" if args.section else "line"
-        matches = get_matches(article.title, article.text, re_match, re_not, match_context, args.nopath, path_filter=args.path_filter)
+        matches = get_matches(
+                article.title,
+                article.text,
+                re_match,
+                re_not,
+                match_context,
+                args.nopath,
+                path_filter=args.path_filter,
+                no_children=args.no_children)
         if not matches:
             continue
 
