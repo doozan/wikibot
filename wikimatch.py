@@ -51,7 +51,7 @@ class Section:
 
 _path_stack = []
 _path_count = defaultdict(int)
-def add_section(all_sections, line, start):
+def add_section(all_sections, line, start, no_children=False):
     global _path_count
     global _path_stack
 
@@ -60,8 +60,17 @@ def add_section(all_sections, line, start):
 
     if ":" in title:
         raise ValueError("section titles must not contain a colon (:)", line)
+
+    # If the sections don't include children, always set the previous section's
+    # end position when starting a new section
+    if no_children and _path_stack and _path_stack[-1].level != 0:
+        _path_stack[-1].end = start-1
+
+    # Remove any sections from the stack that are deeper than the current level
     while _path_stack and _path_stack[-1].level >= level:
-        _path_stack.pop().end = start-1
+        closed_section = _path_stack.pop()
+        if not no_children:
+            closed_section.end = start-1
 
     parent = _path_stack[-1] if _path_stack else None
     section = Section(title, level, None, start, None, parent)
@@ -92,7 +101,7 @@ def is_allowed(path_filter, section):
     # The filter is an allowlist, so if a given section.path matches the filter, it is allowed
     return re.match(path_filter, section.path)
 
-def get_matches(title, full_text, re_match, re_not, match_context, no_path, dotall=False, path_filter=None):
+def get_matches(title, full_text, re_match, re_not, match_context, no_path, dotall=False, path_filter=None, no_children=True):
 
     if match_context not in ["page", "L2", "section", "line", "none"]:
         raise ValueError("unhandled context", match_context)
@@ -135,9 +144,16 @@ def get_matches(title, full_text, re_match, re_not, match_context, no_path, dota
         return []
 
     for line, start in found_sections:
-        add_section(all_sections, line, start)
-    for section in _path_stack:
-        section.end = len(full_text)
+        add_section(all_sections, line, start, no_children)
+
+    if no_children:
+        # Only the first section (full page) and last section need to have the ending set
+        if _path_stack:
+            _path_stack[0].end = len(full_text)
+            _path_stack[-1].end = len(full_text)
+    else:
+        for section in _path_stack:
+            section.end = len(full_text)
 
     # re_not will block all results on the page if the not pattern matches anywhere in the page
     if re_not and re.search(re_not, full_text):
