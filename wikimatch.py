@@ -101,7 +101,7 @@ def is_allowed(path_filter, section):
     # The filter is an allowlist, so if a given section.path matches the filter, it is allowed
     return re.match(path_filter, section.path)
 
-def get_matches(title, full_text, re_match, re_not, match_context, no_path, dotall=False, path_filter=None, no_children=True):
+def get_matches(title, full_text, re_match, re_not, match_context, no_path, dotall=False, path_filter=None, no_children=False):
 
     if match_context not in ["page", "L2", "section", "line", "none"]:
         raise ValueError("unhandled context", match_context)
@@ -237,7 +237,7 @@ def get_matches(title, full_text, re_match, re_not, match_context, no_path, dota
 
 def format_matches(matches, *args, **kwargs):
     for match in matches:
-        yield from format_match(match, *args, **kwargs)
+        yield format_match(match, *args, **kwargs)
 
 def get_match_position(match, expand_matches=False):
     """ Returns a string (possibly blank) containg section and match indexes
@@ -263,7 +263,7 @@ def get_match_position(match, expand_matches=False):
 
 def format_match(match, full_text, *args, **kwargs):
     text = full_text[match.start:match.end]
-    yield from format_item(match, text, *args, **kwargs)
+    return format_item(match, text, *args, **kwargs)
 
 def format_fix(match, fix, full_text, *args, **kwargs):
 
@@ -275,7 +275,7 @@ def format_fix(match, fix, full_text, *args, **kwargs):
     else:
         raise ValueError("unsupported fix.type: {fix.type}")
 
-    yield from format_item(match, new_text, *args, **kwargs)
+    return format_item(match, new_text, *args, **kwargs)
 
 
 def get_fixed_text(match, fix, text, title, *args, **kwargs):
@@ -301,13 +301,17 @@ def format_item(match, text, nopath=False, expand_matches=False, compact=True, r
     position = get_match_position(match, expand_matches)
     if position is None:
         return
-        yield
 
     path = match.path
 
+    title = f'{path}:{position}'
+    return format_entry(title, text, compact)
+
+def format_entry(title, text, compact):
     if compact:
+        text = text.rstrip("\n")
         if "\n" in text:
-            raise ValueError("compact mode, but match has newline")
-        yield(f'{path}:{position}: {text}')
+            raise ValueError("compact mode, but text contains has newline")
+        return f'{title}: {text}'
     else:
-        yield(f"_____{path}:{position}_____\n{text}")
+        return f"_____{title}_____\n{text}"

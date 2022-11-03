@@ -70,14 +70,14 @@ class Logger:
         match, fix = patch
 
         if self.matches:
-            lines = wikimatch.format_match(match, entry.text, compact=self.compact)
-            if lines:
-                print("\n".join(lines), file=self.matches)
+            entry = wikimatch.format_match(match, entry.text, compact=self.compact)
+            if entry:
+                print(entry, file=self.matches)
 
         if self.fixes:
-            lines = wikimatch.format_fix(match, fix, entry.text, compact=self.compact)
-            if lines:
-                print("\n".join(lines), file=self.fixes)
+            entry = wikimatch.format_fix(match, fix, entry.text, compact=self.compact)
+            if entry:
+                print(entry, file=self.fixes)
 
 log = None
 

@@ -70,7 +70,7 @@ def main():
     re_not = re.compile(args.re_not) if args.re_not else None
     re_match = args.pattern
 
-    all_matches = []
+    all_matches = {}
 
     for article in iter_articles(args.filename):
         if ":" in article.title:
@@ -94,21 +94,21 @@ def main():
             match_text = article.text[start:end]
             full_matches.append((path, section_target, match_text))
 
-        lines = format_matches(matches, article.text, args.nopath,
+        entries = format_matches(matches, article.text, args.nopath,
                     expand_matches=args.expand_matches,
                     compact=not args.full, revision=article.revisionid)
 
-        if not lines:
+        if not entries:
             continue
 
         if args.sort:
-            all_matches[article.title] = lines
+            all_matches[article.title] = entries
         else:
-            print("\n".join(lines))
+            print("\n".join(entries))
 
     if args.sort:
-        for page, lines in sorted(all_matches.items(), key=lambda x: x[0]):
-            print("\n".join(lines))
+        for page, entries in sorted(all_matches.items(), key=lambda x: x[0]):
+            print("\n".join(entries))
 
 if __name__ == "__main__":
     main()
