@@ -71,7 +71,7 @@ def load_fixfile(filename):
                 res[header] = line.rstrip("\n")
             return res
 
-def make_patches(fixes, text, title, path_filter, match_context):
+def make_patches(fixes, text, title, path_filter, match_context, no_children):
     """ Returns a list of (Match, Fix) """
 
     global_fixes = fixes.get('', []) # global fixes
@@ -87,7 +87,7 @@ def make_patches(fixes, text, title, path_filter, match_context):
 
     patches = []
     for fix in fixes:
-        matches = get_fix_matches(fix, text, title, path_filter, match_context)
+        matches = get_fix_matches(fix, text, title, path_filter, match_context, no_children)
         if not matches:
             if page_fixes:
                 raise ValueError(f"Failed to prepare patch for '{title}', page has probably changed")
@@ -99,7 +99,7 @@ def make_patches(fixes, text, title, path_filter, match_context):
 
     return patches
 
-def get_fix_matches(fix, text, title, path_filter, match_context):
+def get_fix_matches(fix, text, title, path_filter, match_context, no_children):
     """Returns start, end line numbers affected by the given fix
     Returns None if fix can't be applied unambiguously to the given text
     """
@@ -128,7 +128,8 @@ def get_fix_matches(fix, text, title, path_filter, match_context):
             re_not = None,
             match_context=match_context,
             no_path = False,
-            path_filter=path_filter)
+            path_filter=path_filter,
+            no_children=no_children)
 
     if not matches:
         return
@@ -200,8 +201,10 @@ def load_fixes(oldFile, newFile):
     indexed = defaultdict(lambda: defaultdict(list))
     for title, entry in new.items():
         if first:
-            # skip items that start with "00-"
+            # Leading entries that begin "00-" are meta entries
+            # that may contain skip items that start with "00-"
             if title.startswith("00-"):
+                # TODO: handle the entry
                 continue
 
             first = False
@@ -346,18 +349,16 @@ class WikiExtractReplacePageGenerator:
     :type exceptions: dict
     """
 
-    def __init__(self, filename, start, fixes, exceptions, site, context, path_filter=None, read_only=False, limit=0):
+    def __init__(self, filename, start, fixes, exceptions, site, opt):
+
         """Initializer."""
         self.filename = filename
         self.exceptions = exceptions
         self.start = start
         self.skipping = bool(start)
         self.fixes = fixes
-        self.path_filter = path_filter
-        self.read_only = read_only
-        self.limit = limit
+        self.opt = opt
         self.count = 0
-        self.context = context
 
 #        self.replacements = []
 #        for fix in fixes:
@@ -403,7 +404,7 @@ class WikiExtractReplacePageGenerator:
                         or self.isTextExcepted(entry.text):
                     continue
 
-                patches = make_patches(self.fixes, entry.text, entry.title, self.path_filter, self.context)
+                patches = make_patches(self.fixes, entry.text, entry.title, self.opt.path_filter, self.opt.context, self.opt.no_children)
 
                 if not patches:
                     continue
@@ -412,11 +413,11 @@ class WikiExtractReplacePageGenerator:
                     log.log_patch(patch, entry)
 
                 self.count += 1
-                if self.limit and self.count >= self.limit:
+                if self.opt.limit and self.count >= self.opt.limit:
                     print("limit reached, exiting", file=sys.stderr)
                     exit()
 
-                if self.read_only:
+                if self.opt.read_only:
                     continue
 
                 yield pywikibot.Page(self.site, entry.title)
@@ -483,7 +484,8 @@ class AutoDooz(
             'summary': None,
             'path_filter': None,
             'limit': None,
-            'context': None
+            'context': None,
+            'no_children': False,
         })
         super().__init__(generator=generator, **kwargs)
         self.fixes = fixes
@@ -524,7 +526,7 @@ class AutoDooz(
         if ":" in title:
             return
 
-        patches = make_patches(self.fixes, text, title, self.opt.path_filter, self.opt.context)
+        patches = make_patches(self.fixes, text, title, self.opt.path_filter, self.opt.context, self.opt.no_children)
         if not patches:
             return
 
@@ -722,8 +724,7 @@ def main(*args: str) -> None:
             print("--path-filter must be specified when making changes using wikiextracts (recommended --path-filter '.*?:Language:')")
             exit(1)
 
-        gen = WikiExtractReplacePageGenerator(args.file, args.start,
-                fixes, {}, site, args.context, args.path_filter, args.read_only, args.limit)
+        gen = WikiExtractReplacePageGenerator(args.file, args.start, fixes, {}, site, args)
 
 
     if not args.summary and not args.read_only:
