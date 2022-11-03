@@ -13,7 +13,6 @@ from pywikibot.bot import (
     AutomaticTWSummaryBot,
     ConfigParserBot,
     ExistingPageBot,
-    NoRedirectPageBot,
     SingleSiteBot,
 )
 
@@ -134,12 +133,12 @@ def get_fix_matches(fix, text, title, path_filter, match_context):
     if not matches:
         return
 
-    if fix.type in ["section", "line"] and not validate_matches(matches, fix):
+    if fix.type in ["section", "line"] and not validate_matches(text, matches, fix):
         return
 
     return matches
 
-def validate_matches(matches, fix):
+def validate_matches(text, matches, fix):
 
     if fix.pos.target_max and (fix.pos.target_max == "*" or fix.pos.target_max > 1):
         if fix.pos.target_max != "*" and fix.pos.target_max != len(matches):
@@ -287,7 +286,7 @@ def load_fixes(oldFile, newFile):
 #        print("Loading revisions")
 #        for article in WikiExtractWithRev.iter_articles_from_bz2(self.opt.dump):
 #            if article.title in self.fixes:
-#                self.revisions[article.title] = int(article.revision)
+#                self.revisions[article.title] = int(article.revisionid)
 #        print("Ready to rock")
 
     return all_fixes
@@ -340,10 +339,10 @@ class WikiExtractReplacePageGenerator:
 
     These pages will be retrieved from a local wixi extract file.
 
-    :param xmlFilename: The dump's path, either absolute or relative
-    :type xmlFilename: str
-    :param xmlStart: Skip all articles in the dump before this one
-    :type xmlStart: str
+    :param filename: The dump's path, either absolute or relative
+    :type filename: str
+    :param start: Skip all articles in the dump before this one
+    :type start: str
     :param fixes: A list of Fix objects
     :type fixes: list of Fix objects
     :param exceptions: A dictionary which defines when to ignore an
@@ -351,12 +350,12 @@ class WikiExtractReplacePageGenerator:
     :type exceptions: dict
     """
 
-    def __init__(self, wxtFilename, wxtStart, fixes, exceptions, site, context, path_filter=None, read_only=False, limit=0):
+    def __init__(self, filename, start, fixes, exceptions, site, context, path_filter=None, read_only=False, limit=0):
         """Initializer."""
-        self.wxtFilename = wxtFilename
+        self.filename = filename
         self.exceptions = exceptions
-        self.wxtStart = wxtStart
-        self.skipping = bool(wxtStart)
+        self.start = start
+        self.skipping = bool(start)
         self.fixes = fixes
         self.path_filter = path_filter
         self.read_only = read_only
@@ -378,28 +377,38 @@ class WikiExtractReplacePageGenerator:
         if 'inside' in self.exceptions:
             self.excsInside += self.exceptions['inside']
 
-
-        from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
         if site:
             self.site = site
         else:
             self.site = pywikibot.Site()
-        self.parser = WikiExtractWithRev.iter_articles_from_bz2(wxtFilename)
+
+        if filename.endswith(".xml.bz2"):
+            dump = pywikibot.xmlreader.XmlDump(filename)
+            self.parser = dump.parse()
+
+        elif filename.endswith(".txt.bz2"):
+            from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
+            self.parser = WikiExtractWithRev.iter_articles_from_bz2(filename)
+
+        else:
+            print("unrecognized file type", filename)
+            exit(1)
+
 
     def __iter__(self):
         """Iterator method."""
         try:
             for entry in self.parser:
                 if self.skipping:
-                    if entry.title != self.wxtStart:
+                    if entry.title != self.start:
                         continue
                     self.skipping = False
-                    continue
                 if self.isTitleExcepted(entry.title) \
                         or self.isTextExcepted(entry.text):
                     continue
 
                 patches = make_patches(self.fixes, entry.text, entry.title, self.path_filter, self.context)
+
                 if not patches:
                     continue
 
@@ -407,7 +416,7 @@ class WikiExtractReplacePageGenerator:
                     log.log_patch(patch, entry)
 
                 self.count += 1
-                if self.limit and self.count > self.limit:
+                if self.limit and self.count >= self.limit:
                     print("limit reached, exiting", file=sys.stderr)
                     exit()
 
@@ -420,7 +429,7 @@ class WikiExtractReplacePageGenerator:
             with suppress(NameError):
                 if not self.skipping:
                     pywikibot.output(
-                        'To resume, use "-wxtstart:{}" on the command line.'
+                        'To resume, use "--start:{}" on the command line.'
                         .format(entry.title))
 
     def isTitleExcepted(self, title):
@@ -429,6 +438,8 @@ class WikiExtractReplacePageGenerator:
 
         :rtype: bool
         """
+        if ":" in title:
+            return True
         if 'title' in self.exceptions:
             for exc in self.exceptions['title']:
                 if exc.search(title):
@@ -466,10 +477,7 @@ class AutoDooz(
     # Refer pywikobot.bot for generic bot classes
     SingleSiteBot,  # A bot only working on one site
     ConfigParserBot,  # A bot which reads options from scripts.ini setting file
-    # CurrentPageBot,  # Sets 'current_page'. Process it in treat_page method.
-    #                  # Not needed here because we have subclasses
     ExistingPageBot,  # CurrentPageBot which only treats existing pages
-    NoRedirectPageBot,  # CurrentPageBot which only treats non-redirects
 ):
 
     def __init__(self, generator, fixes, **kwargs):
@@ -484,6 +492,13 @@ class AutoDooz(
         super().__init__(generator=generator, **kwargs)
         self.fixes = fixes
         self.count = 0
+
+
+    def current_page(self, page: 'pywikibot.page.BasePage') -> None:
+        # This never seems to get called, but ommitting it results in current_page() being called in
+        # pywikibot/bot.py which emits unwanted info on stdout when piping to files
+        raise ValueError("XX")
+
 
     def apply_patches(self, text, patches):
 
@@ -546,7 +561,6 @@ def main(*args: str) -> None:
     gen_factory = pagegenerators.GeneratorFactory()
     local_args = gen_factory.handle_args(local_args)
 
-
     import argparse
 
     parser = argparse.ArgumentParser(description="Search language extract for articles matching a given pattern")
@@ -554,7 +568,7 @@ def main(*args: str) -> None:
     parser.add_argument("--load-fixes", help="Load per-page replacement data from specified file (requires --load-matches)")
     parser.add_argument("--path-filter", help="Search only inside pages/sections('page:section:subsection:...') that match the given regex")
     parser.add_argument("--wxt", help="Read pages from a wiki extract file")
-    parser.add_argument("--wxtstart", help="Resume from a given page in the wiki extract file")
+    parser.add_argument("--start", help="Resume from a given page in the wiki extract file")
 
     parser.add_argument("--read-only", help="Only log matches/replacements, don't write any changes to wiki", action='store_true')
     parser.add_argument("--log-matches", help="Write matches to the given file (use - for stdout)")
@@ -570,6 +584,8 @@ def main(*args: str) -> None:
     parser.add_argument("--regex", help="Search/replace with regex patterns", action='store_true')
     parser.add_argument("--context", help="How much surrounding data in included with the match", choices=["line", "section", "none"], default="line")
     parser.add_argument("--limit", type=int, help="Stop after N pages have been fixed")
+
+    parser.add_argument("--no-children", help="Don't include child sections of matching sections", action="store_true")
 
     parser.add_argument("match", nargs='*')
 
@@ -619,6 +635,9 @@ def main(*args: str) -> None:
         if not args.log_matches:
             args.log_matches = "-"
 
+        if not args.regex and any("*" in m for m in args.match):
+            print("Warning: search term contains wildcard, but --regex not supplied, matching as literal string", file=sys.stderr)
+
     global log
 
     if args.nocompact:
@@ -632,7 +651,6 @@ def main(*args: str) -> None:
     if not args.read_only and not args.summary:
         print("--summary required when making changes")
         exit(1)
-
 
     if args.regex:
         args.mode = "regex"
@@ -675,15 +693,7 @@ def main(*args: str) -> None:
         fixes = load_fixes(args.load_matches, args.load_fixes)
         gen = ListPageGenerator(fixes.keys(), site)
 
-    if args.wxt:
-        if not args.read_only and not args.path_filter:
-            print("--path-filter must be specified when making changes using wikiextracts (recommended --path-filter '.*?:Language:')")
-            exit(1)
-
-        gen = WikiExtractReplacePageGenerator(args.wxt, args.wxtstart,
-                fixes, {}, site, args.context, args.path_filter, args.read_only, args.limit)
-
-    if not args.fix:
+    if not fixes and not args.fix:
         generated_fixes = []
 
         if not args.match:
@@ -714,6 +724,14 @@ def main(*args: str) -> None:
         if not len(args.match) == 2 and not args.search:
             print("no REPLACEMENT value provided, please specify or use --search to search without replacements", file=sys.stderr)
             exit(1)
+
+    if args.wxt:
+        if not args.read_only and not args.path_filter:
+            print("--path-filter must be specified when making changes using wikiextracts (recommended --path-filter '.*?:Language:')")
+            exit(1)
+
+        gen = WikiExtractReplacePageGenerator(args.wxt, args.start,
+                fixes, {}, site, args.context, args.path_filter, args.read_only, args.limit)
 
 
     if not args.summary and not args.read_only:
