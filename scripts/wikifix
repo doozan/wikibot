@@ -2,7 +2,7 @@
 
 from collections import defaultdict, namedtuple
 from enwiktionary_wordlist.wikiextract import WikiExtract, WikiExtractWithRev
-from autodooz.wikimatch import get_matches, format_match, format_fix, get_fixed_text
+import autodooz.wikimatch as wikimatch
 import re
 import sys
 
@@ -24,27 +24,58 @@ docuReplacements = {'&params;': pagegenerators.parameterHelp}  # noqa: N816
 FAILSAFE_TEXT="AUTODOOZ"
 
 class Logger:
-    def __init__(self, matchFilename, fixesFilename, compact):
-        self.matches = None
-        self.fixes = None
-        self.compact = compact
+    def __init__(self, opt):
+        self.opt = opt
+        self.first_patch = True
 
-        if matchFilename:
-            self.matches = sys.stdout if matchFilename == "-" else open(matchFilename, 'w')
+        if self.opt.nocompact:
+            self.compact = False
+        else:
+            # TODO: when adding --dotall, don't use compact mode
+            self.compact = self.opt.context in ["line", "none"]
 
-        if fixesFilename:
-            self.fixes = sys.stdout if fixesFilename == "-" else open(fixesFilename, 'w')
+        self.matches = sys.stdout if not opt.log_matches or opt.log_matches == "-" else open(opt.log_matches, 'w')
+        if opt.log_fixes:
+             self.fixes = sys.stdout if opt.log_fixes == "-" else open(opt.log_fixes, 'w')
+        else:
+            self.fixes = None
+
+    def dump_options(self):
+
+        meta_entries = []
+
+        entry = " ".join(sys.argv)
+        meta_entries.append(wikimatch.format_entry("00-autodooz-cmdline", entry, self.compact))
+
+#        arguments = vars(self.opt)
+#        values = []
+#        for k in ["context", "no_children"]:
+#            values.append(f"{k}={arguments.get(k)}")
+#
+#        joiner = "; " if self.compact else "\n"
+#        entry = joiner.join(values)
+#        if entry:
+#            meta_entries.append(wikimatch.format_entry("00-autodooz-forced-options", entry, self.compact))
+
+        for data in meta_entries:
+            print(data, file=self.matches)
+            if self.fixes and self.fixes != self.matches:
+                print(data, file=self.fixes)
 
     def log_patch(self, patch, entry):
+        if self.first_patch:
+            self.dump_options()
+            self.first_patch = False
+
         match, fix = patch
 
         if self.matches:
-            lines = format_match(match, entry.text, compact=self.compact)
+            lines = wikimatch.format_match(match, entry.text, compact=self.compact)
             if lines:
                 print("\n".join(lines), file=self.matches)
 
         if self.fixes:
-            lines = format_fix(match, fix, entry.text, compact=self.compact)
+            lines = wikimatch.format_fix(match, fix, entry.text, compact=self.compact)
             if lines:
                 print("\n".join(lines), file=self.fixes)
 
@@ -121,7 +152,7 @@ def get_fix_matches(fix, text, title, path_filter, match_context, no_children):
     else:
         raise ValueError("unhandled fix.type", fix.type)
 
-    matches = get_matches(
+    matches = wikimatch.get_matches(
             title,
             text,
             re_match,
@@ -512,7 +543,7 @@ class AutoDooz(
             prev_match = match
 
             messages = []
-            new_text = get_fixed_text(match, fix, text, self.current_page.title(), messages)
+            new_text = wikimatch.get_fixed_text(match, fix, text, self.current_page.title(), messages)
 
             t[match.start:match.end] = new_text
 
@@ -534,7 +565,7 @@ class AutoDooz(
             log.log_patch(patch, self.current_page)
 
         self.count += 1
-        if self.opt.limit and self.count > self.opt.limit:
+        if self.opt.limit and self.count >= self.opt.limit:
             print("limit reached, exiting", file=sys.stderr)
             exit()
 
@@ -552,10 +583,9 @@ class AutoDooz(
         self.put_current(new_text, summary=self.opt.summary)
 
 
-def main(*args: str) -> None:
-    options = {}
+def main():
 
-    local_args = pywikibot.handle_args(args)
+    local_args = pywikibot.handle_args()
     gen_factory = pagegenerators.GeneratorFactory()
     local_args = gen_factory.handle_args(local_args)
 
@@ -576,7 +606,7 @@ def main(*args: str) -> None:
 
     parser.add_argument("--summary", help="Summary message to use when saving wiki page")
 
-    parser.add_argument("--search", help="Treats all input as search paramaters, makes no replacements (implies --read-only and --log-matches -)", action="store_true")
+    parser.add_argument("--search", help="Only search for the given pattern, make no replacements (implies --read-only and --log-matches -)", action='append')
 
     parser.add_argument("--nocompact", help="Don't log matches in compact mode", action='store_true')
     parser.add_argument("--regex", help="Search/replace with regex patterns", action='store_true')
@@ -633,17 +663,9 @@ def main(*args: str) -> None:
         if not args.log_matches:
             args.log_matches = "-"
 
-        if not args.regex and any("*" in m for m in args.match):
-            print("Warning: search term contains wildcard, but --regex not supplied, matching as literal string", file=sys.stderr)
-
     global log
 
-    if args.nocompact:
-        compact = False
-    else:
-        # TODO: when adding --dotall, don't use compact mode
-        compact = args.context in ["line", "none"]
-    log = Logger(args.log_matches, args.log_fixes, compact)
+    log = Logger(args)
 
 
     if not args.read_only and not args.summary:
@@ -698,13 +720,14 @@ def main(*args: str) -> None:
     if not fixes and not args.fix:
         generated_fixes = []
 
-        if not args.match:
-            print("no search/replace values provided")
-            exit(1)
-
         if args.search:
+            if args.match:
+                print("--search cannot be used with additional MATCHES values")
+
             replacement = FAILSAFE_TEXT
-            for search in args.match:
+            for search in args.search:
+                if not args.regex and "*" in search:
+                    print(f"Warning: search term '{search}' contains wildcard, but --regex not supplied, matching as literal string", file=sys.stderr)
                 generated_fixes.append(Fix(None, None, search, replacement, args.mode))
 
         else:
