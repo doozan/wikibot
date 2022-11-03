@@ -121,14 +121,18 @@ def get_matches(title, full_text, re_match, re_not, match_context, no_path, dota
             or not no_path:
         needs_sections = True
 
-    pattern = rf"(?P<pat>{re_match})|(?P<section>^==+.*?==+)" if needs_sections else re_match
 
+
+    # It's slower having to scan the text twice, but combining the section matching and the pattern matching
+    # makes it impossible for pattern matches to overlap section titles, which is needed for matching the exact section
     found_sections = []
-    for m in wiki_finditer(pattern, full_text, re.MULTILINE, ignore_comments=False, ignore_nowiki=True, ignore_templates=True):
-
-        if needs_sections and m.group("section"):
+    if needs_sections:
+        pattern = "^==+.*?==+"
+        for m in wiki_finditer(pattern, full_text, re.MULTILINE, ignore_comments=False, ignore_nowiki=True, ignore_templates=True):
             found_sections.append((m.group(0), m.start()))
-            continue
+
+    pattern = re_match
+    for m in wiki_finditer(pattern, full_text, re.MULTILINE, ignore_comments=False, ignore_nowiki=True, ignore_templates=True):
 
         start = m.start()
         end = m.end()
