@@ -198,43 +198,46 @@ def load_fixes(oldFile, newFile):
 
     first = True
     indexed = defaultdict(lambda: defaultdict(list))
-    for k,v in new.items():
+    for title, entry in new.items():
         if first:
-            # TODO: skip items that start with "00-"
+            # skip items that start with "00-"
+            if title.startswith("00-"):
+                continue
+
             first = False
 
         # TODO: support for "range" fixes?
-        fix_type = "line" if "\n" not in v else "section"
+        fix_type = "line" if "\n" not in entry else "section"
 
         # New file references a page that wasn't in the oldfile
-        if k not in old:
+        if title not in old:
             errors.add("new_page")
-            print(f"{k} not found in {old}")
+            print(f"{title} exists in {newFile} but not in {oldFile}")
             continue
 
         # No changes between the two targets
-        if old[k] == v:
+        if old[title] == entry:
             continue
 
-        page,*path,position = k.split(":")
+        page,*path,position = title.split(":")
         if path:
             path = tuple(path)
 
-        if v.strip() == "":
+        if entry.strip() == "":
             errors.add("blank_replacement")
-            print(f"ERROR: {k}: replacement text is empty", file=sys.stderr)
+            print(f"ERROR: {title}: replacement text is empty", file=sys.stderr)
 
-        error = check_balanced(v)
+        error = check_balanced(entry)
         if error:
             errors.add("bad_replacement")
-            print(f"ERROR: {k}: {error}", file=sys.stderr)
+            print(f"ERROR: {title}: {error}", file=sys.stderr)
 
-        if FAILSAFE_TEXT in v:
+        if FAILSAFE_TEXT in entry:
             errors.add("fix_has_failsafe")
-            print(f"ERROR: {k}: fix contains failsafe text '{FAILSAFE_TEXT}': '{v}' ", file=sys.stderr)
+            print(f"ERROR: {title}: fix contains failsafe text '{FAILSAFE_TEXT}': '{entry}' ", file=sys.stderr)
 
         pos = parse_position(position)
-        fix = Fix(path, pos, old[k], v, fix_type)
+        fix = Fix(path, pos, old[title], entry, fix_type)
 
         if pos.section_max:
             raise ValueError("indexed sections not yet supported")
@@ -253,24 +256,24 @@ def load_fixes(oldFile, newFile):
             unique_max = list({f.pos.target_max for f in fixes})
             if len(unique_max) != 1:
                 errors.add("multi_target_max")
-                print(f"ERROR: {k}: has differing max values {[f.pos for f in fixes]}", file=sys.stderr)
+                print(f"ERROR: {page} {section}: has differing max values {[f.pos for f in fixes]}", file=sys.stderr)
                 continue
 
             # fail on duplicate index keys
             unique_idx = list({f.pos.target_idx for f in fixes})
             if len(unique_idx) != len(fixes):
                 errors.add("dup_index")
-                print(f"ERROR: {k}: has duplicate index values {[f.pos for f in fixes]}", file=sys.stderr)
+                print(f"ERROR: {page} {section}: has duplicate index values {[f.pos for f in fixes]}", file=sys.stderr)
                 continue
 
             if "*" in unique_idx:
                 if len(unique_idx) != 1:
                     errors.add("mixed_wildcard")
-                    print(f"ERROR: {k}: has wildcard with other index values {[f.pos for f in fixes]}", file=sys.stderr)
+                    print(f"ERROR: {page} {section}: has wildcard with other index values {[f.pos for f in fixes]}", file=sys.stderr)
                     continue
 
             elif len(fixes) != unique_max[0]:
-                print(f"WARNING: {k}: is missing an indexed item seen: {sorted(unique_indices)}", file=sys.stderr)
+                print(f"WARNING: {page} {section}: is missing an indexed item seen: {sorted(unique_indices)}", file=sys.stderr)
 
             all_fixes[page] += fixes
 
@@ -281,13 +284,6 @@ def load_fixes(oldFile, newFile):
     if errors:
         # TODO: check if it's allowed to run with errors
         raise ValueError("fix files have errors, not running")
-
-#        self.revisions = {}
-#        print("Loading revisions")
-#        for article in WikiExtractWithRev.iter_articles_from_bz2(self.opt.dump):
-#            if article.title in self.fixes:
-#                self.revisions[article.title] = int(article.revisionid)
-#        print("Ready to rock")
 
     return all_fixes
 
@@ -567,8 +563,8 @@ def main(*args: str) -> None:
     parser.add_argument("--load-matches", help="Load per-page match data from specified file")
     parser.add_argument("--load-fixes", help="Load per-page replacement data from specified file (requires --load-matches)")
     parser.add_argument("--path-filter", help="Search only inside pages/sections('page:section:subsection:...') that match the given regex")
-    parser.add_argument("--wxt", help="Read pages from a wiki extract file")
-    parser.add_argument("--start", help="Resume from a given page in the wiki extract file")
+    parser.add_argument("--file", help="Read pages from a wiki dump or language extract file")
+    parser.add_argument("--start", help="Resume from a given page in the file")
 
     parser.add_argument("--read-only", help="Only log matches/replacements, don't write any changes to wiki", action='store_true')
     parser.add_argument("--log-matches", help="Write matches to the given file (use - for stdout)")
@@ -677,16 +673,20 @@ def main(*args: str) -> None:
         print("--fix and --load-matches can't be combined")
         exit(1)
 
-    if args.fix and args.match:
+    if (args.fix or args.load_fixes) and args.match:
         print("--fix can't be mixed with command-line search/replace options")
         exit(1)
 
-    if args.load_matches and args.wxt:
-        print("--load-matches can't be used with --wxt")
+    if args.load_matches and args.file:
+        print("--load-matches can't be used with --file")
         exit(1)
 
     if args.load_matches and args.fix:
         print("--load-matches can't be used with --fix")
+        exit(1)
+
+    if gen and args.load_matches:
+        print("--load-matches can't be used with pwb generators (-search, etc)")
         exit(1)
 
     if args.load_matches:
@@ -717,20 +717,12 @@ def main(*args: str) -> None:
 
         fixes = {'': generated_fixes}
 
-        if not args.match:
-            print("no SEARCH term provided")
-            exit(1)
-
-        if not len(args.match) == 2 and not args.search:
-            print("no REPLACEMENT value provided, please specify or use --search to search without replacements", file=sys.stderr)
-            exit(1)
-
-    if args.wxt:
+    if args.file:
         if not args.read_only and not args.path_filter:
             print("--path-filter must be specified when making changes using wikiextracts (recommended --path-filter '.*?:Language:')")
             exit(1)
 
-        gen = WikiExtractReplacePageGenerator(args.wxt, args.start,
+        gen = WikiExtractReplacePageGenerator(args.file, args.start,
                 fixes, {}, site, args.context, args.path_filter, args.read_only, args.limit)
 
 
