@@ -331,7 +331,7 @@ class FormFixer():
         if form_obj.lemma_genders == ["m", "f"]:
             if plural:
                 return "g=m-p|g2=f-p"
-            raise ValueError("xx", f"It seems like {lemma} can only take a plural, but {formtype} is not plural")
+            raise ValueError("xx", f"It seems like {form_obj.lemma} can only take a plural, but {form_obj.formtype} is not plural")
 
         elif form_obj.lemma_genders == ["m"]:
             if form_obj.pos == "adj" and form_obj.formtype in ["fpl", "f"]:
