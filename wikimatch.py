@@ -267,18 +267,25 @@ def format_match(match, full_text, *args, **kwargs):
 
 def format_fix(match, fix, full_text, *args, **kwargs):
 
-    if fix.type in ["section", "line"]:
+    if fix.type == "function":
+        summary = []
+        title = match.path.partition(":")[0]
+        new_text = fix.old(full_text, title, summary, fix.new)
+    elif fix.type in ["section", "line"]:
         new_text = fix.new
     elif fix.type in "regex":
         title = match.path.partition(":")[0]
         new_text = get_fixed_text(match, fix, full_text, title)
     else:
-        raise ValueError("unsupported fix.type: {fix.type}")
+        raise ValueError(f"unsupported fix.type: {fix.type}")
 
     return format_item(match, new_text, *args, **kwargs)
 
 
-def get_fixed_text(match, fix, text, title, *args, **kwargs):
+def get_fixed_text(match, fix, text, title, summary, *args, **kwargs):
+    if fix.type == "function":
+        return fix.old(text, title, summary, fix.new)
+
     if fix.type in ["section", "line"]:
         return fix.new
 
@@ -293,7 +300,7 @@ def get_fixed_text(match, fix, text, title, *args, **kwargs):
         old_text = text[match.start:match.end]
         return re.sub(old, new, old_text)
 
-    raise ValueError("unsupported fix.type: {fix.type}")
+    raise ValueError(f"unsupported fix.type: {fix.type}")
 
 
 def format_item(match, text, nopath=False, expand_matches=False, compact=True, revision=None):
