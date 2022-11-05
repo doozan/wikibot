@@ -36,7 +36,7 @@ def get_preferred_case(filename):
 
     return preferred_case
 
-def get_counts(filename):
+def get_counts(filename, drae_links):
     counts = defaultdict(int)
     with open(filename) as infile:
         rows = csv.reader(infile)
@@ -51,6 +51,8 @@ def get_counts(filename):
             lemmas = drae_links.get(word, [word])
             for lemma in set(lemmas):
                 counts[lemma] += int(count)
+
+    return counts
 
 
 def main():
@@ -79,7 +81,7 @@ def main():
 
     drae_links, must_link_by_id = DraeFixer.load_links(args.drae_links)
 
-    counts = get_counts(args.freq)
+    counts = get_counts(args.freq, drae_links)
 
     res = []
     res.append("<!--IGNORE (any items inside this comment block will be excluded from the report when this page is refreshed)")
