@@ -141,7 +141,14 @@ def get_matches(title, full_text, re_match, re_not, match_context, no_path, dota
             start = full_text.rfind("\n", 0, start)
             if start != 0:
                 start += 1
+
+            # When matching by line, extend the match to the end of the line
             end = full_text.find("\n", end)
+            # If the texts matches in the middle of the last line, there will be
+            # no traling newline. In this case, extend the match to the end of the text
+            if end == -1:
+                end = len(full_text)
+
         page_matches.append((start, end))
 
     if not page_matches:
