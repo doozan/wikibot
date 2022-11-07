@@ -1,6 +1,8 @@
 #import locale
 import re
 
+from autodooz.sectionparser import SectionParser
+
 # this reads the environment and inits the right locale
 #locale.setlocale(locale.LC_ALL, "")
 
@@ -237,8 +239,6 @@ bottom_sort = {k:v for v,k in enumerate([
 
 ALL_L3_SECTIONS = COUNTABLE_SECTIONS | WT_ELE | ALL_POS.keys() | top_sort.keys() | bottom_sort.keys()
 
-L3_SORT_LANGUAGES = ["Spanish"]
-
 def is_form(section):
     return bool(re.search(r"{{(head|head-lite)\s*\|[^}]* form", str(section))) or "{{es-past participle}}" in str(section)
 
@@ -268,3 +268,43 @@ def get_l3_sort_key(item, alt_first=False):
         #error("Unexpected section:", item.title)
 
     return (sort_group, sort_class, sort_item)
+
+
+# Called by wikifix
+def sort_l2(text, title, summary, options):
+
+    entry = SectionParser(text, title)
+    old = str(entry).rstrip()
+    sort_languages(entry)
+    res = str(entry).rstrip()
+
+    if res == old:
+        return text
+
+    summary.append("Sorted L2 languages per WT:ELE")
+
+    return res
+
+def es_sort_l3(text, title, summary, options):
+
+    if ":" in title:
+        return text
+
+    entry = SectionParser(text, title)
+    languages = entry.filter_sections(matches=lambda x: x.title in ["Spanish"], recursive=False)
+
+    changed = False
+    for language in languages:
+        old = str(language)
+        sort_pos(language)
+        if str(language) != old:
+            changed = True
+
+    if not changed:
+        return text
+
+    summary.append("/*Spanish*/ Sorted L3 sections per WT:ELE and lemmas before forms")
+
+    return str(entry).rstrip()
+
+

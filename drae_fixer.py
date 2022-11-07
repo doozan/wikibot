@@ -30,7 +30,7 @@ class DraeFixer():
                     form, link_id = items
                     link = form
                 else:
-                    raise ValueError("unhandled line", line)
+                    raise ValueError("unhandled line", line, filename)
 
                 # forms with question marks must use direct link id
                 if "?" in link:
@@ -53,7 +53,11 @@ class DraeFixer():
         return links
 
 
-    def fix_missing_drae(self, text, title, replacement=None):
+    def fix_missing_drae(self, text, title, summary):
+
+        # Skip single letters
+        if len(title) == 1:
+            return text
 
         entry = SectionParser(text, title)
         spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False), None)
@@ -71,11 +75,25 @@ class DraeFixer():
         target = targets[0]
         self.log("drae_link_missing_autofix", title, target)
 
-        line = "* " + self.make_drae_template(title, target)
+        drae_line = "* " + self.make_drae_template(title, target)
+
+
+        # Remove DRAE line if it appears in References or See also
+        remove_section = []
+        for section in spanish.ifilter_sections(matches=lambda x: x.title in ["Further reading", "See also", "References"]):
+            for line in section._lines:
+                section._lines = [l for l in section._lines if l != drae_line]
+            # IF the section is now empty, remove it
+            if not section._lines:
+                remove_section.append(section)
+        for section in remove_section:
+            idx = section.parent._children.index(section)
+            section.parent._children.pop(idx)
+
         section = next(spanish.ifilter_sections(matches=lambda x: x.title == "Further reading"), None)
 
         if section:
-            if line in str(section):
+            if drae_line in str(section):
                 return text
         else:
             section = Section(spanish, 3, "Further reading")
@@ -89,14 +107,14 @@ class DraeFixer():
             else:
                 spanish._children.append(section)
 
-        section._lines.insert(0, line)
+        section._lines.insert(0, drae_line)
 
-        if replacement:
-            replacement._edit_summary = "Spanish: added missing DRAE link"
+        if summary is not None:
+            summary.append("Spanish: added missing DRAE link")
 
-        return str(entry)
+        return str(entry).rstrip()
 
-    def fix_wrong_drae(self, text, title, replacement=None):
+    def fix_wrong_drae(self, text, title, summary=None):
 
         entry = SectionParser(text, title)
         spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False))
@@ -108,11 +126,13 @@ class DraeFixer():
         fixes = []
 
         # Validate existing links
+        targets = self.get_targets(text, title)
         for template in templates:
             target = self.get_template_target(template, title)
+            if not target and title in targets:
+                continue
 
-            targets = self.get_targets(text, title)
-            if not target in targets:
+            if not target in targets or target == title:
                 if targets:
                     if target != title:
                         if " " in title and " " not in target:
@@ -147,15 +167,15 @@ class DraeFixer():
                 new_lines.append(line.replace(old, new))
             section._lines = new_lines
 
-        if replacement:
-            replacement._edit_summary = "Spanish: adjusted DRAE link"
+        if summary is not None:
+            summary.append("Spanish: adjusted DRAE link")
 
         return str(entry)
 
     @staticmethod
     def get_template_target(template, title):
         if template.group(1) == "":
-            return title
+            return
 
         params = template.group(1).split("|")
         for param in params[1:]:
@@ -166,13 +186,15 @@ class DraeFixer():
                 target = params[1].split("=")[1].strip()
                 break
         else:
-            target = title
+            return
 
         return target.strip()
 
     @staticmethod
     def make_drae_template(title, target):
-        if "#" in target:
+        if target == title:
+            target = ""
+        elif "#" in target:
             page, _id = target.split("#")
             target = "|" + page + "|id=" + _id
         else:

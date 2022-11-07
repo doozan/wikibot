@@ -1876,7 +1876,7 @@ def test_add_new_word(fixrunner):
 # {{female equivalent of|es|chamo}}"""
 
     title = "chama"
-    res = fixrunner.add_forms(re.match("(?s).*", text), title)
+    res = fixrunner.add_forms(text, title)
 #    assert res.split("\n") == result.split("\n")
     assert res == text #result
 
@@ -2093,7 +2093,7 @@ def test_granados(fixrunner):
 """
 
     title = "granados"
-    res = fixrunner.add_forms(re.match("(?s).*", text), title)
+    res = fixrunner.add_forms(text, title)
 
     print(res)
     # Appended after the verb because the verb is L4 and not L3
@@ -2134,7 +2134,7 @@ def test_fulanos(fixrunner):
 
 
     title = "fulanos"
-    res = fixrunner.add_forms(re.match("(?s).*", text), title)
+    res = fixrunner.add_forms(text, title)
     assert res.split("\n") == result.split("\n")
 
 def test_delete_page(fixrunner):
@@ -2149,7 +2149,7 @@ def test_delete_page(fixrunner):
 """
 
     title = "test"
-    res = fixrunner.remove_forms(re.match("(?s).*", text), title)
+    res = fixrunner.remove_forms(text, title)
     assert res == text
 
 
@@ -2177,7 +2177,7 @@ def test_female_lemma(fixrunner):
 """
 
     title = "abuelita"
-    res = fixrunner.replace_pos(re.match("(?s).*", text), title, None, ["n"])
+    res = fixrunner.replace_pos(text, title, None, ["n"])
     assert res == text
 
 
@@ -2205,7 +2205,7 @@ def test_female_lemma2(fixrunner):
 """
 
     title = "abuelita"
-    res = fixrunner.replace_pos(re.match("(?s).*", text), title, None, ["n"])
+    res = fixrunner.replace_pos(text, title, None, ["n"])
     assert res == text
 
     # Deleted pages aren't changed, but an error is logged to error.log

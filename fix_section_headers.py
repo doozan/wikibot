@@ -5,7 +5,7 @@ from collections import defaultdict
 from enwiktionary_parser.languages import all_ids as language_constants
 from Levenshtein import distance as fuzzy_distance
 
-from autodooz.sectionparser import Section
+from autodooz.sectionparser import SectionParser, Section
 from autodooz.sort_sections import ALL_L3_SECTIONS, ALL_POS, COUNTABLE_SECTIONS
 
 
@@ -88,7 +88,7 @@ def fix_section_titles(entry):
     Spell check section titles
     """
 
-    changed = False
+    changes = []
     for section in entry.ifilter_sections():
         if "=" in section.title:
             continue
@@ -99,13 +99,11 @@ def fix_section_titles(entry):
         if section.title in ALLOWED_VARIATIONS:
             continue
 
-
         title = section.title.capitalize()
 
         if title in ALL_L3_SECTIONS:
-            changed = True
+            changes.append(f"/*{section.path}*/ renamed to {title}")
             section.title = title
-
 
         elif title.endswith("s") and title[:-1] in ALL_L3_SECTIONS:
             # Special handling for items like "Proverbs", "Idioms" that are allowed to appear below a POS section
@@ -114,28 +112,31 @@ def fix_section_titles(entry):
                 pass
 
             else:
-                changed = True
-                section.title = title[:-1]
+                new_title = title[:-1]
+                changes.append(f"/*{section.path}*/ renamed to {new_title}")
+                section.title = new_title
 #
 #        elif not title.endswith("s") and title + "s" in ALL_L3_SECTIONS:
 #            changed = True
 #            section.title = title + "s"
 
         elif title in TITLE_FIXES:
-            changed = True
-            section.title = TITLE_FIXES[title]
+            new_title = TITLE_FIXES[title]
+            changes.append(f"/*{section.path}*/ renamed to {new_title}")
+            section.title = new_title
 
         else:
             for word, max_typos in COMMON_TYPOS.items():
                 if fuzzy_distance(word, title) <= max_typos:
-                    section.title = word
-                    changed = True
+                    new_title = word
+                    changes.append(f"/*{section.path}*/ renamed to {new_title}")
+                    section.title = new_title
                     break
 
             # Unfixable
             pass
 
-    return changed
+    return changes
 
 
 def adjust_level(level, sections):
@@ -169,8 +170,9 @@ def fix_section_levels(entry):
 
 def fix_bad_l2(entry):
     """ Find known non-language sections that are L2 and move them into the previous L2 entry """
-    prev = None
+    changes = []
     reparent = []
+    prev = None
     for i, child in enumerate(entry._children):
         if child.level != 2:
             return
@@ -184,24 +186,26 @@ def fix_bad_l2(entry):
     # pop starting from the end so it doesn't change the index
     for idx, newparent in reversed(reparent):
         child = entry._children.pop(idx)
+        old_path = child.path
         newparent._children.append(child)
         child.level = 3
         adjust_level(3, child._children)
+        new_path = child.path
+        changes.append("/*{old_path}*/ moved errant L2 to {new_path}")
 
-    return bool(reparent)
+    return changes
 
 
 def fix_remove_pos_counters(entry):
     """ Ensure POS entries do not have a numeric counter """
 
-    changed = False
-
+    changes = []
     for section in entry.ifilter_sections():
         if section.count and section.title in ALL_POS:
-            changed = True
+            changes.append(f"/*{section.path}*/ removed counter from section title")
             section.count = None
 
-    return changed
+    return changes
 
 def fix_counters(entry):
 
@@ -235,7 +239,7 @@ def fix_counters(entry):
 
 def remove_empty_sections(entry):
 
-    changed = False
+    changes = []
     for section in reversed(list(entry.ifilter_sections())):
         if section.level == 2:
             continue
@@ -245,20 +249,19 @@ def remove_empty_sections(entry):
 
         if not section._lines and not section._children:
             section.parent._children.remove(section)
-            changed = True
+            changes.append(f"/*{section.path}*/ removed empty section")
 
-    return changed
+    return changes
 
 def add_missing_references(entry):
 
-    changed = False
-
+    changes = []
     for section in entry._children:
         if re.search(PATTERN_REF_TAGS, str(section)) and not re.search(PATTERN_REFS, str(section)):
             ref_section = next(section.ifilter_sections(matches=lambda x: x.title == "References"), None)
             if ref_section:
                 ref_section._lines.insert(0, "<references/>")
-                changed = True
+                changes.append(f"/*{ref_section.path}*/ added missing <references/>")
                 continue
 
             new_section = Section(entry, 3, "References")
@@ -270,21 +273,21 @@ def add_missing_references(entry):
             else:
                 section._children.append(new_section)
 
-            changed = True
+            changes.append(f"/*{section.path}*/ created missing References section")
 
-    return changed
+    return changes
 
 def move_misnamed_references(entry):
 
-    changed = False
+    changes = []
     for section in entry.ifilter_sections():
         if len(section._lines) == 1 \
                 and re.match(PATTERN_REFS, section._lines[0].strip()) \
                 and "References" not in section.lineage \
                 and section.title == "Further reading":
 
+                    changes.append(f"/*{section.path}*/ renamed to References")
                     section.title = "References"
-                    changed = True
 
                     target = section.parent
                     while target.level > 2 and target.parent.title not in COUNTABLE_SECTIONS:
@@ -294,9 +297,7 @@ def move_misnamed_references(entry):
 
                     found = False
                     for i, child in enumerate(section.parent._children, 0):
-                        print("check", i)
                         if child == section:
-                            print("pop", i, len(section.parent._children))
                             found = section.parent._children.pop(i)
                             break
                     if not found:
@@ -312,11 +313,12 @@ def move_misnamed_references(entry):
 
                     break
 
-    return changed
+    return changes
 
 
 def move_misplaced_translations(entry):
 
+    summary = []
     changes = []
     target = None
     found = False
@@ -341,15 +343,82 @@ def move_misplaced_translations(entry):
         # Translations shouldn't have any children, promote them to siblings before moving the translation
         while item._children:
             newparent = item.parent
+            old_path = item._children[-1].path
             child = item._children.pop()
-            print("moving child to", newparent.title, newparent.level, item.level)
             child.parent = newparent
             child.level = newparent.level + 1 # TODO: also re-level grandchildren
             newparent._children.insert(index, child)
+            new_path = child.path
+            summary.append(f"/*{old_path}*/ moved to {new_path}")
 
-        print("Moving to", target.title, target.level)
+        old_path = target.path
         item.parent = target
         item.level = target.level + 1
         target._children.append(item)
+        new_path = target.path
+        summary.append(f"/*{old_path}*/ moved to {new_path}")
 
-    return bool(changes)
+    return summary
+
+
+# called by wikifix to mass apply the above fixes
+def cleanup_sections(text, title, summary, custom):
+
+    if ":" in title or "/" in title:
+        return text
+
+    try:
+        changes = []
+        entry = SectionParser(text, title)
+
+        moved_categories = any(s._moved_categories for s in entry._children)
+        moved_categories and changes.append("moved categories to end of language, per WT:ELE")
+
+        dup_categories = any(s._duplicate_categories for s in entry._children)
+        dup_categories and changes.append("removed duplicate category declaration")
+
+        lang_separators = text.count("\n----")
+        if lang_separators != len(entry._children)-1:
+            separator_changes = True
+
+        whitespace_changes = False
+        if str(entry).rstrip() != text.rstrip():
+            ew = re.sub(r"\s", "", str(entry))
+            tw = re.sub(r"\s", "", text)
+            if ew == tw:
+                whitespace_changes = True
+
+        changes += fix_section_titles(entry)
+        changes += fix_remove_pos_counters(entry)
+        changes += fix_bad_l2(entry)
+        changes += move_misnamed_references(entry)
+        changes += add_missing_references(entry)
+        changes += move_misplaced_translations(entry)
+
+        #fix_counters(entry) and changes.append("corrected section counter")
+
+        # not safe to run unsupervised
+        #changes += remove_empty_sections(entry)
+
+        if not changes:
+            #print("no cleanup applied")
+            return text
+
+        fix_section_levels(entry) and changes.append("adjusted section levels")
+
+        if whitespace_changes:
+            changes.append("adjusted whitespace")
+
+        if separator_changes:
+            changes.append("added missing separator between l2 sections")
+
+        summary.append("; ".join(changes))
+
+        return str(entry).rstrip()
+
+    except BaseException as e:
+        print(f"ERROR: '{title}': {e}")
+        raise e
+
+    return text
+

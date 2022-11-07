@@ -389,9 +389,8 @@ class T9nFixRunner():
 
         return True
 
-    def cleanup_tables(self, match, title, replacement=None):
+    def cleanup_tables(self, page_text, title, summary=None):
 
-        page_text = match.group(0)
         if not self.can_handle_page(title):
             return page_text
 
@@ -424,11 +423,10 @@ class T9nFixRunner():
                 all_fixes += fixes
                 page_text = page_text.replace(old, new)
 
-            if replacement:
-                summary = "Translations: " + ", ".join(sorted(set(all_fixes)))
+            if summary is not None:
+                summary.append("Translations: " + ", ".join(sorted(set(all_fixes))))
                 #replacement._edit_summary = "Translations: expanded {{ttbc}} to language, wrapped entries in {{t-check}} (manually assisted)" #Spanish: reduced forms to common lemma"
                 #replacement._edit_summary = "Translations: replaced bare '* Language' with '* Language:'" #Spanish: reduced forms to common lemma"
-                replacement._edit_summary = summary
 
         return page_text
 

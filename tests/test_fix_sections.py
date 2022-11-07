@@ -36,13 +36,13 @@ def test_fix_section_titles():
 """
 
     entry = SectionParser(text, "test")
-    assert fixer.fix_section_titles(entry) == True
+    assert fixer.fix_section_titles(entry)
 
     res = str(entry)
     print(res)
 
     entry = SectionParser(res, "test")
-    assert fixer.fix_section_titles(entry) == False
+    assert not fixer.fix_section_titles(entry)
 
     assert res.splitlines() == result.splitlines()
 
@@ -83,10 +83,10 @@ def test_fix_section_levels():
 
     entry = SectionParser(text, "test")
 
-    assert fixer.fix_section_levels(entry) == True
+    assert fixer.fix_section_levels(entry)
     res = str(entry)
     entry = SectionParser(res, "test")
-    assert fixer.fix_section_levels(entry) == False
+    assert not fixer.fix_section_levels(entry)
     print(res)
     assert res.splitlines() == result.splitlines()
 
@@ -135,10 +135,10 @@ def test_fix_remove_pos_counters():
 
     entry = SectionParser(text, "test")
 
-    assert fixer.fix_remove_pos_counters(entry) == True
+    assert fixer.fix_remove_pos_counters(entry)
     res = str(entry)
     entry = SectionParser(res, "test")
-    assert fixer.fix_remove_pos_counters(entry) == False
+    assert not fixer.fix_remove_pos_counters(entry)
     print(res)
 
     assert res.splitlines() == result.splitlines()
@@ -173,10 +173,10 @@ def test_fix_section_counters():
 
     entry = SectionParser(text, "test")
 
-    assert fixer.fix_counters(entry) == True
+    assert fixer.fix_counters(entry)
     res = str(entry)
     entry = SectionParser(res, "test")
-    assert fixer.fix_counters(entry) == False
+    assert not fixer.fix_counters(entry)
     print(res)
 
     assert res.splitlines() == result.splitlines()
@@ -205,10 +205,10 @@ blah
 
     entry = SectionParser(text, "test")
 
-    assert fixer.remove_empty_sections(entry) == True
+    assert fixer.remove_empty_sections(entry)
     res = str(entry)
     entry = SectionParser(res, "test")
-    assert fixer.remove_empty_sections(entry) == False
+    assert not fixer.remove_empty_sections(entry)
     print(res)
 
     assert res.splitlines() == result.splitlines()
@@ -238,10 +238,10 @@ def test_fix_bad_l2():
     entry = SectionParser(text, "test")
     print(entry)
 
-    assert fixer.fix_bad_l2(entry) == True
+    assert fixer.fix_bad_l2(entry)
     res = str(entry)
     entry = SectionParser(res, "test")
-    assert fixer.fix_bad_l2(entry) == False
+    assert not fixer.fix_bad_l2(entry)
     print(res)
 
     assert res.splitlines() == result.splitlines()
@@ -330,7 +330,7 @@ Borrowed from {{bor|en|la|asportō}}.
 """
 
     entry = SectionParser(text, "test")
-    assert fixer.move_misplaced_translations(entry) == True
+    assert fixer.move_misplaced_translations(entry)
 
     res = str(entry)
     assert res == expected
@@ -419,7 +419,7 @@ def test_t9n_moving2():
 """
 
     entry = SectionParser(text, "test")
-    assert fixer.move_misplaced_translations(entry) == True
+    assert fixer.move_misplaced_translations(entry)
 
     res = str(entry)
     assert res == expected

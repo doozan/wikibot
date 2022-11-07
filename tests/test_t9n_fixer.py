@@ -70,8 +70,7 @@ def test_spanish_noun(fixrunner):
     # No changes because nouns aren't compacted
     expected = text
 
-    match = re.match(".*", text, re.DOTALL)
-    res = fixrunner.cleanup_tables(match, "red")
+    res = fixrunner.cleanup_tables(text, "red")
     assert res == expected
 
 def test_spanish_adj(fixrunner):
@@ -93,8 +92,7 @@ def test_spanish_adj(fixrunner):
 {{trans-bottom}}
 """
 
-    match = re.match(".*", text, re.DOTALL)
-    res = fixrunner.cleanup_tables(match, "red")
+    res = fixrunner.cleanup_tables(text, "red")
     assert res == expected
 
 def test_ttbc(fixrunner):
@@ -116,8 +114,7 @@ def test_ttbc(fixrunner):
 {{trans-bottom}}
 """
 
-    match = re.match(".*", text, re.DOTALL)
-    res = fixrunner.cleanup_tables(match, "red")
+    res = fixrunner.cleanup_tables(text, "red")
     assert res == expected
 
 
@@ -133,8 +130,7 @@ def test_ttbc_no_tcheck(fixrunner):
 """
     expected = text # no change, because no t-check template
 
-    match = re.match(".*", text, re.DOTALL)
-    res = fixrunner.cleanup_tables(match, "red")
+    res = fixrunner.cleanup_tables(text, "red")
     assert res == expected
 
 def test_t_is_l(fixrunner):
@@ -157,8 +153,7 @@ def test_t_is_l(fixrunner):
 {{trans-bottom}}
 """
 
-    match = re.match(".*", text, re.DOTALL)
-    res = fixrunner.cleanup_tables(match, "red")
+    res = fixrunner.cleanup_tables(text, "red")
     assert res == expected
 
 
@@ -182,8 +177,7 @@ def test_link_to_t(fixrunner):
 {{trans-bottom}}
 """
 
-    match = re.match(".*", text, re.DOTALL)
-    res = fixrunner.cleanup_tables(match, "red")
+    res = fixrunner.cleanup_tables(text, "red")
     assert res == expected
 
 
@@ -200,8 +194,7 @@ def test_thing(fixrunner):
 
     expected = text
 
-    match = re.match(".*", text, re.DOTALL)
-    res = fixrunner.cleanup_tables(match, "red")
+    res = fixrunner.cleanup_tables(text, "red")
     assert res == expected
 
 

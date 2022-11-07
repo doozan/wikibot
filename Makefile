@@ -35,6 +35,7 @@ WIKISEARCH := $(PYPATH) scripts/wikisearch
 WIKISORT := $(PYPATH) scripts/wikisort
 GETLINKS := $(PYPATH) scripts/getlinks
 GETIGNORE := $(PYPATH) scripts/getignore
+WIKIFIX := $(PYPATH) scripts/wikifix
 
 LIST_DUPLICATE_PASSAGES := $(PYPATH) ./list_duplicate_passages.py
 LIST_VERBS_MISSING_TYPE := $(PYPATH) ./list_verbs_missing_type.py
@@ -406,14 +407,14 @@ $(LIST)unsorted: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 # Fixes
 $(FIX)fr_missing_tlfi:
 >   @
->   FIX="-fix:add_tlfi"
+>   FIX="--fix add_tlfi"
 >   SRC="User:JeffDoozan/lists/fr_missing_tlfi"
 >   MAX=500
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 # TODO: some sort of list maker to check if they can be auto fixed
@@ -443,110 +444,110 @@ $(FIX)pt_syns:
 
 $(FIX)autofix_title:
 >   @
->   FIX="-fix:cleanup_sections"
+>   FIX="--fix cleanup_sections"
 >   SRC="User:JeffDoozan/lists/autofix_title"
 >   MAX=500
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)autofix_numbered_pos:
 >   @
->   FIX="-fix:cleanup_sections"
+>   FIX="--fix cleanup_sections"
 >   SRC="User:JeffDoozan/lists/autofix_numbered_pos"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)autofix_missing_references:
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_missing_references"
->   FIX="-fix:cleanup_sections"
+>   FIX="--fix cleanup_sections"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)autofix_bad_l2:
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_bad_l2"
->   FIX="-fix:cleanup_sections"
+>   FIX="--fix cleanup_sections"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)botfix_consolidate_forms:
 >   @
 >   SRC="User:JeffDoozan/lists/translations/by_error/botfix_consolidate_forms"
->   FIX="-fix:fix_t9n --allforms:$(SPANISH_DATA)/es_allforms.csv"
+>   FIX="--fix fix_t9n"
 >   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)botfix_remove_gendertags:
 >   @
 >   SRC="User:JeffDoozan/lists/translations/by_error/botfix_remove_gendertags"
->   FIX="-fix:fix_t9n --allforms:$(SPANISH_DATA)/es_allforms.csv"
+>   FIX="--fix fix_t9n"
 >   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)es_missing_entry:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_entry_autofix"
->   FIX="-fix:es_add_forms --lang:es --allforms:$(SPANISH_DATA)/es_allforms.csv --wordlist:$(SPANISH_DATA)/es-en.data"
+>   FIX="--fix es_add_forms"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   echo $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)es_missing_pos:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_pos_autofix"
->   FIX="-fix:es_add_forms --lang:es --allforms:$(SPANISH_DATA)/es_allforms.csv --wordlist:$(SPANISH_DATA)/es-en.data"
+>   FIX="--fix es_add_forms"
 >   MAX=300
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)es_missing_sense:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_sense_autofix"
->   FIX="-fix:es_replace -fix:es_add_forms --lang:es --wordlist:$(SPANISH_DATA)/es-en.data --allforms:$(SPANISH_DATA)/es_allforms.csv --pos:v,n,adj"
+>   FIX="--fix es_replace_pos" # --fix es_add_forms"
 >   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 
@@ -555,94 +556,94 @@ $(FIX)es_missing_sense:
 $(FIX)misplaced_translations_section:
 >   @
 >   SRC="User:JeffDoozan/lists/translations/by_error/outside_pos"
->   FIX="-fix:cleanup_sections"
+>   FIX="--fix cleanup_sections"
 >   MAX=300
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
 $(FIX)misnamed_references_section:
 >   @
 >   SRC="User:JeffDoozan/lists/misnamed_references_section"
->   FIX="-fix:cleanup_sections"
+>   FIX="--fix cleanup_sections"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
 $(FIX)autofix_empty_section:
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_empty_section"
->   FIX="-fix:cleanup_sections"
+>   FIX="--fix cleanup_sections"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
 $(FIX)es_unexpected_form:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/unexpected_form_autofix"
->   FIX="-fix:es_replace -fix:es_remove_forms --lang:es --wordlist:$(SPANISH_DATA)/es-en.data --allforms:$(SPANISH_DATA)/es_allforms.csv --pos:v,n,adj"
+>   FIX="--fix es_replace_pos"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
 $(FIX)l2_unsorted:
 >   SRC="User:JeffDoozan/lists/l2_unsorted"
->   FIX="-fix:cleanup_sections -fix:sort_l2"
+>   FIX="--fix sort_l2"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-$(FIX)l3_unsorted:
+$(FIX)es_l3_unsorted:
 >   SRC="User:JeffDoozan/lists/l3_unsorted"
->   FIX="-fix:cleanup_sections -fix:sort_l3"
+>   FIX="--pre-fix cleanup_sections --fix es_sort_l3"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
 $(FIX)es_drae_missing:
 >   SRC="User:JeffDoozan/lists/es/drae_link_missing_autofix"
->   FIX="-fix:cleanup_sections -fix:drae_missing --drae_forms:$(EXTERNAL)/drae.allforms.csv --drae_links:$(EXTERNAL)/drae.links"
->   MAX=200
+>   FIX="--fix es_drae_missing"
+>   MAX=250
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
 
 $(FIX)es_drae_wrong:
 >   SRC="User:JeffDoozan/lists/es/drae_link_wrong_target_autofix"
->   FIX="-fix:cleanup_sections -fix:drae_wrong_target --drae_forms:$(EXTERNAL)/drae.allforms.csv --drae_links:$(EXTERNAL)/drae.links"
+>   FIX="--fix es_drae_wrong"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX
+>   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
 
@@ -652,7 +653,8 @@ all: lists
 
 lists: $(patsubst %,$(LIST)%,t9n_problems section_stats forms_with_data mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals unsorted)
 
-autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi es_syns pt_syns autofix_title autofix_numbered_pos misplaced_translations_section autofix_missing_references autofix_bad_l2 botfix_consolidate_forms botfix_remove_gendertags l2_unsorted es_drae_missing es_drae_wrong)
-allfixes: autofixes $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form)
+autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi autofix_title autofix_numbered_pos misplaced_translations_section autofix_missing_references autofix_bad_l2 l2_unsorted botfix_consolidate_forms botfix_remove_gendertags es_drae_wrong es_drae_missing)
+oldfixes: $(patsubst %,$(FIX)%,es_syns pt_syns)
+allfixes: autofixes $(patsubst %,$(FIX)%,es_missing_entry misnamed_references_section autofix_empty_section es_l3_unsorted es_missing_pos es_missing_sense es_unexpected_form)
 
 .PHONY: all data lists autofixes allfixes

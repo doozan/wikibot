@@ -48,7 +48,7 @@ pos_to_inflection = {
 DeclaredForm = collections.namedtuple("DeclaredForm", [ "form", "pos", "formtype", "lemma", "lemma_genders" ])
 ExistingForm = collections.namedtuple("ExistingForm", [ "form", "pos", "formtype", "lemma" ])
 
-smart_inflection_formtypes = {
+old_smart_inflection_formtypes = {
     'cond_1p', 'cond_1s', 'cond_2p', 'cond_2pf', 'cond_2s', 'cond_2sf', 'cond_3p', 'cond_3s',
     'fut_1p', 'fut_1s', 'fut_2p', 'fut_2pf', 'fut_2s', 'fut_2sf', 'fut_3p', 'fut_3s',
     'fut_sub_1p', 'fut_sub_1s', 'fut_sub_2p', 'fut_sub_2pf', 'fut_sub_2s', 'fut_sub_2sf', 'fut_sub_3p', 'fut_sub_3s',
@@ -70,6 +70,30 @@ smart_inflection_formtypes = {
     'pres_1p', 'pres_1s', 'pres_2p', 'pres_2pf', 'pres_2s', 'pres_2sf', 'pres_2sv', 'pres_3p', 'pres_3s',
     'pres_sub_1p', 'pres_sub_1s', 'pres_sub_2p', 'pres_sub_2pf', 'pres_sub_2s', 'pres_sub_2sf', 'pres_sub_2sv', 'pres_sub_3p', 'pres_sub_3s',
     'pret_1p', 'pret_1s', 'pret_2p', 'pret_2pf', 'pret_2s', 'pret_2sf', 'pret_3p', 'pret_3s'
+}
+
+smart_inflection_formtypes = {
+    'cond_1p', 'cond_1s', 'cond_2p', 'cond_2s', 'cond_3p', 'cond_3s',
+    'fut_1p', 'fut_1s', 'fut_2p', 'fut_2s', 'fut_3p', 'fut_3s',
+    'fut_sub_1p', 'fut_sub_1s', 'fut_sub_2p', 'fut_sub_2s', 'fut_sub_3p', 'fut_sub_3s',
+    'gerund', 'gerund_1p', 'gerund_1s', 'gerund_2p', 'gerund_2s', 'gerund_3p', 'gerund_3s',
+    'gerund_comb_la', 'gerund_comb_las', 'gerund_comb_le', 'gerund_comb_les', 'gerund_comb_lo', 'gerund_comb_los', 'gerund_comb_me', 'gerund_comb_nos', 'gerund_comb_os', 'gerund_comb_se', 'gerund_comb_te',
+    'imp_1p', 'imp_1p_comb_la', 'imp_1p_comb_las', 'imp_1p_comb_le', 'imp_1p_comb_les', 'imp_1p_comb_lo', 'imp_1p_comb_los', 'imp_1p_comb_nos', 'imp_1p_comb_os', 'imp_1p_comb_te',
+    'imp_2p', 'imp_2p_comb_la', 'imp_2p_comb_las', 'imp_2p_comb_le', 'imp_2p_comb_les', 'imp_2p_comb_lo', 'imp_2p_comb_los', 'imp_2p_comb_me', 'imp_2p_comb_nos', 'imp_2p_comb_os',
+    'imp_2s', 'imp_2s_comb_la', 'imp_2s_comb_las', 'imp_2s_comb_le', 'imp_2s_comb_les', 'imp_2s_comb_lo', 'imp_2s_comb_los', 'imp_2s_comb_me', 'imp_2s_comb_nos', 'imp_2s_comb_te',
+    'imp_2sv', 'imp_2sv_comb_la', 'imp_2sv_comb_las', 'imp_2sv_comb_le', 'imp_2sv_comb_les', 'imp_2sv_comb_lo', 'imp_2sv_comb_los', 'imp_2sv_comb_me', 'imp_2sv_comb_nos', 'imp_2sv_comb_te',
+    'imp_3p', 'imp_3p_comb_la', 'imp_3p_comb_las', 'imp_3p_comb_le', 'imp_3p_comb_les', 'imp_3p_comb_lo', 'imp_3p_comb_los', 'imp_3p_comb_me', 'imp_3p_comb_nos', 'imp_3p_comb_se',
+    'imp_3s', 'imp_3s_comb_la', 'imp_3s_comb_las', 'imp_3s_comb_le', 'imp_3s_comb_les', 'imp_3s_comb_lo', 'imp_3s_comb_los', 'imp_3s_comb_me', 'imp_3s_comb_nos', 'imp_3s_comb_se',
+    'impf_1p','impf_1s', 'impf_2p', 'impf_2s', 'impf_3p', 'impf_3s',
+    'impf_sub_ra_1p', 'impf_sub_ra_1s', 'impf_sub_ra_2p', 'impf_sub_ra_2s', 'impf_sub_ra_3p', 'impf_sub_ra_3s',
+    'impf_sub_se_1p', 'impf_sub_se_1s', 'impf_sub_se_2p', 'impf_sub_se_2s', 'impf_sub_se_3p', 'impf_sub_se_3s',
+    'infinitive', 'infinitive_1p', 'infinitive_1s', 'infinitive_2p', 'infinitive_2s', 'infinitive_3p', 'infinitive_3s',
+    'infinitive_comb_la', 'infinitive_comb_las', 'infinitive_comb_le', 'infinitive_comb_les', 'infinitive_comb_lo', 'infinitive_comb_los', 'infinitive_comb_me', 'infinitive_comb_nos', 'infinitive_comb_os', 'infinitive_comb_se', 'infinitive_comb_te', 'infinitive_linked',
+    'neg_imp_1p', 'neg_imp_2p', 'neg_imp_2s', 'neg_imp_3p', 'neg_imp_3s',
+    'pp_fp', 'pp_fs', 'pp_mp', 'pp_ms',
+    'pres_1p', 'pres_1s', 'pres_2p', 'pres_2s', 'pres_2sv', 'pres_3p', 'pres_3s',
+    'pres_sub_1p', 'pres_sub_1s', 'pres_sub_2p', 'pres_sub_2s', 'pres_sub_2sv', 'pres_sub_3p', 'pres_sub_3s',
+    'pret_1p', 'pret_1s', 'pret_2p', 'pret_2s', 'pret_3p', 'pret_3s'
 }
 
 _unstresstab = str.maketrans("áéíóú", "aeiou")
@@ -632,9 +656,13 @@ class FormFixer():
 
             person = {"2s": "tú",
                     "2sf": "usted",
+                    "3s": "usted", # really 2sf
+                    "2sv": "vos",
                     "1p": "nosotros",
                     "2p": "vosotros",
-                    "2pf": "ustedes"}[person_tag]
+                    "2pf": "ustedes",
+                    "3p": "ustedes", #  really 2pf
+                    }[person_tag]
         else:
             person = None
 
@@ -1437,9 +1465,8 @@ class FixRunner():
         return page_text.replace(lean_text, new_text)
 
 
-    def add_forms(self, match, title, replacement=None):
+    def add_forms(self, page_text, title, summary=None):
 
-        page_text = match.group(0)
         if not self.can_handle_page(title):
             return page_text
 
@@ -1449,8 +1476,8 @@ class FixRunner():
             if not re.match(r"\s*$", page_text, re.S):
                 raise ValueError(f"{title}: has a redirect with extra text")
 
-        if replacement:
-            replacement._edit_summary = "Spanish: Added forms"
+        if summary is not None:
+            summary.append("Spanish: Added forms")
 
         try:
             return self._add_forms(page_text, title, skip_errors=True)
@@ -1464,19 +1491,17 @@ class FixRunner():
 
 
 
-    def remove_forms(self, match, title, replacement=None):
+    def remove_forms(self, page_text, title, summary=None):
 
-        page_text = match.group(0)
         if not self.can_handle_page(title):
             return page_text
 
-        if replacement:
-             replacement._edit_summary = "Spanish: Removed forms"
+        if summary:
+             summary.append("Spanish: Removed forms")
         return self._remove_forms(page_text, title)
 
-    def replace_pos(self, match, title, replacement, pos_list):
+    def replace_pos(self, page_text, title, summary, pos_list):
 
-        page_text = match.group(0)
         if not self.can_handle_page(title):
             return page_text
 
@@ -1486,7 +1511,8 @@ class FixRunner():
             try:
                 text = self._replace_pos(new_text, title, pos)
                 if text != new_text:
-                    replaced.add(f"Replaced {pos} forms")
+                    if summary is not None:
+                        summary.append(f"/*Spanish*/ regenerated {POS_TO_TITLE.get(pos, pos)} form section")
                     new_text = text
 
             except BaseException as e:
@@ -1496,14 +1522,10 @@ class FixRunner():
                     print(f"{title} failed during replace pos {pos} {e}")
                     outfile.write(f"{title}: failed during replace pos {e}\n")
 
-        if replacement and replaced:
-            replacement._edit_summary = f"Spanish: " + "; ".join(sorted(replaced))
-
         return new_text
 
-    def add_remove_forms(self, match, title, replacement=None):
+    def add_remove_forms(self, page_text, title, summary=None):
 
-        page_text = match.group(0)
         if not self.can_handle_page(title):
             return page_text
 
@@ -1515,6 +1537,6 @@ class FixRunner():
         if new_text != text:
             changes = "Removed forms"
 
-        if replacement:
-            replacement._edit_summary = "Spanish: " + "; ".join(changes)
+        if summary is not None:
+            summary.append("Spanish: " + "; ".join(changes))
         return new_text
