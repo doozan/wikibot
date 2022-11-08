@@ -1216,9 +1216,17 @@ class FormFixer():
     def is_form_header(text):
         return bool(re.match(r"\s*{{head\|es\|(past participle|[^|]* form[ |}])", text, re.MULTILINE))
 
+    @classmethod
+    def is_form(cls, section):
+        line = ""
+        # Skip leading empty lines (shouldn't exist, but just to be safe)
+        for line in section._lines:
+            if line.strip():
+                break
+        return cls.is_form_header(line)
 
     ALLOWED_FORMTYPES = {
-            'f', 'pl', 'fpl', 'mpl', 'reflexive', 'smart_inflection', 'form'
+            'f', 'pl', 'fpl', 'mpl', 'infinitive', 'reflexive', 'smart_inflection', 'form'
     }
 
     @classmethod
@@ -1236,18 +1244,22 @@ class FormFixer():
         return False
 
     @classmethod
-    def is_form_sense(cls, text):
+    def is_form_sense(cls, text, log=lambda *x: x):
         sense_text = wiki_to_text(text, "page")
         formtype, lemma, nonform = Sense.parse_form_of(sense_text)
-        if nonform:
-            print("not formtype", [text, sense_text])
+        if not formtype:
+            log("not_form_sense", sense_text)
+            return False
+        elif nonform:
+            log("has_text_outside_form", nonform)
             return False
 
         return cls.is_allowed_formtype(formtype)
 
     @classmethod
-    def is_generated(cls, section, title=None):
+    def is_generated(cls, section, log=lambda *x: x):
         if section._children:
+            log("has_subsection")
             return False
 
         first_line = True
@@ -1266,13 +1278,13 @@ class FormFixer():
             # The first line must be a form headline
             if first_line:
                 if not cls.is_form_header(line):
-                    print("not form header", title, line)
+                    log("not_form_header", line)
                     return False
                 first_line = False
                 continue
 
             # All other lines must be valid form declarations
-            if not cls.is_form_sense(line):
+            if not cls.is_form_sense(line, log):
                 return False
 
         return True
@@ -1322,7 +1334,7 @@ class FormFixer():
         removeable = []
         for section in spanish.ifilter_sections(matches=lambda x: x.title == POS_TO_TITLE[target_pos]):
             if section not in removeable:
-                if not self.is_generated(section, title):
+                if not self.is_generated(section):
                     continue
 #                if self.section_has_non_form_data(item, title):
                     raise ValueError(title, "Can't remove, has non-form data")
