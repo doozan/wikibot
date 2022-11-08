@@ -2,6 +2,7 @@ import pytest
 
 import re
 import enwiktionary_parser as wtparser
+from autodooz.sectionparser import SectionParser
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
 from ..form_fixer import FormFixer, FixRunner, DeclaredForm, ExistingForm
@@ -1897,14 +1898,13 @@ def test_chamas(fixer, allforms):
 ===Noun===
 {{head|es|noun form|g=m-p}}
 
-# {{noun form of|es|chama||p}}
-"""
+# {{noun form of|es|chama||p}}"""
 
     title = "chamas"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
     assert declared_forms ==  [('chamas', 'n', 'pl', 'chama', ['m']), ('chamas', 'n', 'pl', 'chama', ['f'])]
 
-    res = fixer.replace_pos(title, text, declared_forms, "n")
+    res = fixer.replace_pos(title, text, declared_forms, "n", [])
     #res = fixer.add_missing_forms(title, text, declared_forms)
     #res = fixer.remove_undeclared_forms(title, res, declared_forms)
 
@@ -2473,8 +2473,7 @@ def test_replace_verb_form(fixer, allforms):
 ===Verb===
 {{head|es|verb form}}
 
-# {{es-verb form of|mufar}}
-"""
+# {{es-verb form of|mufar}}"""
 
     title = "mufaban"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
@@ -2486,7 +2485,7 @@ def test_replace_verb_form(fixer, allforms):
 #    assert unexpected_forms == {('test', 'n', 'pl', 'blah')}
 
     #res = fixer.remove_undeclared_forms(title, text, declared_forms)
-    res = fixer.replace_pos(title, text, declared_forms, "v")
+    res = fixer.replace_pos(title, text, declared_forms, "v", [])
 
     print(res)
 
@@ -2510,8 +2509,7 @@ def test_replace_verb_form2(fixer, allforms):
 ===Verb===
 {{head|es|verb form}}
 
-# {{es-verb form of|abanar}}
-"""
+# {{es-verb form of|abanar}}"""
 
     title = "abanándose"
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
@@ -2525,7 +2523,7 @@ def test_replace_verb_form2(fixer, allforms):
 
     print("missing", missing_forms)
     print("unex", unexpected_forms)
-    res = fixer.replace_pos(title, text, declared_forms, "v")
+    res = fixer.replace_pos(title, text, declared_forms, "v", [])
 
     print(res)
 
@@ -2558,8 +2556,7 @@ def test_convert_old_style_verbs(fixer, allforms):
 ===Verb===
 {{head|es|verb form}}
 
-# {{es-verb form of|descomedirse<i>}}
-"""
+# {{es-verb form of|descomedirse<i>}}"""
 
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
@@ -2567,7 +2564,7 @@ def test_convert_old_style_verbs(fixer, allforms):
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
-    res = fixer.replace_pos(title, text, declared_forms, "v")
+    res = fixer.replace_pos(title, text, declared_forms, "v", [])
     res = fixer.add_missing_forms(title, res, declared_forms, "part")
 
     print(res)
@@ -2754,15 +2751,14 @@ def test_atente(fixer, allforms):
 ===Adjective===
 {{head|vec|adjective form}}
 
-# {{feminine plural of|vec|atento}}
-"""
+# {{feminine plural of|vec|atento}}"""
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
 
-    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+#    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+#    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
 
-    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
-    res = fixer.replace_pos(title, text, declared_forms, "v")
+    res = fixer.replace_pos(title, text, declared_forms, "v", [])
     #res = fixer.add_missing_forms(title, res, declared_forms, "v")
 
     print(res)
@@ -2804,11 +2800,48 @@ def test_dadlos(fixer, allforms):
     print("missing", unexpected_forms)
 
 
-    res = fixer.replace_pos(title, text, declared_forms, "v")
+    res = fixer.replace_pos(title, text, declared_forms, "v", [])
     #res = fixer.add_missing_forms(title, res, declared_forms, "v")
 
     print(res)
     assert res.split("\n") == result.split("\n")
     assert res == result
 
+
+def test_is_form_header():
+    assert FormFixer.is_form_header("{{head|es|verb form}}") == True
+    assert FormFixer.is_form_header("{{head|es|verb form|extra params}}") == True
+    assert FormFixer.is_form_header("{{head|es|verb|form of something}}") == False
+    assert FormFixer.is_form_header("{{head|es|adj form stuff|blah}}") == True
+    assert FormFixer.is_form_header("{{head|es|formal noun}}") == False
+    assert FormFixer.is_form_header("{{head|es|noun formal}}") == False
+    assert FormFixer.is_form_header("{{head|es|past participle}}") == True
+
+def test_is_form_sense():
+    assert FormFixer.is_form_sense("{{es-verb form of|dar}}") == True
+    assert FormFixer.is_form_sense("{{es-verb form of|dar}} {{unknown template}}") == False
+    assert FormFixer.is_form_sense("{{es-verb form of|dar}} extra text") == False
+    assert FormFixer.is_form_sense("leading text {{es-verb form of|dar}}") == False
+    assert FormFixer.is_form_sense("{{lb|es|Mexico}} {{es-verb form of|dar}}") == False
+    assert FormFixer.is_form_sense("{{es-compound of|lam|er|lamer|os|mood=infinitive}}") == True
+    assert FormFixer.is_form_sense("{{plural of|es|fuga}}") == True
+    assert FormFixer.is_form_sense("{{noun form of|es|fuga||p}}") == True
+
+    # Form of, but not on the allowlist
+    assert FormFixer.is_form_sense("{{alternative form of|es|dar}}") == False
+
+def test_is_generated():
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|dar}}
+"""
+
+    entry = SectionParser(text, "title")
+    section = next(entry.ifilter_sections(matches=lambda x: x.title == "Verb"))
+    assert FormFixer.is_generated(section) == True
 

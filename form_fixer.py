@@ -13,6 +13,7 @@ from enwiktionary_wordlist.word import Word
 from enwiktionary_parser.sections.pos import ALL_POS
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
+from autodooz.sectionparser import SectionParser, Section
 
 # Some pos entries have multiple titles, pick favorites
 POS_TO_TITLE = {v: k for k, v in ALL_POS.items()}
@@ -87,13 +88,34 @@ smart_inflection_formtypes = {
     'impf_1p','impf_1s', 'impf_2p', 'impf_2s', 'impf_3p', 'impf_3s',
     'impf_sub_ra_1p', 'impf_sub_ra_1s', 'impf_sub_ra_2p', 'impf_sub_ra_2s', 'impf_sub_ra_3p', 'impf_sub_ra_3s',
     'impf_sub_se_1p', 'impf_sub_se_1s', 'impf_sub_se_2p', 'impf_sub_se_2s', 'impf_sub_se_3p', 'impf_sub_se_3s',
-    'infinitive', 'infinitive_1p', 'infinitive_1s', 'infinitive_2p', 'infinitive_2s', 'infinitive_3p', 'infinitive_3s',
-    'infinitive_comb_la', 'infinitive_comb_las', 'infinitive_comb_le', 'infinitive_comb_les', 'infinitive_comb_lo', 'infinitive_comb_los', 'infinitive_comb_me', 'infinitive_comb_nos', 'infinitive_comb_os', 'infinitive_comb_se', 'infinitive_comb_te', 'infinitive_linked',
+    #'infinitive',
+    'infinitive_1p', 'infinitive_1s', 'infinitive_2p', 'infinitive_2s', 'infinitive_3p', 'infinitive_3s',
+    'infinitive_comb_la', 'infinitive_comb_las', 'infinitive_comb_le', 'infinitive_comb_les', 'infinitive_comb_lo', 'infinitive_comb_los', 'infinitive_comb_me', 'infinitive_comb_nos', 'infinitive_comb_os', 'infinitive_comb_se', 'infinitive_comb_te',
+    #'infinitive_linked',
     'neg_imp_1p', 'neg_imp_2p', 'neg_imp_2s', 'neg_imp_3p', 'neg_imp_3s',
     'pp_fp', 'pp_fs', 'pp_mp', 'pp_ms',
     'pres_1p', 'pres_1s', 'pres_2p', 'pres_2s', 'pres_2sv', 'pres_3p', 'pres_3s',
     'pres_sub_1p', 'pres_sub_1s', 'pres_sub_2p', 'pres_sub_2s', 'pres_sub_2sv', 'pres_sub_3p', 'pres_sub_3s',
     'pret_1p', 'pret_1s', 'pret_2p', 'pret_2s', 'pret_3p', 'pret_3s'
+
+    # 2pf and 2sf can be generated using es-verb-form of with old style paramaters
+    # but they're not generated interally by es-verb but they are handled by
+    # es-verb form of and so are included here to allow converting from the
+    # old style templates to smart_inflection
+
+    'cond_2pf', 'cond_2sf',
+    'fut_2pf', 'fut_2sf',
+    'fut_sub_2pf', 'fut_sub_2sf',
+    'imp_2pf', 'imp_2sf',
+    'imp_2pf_comb_lo', 'imp_2pf_comb_la', 'imp_2pf_comb_los', 'imp_2pf_comb_les', 'imp_2pf_comb_nos', 'imp_2pf_comb_os', 'imp_2pf_comb_se',
+    'impf_2pf', 'impf_2sf',
+    'impf_sub_ra_2pf', 'impf_sub_ra_2sf',
+    'impf_sub_se_2pf', 'impf_sub_se_2sf',
+    'neg_imp_2pf', 'neg_imp_2sf',
+    'pres_2pf', 'pres_2sf',
+    'pres_sub_2pf', 'pres_sub_2sf',
+    'pret_2pf', 'pret_2sf',
+
 }
 
 _unstresstab = str.maketrans("áéíóú", "aeiou")
@@ -211,7 +233,7 @@ class FormFixer():
                     if not cls.can_handle_formtype(formtype):
                         continue
 
-                    if has_reflexive and formtype == "infinitive_comb_se":
+                    if has_reflexive and formtype in ["infinitive_comb_se", "infinitive_3p", "infinitive_3s"]:
                         formtype = "reflexive"
 
                     if pos == "v" \
@@ -1190,8 +1212,98 @@ class FormFixer():
 
         return str(wikt)
 
+    @staticmethod
+    def is_form_header(text):
+        return bool(re.match(r"\s*{{head\|es\|(past participle|[^|]* form[ |}])", text, re.MULTILINE))
 
-    def replace_pos(self, title, page_text, x_forms, target_pos):
+
+    ALLOWED_FORMTYPES = {
+            'f', 'pl', 'fpl', 'mpl', 'reflexive', 'smart_inflection', 'form'
+    }
+
+    @classmethod
+    def is_allowed_formtype(cls, formtype):
+        if not formtype:
+            return False
+        if formtype in smart_inflection_formtypes:
+            return True
+        if "_comb_" in formtype:
+            return True
+        if formtype in cls.ALLOWED_FORMTYPES:
+            return True
+
+        print("unhandled formtype:", formtype)
+        return False
+
+    @classmethod
+    def is_form_sense(cls, text):
+        sense_text = wiki_to_text(text, "page")
+        formtype, lemma, nonform = Sense.parse_form_of(sense_text)
+        if nonform:
+            print("not formtype", [text, sense_text])
+            return False
+
+        return cls.is_allowed_formtype(formtype)
+
+    @classmethod
+    def is_generated(cls, section, title=None):
+        if section._children:
+            return False
+
+        first_line = True
+        for line in section._lines:
+
+            # Remove generic labels
+            line = line.replace("{{lb|es|uds.}}", "")
+            line = line.replace("{{lb|es|Latin America|uds.}}", "")
+            line = line.replace("{{lb|es|Latin America}}", "")
+            # Remove formatting
+            line = line.strip(" *#:")
+
+            if not line:
+                continue
+
+            # The first line must be a form headline
+            if first_line:
+                if not cls.is_form_header(line):
+                    print("not form header", title, line)
+                    return False
+                first_line = False
+                continue
+
+            # All other lines must be valid form declarations
+            if not cls.is_form_sense(line):
+                return False
+
+        return True
+
+
+    @staticmethod
+    def section_has_non_form_data(item, title):
+        # remove conjugations section, since it's not appropriate for forms
+        if any(x.title != "Conjugation" for x in item._children):
+            raise ValueError(title, "Can't remove - has subsections")
+
+        for sense in item._lines[1:]: # Skip the headline
+            if "|t=" in str(sense) or "|gloss=" in str(sense):
+                raise ValueError(title, "Can't remove - sense has gloss", str(sense))
+
+            # strip syn/ant templates before checking for extra text
+            sense_temp = str(sense)
+            sense_temp = re.sub("{{(syn|ant)[^}]}}", "", sense_temp)
+            sense_text = wiki_to_text(sense_temp, title).strip("\n #:")
+            if not sense_text:
+                continue
+            if "\n" in sense_text:
+                raise ValueError(title, "Can't remove - sense has extra info", str(sense))
+
+            formtype, lemma, nonform = Sense.parse_form_of(sense_text)
+            if not formtype:
+                raise ValueError(title, "Can't remove - sense has non-form gloss", str(sense))
+
+        return False
+
+    def replace_pos(self, title, page_text, x_forms, target_pos, summary):
         """ Removes the pos section entirely and then re-creates it with the given forms
         fails if the existing pos has anything other than generic form or data """
 
@@ -1200,56 +1312,42 @@ class FormFixer():
         if not forms:
             return page_text
 
-        wikt = wtparser.parse_page(page_text, title=title, parent=None, skip_style_tags=True)
-        entry = self.get_language_entry(title, wikt, "Spanish")
-        if not entry:
+        entry = SectionParser(page_text, title)
+        languages = entry.filter_sections(matches=lambda x: x.title == "Spanish", recursive=False)
+        if len(languages) != 1:
             return page_text
 
+        spanish = languages[0]
+
         removeable = []
-        for item in entry.ifilter_pos(matches=lambda x: x.name.strip().startswith(POS_TO_TITLE[target_pos])):
-            if item not in removeable:
+        for section in spanish.ifilter_sections(matches=lambda x: x.title == POS_TO_TITLE[target_pos]):
+            if section not in removeable:
+                if not self.is_generated(section, title):
+                    continue
+#                if self.section_has_non_form_data(item, title):
+                    raise ValueError(title, "Can't remove, has non-form data")
+                removeable.append(section)
 
-                removeable.append(item)
+        if not removeable:
+            return page_text
 
-                # remove conjugations section, since it's not appropriate for forms
-                if any(x.name != "Conjugation" for x in item.ifilter_sections()):
-                    raise ValueError(title, "Can't remove - has subsections")
+        changes = []
+        section = removeable[0]
+        new_lines = self.full_pos(title, section.level, forms)
+        section._lines = new_lines[1:]
+        changes.append(f"/*{section.path}*/ regenerated section using new templates")
 
-                for sense in item.ifilter_wordsenses():
-                    if "|t=" in str(sense) or "|gloss=" in str(sense):
-                        raise ValueError(title, "Can't remove - sense has gloss", str(sense))
+        for item in removeable[1:]:
+            changes.append(f"/*{item.path}*/ removed")
+            item._parent._children.remove(item)
 
-                    # strip syn/ant templates before checking for extra text
-                    sense_temp = str(sense)
-                    sense_temp = re.sub("{{(syn|ant)[^}]}}", "", sense_temp)
-                    sense_text = wiki_to_text(sense_temp, title).strip("\n #:")
-                    if "\n" in sense_text:
-                        raise ValueError(title, "Can't remove - sense has extra info", str(sense))
-
-                    formtype, lemma, nonform = Sense.parse_form_of(sense_text)
-                    if not formtype:
-                        raise ValueError(title, "Can't remove - sense has non-form gloss", str(sense))
-
-        has_separator = removeable[-1].rstrip().endswith("----")
-
-        for i, item in enumerate(removeable):
-            if i == 0:
-                new_lines = self.full_pos(title, item._level, forms) + ["", ""]
-                new_text = "\n".join(new_lines)
-                item._parent.insert_before(item, new_text)
-
-            # Sloppy workaround for removing the an item with a language separator
-            if has_separator and i == len(removeable)-1:
-                item._parent.insert_before(item, "----\n\n")
-
-            item._parent.remove_child(item)
-
-        res = str(wikt).rstrip() + "\n"
+        res = str(entry).rstrip()
 
         # if the only difference is "|g=m-p" and just return the normal page
         if re.sub(r" form\|g=([mfps-]*)}}", " form}}", res.rstrip()) == re.sub(r" form\|g=([mfps-]*)}}", " form}}", page_text.rstrip()):
             return page_text
 
+        summary += changes
         return res
 
 class FixRunner():
@@ -1407,12 +1505,6 @@ class FixRunner():
             return page_text
 
 
-    def _replace_pos(self, page_text, title, pos):
-        forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
-
-        forms = [f for f in forms if f.pos in pos]
-        return self.fixer.replace_pos(title, page_text, forms, pos)
-
 
     def _remove_forms(self, page_text, title, allow_blank=False, ignore_errors=False):
 
@@ -1508,19 +1600,22 @@ class FixRunner():
         replaced = set()
         new_text = page_text
         for pos in pos_list:
-            try:
-                text = self._replace_pos(new_text, title, pos)
+#            try:
+                forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
+                print("forms", pos, forms)
+                forms = [f for f in forms if f.pos in pos]
+                text = self.fixer.replace_pos(title, new_text, forms, pos, summary)
                 if text != new_text:
-                    if summary is not None:
-                        summary.append(f"/*Spanish*/ regenerated {POS_TO_TITLE.get(pos, pos)} form section")
+#                    if summary is not None:
+#                        summary.append(f"/*Spanish*/ regenerated {POS_TO_TITLE.get(pos, pos)} form section")
                     new_text = text
 
-            except BaseException as e:
-                print("ERROR:", title, e)
-                #raise e
-                with open("error.log", "a") as outfile:
-                    print(f"{title} failed during replace pos {pos} {e}")
-                    outfile.write(f"{title}: failed during replace pos {e}\n")
+#            except BaseException as e:
+#                print("ERROR:", title, e)
+#                #raise e
+#                with open("error.log", "a") as outfile:
+#                    print(f"{title} failed during replace pos {pos} {e}")
+#                    outfile.write(f"{title}: failed during replace pos {e}\n")
 
         return new_text
 
