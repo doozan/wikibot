@@ -23,13 +23,12 @@ import os
 import re
 import sys
 import pywikibot
-from pywikibot import xmlreader
+from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
 from enwiktionary_parser import parse_page
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import namedtuple
 from enwiktionary_wordlist.sense import Sense
-from autodooz.form_fixer import POS_TO_TITLE
-from autodooz.utils import regex_lang, split_body_and_tail
+from autodooz.form_fixer import POS_TO_TITLE, FormFixer
 from enwiktionary_wordlist.utils import wiki_to_text
 
 from autodooz.sectionparser import SectionParser
@@ -89,103 +88,33 @@ class Logger(WikiLogger):
 
 logger = Logger()
 
-re_pattern = regex_lang('es')
-
-def get_lean_spanish_entry(page_text):
-
-    if "==Spanish==" not in page_text:
-        return
-
-    match = re.search(re_pattern, page_text)
-    if not match:
-        return
-
-    body, tail = split_body_and_tail(match)
-
-    return body
-
-def has_form_header(text):
-    # Check that there is at least one form declaration in the page
-    return re.search("^\s*{{head\|es\|(past participle|[^|]* form)", text, re.MULTILINE)
-
-def is_form(item):
-    # Only check forms
-    if not item.headword:
-        return False
-
-    return has_form_header(str(item.headword))
-
-def check_page(title, page_text, log_function):
-
-    log = log_function
+def check_page(title, page_text, log):
 
     # All forms use the head template,
-    # this is a fast way of finding the pages that don't
+    # this is a fast way of finding the pages that don't have forms
     if "{{head|es" not in page_text:
         return
 
-    body = get_lean_spanish_entry(page_text)
-    if not body:
-        return
-
-    if not has_form_header(body):
-        return
-
-    wikt = parse_page(body, title, None)
-    for item in wikt.ifilter_words(matches = lambda x: is_form(x)):
-
-        subsections = [x.name for x in item._parent.ifilter_sections()]
-        if subsections:
-            log("has_subsection", title, item, "; ".join(subsections))
-
-        for sense in item.ifilter_wordsenses():
-
-            sense_text = str(sense).strip("\n #:")
-            sense_text = re.sub("({{lb\|es\|uds.}}|{{lb\|es\|obsolete}}|{{lb\|es\|Latin America\|uds.}})", "", sense_text)
-            sense_text = wiki_to_text(sense_text, title)
-            if "\n" in sense_text:
-                details = "\n".join(str(sense).splitlines()[1:])
-                details = details.strip()
-                if details:
-                    log("has_sense_details", title, item, details)
-                    continue
-
-            formtype, lemma, nonform = Sense.parse_form_of(sense_text)
-            if not formtype:
-                log("has_gloss", title, item, str(sense))
-                continue
-
-            # find t= or gloss= params that aren't in {{ux}} templates
-            match = re.search(r"{{(?!ux)[^}]*\|(t|gloss)=([^|}]*)", str(sense))
-            if match:
-                detail = match.group(2) if match else None
-                log("has_gloss_param", title, item, str(sense)) # TODO: when higlighting, add line and highlight detail
-            elif nonform:
-                log("has_text_outside_form", title, item, str(sense))
-
+    entry = SectionParser(page_text, title)
+    for spanish in entry.ifilter_sections(matches=lambda x: x.title == "Spanish"):
+        for section in spanish.ifilter_sections(matches=lambda x: FormFixer.is_form(x)):
+            FormFixer.is_generated(section, lambda error, line=None: log(error, title, section.title, line))
 
 def main():
 
     import argparse
     argparser = argparse.ArgumentParser(description="Find forms with data beyond a simple form declaration")
-    argparser.add_argument("--xml", help="XML file to load", required=True)
+    argparser.add_argument("--file", help="XML file to load", required=True)
     argparser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     argparser.add_argument("--progress", help="Display progress", action='store_true')
     argparser.add_argument("--save", help="Save to wiktionary with specified commit message")
     args = argparser.parse_args()
 
-    if not os.path.isfile(args.xml):
-        raise FileNotFoundError(f"Cannot open: {args.xml}")
-
-    def log(error, page, item, line=None):
-        section = item._parent._name
-        #print("logged:", [error, page, section, line])
+    def log(error, page, section, line=None):
         logger.add(error, page, section, line)
 
-    dump = xmlreader.XmlDump(args.xml)
-    parser = dump.parse()
     count = 0
-    for page in parser:
+    for page in WikiExtractWithRev.iter_articles_from_bz2(args.file):
         if ":" in page.title or "/" in page.title:
             continue
 
@@ -196,7 +125,7 @@ def main():
             break
         count += 1
 
-        check_page(page.title, page.text, log_function=log)
+        check_page(page.title, page.text, log)
 
     if args.save:
         base_url = "User:JeffDoozan/lists"

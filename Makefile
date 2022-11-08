@@ -126,10 +126,10 @@ $(LIST)section_stats: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 >   $(MAKE_SECTION_STATS) $< $(SAVE)
 >   touch $@
 
-$(LIST)forms_with_data: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+$(LIST)forms_with_data: $(BUILDDIR)/es-en.enwikt.txt.bz2
 #../wikibot/src/list_forms_with_data.py
 >   @echo "Running $@..."
->   $(LIST_FORMS_WITH_DATA) --xml $< $(SAVE)
+>   $(LIST_FORMS_WITH_DATA) --file $< $(SAVE)
 >   touch $@
 
 $(LIST)mismatched_headlines: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
