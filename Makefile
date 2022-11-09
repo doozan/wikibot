@@ -647,14 +647,19 @@ $(FIX)es_drae_wrong:
 >   echo $$LINKS > $@
 
 
-all: lists
-
-#data: enwiktionary-$(DATETAG)-pages-articles.xml.bz2 es-en.txt.bz2 pt-en.txt.bz2 fr-en.txt.bz2 spanish_data/es-en.data-full spanish_data/es-en.data es.allpages fr-en.data pt-en.data $(BUILDDIR)/wiki.pages translations.bz2 es.sortorder fr.lemmas fr.allpages es.lemmas drae.lemmas drae.with_etymology es.with_etymology es.lemmas_without_etymology
-
 lists: $(patsubst %,$(LIST)%,t9n_problems section_stats es_forms_with_data mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals unsorted)
 
+# Fixes that are safe to run automatically and without supervision
 autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi autofix_title autofix_numbered_pos misplaced_translations_section autofix_missing_references autofix_bad_l2 l2_unsorted botfix_consolidate_forms botfix_remove_gendertags es_drae_wrong es_drae_missing)
-oldfixes: $(patsubst %,$(FIX)%,es_syns pt_syns)
-allfixes: autofixes $(patsubst %,$(FIX)%,es_missing_entry misnamed_references_section autofix_empty_section es_l3_unsorted es_missing_pos es_missing_sense es_unexpected_form)
 
-.PHONY: all data lists autofixes allfixes
+# Fixes that may make mistakes and need human supervision
+otherfixes: $(patsubst %,$(FIX)%,es_missing_entry misnamed_references_section autofix_empty_section es_l3_unsorted es_missing_pos es_missing_sense es_unexpected_form)
+
+# Fixes that need fun_replace and not wikifix
+oldfixes: $(patsubst %,$(FIX)%,es_syns pt_syns)
+
+allfixes: autofixes otherfixes oldfixes
+
+all: lists
+
+.PHONY: all lists autofixes otherfixes oldfixes allfixes
