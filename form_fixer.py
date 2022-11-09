@@ -656,7 +656,7 @@ class FormFixer():
         if len(combo) > 3 and combo[-2:] in ["lo", "la", "le"]:
             pronoun1 = combo[:-2]
             pronoun2 = combo[-2:]
-        elif len(combo) > 3 and combo[-3:] in ["los", "las"]:
+        elif len(combo) > 3 and combo[-3:] in ["los", "las", "les"]:
             pronoun1 = combo[:-3]
             pronoun2 = combo[-3:]
         else:
