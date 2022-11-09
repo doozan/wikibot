@@ -200,8 +200,6 @@ class FormFixer():
         """ Returns a list of Forms for each lemma that declares the given form """
 
         poslemmas = cls.get_declared_poslemmas(form, wordlist, allforms)
-        print(form, "declared poslemmas", poslemmas)
-
         poslemmas = cls.remove_dup_refl_verbs(poslemmas, form, wordlist)
 
         declared_forms = []
@@ -732,14 +730,14 @@ class FormFixer():
             if form.pos != prev_pos:
                 if prev_pos:
                     child = self.full_pos(3, pos_forms)
-                    child._parent = spanish
+                    child.parent = spanish
                     spanish._children.append(child)
                 pos_forms = []
             pos_forms.append(form)
             prev_pos = form.pos
         if pos_forms:
             child = self.full_pos(3, pos_forms)
-            child._parent = spanish
+            child.parent = spanish
             spanish._children.append(child)
 
         return str(spanish).rstrip()
@@ -1288,13 +1286,19 @@ class FormFixer():
         spanish = languages[0]
 
         removeable = []
-        for section in spanish.ifilter_sections(matches=lambda x: x.title == POS_TO_TITLE[target_pos]):
-            if section not in removeable:
-                if not self.is_generated(section):
-                    continue
-#                if self.section_has_non_form_data(item, title):
-                    raise ValueError(title, "Can't remove, has non-form data")
-                removeable.append(section)
+        sections = spanish.filter_sections(matches=lambda x: x.title == POS_TO_TITLE[target_pos])
+
+        # If there are multiple target sections, don't make any changes
+        if len(sections) != 1:
+            print(title, target_pos, f"Can't replace, multiple matching sections")
+            return page_text
+
+        section = sections[0]
+        if section not in removeable:
+            if not self.is_generated(section):
+                print(title, section.path, "Can't replace, has non-form data")
+                return page_text
+            removeable.append(section)
 
         if not removeable:
             return page_text
@@ -1307,7 +1311,7 @@ class FormFixer():
 
         for item in removeable[1:]:
             changes.append(f"/*{item.path}*/ removed")
-            item._parent._children.remove(item)
+            item.parent._children.remove(item)
 
         res = str(entry).rstrip()
 
@@ -1569,11 +1573,9 @@ class FixRunner():
         new_text = page_text
 
         declared_forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
-        print("declared forms", declared_forms)
 
         for pos in pos_list:
             forms = [f for f in declared_forms if f.pos in pos]
-            print("forms", pos, forms)
             text = self.fixer.replace_pos(title, new_text, forms, pos, summary)
             if text != new_text:
                 new_text = text
