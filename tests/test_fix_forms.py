@@ -954,6 +954,7 @@ def test_prepending_new_pos(fixer, allforms):
     result = """
 ==Spanish==
 
+
 ===Noun===
 {{head|es|noun form|g=m-p|g2=f-p}}
 
@@ -986,6 +987,7 @@ def test_append_new_pos(fixer, allforms):
 {{es-adj}}
 
 # blah
+
 
 ===Noun===
 {{head|es|noun form|g=m-p|g2=f-p}}
@@ -1021,6 +1023,7 @@ def test_insert_new_pos(fixer, allforms):
 {{es-adj}}
 
 # blah
+
 
 ===Noun===
 {{head|es|noun form|g=m-p|g2=f-p}}
@@ -1552,10 +1555,12 @@ def test_caldea(fixer, allforms):
 
 ==Spanish==
 
+
 ===Adjective===
 {{head|es|adjective form|g=f}}
 
 # {{adj form of|es|caldeo||f|s}}
+
 
 ===Noun===
 {{es-noun|f}}
@@ -1597,6 +1602,7 @@ def test_aduanero(fixer, allforms):
 {{head|es|adjective form}}
 
 # {{feminine singular of|es|aduanero}}
+
 
 ===Noun===
 {{es-noun|f}}
@@ -1647,6 +1653,7 @@ def test_crudivora(fixer, allforms):
 
 # {{adj form of|es|crudívoro||f|s}}
 
+
 ===Noun===
 {{es-noun|f}}
 
@@ -1685,6 +1692,7 @@ def test_kirguisa(fixer, allforms):
 
 # {{feminine singular of|es|kirguís}}
 # {{adj form of|es|kirguiso||f|s}}
+
 
 ===Noun===
 {{es-noun|f}}
@@ -2548,6 +2556,7 @@ def test_convert_old_style_verbs(fixer, allforms):
     result = """
 ==Spanish==
 
+
 ===Participle===
 {{head|es|past participle form|g=f-s}}
 
@@ -2597,6 +2606,7 @@ def test_convert_verb_to_part(fixer, allforms):
 
     result = """
 ==Spanish==
+
 
 ===Participle===
 {{es-past participle}}
@@ -2845,3 +2855,18 @@ def test_is_generated():
     section = next(entry.ifilter_sections(matches=lambda x: x.title == "Verb"))
     assert FormFixer.is_generated(section) == True
 
+def test_is_reflexive():
+    assert FormFixer.is_reflexive("dar") == False
+    assert FormFixer.is_reflexive("darse") == True
+    assert FormFixer.is_reflexive("darse cuenta") == True
+    assert FormFixer.is_reflexive("no darse cuenta") == True
+
+    assert FormFixer.is_reflexive("dar darse") == False
+
+def test_strip_reflexive_clitic():
+    assert FormFixer.strip_reflexive_clitic("dar") == "dar"
+    assert FormFixer.strip_reflexive_clitic("darse") == "dar"
+    assert FormFixer.strip_reflexive_clitic("darse cuenta") == "dar cuenta"
+    assert FormFixer.strip_reflexive_clitic("no darse cuenta") == "no dar cuenta"
+
+    assert FormFixer.strip_reflexive_clitic("dar darse") == "dar dar" # NO validation that it's the real verb
