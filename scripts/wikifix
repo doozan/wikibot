@@ -3,6 +3,7 @@
 from collections import defaultdict, namedtuple
 from enwiktionary_wordlist.wikiextract import WikiExtract, WikiExtractWithRev
 import autodooz.wikimatch as wikimatch
+import itertools
 import re
 import sys
 
@@ -523,12 +524,19 @@ class WikiExtractReplacePageGenerator:
         return False
 
 class ListPageGenerator:
-    def __init__(self, pages, site):
+    def __init__(self, pages, start, site):
         self.site = site
         self.pages = pages
+        self.start = start
+        self.skipping = bool(start)
 
     def __iter__(self):
         for title in self.pages:
+            if self.skipping:
+                if article.title != self.start:
+                    continue
+                self.skipping = False
+
             yield pywikibot.Page(self.site, title)
 
 
@@ -830,7 +838,7 @@ def main():
 
     if args.load_matches:
         fixes = load_fixes(args.load_matches, args.load_fixes)
-        gen = ListPageGenerator(fixes.keys(), site)
+        gen = ListPageGenerator(args.start, fixes.keys(), site)
 
     if not fixes and not args.fix:
         generated_fixes = []
@@ -866,6 +874,17 @@ def main():
 
     gen = gen_factory.getCombinedGenerator(gen, preload=True)
     if gen:
+
+        # This is not fast because it requires every page to be processed
+        # and returned from the generater before being discarded. However,
+        # it works without having to modify the existing pywiki generators
+        # and even a slow implementation is better than no implementation
+        if args.start:
+            for page in gen:
+                if str(page.title()) == args.start:
+                    gen = itertools.chain([page], gen)
+                    break
+
         bot = AutoDooz(generator=gen, fixes=fixes, **vars(args))
         bot.run()
     else:
