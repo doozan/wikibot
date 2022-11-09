@@ -199,19 +199,6 @@ class FormFixer():
     def get_declared_forms(cls, form, wordlist, allforms):
         """ Returns a list of Forms for each lemma that declares the given form """
 
-        imp_to_comb = {
-           "imp_2s" : "imp_2s_comb_te",
-           "imp_2sf" : "imp_2sf_comb_se",
-           "imp_2sv" : "imp_2sv_comb_te",
-
-           "imp_1p" : "imp_1p_comb_nos",
-           "imp_2p" : "imp_2p_comb_os",
-           "imp_2pf" : "imp_2pf_comb_se",
-
-           "gerund": "gerund_comb_se",
-        }
-        comb_to_imp = {v:k for k,v in imp_to_comb.items()}
-
         poslemmas = cls.get_declared_poslemmas(form, wordlist, allforms)
         print(form, "declared poslemmas", poslemmas)
 
@@ -260,17 +247,6 @@ class FormFixer():
                                 # TODO: this might never happen if gerund_without_se is only generated for refl verbs
                                 continue
 
-                    # with condensed verbs, the neg_imp will be the same as the imp_ forms in the 3rds person
-#                    # imp_2sf', 'abandonar', []), ('v', 'neg_imp_2sf',
-                    if formtype in ["neg_imp_3s", "neg_imp_3p"]:
-                        #print("skipping -rse", formtype)
-                        continue
-
-#                    # and in 2nd person singular plural with non-reflexive verbs (ustedes no hablen, hablen ustedes)
-#                    if lemma in non_se_verbs and formtype in ["neg_imp_2sf", "neg_imp_1p", "neg_imp_2pf"]:
-#                        #print("skipping non-rse", formtype)
-#                        continue
-
                     # convert feminine plural of masculine noun to plural of feminine
                     if pos == "n" and formtype == "fpl":
                         new_lemma = cls.fpl_to_f(form, word)
@@ -286,29 +262,7 @@ class FormFixer():
 
                     item = DeclaredForm(form, pos, formtype, lemma, genders)
                     if item not in declared_forms:
-
-                        # There's a conflict between imp_xxx and imp_xxx_comb on -se verb conjugations
-                        # when a non -se verb include {{es-conj|xxxse}}, it will generate the same form for imp_2s
-                        # that the -r verb generates for imp_2s_comb_te
-                        #
-                        # When there are both -se and -r verbs, prefer the imp_2s_comb_te entry, but when
-                        # there is only a -se verb or only a -r verb, we want to prefer the imp_2s entry
-                        if formtype in comb_to_imp or formtype in imp_to_comb:
-                            remove_form = imp_to_comb.get(formtype)
-                            prefer_form = comb_to_imp.get(formtype)
-
-                            if remove_form:
-                                remove_item = DeclaredForm(item.form, pos, remove_form, lemma, genders)
-                                if remove_item in declared_forms:
-                                    declared_forms.remove(remove_item)
-
-                            elif prefer_form:
-                                prefer_item = DeclaredForm(item.form, pos, prefer_form, lemma, genders)
-                                if prefer_item in declared_forms:
-                                    continue
-
                         declared_forms.append(item)
-
 
         return declared_forms
 
