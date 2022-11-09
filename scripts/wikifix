@@ -8,7 +8,6 @@ import sys
 
 import pywikibot
 from pywikibot import pagegenerators, textlib
-from pywikibot import fixes as user_fixes
 from pywikibot.bot import (
     AutomaticTWSummaryBot,
     ConfigParserBot,
@@ -32,9 +31,14 @@ class Logger:
             self.compact = False
         else:
             # TODO: when adding --dotall, don't use compact mode
-            self.compact = self.opt.context in ["line", "none"]
+            self.compact = self.opt.mode != "function" and not self.opt.load_fixes and self.opt.context in ["line", "none"] 
+            print("compact", self.compact, self.opt.mode, self.opt.context)
 
-        self.matches = sys.stdout if not opt.log_matches or opt.log_matches == "-" else open(opt.log_matches, 'w')
+        if opt.log_matches:
+            self.matches = sys.stdout if not opt.log_matches or opt.log_matches == "-" else open(opt.log_matches, 'w')
+        else:
+            self.matches = None
+
         if opt.log_fixes:
              self.fixes = sys.stdout if opt.log_fixes == "-" else open(opt.log_fixes, 'w')
         else:
@@ -58,11 +62,12 @@ class Logger:
 #            meta_entries.append(wikimatch.format_entry("00-autodooz-forced-options", entry, self.compact))
 
         for data in meta_entries:
-            print(data, file=self.matches)
+            if self.matches:
+                print(data, file=self.matches)
             if self.fixes and self.fixes != self.matches:
                 print(data, file=self.fixes)
 
-    def log_patch(self, patch, entry):
+    def log_patch(self, patch, article):
         if self.first_patch:
             self.dump_options()
             self.first_patch = False
@@ -70,12 +75,12 @@ class Logger:
         match, fix = patch
 
         if self.matches:
-            entry = wikimatch.format_match(match, entry.text, compact=self.compact)
+            entry = wikimatch.format_match(match, article.text, compact=self.compact)
             if entry:
                 print(entry, file=self.matches)
 
         if self.fixes:
-            entry = wikimatch.format_fix(match, fix, entry.text, compact=self.compact)
+            entry = wikimatch.format_fix(match, fix, article.text, compact=self.compact)
             if entry:
                 print(entry, file=self.fixes)
 
@@ -121,7 +126,8 @@ def make_patches(fixes, text, title, path_filter, match_context, no_children):
         matches = get_fix_matches(fix, text, title, path_filter, match_context, no_children)
         if not matches:
             if page_fixes:
-                raise ValueError(f"Failed to prepare patch for '{title}', page has probably changed")
+                print(f"Failed to prepare patch for '{title}', page has probably changed", file=sys.stderr)
+                #raise ValueError(f"Failed to prepare patch for '{title}', page has probably changed")
             continue
 
         # wildcards and regexes may generate multiple matches
@@ -130,18 +136,29 @@ def make_patches(fixes, text, title, path_filter, match_context, no_children):
 
     return patches
 
+
+
 def get_fix_matches(fix, text, title, path_filter, match_context, no_children):
     """Returns start, end line numbers affected by the given fix
     Returns None if fix can't be applied unambiguously to the given text
     """
 
-    multiline = fix.type != "line"
-
     if fix.type == "function":
-        return fix.old(text, title, path_filter, match_context)
+        if not callable(fix.old):
+            raise ValueError("fix must be callable when using --mode function")
+
+        summary = []
+        new_text = fix.old(text, title, summary, fix.new)
+        if new_text == text:
+            return
+
+        # Generate a full-page match
+        return [wikimatch.Match(title, None, None, 0, len(text))]
 
     if callable(fix.old):
         raise ValueError("search pattern is callable, use --mode function")
+
+    multiline = fix.type != "line"
 
     if fix.type == "regex":
         re_match = fix.old
@@ -193,15 +210,26 @@ def validate_matches(text, matches, fix):
         # Mosty a sanity check, but also important when doing section matches
         # to detect if lines have been appended to the section (the new lines
         # will be in the match, but won't be in the fix.old)
-        if text[match.start:match.end] != fix.old:
-            print("section doesn't match exactly, not matching")
+        current_text = text[match.start:match.end]
+        if current_text != fix.old:
+            # Not an exact match, see if it's just changes in blank lines or leading/trailing whitespace
+            detected_lines = [l.strip() for l in current_text.splitlines() if l.strip()]
+            expected_lines = [l.strip() for l in fix.old.splitlines() if l.strip()]
+            if detected_lines != expected_lines:
+                print("section doesn't match exactly, not matching")
 
-            print('-'*40, "Detected:")
-            print(text[match.start:match.end])
-            print('-'*40, "Expected:")
-            print(fix.old)
-            print('-'*40)
-            return
+                print('-'*40, "Detected:")
+                print(current_text)
+                print('-'*40, "Expected:")
+                print(fix.old)
+                print('-'*40)
+                print(len(detected_lines), len(expected_lines))
+                for x, line in enumerate(detected_lines):
+                    if line != expected_lines[x]:
+                        print([line], [expected_lines[x]])
+                    else:
+                        print(line)
+                return
 
     return True
 
@@ -258,8 +286,10 @@ def load_fixes(oldFile, newFile):
             path = tuple(path)
 
         if entry.strip() == "":
-            errors.add("blank_replacement")
             print(f"ERROR: {title}: replacement text is empty", file=sys.stderr)
+            # TODO: don't continue
+            continue
+            errors.add("blank_replacement")
 
         error = check_balanced(entry)
         if error:
@@ -332,7 +362,7 @@ def parse_position(position):
     # check for {x,y} sections index
     match = re.match(r"{(.*?)}", position)
     if match:
-        items = map(str.strip, match.group(1).split(","))
+        items = list(map(str.strip, match.group(1).split(",")))
         if len(items) != 2 or any(not x.isnumeric() for x in items):
             raise ValueError(f"invalid section index: {match.group(0)} (expected: {{x,y}})")
         section_start, section_end = map(int,items)
@@ -426,32 +456,33 @@ class WikiExtractReplacePageGenerator:
     def __iter__(self):
         """Iterator method."""
         try:
-            for entry in self.parser:
+            for article in self.parser:
                 if self.skipping:
-                    if entry.title != self.start:
+                    if article.title != self.start:
                         continue
                     self.skipping = False
-                if self.isTitleExcepted(entry.title) \
-                        or self.isTextExcepted(entry.text):
+                if self.isTitleExcepted(article.title) \
+                        or self.isTextExcepted(article.text):
                     continue
 
-                patches = make_patches(self.fixes, entry.text, entry.title, self.opt.path_filter, self.opt.context, self.opt.no_children)
+                patches = make_patches(self.fixes, article.text, article.title, self.opt.path_filter, self.opt.context, self.opt.no_children)
 
                 if not patches:
                     continue
 
                 for patch in patches:
-                    log.log_patch(patch, entry)
-
-                self.count += 1
-                if self.opt.limit and self.count >= self.opt.limit:
-                    print("limit reached, exiting", file=sys.stderr)
-                    exit()
+                    log.log_patch(patch, article)
 
                 if self.opt.read_only:
                     continue
 
-                yield pywikibot.Page(self.site, entry.title)
+                yield pywikibot.Page(self.site, article.title)
+
+                self.count += 1
+                if self.opt.limit and self.count >= self.opt.limit:
+                    print("limit reached, exiting", file=sys.stderr)
+                    break
+
 
         except KeyboardInterrupt:
             with suppress(NameError):
@@ -529,7 +560,7 @@ class AutoDooz(
         raise ValueError("XX")
 
 
-    def apply_patches(self, text, patches):
+    def apply_patches(self, text, patches, summary):
 
         # Apply patches from end to the beginning so their edits won't affect
         # the offsets of remaining patches
@@ -542,8 +573,7 @@ class AutoDooz(
                 raise ValueError("Patches overlap", prev_match, match)
             prev_match = match
 
-            messages = []
-            new_text = wikimatch.get_fixed_text(match, fix, text, self.current_page.title(), messages)
+            new_text = wikimatch.get_fixed_text(match, fix, text, self.current_page.title(), summary)
 
             t[match.start:match.end] = new_text
 
@@ -551,37 +581,116 @@ class AutoDooz(
 
 
     def treat_page(self) -> None:
-        text = self.current_page.text
+        original_text = self.current_page.text
         title = self.current_page.title()
 
         if ":" in title:
             return
 
-        patches = make_patches(self.fixes, text, title, self.opt.path_filter, self.opt.context, self.opt.no_children)
+        patches = make_patches(self.fixes, original_text, title, self.opt.path_filter, self.opt.context, self.opt.no_children)
         if not patches:
             return
 
         for patch in patches:
             log.log_patch(patch, self.current_page)
 
-        self.count += 1
-        if self.opt.limit and self.count >= self.opt.limit:
-            print("limit reached, exiting", file=sys.stderr)
-            exit()
-
         if self.opt.read_only:
             return
 
-        new_text = self.apply_patches(text, patches)
+        alt_summary = []
+        new_text = self.apply_patches(original_text, patches, alt_summary)
         if not new_text:
             return
+
+        summary = "; ".join(alt_summary) if alt_summary else self.opt.summary
 
         if FAILSAFE_TEXT in new_text:
             raise ValueError(title, "Failsafe detected in text about to be written to site, failing")
 
-#        pywikibot.showDiff(text, new_text, context=10)
-        self.put_current(new_text, summary=self.opt.summary)
+        context = 10
+        while True:
 
+            # Show the title of the page we're working on.
+            # Highlight the title in purple.
+            print(">"*10, self.current_page.title(), "<"*10)
+
+            pywikibot.showDiff(original_text, new_text, context=context)
+            if self.opt.always:
+                break
+
+            choice = pywikibot.input_choice(
+                'Do you want to accept these changes?',
+                [('Yes', 'y'), ('No', 'n'), ('Edit original', 'e'),
+                 ('edit Latest', 'l'), ('open in Browser', 'b'),
+                 ('More context', 'm'), ('All', 'a')],
+                default='N')
+            if choice == 'm':
+                context = context * 3 if context else 3
+                continue
+            if choice in ('e', 'l'):
+                text_editor = editor.TextEditor()
+                edit_text = original_text if choice == 'e' else new_text
+                as_edited = text_editor.edit(edit_text)
+                # if user didn't press Cancel
+                if as_edited and as_edited != new_text:
+                    new_text = as_edited
+                    if choice == 'l':
+                        # prevent changes from being applied again
+                        last_text = new_text
+                continue
+#            if choice == 'b':
+#                pywikibot.bot.open_webbrowser(page)
+#                try:
+#                    original_text = page.get(get_redirect=True, force=True)
+#                except NoPageError:
+#                    pywikibot.output('Page {} has been deleted.'
+#                                     .format(page.title()))
+#                    break
+#                new_text = original_text
+#                last_text = None
+#                continue
+            if choice == 'a':
+                self.opt.always = True
+            if choice == 'y':
+                self.save(self.current_page, original_text, new_text, summary,
+                          show_diff=False, asynchronous=True, minor=False)
+
+            # choice must be 'N'
+            break
+
+        if self.opt.always and new_text != original_text:
+            self.save(self.current_page, original_text, new_text, summary,
+                      show_diff=False, asynchronous=False, minor=False)
+
+        self.count += 1
+        if self.opt.limit and self.count >= self.opt.limit:
+            print("fix limit reached, exiting", file=sys.stderr)
+            exit()
+
+    def save(self, page, oldtext, newtext, summary, **kwargs):
+        """Save the given page."""
+
+        if not summary:
+            print(f"No summary provided when applying fix to '{page}'", file=sys.stderr)
+            print("use --summary, or ensure fixes generate a summary", file=sys.stderr)
+            exit(1)
+
+        self.userPut(page, oldtext, newtext,
+                     summary=summary,
+                     ignore_save_related_errors=True, **kwargs)
+
+    def user_confirm(self, question):
+        """Always return True due to our own input choice."""
+        return True
+
+class Config:
+    def __init__(self, filename):
+        """Load the fixes from the given filename."""
+        # load binary, to let compile decode it according to the file header
+        with open(filename, 'rb') as f:
+            exec(compile(f.read(), filename, 'exec'), globals())
+
+        self.wikifix = wikifix
 
 def main():
 
@@ -592,6 +701,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Search language extract for articles matching a given pattern")
+    parser.add_argument("--config", help="Path to autodooz-fixes config file")
     parser.add_argument("--load-matches", help="Load per-page match data from specified file")
     parser.add_argument("--load-fixes", help="Load per-page replacement data from specified file (requires --load-matches)")
     parser.add_argument("--path-filter", help="Search only inside pages/sections('page:section:subsection:...') that match the given regex")
@@ -602,7 +712,9 @@ def main():
     parser.add_argument("--log-matches", help="Write matches to the given file (use - for stdout)")
     parser.add_argument("--log-fixes", help="Write replacements to the given file (use - for stdout)")
 
-    parser.add_argument("--fix", help="Run a fix declared in user-fixes")
+    parser.add_argument("--pre-fix", help="Run a fix before running other fixes, changes are applied only if another fix is applied", action='append')
+    parser.add_argument("--fix", help="Run a fix declared in autodooz-fixes")
+    parser.add_argument("--post-fix", help="Run a given fix only if an earlier fix has been applied", action='append')
 
     parser.add_argument("--summary", help="Summary message to use when saving wiki page")
 
@@ -624,18 +736,22 @@ def main():
     gen = None
     fixes = None
 
+    args.mode = None
+
     # Load user fixes first because it can modify the args
     if args.fix:
 
+        from pathlib import Path
+        filename = args.config if args.config else "~/.pywikibot/autodooz-fixes.py"
+        filename = Path(filename).expanduser()
+        config = Config(filename)
+
         declared_fixes = []
         try:
-            fix = user_fixes.fixes[args.fix]
+            fix = config.wikifix[args.fix]
         except KeyError:
             pywikibot.output('Available predefined fixes are: {}'
-                             .format(', '.join(fixes.fixes.keys())))
-            if not user_fixes.user_fixes_loaded:
-                pywikibot.output('The user fixes file could not be found: {}'
-                                 .format(fixes.filename))
+                             .format(', '.join(config.wikifix.keys())))
             exit(1)
 
         if not fix['fixes']:
@@ -655,6 +771,8 @@ def main():
         # apply fixes to all pages
         fixes = {'': declared_fixes}
 
+        print(fixes)
+
 
     # Setup logging as early as possible
 
@@ -665,17 +783,14 @@ def main():
 
     global log
 
+    # mode may have been set by loading fixes
+    if not args.mode:
+        if args.regex:
+            args.mode = "regex"
+        else:
+            args.mode = "text"
+
     log = Logger(args)
-
-
-    if not args.read_only and not args.summary:
-        print("--summary required when making changes")
-        exit(1)
-
-    if args.regex:
-        args.mode = "regex"
-    else:
-        args.mode = "text"
 
     if args.load_fixes and not args.load_matches:
         print("--load-fixes requires --load-matches")
@@ -743,16 +858,11 @@ def main():
         fixes = {'': generated_fixes}
 
     if args.file:
-        if not args.read_only and not args.path_filter:
-            print("--path-filter must be specified when making changes using wikiextracts (recommended --path-filter '.*?:Language:')")
-            exit(1)
+#        if not args.read_only and not args.path_filter:
+#            print("--path-filter must be specified when making changes using wikiextracts (recommended --path-filter '.*?:Language:')")
+#            exit(1)
 
         gen = WikiExtractReplacePageGenerator(args.file, args.start, fixes, {}, site, args)
-
-
-    if not args.summary and not args.read_only:
-        print("--summary must be provided when editing pages")
-        exit(1)
 
     gen = gen_factory.getCombinedGenerator(gen, preload=True)
     if gen:
