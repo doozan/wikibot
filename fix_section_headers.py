@@ -377,12 +377,12 @@ def cleanup_sections(text, title, summary, custom):
         dup_categories = any(s._duplicate_categories for s in entry._children)
         dup_categories and changes.append("removed duplicate category declaration")
 
-        lang_separators = text.count("\n----")
-        if lang_separators != len(entry._children)-1:
+        entry_text = str(entry)
+        if text.count("\n----") != extry_text.count("\n----"):
             separator_changes = True
 
         whitespace_changes = False
-        if str(entry).rstrip() != text.rstrip():
+        if entry_text.rstrip() != text.rstrip():
             ew = re.sub(r"\s", "", str(entry))
             tw = re.sub(r"\s", "", text)
             if ew == tw:
