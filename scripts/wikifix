@@ -28,12 +28,8 @@ class Logger:
         self.opt = opt
         self.first_patch = True
 
-        if self.opt.nocompact:
-            self.compact = False
-        else:
-            # TODO: when adding --dotall, don't use compact mode
-            self.compact = self.opt.mode != "function" and not self.opt.load_fixes and self.opt.context in ["line", "none"] 
-            print("compact", self.compact, self.opt.mode, self.opt.context)
+        # Only use compact mode when manually specified, user is responsible if it doesn't work
+        self.compact = self.opt.compact
 
         if opt.log_matches:
             self.matches = sys.stdout if not opt.log_matches or opt.log_matches == "-" else open(opt.log_matches, 'w')
@@ -108,25 +104,15 @@ def load_fixfile(filename):
                 res[header] = line.rstrip("\n")
             return res
 
-def make_patches(fixes, text, title, path_filter, match_context, no_children):
-    """ Returns a list of (Match, Fix) """
-
-    global_fixes = fixes.get('', []) # global fixes
-    page_fixes = fixes.get(title, []) # page-specific fixes
-
-    if global_fixes and page_fixes:
-        raise ValueError("Don't mix page-specific fixes and global fixes")
-
-    fixes = global_fixes + page_fixes
-
-    if not fixes:
-        raise ValueError(f"no fixes available for '{title}', this should never happen")
+def find_patches(fixes, text, title, path_filter, match_context, no_children, should_match):
+    # Should match indicates this is a patch loaded from a file and it's expected to match
 
     patches = []
+
     for fix in fixes:
         matches = get_fix_matches(fix, text, title, path_filter, match_context, no_children)
         if not matches:
-            if page_fixes:
+            if should_match:
                 print(f"Failed to prepare patch for '{title}', page has probably changed", file=sys.stderr)
                 #raise ValueError(f"Failed to prepare patch for '{title}', page has probably changed")
             continue
@@ -136,6 +122,53 @@ def make_patches(fixes, text, title, path_filter, match_context, no_children):
             patches.append((match, fix))
 
     return patches
+
+
+def make_patches(all_fixes, text, title, path_filter, match_context, no_children, should_match):
+    """ Returns a list of (Match, Fix) """
+
+    page_fixes = all_fixes.get(title, []) # page-specific fixes
+    if page_fixes:
+        return find_patches(fixes, text, title, path_filter, match_context, no_children, should_match=True)
+
+    fixes = all_fixes.get(":fix:")
+    if not fixes:
+        raise ValueError(f"no fixes available for '{title}', this should never happen")
+
+    pre_patches  = find_patches(all_fixes.get(':pre_fix:',  []), text, title, path_filter, match_context, no_children, should_match)
+    text = apply_patches(text, title, pre_patches, [])
+
+    patches      = find_patches(all_fixes.get(':fix:',      []), text, title, path_filter, match_context, no_children, should_match)
+    text = apply_patches(text, title, patches, [])
+
+    # Pre and post patches are only applied if there are real patches applied
+    if not patches:
+        return []
+    post_patches = find_patches(all_fixes.get(':post_fix:', []), text, title, path_filter, match_context, no_children, should_match)
+
+    return pre_patches + patches + post_patches
+
+
+def apply_patches(text, title, patches, summary):
+
+    # Apply patches from end to the beginning so their edits won't affect
+    # the offsets of remaining patches
+
+    prev_match = None
+    for match, fix in sorted(patches, key=lambda x: x[0].start, reverse=True):
+        if prev_match and prev_match.start < match.end:
+            # TODO: patches of type 'function' can overlap
+            print("patches overlap, let's see what happens!")
+#            raise ValueError("Patches overlap", prev_match, match)
+        prev_match = match
+
+        new_text = wikimatch.get_fixed_text(match, fix, text, title, summary)
+
+        t = list(text)
+        t[match.start:match.end] = new_text
+        text = "".join(t)
+
+    return text
 
 
 
@@ -466,11 +499,12 @@ class WikiExtractReplacePageGenerator:
                         or self.isTextExcepted(article.text):
                     continue
 
-                patches = make_patches(self.fixes, article.text, article.title, self.opt.path_filter, self.opt.context, self.opt.no_children)
+                patches = make_patches(self.fixes, article.text, article.title, self.opt.path_filter, self.opt.context, self.opt.no_children, False)
 
                 if not patches:
                     continue
 
+                # TODO: Logging multiple patches may need special handling log_patches()?
                 for patch in patches:
                     log.log_patch(patch, article)
 
@@ -569,24 +603,7 @@ class AutoDooz(
 
 
     def apply_patches(self, text, patches, summary):
-
-        # Apply patches from end to the beginning so their edits won't affect
-        # the offsets of remaining patches
-
-        t = list(text)
-
-        prev_match = None
-        for match, fix in sorted(patches, key=lambda x: x[0].start, reverse=True):
-            if prev_match and prev_match.start < match.end:
-                raise ValueError("Patches overlap", prev_match, match)
-            prev_match = match
-
-            new_text = wikimatch.get_fixed_text(match, fix, text, self.current_page.title(), summary)
-
-            t[match.start:match.end] = new_text
-
-        return "".join(t)
-
+        return apply_patches(text, self.current_page.title(), patches, summary)
 
     def treat_page(self) -> None:
         original_text = self.current_page.text
@@ -595,7 +612,7 @@ class AutoDooz(
         if ":" in title:
             return
 
-        patches = make_patches(self.fixes, original_text, title, self.opt.path_filter, self.opt.context, self.opt.no_children)
+        patches = make_patches(self.fixes, original_text, title, self.opt.path_filter, self.opt.context, self.opt.no_children, should_match=False)
         if not patches:
             return
 
@@ -626,6 +643,7 @@ class AutoDooz(
             if self.opt.always:
                 break
 
+            print(f"> Summary: {summary}")
             choice = pywikibot.input_choice(
                 'Do you want to accept these changes?',
                 [('Yes', 'y'), ('No', 'n'), ('Edit original', 'e'),
@@ -700,6 +718,41 @@ class Config:
 
         self.wikifix = wikifix
 
+def init_fixes(requested_fixes, config):
+
+    pre_fixes = []
+    fixes = []
+    post_fixes = []
+
+    for fix in requested_fixes:
+        try:
+            fix = config.wikifix[fix]
+        except KeyError:
+            pywikibot.output('Available predefined fixes are: {}'
+                             .format(', '.join(config.wikifix.keys())))
+            exit(1)
+
+        if not fix['fixes']:
+            pywikibot.warning('No fixes defined for fix "{}"'
+                              .format(fix_name))
+            exit(1)
+
+#        # override command line options with fix values? (maybe better the other way around?)
+#        for key in ["mode", "context", "path_filter", "summary"]:
+#            if key in fix:
+#                setattr(args, key, fix[key])
+
+        for search, replacement in fix.get('pre-fixes', []):
+            pre_fixes.append(Fix(None, None, search, replacement, fix['mode']))
+
+        for search, replacement in fix['fixes']:
+            fixes.append(Fix(None, None, search, replacement, fix['mode']))
+
+        for search, replacement in fix.get('post-fixes', []):
+            post_fixes.append(Fix(None, None, search, replacement, fix['mode']))
+
+    return pre_fixes, fixes, post_fixes
+
 def main():
 
     local_args = pywikibot.handle_args()
@@ -728,7 +781,7 @@ def main():
 
     parser.add_argument("--search", help="Only search for the given pattern, make no replacements (implies --read-only and --log-matches -)", action='append')
 
-    parser.add_argument("--nocompact", help="Don't log matches in compact mode", action='store_true')
+    parser.add_argument("--compact", help="Log matches in compact mode", action='store_true')
     parser.add_argument("--regex", help="Search/replace with regex patterns", action='store_true')
     parser.add_argument("--context", help="How much surrounding data in included with the match", choices=["line", "section", "none"], default="line")
     parser.add_argument("--limit", type=int, help="Stop after N pages have been fixed")
@@ -742,9 +795,10 @@ def main():
     site = pywikibot.Site()
 
     gen = None
-    fixes = None
 
-    args.mode = None
+    fixes = {}
+    pre_fixes = None
+    post_fixes = None
 
     # Load user fixes first because it can modify the args
     if args.fix:
@@ -754,33 +808,24 @@ def main():
         filename = Path(filename).expanduser()
         config = Config(filename)
 
-        declared_fixes = []
-        try:
-            fix = config.wikifix[args.fix]
-        except KeyError:
-            pywikibot.output('Available predefined fixes are: {}'
-                             .format(', '.join(config.wikifix.keys())))
-            exit(1)
+        pre_fixes, user_fixes, post_fixes = init_fixes([args.fix], config)
+        if pre_fixes:
+            fixes[":pre_fix:"] = pre_fixes
+        fixes[":fix:"] = user_fixes
+        if post_fixes:
+            fixes[":post_fix:"] = post_fixes
 
-        if not fix['fixes']:
-            pywikibot.warning('No fixes defined for fix "{}"'
-                              .format(fix_name))
-            exit(1)
+        if args.pre_fix:
+            if ":pre_fix:" in fixes:
+                print("can't mix --pre-fix with a --fix that defines pre-fixes in its config")
+                exit(1)
+            _, fixes[":pre_fix:"], _ = init_fixes(args.pre_fix, config)
 
-
-        # override command line options with fix values? (maybe better the other way around?)
-        for key in ["mode", "context", "path_filter", "summary"]:
-            if key in fix:
-                setattr(args, key, fix[key])
-
-        for search, replacement in fix['fixes']:
-            declared_fixes.append(Fix(None, None, search, replacement, args.mode))
-
-        # apply fixes to all pages
-        fixes = {'': declared_fixes}
-
-        print(fixes)
-
+        if args.post_fix:
+            if ":post_fix:" in fixes:
+                print("can't mix --post-fix with a --fix that defines post-fixes in its config")
+                exit(1)
+            _, fixes[":post_fix:"], _ = init_fixes(args.post_fix, config)
 
     # Setup logging as early as possible
 
@@ -791,12 +836,6 @@ def main():
 
     global log
 
-    # mode may have been set by loading fixes
-    if not args.mode:
-        if args.regex:
-            args.mode = "regex"
-        else:
-            args.mode = "text"
 
     log = Logger(args)
 
@@ -843,9 +882,15 @@ def main():
     if not fixes and not args.fix:
         generated_fixes = []
 
+        if args.regex:
+            mode = "regex"
+        else:
+            mode = "text"
+
         if args.search:
             if args.match:
                 print("--search cannot be used with additional MATCHES values")
+                exit(1)
 
             replacement = FAILSAFE_TEXT
             for search in args.search:
@@ -863,7 +908,12 @@ def main():
                 replacement = args.match[i+1]
                 generated_fixes.append(Fix(None, None, search, replacement, args.mode))
 
-        fixes = {'': generated_fixes}
+        if fixes:
+            # Probably fine, but no reason to make things more complicated
+            print("mixed user specified and loaded, not supported")
+            exit(1)
+
+        fixes[':fix:'] = generated_fixes
 
     if args.file:
 #        if not args.read_only and not args.path_filter:
