@@ -175,7 +175,7 @@ def fix_bad_l2(entry):
     prev = None
     for i, child in enumerate(entry._children):
         if child.level != 2:
-            return
+            return changes
 
         title = child.title.strip("=")
 
@@ -329,7 +329,6 @@ def move_misplaced_translations(entry):
             target = section
 
         elif section.title == "Translations" and section.parent.title not in ALL_POS:
-            print(" misplaced, flagging")
             if not target:
                 print("Translation found before POS, can't move", entry.title)
                 continue
@@ -351,15 +350,42 @@ def move_misplaced_translations(entry):
             new_path = child.path
             summary.append(f"/*{old_path}*/ moved to {new_path}")
 
-        old_path = target.path
+        old_path = item.path
         item.parent = target
         item.level = target.level + 1
         target._children.append(item)
-        new_path = target.path
+        new_path = item.path
         summary.append(f"/*{old_path}*/ moved to {new_path}")
 
     return summary
 
+# this can be called by any cleanup fix that uses SectionParser
+# it will generate summary details for any changes applied by
+# SectionParser
+def default_cleanup(text, title, summary, custom):
+    entry = SectionParser(text, title)
+
+    for lang in entry._children:
+        if lang._moved_categories:
+            summary.append(f"/*{lang.title}*/ moved categories to end of language, per WT:ELE")
+
+        if lang._duplicate_categories:
+            summary.append(f"/*{lang.title}*/ removed duplicate categories")
+
+    entry_text = str(entry)
+    if text.count("\n----") < entry_text.count("\n----"):
+        summary.append("added l2 separator")
+    if text.count("\n----") > entry_text.count("\n----"):
+        summary.append("removed trailing l2 separator")
+
+    whitespace_changes = False
+    if entry_text.rstrip() != text.rstrip():
+        ew = re.sub(r"\s", "", str(entry))
+        tw = re.sub(r"\s", "", text)
+        if ew == tw:
+            summary.append("adjusted whitespace")
+
+    return str(entry).rstrip()
 
 # called by wikifix to mass apply the above fixes
 def cleanup_sections(text, title, summary, custom):
@@ -368,25 +394,9 @@ def cleanup_sections(text, title, summary, custom):
         return text
 
     try:
+
         changes = []
         entry = SectionParser(text, title)
-
-        moved_categories = any(s._moved_categories for s in entry._children)
-        moved_categories and changes.append("moved categories to end of language, per WT:ELE")
-
-        dup_categories = any(s._duplicate_categories for s in entry._children)
-        dup_categories and changes.append("removed duplicate category declaration")
-
-        entry_text = str(entry)
-        if text.count("\n----") != extry_text.count("\n----"):
-            separator_changes = True
-
-        whitespace_changes = False
-        if entry_text.rstrip() != text.rstrip():
-            ew = re.sub(r"\s", "", str(entry))
-            tw = re.sub(r"\s", "", text)
-            if ew == tw:
-                whitespace_changes = True
 
         changes += fix_section_titles(entry)
         changes += fix_remove_pos_counters(entry)
@@ -401,16 +411,9 @@ def cleanup_sections(text, title, summary, custom):
         #changes += remove_empty_sections(entry)
 
         if not changes:
-            #print("no cleanup applied")
             return text
 
         fix_section_levels(entry) and changes.append("adjusted section levels")
-
-        if whitespace_changes:
-            changes.append("adjusted whitespace")
-
-        if separator_changes:
-            changes.append("added missing separator between l2 sections")
 
         summary.append("; ".join(changes))
 
@@ -421,4 +424,3 @@ def cleanup_sections(text, title, summary, custom):
         raise e
 
     return text
-
