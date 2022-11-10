@@ -12,7 +12,7 @@ from collections import namedtuple
 class WikiSaver(BaseHandler):
 
     def sort_items(self, items):
-        return sorted(items)
+        return sorted(items, key=lambda x: (x.error, x.page))
 
     def is_new_section(self, item, prev_item):
         return prev_item and prev_item.error != item.error
@@ -31,7 +31,7 @@ class WikiSaver(BaseHandler):
         language = entry.language
         if not language:
             return [f": [[{page}]]"]
-        return [f": [[{page}#{language}|{page}]]"]
+        return [f": [[{page}#{language}]]"]
 
 class FileSaver(WikiSaver):
 
@@ -49,7 +49,7 @@ class Logger(WikiLogger):
 
 logger = Logger()
 def log(*args, **kwargs):
-    print(*args, **kwargs)
+    #print(*args, **kwargs)
     logger.add(*args, **kwargs)
 
 def main():
@@ -91,6 +91,10 @@ def main():
 def process(page_text, page_title):
 
     entry = SectionParser(page_text, page_title)
+    for lang in entry._children:
+        if lang.title not in SectionSorter.ALL_LANGS:
+            log("l2_unknown", lang.title, page_title)
+
     old = str(entry)
     SectionSorter.sort_languages(entry)
     if str(entry) != old:
