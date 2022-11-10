@@ -408,7 +408,7 @@ class T9nFixRunner():
 
                 # TODO: rework TT() so it handles text instead of lines and doesn't require page, pos params
                 table_lines = table_text.splitlines()
-                table = TranslationTable(title, pos, table_lines, log_function=lambda *x: print(x))
+                table = TranslationTable(title, pos, table_lines, log_function=lambda *x: x)
 
                 self.fixer.cleanup_table(table)
 
