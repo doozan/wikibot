@@ -1168,7 +1168,8 @@ class FormFixer():
 
     @staticmethod
     def is_form_header(text):
-        return bool(re.match(r"\s*{{head\|es\|(past participle|[^|]* form[ |}])", text, re.MULTILINE))
+        return bool(re.match(r"\s*{{(head|head-lite)\|es\|(past participle|[^|]* form[ |}])", text, re.MULTILINE)) \
+                or "{{es-past participle" in text
 
     @classmethod
     def is_form(cls, section):
