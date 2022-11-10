@@ -787,6 +787,7 @@ def main():
     parser.add_argument("--limit", type=int, help="Stop after N pages have been fixed")
 
     parser.add_argument("--no-children", help="Don't include child sections of matching sections", action="store_true")
+    parser.add_argument("--always", help="Apply fixes without user-input", action="store_true")
 
     parser.add_argument("match", nargs='*')
 
