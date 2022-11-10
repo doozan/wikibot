@@ -7,6 +7,7 @@ import itertools
 import re
 import sys
 
+from datetime import datetime
 import pywikibot
 from pywikibot import pagegenerators, textlib
 from pywikibot.bot import (
@@ -27,6 +28,9 @@ class Logger:
     def __init__(self, opt):
         self.opt = opt
         self.first_patch = True
+
+        self.log_directory = ".autodooz"
+        self.first_change = True
 
         # Only use compact mode when manually specified, user is responsible if it doesn't work
         self.compact = self.opt.compact
@@ -80,6 +84,31 @@ class Logger:
             entry = wikimatch.format_fix(match, fix, article.text, compact=self.compact)
             if entry:
                 print(entry, file=self.fixes)
+
+    def log_fix(self, page, old_text, new_text, summary):
+
+        if first_change:
+            os.makedirs(self.log_directory, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
+            self.log_old = os.path.join(log_directory, f"{timestamp}.old")
+            self.log_new = os.path.join(log_directory, f"{timestamp}.new")
+
+        with open(self.log_old, "a") as outfile:
+            if self.first_change:
+                print("_____00-autodooz-cmdline_____", file=outfile)
+                print(" ".join(sys.argv), file=outfile)
+            print(f"_____{page} ::: {summary}_____", file=outfile)
+            print(f"_____{page}_____", file=outfile)
+            print(old_text, file=outfile)
+
+        with open(self.log_new, "a") as outfile:
+            if self.first_fix:
+                self.first_change = False
+                print("_____00-autodooz-cmdline_____", file=outfile)
+                print(" ".join(sys.argv), file=outfile)
+            print(f"_____{page} ::: {summary}_____", file=outfile)
+            print(f"_____{page}_____", file=outfile)
+            print(old_text, file=outfile)
 
 log = None
 
@@ -704,6 +733,8 @@ class AutoDooz(
         self.userPut(page, oldtext, newtext,
                      summary=summary,
                      ignore_save_related_errors=True, **kwargs)
+
+        log.log_fix(page, oldtext, newtext, summary)
 
     def user_confirm(self, question):
         """Always return True due to our own input choice."""

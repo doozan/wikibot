@@ -128,6 +128,7 @@ def get_matches(title, full_text, re_match, re_not, match_context, no_path, dota
     found_sections = []
     if needs_sections:
         pattern = "^==+.*?==+"
+        # TODO: can probably drop re.MULTILINE here
         for m in wiki_finditer(pattern, full_text, re.MULTILINE, ignore_comments=False, ignore_nowiki=True, ignore_templates=True):
             found_sections.append((m.group(0), m.start()))
 
