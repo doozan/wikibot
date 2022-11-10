@@ -59,30 +59,40 @@ def get_fixer(cls, params):
 import autodooz.fix_section_headers
 wikifix['cleanup_sections'] = {
     'mode': 'function',
-    "fixes": [(autodooz.fix_section_headers.cleanup_sections, None)]
+    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
+    "fixes": [(autodooz.fix_section_headers.cleanup_sections, None)],
 }
 
 from autodooz.fix_tlfi import fr_add_tlfi
 wikifix['add_tlfi'] = {
     'mode': 'function',
     'summary': 'French: Added TLFi link (bot edit)',
+    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
     "fixes": [(fr_add_tlfi, None)],
 }
 
-import autodooz.list_unwanted_children as badkids
+import autodooz.list_bad_parents as badparents
 wikifix['abandon_children'] = {
     'mode': 'function',
-    "fixes": [(badkids.process, None)]
+    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
+    "fixes": [(badparents.process, None)]
 }
 
 import autodooz.sort_sections
 wikifix['sort_l2'] = {
     'mode': 'function',
+    "pre-fixes": [
+        (autodooz.fix_section_headers.default_cleanup, None),
+        (autodooz.fix_section_headers.cleanup_sections, None)],
     "fixes": [(autodooz.sort_sections.sort_l2, None)]
 }
-wikifix['es_sort_l3'] = {
+
+wikifix['sort_l3'] = {
     'mode': 'function',
-    "fixes": [(autodooz.sort_sections.es_sort_l3, None)]
+    "pre-fixes": [
+        (autodooz.fix_section_headers.default_cleanup, None),
+        (autodooz.fix_section_headers.cleanup_sections, None)],
+    "fixes": [(autodooz.sort_sections.sort_l3, None)]
 }
 
 from autodooz.t9n_fixer import T9nFixRunner
@@ -92,6 +102,7 @@ def wikifix_t9n(text, title, summary, options):
 
 wikifix['fix_t9n'] = {
     'mode': 'function',
+    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
     "fixes": [(wikifix_t9n, {"allforms": f"{SPANISH_DATA}/es_allforms.csv"})]
 }
 
@@ -102,6 +113,7 @@ def es_drae_wrong(text, title, summary, options):
 
 wikifix['es_drae_wrong'] = {
     'mode': 'function',
+    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
     "fixes": [(es_drae_wrong, { "drae_links": f"{DRAE_DATA}/drae.links" })]
 }
 
@@ -111,6 +123,7 @@ def es_drae_missing(text, title, summary, options):
 
 wikifix['es_drae_missing'] = {
     'mode': 'function',
+    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
     "fixes": [(es_drae_missing, { "drae_links": f"{DRAE_DATA}/drae.links" })]
 }
 
@@ -121,6 +134,7 @@ def es_add_forms(text, title, summary, options):
 
 wikifix['es_add_forms'] = {
     'mode': 'function',
+    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
     "fixes": [(es_add_forms, {
         "lang": "es",
         "allforms": f"{SPANISH_DATA}/es_allforms.csv",
@@ -134,6 +148,7 @@ def es_replace_forms(text, title, summary, options):
 
 wikifix['es_replace_pos'] = {
     'mode': 'function',
+    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
     "fixes": [(es_replace_forms, {
         "lang": "es",
         "allforms": f"{SPANISH_DATA}/es_allforms.csv",
