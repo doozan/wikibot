@@ -156,3 +156,22 @@ wikifix['es_replace_pos'] = {
         "pos": ["v", "n", "adj"],
         })]
 }
+
+
+
+
+def es_add_forms(text, title, summary, options):
+    fixer = get_fixer(FixRunner, tuple(options[k] for k in ["lang", "wordlist", "allforms"]))
+    return fixer.add_pos(text, title, summary, options["pos"])
+
+wikifix['es_replace_pos'] = {
+    'mode': 'function',
+    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
+    "fixes": [(es_add_forms, {
+        "lang": "es",
+        "allforms": f"{SPANISH_DATA}/es_allforms.csv",
+        "wordlist": f"{SPANISH_DATA}/es-en.data",
+        "pos": ["v", "n", "adj"],
+        })],
+    "post-fixes": [(autodooz.sort_sections.sort_l3, None)]
+}
