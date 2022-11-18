@@ -1,15 +1,15 @@
 #!/usr/bin/python3
 
-from collections import defaultdict, namedtuple
-from enwiktionary_wordlist.wikiextract import WikiExtract, WikiExtractWithRev
 import autodooz.wikimatch as wikimatch
 import itertools
+import pywikibot
 import re
 import sys
 
+from collections import defaultdict, namedtuple
 from datetime import datetime
-import pywikibot
-from pywikibot import pagegenerators, textlib
+from enwiktionary_wordlist.wikiextract import WikiExtract, WikiExtractWithRev
+from pathlib import Path
 from pywikibot.bot import (
     AutomaticTWSummaryBot,
     ConfigParserBot,
@@ -19,7 +19,7 @@ from pywikibot.bot import (
 
 # This is required for the text that is shown when you run this script
 # with the parameter -help.
-docuReplacements = {'&params;': pagegenerators.parameterHelp}  # noqa: N816
+docuReplacements = {'&params;': pywikibot.pagegenerators.parameterHelp}  # noqa: N816
 
 # A safety check, if this appears in a patch, it will never be written to the live site
 FAILSAFE_TEXT="AUTODOOZ"
@@ -29,7 +29,10 @@ class Logger:
         self.opt = opt
         self.first_patch = True
 
-        self.log_directory = ".autodooz"
+        basedir = "~/.autodooz"
+        basedir = Path(filename).expanduser()
+        self.log_directory = basedir
+
         self.first_change = True
 
         # Only use compact mode when manually specified, user is responsible if it doesn't work
@@ -98,7 +101,6 @@ class Logger:
                 print("_____00-autodooz-cmdline_____", file=outfile)
                 print(" ".join(sys.argv), file=outfile)
             print(f"_____{page} ::: {summary}_____", file=outfile)
-            print(f"_____{page}_____", file=outfile)
             print(old_text, file=outfile)
 
         with open(self.log_new, "a") as outfile:
@@ -107,7 +109,6 @@ class Logger:
                 print("_____00-autodooz-cmdline_____", file=outfile)
                 print(" ".join(sys.argv), file=outfile)
             print(f"_____{page} ::: {summary}_____", file=outfile)
-            print(f"_____{page}_____", file=outfile)
             print(old_text, file=outfile)
 
 log = None
@@ -787,7 +788,7 @@ def init_fixes(requested_fixes, config):
 def main():
 
     local_args = pywikibot.handle_args()
-    gen_factory = pagegenerators.GeneratorFactory()
+    gen_factory = pywikibot.pagegenerators.GeneratorFactory()
     local_args = gen_factory.handle_args(local_args)
 
     import argparse
@@ -835,8 +836,7 @@ def main():
     # Load user fixes first because it can modify the args
     if args.fix:
 
-        from pathlib import Path
-        filename = args.config if args.config else "~/.pywikibot/autodooz-fixes.py"
+        filename = args.config if args.config else "~/.autodooz/autodooz-fixes.py"
         filename = Path(filename).expanduser()
         config = Config(filename)
 

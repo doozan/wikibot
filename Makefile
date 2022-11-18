@@ -407,7 +407,7 @@ $(LIST)unsorted: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 # Fixes
 $(FIX)fr_missing_tlfi:
 >   @
->   FIX="--fix add_tlfi --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix add_tlfi --log-fixes $@.fixes --log-matches $@.matches --config=etc/autodooz-fixes.py"
 >   SRC="User:JeffDoozan/lists/fr_missing_tlfi"
 >   MAX=500
 
@@ -444,7 +444,7 @@ $(FIX)pt_syns:
 
 $(FIX)autofix_title:
 >   @
->   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   SRC="User:JeffDoozan/lists/autofix_title"
 >   MAX=500
 
@@ -456,7 +456,7 @@ $(FIX)autofix_title:
 
 $(FIX)autofix_numbered_pos:
 >   @
->   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   SRC="User:JeffDoozan/lists/autofix_numbered_pos"
 >   MAX=200
 
@@ -469,7 +469,7 @@ $(FIX)autofix_numbered_pos:
 $(FIX)autofix_missing_references:
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_missing_references"
->   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -481,7 +481,7 @@ $(FIX)autofix_missing_references:
 $(FIX)autofix_bad_l2:
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_bad_l2"
->   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -493,7 +493,7 @@ $(FIX)autofix_bad_l2:
 $(FIX)botfix_consolidate_forms:
 >   @
 >   SRC="User:JeffDoozan/lists/translations/by_error/botfix_consolidate_forms"
->   FIX="--fix fix_t9n --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix fix_t9n --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -505,7 +505,7 @@ $(FIX)botfix_consolidate_forms:
 $(FIX)botfix_remove_gendertags:
 >   @
 >   SRC="User:JeffDoozan/lists/translations/by_error/botfix_remove_gendertags"
->   FIX="--fix fix_t9n --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix fix_t9n --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -517,7 +517,7 @@ $(FIX)botfix_remove_gendertags:
 $(FIX)es_missing_entry:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_entry_autofix"
->   FIX="--fix es_add_forms --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix es_add_forms --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -529,7 +529,7 @@ $(FIX)es_missing_entry:
 $(FIX)es_missing_pos:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_pos_autofix"
->   FIX="--fix es_add_forms --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix es_add_forms --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=300
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -541,7 +541,7 @@ $(FIX)es_missing_pos:
 $(FIX)es_missing_sense:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_sense_autofix"
->   FIX="--fix es_replace_pos --log-fixes $@.fixes --log-matches $@.matches" # --fix es_add_forms"
+>   FIX="--fix es_replace_pos --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py" # --fix es_add_forms"
 >   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -556,7 +556,7 @@ $(FIX)es_missing_sense:
 $(FIX)misplaced_translations_section:
 >   @
 >   SRC="User:JeffDoozan/lists/translations/by_error/outside_pos"
->   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=300
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -568,7 +568,7 @@ $(FIX)misplaced_translations_section:
 $(FIX)misnamed_references_section:
 >   @
 >   SRC="User:JeffDoozan/lists/misnamed_references_section"
->   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -580,7 +580,7 @@ $(FIX)misnamed_references_section:
 $(FIX)autofix_empty_section:
 >   @
 >   SRC="User:JeffDoozan/lists/autofix_empty_section"
->   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -592,7 +592,7 @@ $(FIX)autofix_empty_section:
 $(FIX)es_unexpected_form:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/unexpected_form_autofix"
->   FIX="--fix es_replace_pos --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix es_replace_pos --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -603,7 +603,7 @@ $(FIX)es_unexpected_form:
 
 $(FIX)l2_unsorted:
 >   SRC="User:JeffDoozan/lists/l2_unsorted"
->   FIX="--fix sort_l2 --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix sort_l2 --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -612,9 +612,9 @@ $(FIX)l2_unsorted:
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-$(FIX)es_l3_unsorted:
+$(FIX)l3_unsorted:
 >   SRC="User:JeffDoozan/lists/l3_unsorted"
->   FIX="--pre-fix cleanup_sections --fix es_sort_l3 --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--pre-fix cleanup_sections --fix sort_l3 --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -625,7 +625,7 @@ $(FIX)es_l3_unsorted:
 
 $(FIX)es_drae_missing:
 >   SRC="User:JeffDoozan/lists/es/drae_link_missing_autofix"
->   FIX="--fix es_drae_missing --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix es_drae_missing --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=250
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -637,7 +637,7 @@ $(FIX)es_drae_missing:
 
 $(FIX)es_drae_wrong:
 >   SRC="User:JeffDoozan/lists/es/drae_link_wrong_target_autofix"
->   FIX="--fix es_drae_wrong --log-fixes $@.fixes --log-matches $@.matches"
+>   FIX="--fix es_drae_wrong --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
@@ -653,7 +653,7 @@ lists: $(patsubst %,$(LIST)%,t9n_problems section_stats es_forms_with_data misma
 autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi autofix_title autofix_numbered_pos misplaced_translations_section autofix_missing_references autofix_bad_l2 l2_unsorted botfix_consolidate_forms botfix_remove_gendertags es_drae_wrong es_drae_missing)
 
 # Fixes that may make mistakes and need human supervision
-otherfixes: $(patsubst %,$(FIX)%,es_missing_entry misnamed_references_section autofix_empty_section es_l3_unsorted es_missing_pos es_missing_sense es_unexpected_form)
+otherfixes: $(patsubst %,$(FIX)%,es_missing_entry misnamed_references_section autofix_empty_section l3_unsorted es_missing_pos es_missing_sense es_unexpected_form)
 
 # Fixes that need fun_replace and not wikifix
 oldfixes: $(patsubst %,$(FIX)%,es_syns pt_syns)
