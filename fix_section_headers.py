@@ -188,6 +188,7 @@ def fix_bad_l2(entry):
         child = entry._children.pop(idx)
         old_path = child.path
         newparent._children.append(child)
+        child.parent = newparent
         child.level = 3
         adjust_level(3, child._children)
         new_path = child.path
@@ -240,7 +241,7 @@ def fix_counters(entry):
 def remove_empty_sections(entry):
 
     changes = []
-    for section in reversed(list(entry.ifilter_sections())):
+    for section in reversed(entry.filter_sections()):
         if section.level == 2:
             continue
 

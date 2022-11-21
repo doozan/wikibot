@@ -423,3 +423,41 @@ def test_t9n_moving2():
 
     res = str(entry)
     assert res == expected
+
+
+def test_remove_empty_children():
+
+    text = """\
+==Translingual==
+
+===Etymology===
+{{rfe|mul}}
+
+===Proper noun===
+{{taxoninfl|i=1|g=f}}
+
+# {{taxon|genus|family|Strigidae|{{vern|crested owl}}}}
+
+====Hypernyms====
+* {{sense|genus}} {{Strigidae Hypernyms}}; [[Striginae]]&nbsp;- subfamily
+
+====Hyponyms====
+* {{sense|genus}} {{taxlink|Lophostrix cristata|species}}&nbsp;- sole species
+
+===References===
+* {{pedia|i=1}}
+* {{specieslite|i=1}}
+* {{comcatlite|i=1}}
+* {{R:Gill2006}}
+
+===Further reading==
+
+[[Category:mul:Birds]]
+"""
+
+    entry = SectionParser(text, "test")
+
+    # ===Further reading== is a bad L2 and also an empty section
+    # Make sure there's no crash after it is moved and then removed
+    fixer.fix_bad_l2(entry)
+    fixer.remove_empty_sections(entry)
