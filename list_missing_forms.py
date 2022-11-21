@@ -225,19 +225,19 @@ def can_autofix(page_text, title, error):
     if error.error == "unexpected_form":
         if not hasattr(error.item, "pos"):
             raise ValueError("tuple", error, error.item, title)
-        if fixrunner._replace_pos(page_text, title, error.item.pos) != page_text:
+        if fixrunner.replace_pos(page_text, title, error.item.pos) != page_text:
             return True
-        if fixrunner._remove_forms(page_text, title, error.item.pos) != page_text:
-            return True
+#        if fixrunner._remove_forms(page_text, title, error.item.pos) != page_text:
+#            return True
 
     elif error.error in ["missing_entry", "missing_pos"]:
-        if fixrunner._add_forms(page_text, title, error.item.pos) != page_text:
+        if fixrunner.add_forms(page_text, title, error.item.pos) != page_text:
             return True
 
     elif error.error == "missing_sense":
-        if fixrunner._replace_pos(page_text, title, error.item.pos) != page_text:
+        if fixrunner.replace_pos(page_text, title, error.item.pos) != page_text:
             return True
-        if fixrunner._add_forms(page_text, title, error.item.pos) != page_text:
+        if fixrunner.add_forms(page_text, title, error.item.pos) != page_text:
             return True
 
 
