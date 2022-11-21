@@ -190,6 +190,7 @@ def fix_bad_l2(entry):
         newparent._children.append(child)
         child.parent = newparent
         child.level = 3
+        child.title = child.title.strip("=")
         adjust_level(3, child._children)
         new_path = child.path
         changes.append(f"/*{old_path}*/ moved errant L2 to {new_path}")
