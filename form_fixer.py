@@ -96,10 +96,10 @@ smart_inflection_formtypes = {
     'pp_fp', 'pp_fs', 'pp_mp', 'pp_ms',
     'pres_1p', 'pres_1s', 'pres_2p', 'pres_2s', 'pres_2sv', 'pres_3p', 'pres_3s',
     'pres_sub_1p', 'pres_sub_1s', 'pres_sub_2p', 'pres_sub_2s', 'pres_sub_2sv', 'pres_sub_3p', 'pres_sub_3s',
-    'pret_1p', 'pret_1s', 'pret_2p', 'pret_2s', 'pret_3p', 'pret_3s'
+    'pret_1p', 'pret_1s', 'pret_2p', 'pret_2s', 'pret_3p', 'pret_3s',
 
     # 2pf and 2sf can be generated using es-verb-form of with old style paramaters
-    # but they're not generated interally by es-verb but they are handled by
+    # they're not generated interally by es-verb but they are handled by
     # es-verb form of and so are included here to allow converting from the
     # old style templates to smart_inflection
 
