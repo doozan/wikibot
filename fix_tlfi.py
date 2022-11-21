@@ -33,4 +33,7 @@ def fr_add_tlfi(text, title, summary, options):
     else:
         french._children.append(further_reading)
 
+    if summary is not None:
+        summary.append("French: added missing TLFi link")
+
     return str(entry)

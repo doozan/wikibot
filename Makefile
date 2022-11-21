@@ -414,7 +414,7 @@ $(FIX)fr_missing_tlfi:
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)"
 >   echo $$LINKS > $@
 
 # TODO: some sort of list maker to check if they can be auto fixed

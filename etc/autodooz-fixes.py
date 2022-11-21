@@ -7,7 +7,6 @@ wikifix = {}
 wikifix['fix_name'] = {
     'mode': 'text'|'regex'|'function'
     'context': 'line'|'section'|'full_section'|'page'
-    'summary': SUMMARY_STRING
     'fixes': [ (PATTERN, REPLACEMENT)|(TEXT, REPLACEMENT)|(FUNCTION, ARGS) ]
 }
 
@@ -66,7 +65,6 @@ wikifix['cleanup_sections'] = {
 from autodooz.fix_tlfi import fr_add_tlfi
 wikifix['add_tlfi'] = {
     'mode': 'function',
-    'summary': 'French: Added TLFi link (bot edit)',
     "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
     "fixes": [(fr_add_tlfi, None)],
 }
