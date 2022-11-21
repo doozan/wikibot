@@ -192,7 +192,7 @@ def fix_bad_l2(entry):
         child.level = 3
         adjust_level(3, child._children)
         new_path = child.path
-        changes.append("/*{old_path}*/ moved errant L2 to {new_path}")
+        changes.append(f"/*{old_path}*/ moved errant L2 to {new_path}")
 
     return changes
 
