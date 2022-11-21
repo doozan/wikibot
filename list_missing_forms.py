@@ -231,13 +231,13 @@ def can_autofix(page_text, title, error):
 #            return True
 
     elif error.error in ["missing_entry", "missing_pos"]:
-        if fixrunner.add_forms(page_text, title, error.item.pos) != page_text:
+        if fixrunner.add_forms(page_text, title) != page_text:
             return True
 
     elif error.error == "missing_sense":
         if fixrunner.replace_pos(page_text, title, error.item.pos) != page_text:
             return True
-        if fixrunner.add_forms(page_text, title, error.item.pos) != page_text:
+        if fixrunner.add_forms(page_text, title) != page_text:
             return True
 
 

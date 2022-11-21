@@ -1320,7 +1320,8 @@ class FormFixer():
         if re.sub(r" form\|g=([mfps-]*)}}", " form}}", res.rstrip()) == re.sub(r" form\|g=([mfps-]*)}}", " form}}", page_text.rstrip()):
             return page_text
 
-        summary += changes
+        if summary is not None:
+            summary += changes
         return res
 
 class FixRunner():
@@ -1565,7 +1566,7 @@ class FixRunner():
              summary.append("Spanish: Removed forms")
         return self._remove_forms(page_text, title)
 
-    def replace_pos(self, page_text, title, summary, pos_list):
+    def replace_pos(self, page_text, title, pos_list, summary=None):
 
         if not self.can_handle_page(title):
             return page_text
