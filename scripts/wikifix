@@ -3,6 +3,7 @@
 import autodooz.wikimatch as wikimatch
 import itertools
 import pywikibot
+import os
 import re
 import sys
 
@@ -90,11 +91,11 @@ class Logger:
 
     def log_fix(self, page, old_text, new_text, summary):
 
-        if first_change:
+        if self.first_change:
             os.makedirs(self.log_directory, exist_ok=True)
             timestamp = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
-            self.log_old = os.path.join(log_directory, f"{timestamp}.old")
-            self.log_new = os.path.join(log_directory, f"{timestamp}.new")
+            self.log_old = os.path.join(self.log_directory, f"{timestamp}.old")
+            self.log_new = os.path.join(self.log_directory, f"{timestamp}.new")
 
         with open(self.log_old, "a") as outfile:
             if self.first_change:
@@ -104,7 +105,7 @@ class Logger:
             print(old_text, file=outfile)
 
         with open(self.log_new, "a") as outfile:
-            if self.first_fix:
+            if self.first_patch:
                 self.first_change = False
                 print("_____00-autodooz-cmdline_____", file=outfile)
                 print(" ".join(sys.argv), file=outfile)
