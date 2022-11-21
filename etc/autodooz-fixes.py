@@ -71,12 +71,12 @@ wikifix['add_tlfi'] = {
     "fixes": [(fr_add_tlfi, None)],
 }
 
-import autodooz.list_bad_parents as badparents
-wikifix['abandon_children'] = {
-    'mode': 'function',
-    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
-    "fixes": [(badparents.process, None)]
-}
+#import autodooz.list_bad_parents as badparents
+#wikifix['abandon_children'] = {
+#    'mode': 'function',
+#    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
+#    "fixes": [(badparents.process, None)]
+#}
 
 import autodooz.sort_sections
 wikifix['sort_l2'] = {
