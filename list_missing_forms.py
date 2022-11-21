@@ -340,7 +340,7 @@ def main():
                     items = [i for i in missing_forms if i.pos == item.pos]
 
                     if fixer.can_handle(item):
-                        pos_text = "\n".join(fixer.full_pos(item.form, level, items))
+                        pos_text = str(fixer.full_pos(level, items))
                     else:
                         pos_text = ""
                     error("missing_pos", form, item, pos_text)
