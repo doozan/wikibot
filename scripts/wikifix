@@ -10,6 +10,7 @@ from collections import defaultdict, namedtuple
 from datetime import datetime
 from enwiktionary_wordlist.wikiextract import WikiExtract, WikiExtractWithRev
 from pathlib import Path
+from pywikibot import pagegenerators
 from pywikibot.bot import (
     AutomaticTWSummaryBot,
     ConfigParserBot,
@@ -19,7 +20,7 @@ from pywikibot.bot import (
 
 # This is required for the text that is shown when you run this script
 # with the parameter -help.
-docuReplacements = {'&params;': pywikibot.pagegenerators.parameterHelp}  # noqa: N816
+docuReplacements = {'&params;': pagegenerators.parameterHelp}  # noqa: N816
 
 # A safety check, if this appears in a patch, it will never be written to the live site
 FAILSAFE_TEXT="AUTODOOZ"
@@ -29,8 +30,7 @@ class Logger:
         self.opt = opt
         self.first_patch = True
 
-        basedir = "~/.autodooz"
-        basedir = Path(filename).expanduser()
+        basedir = Path("~/.autodooz").expanduser()
         self.log_directory = basedir
 
         self.first_change = True
@@ -788,7 +788,7 @@ def init_fixes(requested_fixes, config):
 def main():
 
     local_args = pywikibot.handle_args()
-    gen_factory = pywikibot.pagegenerators.GeneratorFactory()
+    gen_factory = pagegenerators.GeneratorFactory()
     local_args = gen_factory.handle_args(local_args)
 
     import argparse
