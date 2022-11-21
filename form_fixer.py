@@ -1543,7 +1543,7 @@ class FixRunner():
                 raise ValueError(f"{title}: has a redirect with extra text")
 
         if summary is not None:
-            summary.append("Spanish: Added forms")
+            summary.append("/*Spanish*/ Added forms")
 
         try:
             return self._add_forms(page_text, title, skip_errors=True)
@@ -1563,7 +1563,7 @@ class FixRunner():
             return page_text
 
         if summary:
-             summary.append("Spanish: Removed forms")
+             summary.append("/*Spanish*/ Removed forms")
         return self._remove_forms(page_text, title)
 
     def replace_pos(self, page_text, title, pos_list, summary=None):
@@ -1598,5 +1598,5 @@ class FixRunner():
             changes = "Removed forms"
 
         if summary is not None:
-            summary.append("Spanish: " + "; ".join(changes))
+            summary.append("/*Spanish*/ " + "; ".join(changes))
         return new_text
