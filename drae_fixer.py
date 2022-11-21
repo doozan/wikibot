@@ -53,7 +53,7 @@ class DraeFixer():
         return links
 
 
-    def fix_missing_drae(self, text, title, summary):
+    def fix_missing_drae(self, text, title, summary=None):
 
         # Skip single letters
         if len(title) == 1:
