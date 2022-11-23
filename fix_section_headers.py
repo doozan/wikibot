@@ -275,7 +275,7 @@ def add_missing_references(entry):
             else:
                 section._children.append(new_section)
 
-            changes.append(f"/*{section.path}*/ created missing References section")
+            changes.append(f"/*{section.path}*/ added References section")
 
     return changes
 
