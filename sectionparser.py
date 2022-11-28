@@ -53,7 +53,7 @@ class SectionParser():
         return ""
 
     def __str__(self):
-        return self.header + "\n----\n\n".join(list(map(str, self._children)))
+        return self.header + "\n----\n\n".join(list(map(str, self._children))).rstrip()
 
     @property
     def state(self):
@@ -199,6 +199,12 @@ class Section():
             self._moved_categories = False
             self._duplicate_categories = False
         self._topmost = target
+
+    def adjust_level(self, new_level):
+        if new_level != self.level:
+            self.level = new_level
+            for child in self._children:
+                child.adjust_level(new_level + 1)
 
     @classmethod
     def has_category(cls, line):

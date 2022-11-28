@@ -326,7 +326,7 @@ Borrowed from {{bor|en|la|asportō}}.
 * {{l|en|asportation}}
 
 ===Anagrams===
-* {{anagrams|en|a=aoprst|Portas|Sproat|pastor|portas|sap rot|saprot}}
+* {{anagrams|en|a=aoprst|Portas|Sproat|pastor|portas|sap rot|saprot}}\
 """
 
     entry = SectionParser(text, "test")
@@ -415,7 +415,7 @@ def test_t9n_moving2():
 ====Translations====
 {{trans-top}}
 {{trans-mid}}
-{{trans-bottom}}
+{{trans-bottom}}\
 """
 
     entry = SectionParser(text, "test")
