@@ -101,7 +101,7 @@ class Logger:
             if self.first_change:
                 print("_____00-autodooz-cmdline_____", file=outfile)
                 print(" ".join(sys.argv), file=outfile)
-            print(f"_____{page} ::: {summary}_____", file=outfile)
+            print(f"_____{page}_____", file=outfile)
             print(old_text, file=outfile)
 
         with open(self.log_new, "a") as outfile:

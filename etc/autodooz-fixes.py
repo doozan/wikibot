@@ -155,3 +155,15 @@ wikifix['es_replace_pos'] = {
         "pos": ["v", "n", "adj"],
         })]
 }
+
+
+import autodooz.fix_orphaned_sections
+
+wikifix['fix_orphaned'] = {
+    'mode': 'function',
+    "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
+    "fixes": [(autodooz.fix_orphaned_sections.process, None)],
+    "post-fixes": [(autodooz.sort_sections.sort_l3, None)]
+}
+
+
