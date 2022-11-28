@@ -9,12 +9,12 @@ ALL_LANGS = {v:k for k,v in lang_ids.items()}
 # this reads the environment and inits the right locale
 #locale.setlocale(locale.LC_ALL, "")
 
-COUNTABLE_SECTIONS = {
+COUNTABLE_SECTIONS = [
     "Etymology",
     "Pronunciation",
     "Glyph origin",
     "Glyph"
-}
+]
 
 WT_POS = {
     # Parts of speech
@@ -278,7 +278,7 @@ bottom_sort_safe = {k:v for v,k in enumerate([
         "Anagrams",
     ], 1)}
 
-ALL_L3_SECTIONS = COUNTABLE_SECTIONS | WT_ELE | ALL_POS.keys() | top_sort.keys() | bottom_sort.keys()
+ALL_L3_SECTIONS = set(COUNTABLE_SECTIONS) | WT_ELE | ALL_POS.keys() | top_sort.keys() | bottom_sort.keys()
 
 def get_l3_sort_key_altforms(item, alt_first=False, lemmas_before_forms=False):
     if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
