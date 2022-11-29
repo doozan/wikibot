@@ -85,6 +85,44 @@ ALL_POS = WT_POS | {
     "Abbreviations": "abbrev",
 }
 
+ALL_POS_CHILDREN = [
+    "Definitions",
+
+    "Usage notes",
+    "Reconstruction notes",
+    "Inflection",
+    "Declension",
+    "Conjugation",
+    "Mutation",
+    "Quotations",
+    "Alternative forms",
+    "Alternative scripts",
+    "Alternative reconstructions",
+
+    "Synonyms",
+    "Antonyms",
+    "Hypernyms",
+    "Hyponyms",
+    "Meronyms",
+    "Holonyms",
+    "Troponyms",
+    "Coordinate terms",
+    "Derived terms",
+    "Derived characters", # not in WT:ELE
+    "Related terms",
+    "Related characters", # not in WT:ELE
+    "Collocations",
+    "Descendants",
+    "Translations",
+    "Statistics", # Not in WT:ELE, but used in 20k pages
+    "Trivia",
+    "See also",
+    "References",
+    "Further reading",
+]
+
+
+
 import unicodedata
 def strip_accents(s):
    return ''.join(c for c in unicodedata.normalize('NFD', s)
@@ -170,6 +208,28 @@ def sort_pos(language):
 
     return changes
 
+
+def sort_pos_children(pos):
+
+    changes = []
+
+    assert pos.title in ALL_POS
+
+    can_sort = True
+    for child in pos._children:
+        if child.title not in ALL_POS_CHILDREN:
+            print(pos.path, "unexpected child", child.title)
+            can_sort = False
+
+    if not can_sort:
+        return changes
+
+    orig = list(pos._children)
+    pos._children.sort(key=lambda x: ALL_POS_CHILDREN.index(x.title))
+    if orig != pos._children:
+        changes.append(f"/*{pos.path}*/ sorted child sections per WT:ELE")
+
+    return changes
 
 
 WT_ELE = {
