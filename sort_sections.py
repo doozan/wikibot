@@ -140,19 +140,18 @@ def get_language_key(title):
 
 def sort_languages(entry):
 
-    if not entry._children or entry._children[0].level != 2:
-        return False
+    changes = []
 
-    # Don't sort pages with unexpected L2 sections
-    if not all(lang.title in ALL_LANGS for lang in entry._children):
-        return False
+    # Only sort if all sections are L2 and match expected language titles
+    if not entry._children or not all(c.level == 2 and c.title in ALL_LANGS for c in entry._children):
+        return changes
 
     sorted_sections = sorted(entry._children, key=lambda x: get_language_key(x.title))
-    if sorted_sections == entry._children:
-        return False
+    if sorted_sections != entry._children:
+        entry._children = sorted_sections
+        changes.append("Sorted L2 languages per WT:ELE")
 
-    entry._children = sorted_sections
-    return True
+    return changes
 
 def sort_pos(language):
 
@@ -213,12 +212,14 @@ def sort_pos_children(pos):
 
     changes = []
 
-    assert pos.title in ALL_POS
+    # Only sort if the section itself is really a POS
+    if pos.title not in ALL_POS:
+        raise ValueError("unexpected POS, refusing to sort", pos.title)
 
     can_sort = True
     for child in pos._children:
         if child.title not in ALL_POS_CHILDREN:
-            print(pos.path, "unexpected child", child.title)
+            print(pos.path, "can't sort POS, found unexpected child section", child.title)
             can_sort = False
 
     if not can_sort:
@@ -386,16 +387,13 @@ def sort_l2(text, title, summary, options):
 
     entry = SectionParser(text, title)
 
-    old = str(entry).rstrip()
-    sort_languages(entry)
-    res = str(entry).rstrip()
-
-    if res == old:
+    changes = sort_languages(entry)
+    if not changes:
         return text
 
-    summary.append("Sorted L2 languages per WT:ELE")
+    summary += changes
 
-    return res
+    return str(entry)
 
 L3_SORT_LANGUAGES = ["Spanish", "English"]
 L3_LEMMAS_BEFORE_FORMS = ["Spanish"]
