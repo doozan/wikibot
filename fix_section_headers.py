@@ -70,6 +70,10 @@ TITLE_FIXES = {
 #    "Note": "Usage notes",
 #    "Notes": "Usage notes",
 #    "Usage": "Usage notes",
+
+    "Iñupiaq": "Inupiaq",
+    "Guarani": "Guaraní",
+    "Assyrian Neo-Aramiac": "Assyrian Neo-Aramaic",
 }
 
 ALLOWED_VARIATIONS = {
