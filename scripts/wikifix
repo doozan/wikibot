@@ -105,12 +105,12 @@ class Logger:
             print(old_text, file=outfile)
 
         with open(self.log_new, "a") as outfile:
-            if self.first_patch:
+            if self.first_change:
                 self.first_change = False
                 print("_____00-autodooz-cmdline_____", file=outfile)
                 print(" ".join(sys.argv), file=outfile)
             print(f"_____{page} ::: {summary}_____", file=outfile)
-            print(old_text, file=outfile)
+            print(new_text, file=outfile)
 
 log = None
 
@@ -563,7 +563,7 @@ class WikiExtractReplacePageGenerator:
 
         :rtype: bool
         """
-        if ":" in title:
+        if ":" in title or "/" in title:
             return True
         if 'title' in self.exceptions:
             for exc in self.exceptions['title']:
