@@ -175,7 +175,7 @@ class SectionParser():
 
 class Section():
 
-    templates = [ "c", "C", "cat", "top", "topic", "topics", "categorize", "catlangname", "catlangcode", "cln" ]
+    templates = [ "c", "C", "cat", "top", "topic", "topics", "categorize", "catlangname", "catlangcode", "cln", "zh-cat" ]
     re_templates = r"\{\{\s*(" + "|".join(templates) + r")\s*[|}][^{}]*\}*"
     re_categories = r"\[\[\s*Category\s*:[^\]]*\]\]"
     re_match_categories = fr"({re_templates}|{re_categories})"
