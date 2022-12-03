@@ -414,7 +414,7 @@ $(FIX)fr_missing_tlfi:
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)"
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 # TODO: some sort of list maker to check if they can be auto fixed
@@ -614,7 +614,7 @@ $(FIX)l2_unsorted:
 
 $(FIX)l3_unsorted:
 >   SRC="User:JeffDoozan/lists/l3_unsorted"
->   FIX="--pre-fix cleanup_sections --fix sort_l3 --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   FIX="--fix sort_l3 --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
