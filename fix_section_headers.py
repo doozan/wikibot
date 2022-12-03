@@ -274,7 +274,7 @@ def add_missing_references(entry):
             new_section.add("<references/>")
 
             # Anagrams is always the last section, otherwise References is the last
-            if section._children[-1].title == "Anagrams":
+            if section._children and section._children[-1].title == "Anagrams":
                 section._children.insert(-1, new_section)
             else:
                 section._children.append(new_section)
