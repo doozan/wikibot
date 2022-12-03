@@ -49,75 +49,6 @@ pos_to_inflection = {
 DeclaredForm = collections.namedtuple("DeclaredForm", [ "form", "pos", "formtype", "lemma", "lemma_genders" ])
 ExistingForm = collections.namedtuple("ExistingForm", [ "form", "pos", "formtype", "lemma" ])
 
-old_smart_inflection_formtypes = {
-    'cond_1p', 'cond_1s', 'cond_2p', 'cond_2pf', 'cond_2s', 'cond_2sf', 'cond_3p', 'cond_3s',
-    'fut_1p', 'fut_1s', 'fut_2p', 'fut_2pf', 'fut_2s', 'fut_2sf', 'fut_3p', 'fut_3s',
-    'fut_sub_1p', 'fut_sub_1s', 'fut_sub_2p', 'fut_sub_2pf', 'fut_sub_2s', 'fut_sub_2sf', 'fut_sub_3p', 'fut_sub_3s',
-    'gerund', 'gerund_comb_se',
-    'infinitive_comb_se', 'infinitive_comb_la',
-    'imp_1p', 'imp_1s', 'imp_2p', 'imp_2pf', 'imp_2s', 'imp_2sf', 'imp_2sv',
-    'imp_1p_comb_nos', 'imp_1p_comb_la',
-    'imp_2s_comb_la', 'imp_2s_comb_las', 'imp_2s_comb_les', 'imp_2s_comb_lo', 'imp_2s_comb_los', 'imp_2s_comb_nos', 'imp_2s_comb_te', 'imp_2s_comb_le',
-    'imp_2p_comb_lo', 'imp_2p_comb_la', 'imp_2p_comb_los', 'imp_2p_comb_les', 'imp_2p_comb_nos', 'imp_2p_comb_os', 'imp_2p_comb_le',
-    'imp_2pf_comb_lo', 'imp_2pf_comb_la', 'imp_2pf_comb_los', 'imp_2pf_comb_les', 'imp_2pf_comb_nos', 'imp_2pf_comb_os',
-    'imp_2sf_comb_se',
-    'imp_2pf_comb_se',
-    'imp_3p_comb_se',
-    'impf_1p', 'impf_1s', 'impf_2p', 'impf_2pf', 'impf_2s', 'impf_2sf', 'impf_3p', 'impf_3s',
-    'impf_sub_ra_1p', 'impf_sub_ra_1s', 'impf_sub_ra_2p', 'impf_sub_ra_2pf', 'impf_sub_ra_2s', 'impf_sub_ra_2sf', 'impf_sub_ra_3p', 'impf_sub_ra_3s',
-    'impf_sub_se_1p', 'impf_sub_se_1s', 'impf_sub_se_2p', 'impf_sub_se_2pf', 'impf_sub_se_2s', 'impf_sub_se_2sf', 'impf_sub_se_3p', 'impf_sub_se_3s',
-    'neg_imp_1p', 'neg_imp_2p', 'neg_imp_2pf', 'neg_imp_2s', 'neg_imp_2sf',
-    'pp_fp', 'pp_fs', 'pp_mp', 'pp_ms',
-    'pres_1p', 'pres_1s', 'pres_2p', 'pres_2pf', 'pres_2s', 'pres_2sf', 'pres_2sv', 'pres_3p', 'pres_3s',
-    'pres_sub_1p', 'pres_sub_1s', 'pres_sub_2p', 'pres_sub_2pf', 'pres_sub_2s', 'pres_sub_2sf', 'pres_sub_2sv', 'pres_sub_3p', 'pres_sub_3s',
-    'pret_1p', 'pret_1s', 'pret_2p', 'pret_2pf', 'pret_2s', 'pret_2sf', 'pret_3p', 'pret_3s'
-}
-
-smart_inflection_formtypes = {
-    'cond_1p', 'cond_1s', 'cond_2p', 'cond_2s', 'cond_3p', 'cond_3s',
-    'fut_1p', 'fut_1s', 'fut_2p', 'fut_2s', 'fut_3p', 'fut_3s',
-    'fut_sub_1p', 'fut_sub_1s', 'fut_sub_2p', 'fut_sub_2s', 'fut_sub_3p', 'fut_sub_3s',
-    'gerund', 'gerund_1p', 'gerund_1s', 'gerund_2p', 'gerund_2s', 'gerund_3p', 'gerund_3s',
-    'gerund_comb_la', 'gerund_comb_las', 'gerund_comb_le', 'gerund_comb_les', 'gerund_comb_lo', 'gerund_comb_los', 'gerund_comb_me', 'gerund_comb_nos', 'gerund_comb_os', 'gerund_comb_se', 'gerund_comb_te',
-    'imp_1p', 'imp_1p_comb_la', 'imp_1p_comb_las', 'imp_1p_comb_le', 'imp_1p_comb_les', 'imp_1p_comb_lo', 'imp_1p_comb_los', 'imp_1p_comb_nos', 'imp_1p_comb_os', 'imp_1p_comb_te',
-    'imp_2p', 'imp_2p_comb_la', 'imp_2p_comb_las', 'imp_2p_comb_le', 'imp_2p_comb_les', 'imp_2p_comb_lo', 'imp_2p_comb_los', 'imp_2p_comb_me', 'imp_2p_comb_nos', 'imp_2p_comb_os',
-    'imp_2s', 'imp_2s_comb_la', 'imp_2s_comb_las', 'imp_2s_comb_le', 'imp_2s_comb_les', 'imp_2s_comb_lo', 'imp_2s_comb_los', 'imp_2s_comb_me', 'imp_2s_comb_nos', 'imp_2s_comb_te',
-    'imp_2sv', 'imp_2sv_comb_la', 'imp_2sv_comb_las', 'imp_2sv_comb_le', 'imp_2sv_comb_les', 'imp_2sv_comb_lo', 'imp_2sv_comb_los', 'imp_2sv_comb_me', 'imp_2sv_comb_nos', 'imp_2sv_comb_te',
-    'imp_3p', 'imp_3p_comb_la', 'imp_3p_comb_las', 'imp_3p_comb_le', 'imp_3p_comb_les', 'imp_3p_comb_lo', 'imp_3p_comb_los', 'imp_3p_comb_me', 'imp_3p_comb_nos', 'imp_3p_comb_se',
-    'imp_3s', 'imp_3s_comb_la', 'imp_3s_comb_las', 'imp_3s_comb_le', 'imp_3s_comb_les', 'imp_3s_comb_lo', 'imp_3s_comb_los', 'imp_3s_comb_me', 'imp_3s_comb_nos', 'imp_3s_comb_se',
-    'impf_1p','impf_1s', 'impf_2p', 'impf_2s', 'impf_3p', 'impf_3s',
-    'impf_sub_ra_1p', 'impf_sub_ra_1s', 'impf_sub_ra_2p', 'impf_sub_ra_2s', 'impf_sub_ra_3p', 'impf_sub_ra_3s',
-    'impf_sub_se_1p', 'impf_sub_se_1s', 'impf_sub_se_2p', 'impf_sub_se_2s', 'impf_sub_se_3p', 'impf_sub_se_3s',
-    #'infinitive',
-    'infinitive_1p', 'infinitive_1s', 'infinitive_2p', 'infinitive_2s', 'infinitive_3p', 'infinitive_3s',
-    'infinitive_comb_la', 'infinitive_comb_las', 'infinitive_comb_le', 'infinitive_comb_les', 'infinitive_comb_lo', 'infinitive_comb_los', 'infinitive_comb_me', 'infinitive_comb_nos', 'infinitive_comb_os', 'infinitive_comb_se', 'infinitive_comb_te',
-    #'infinitive_linked',
-    'neg_imp_1p', 'neg_imp_2p', 'neg_imp_2s', 'neg_imp_3p', 'neg_imp_3s',
-    'pp_fp', 'pp_fs', 'pp_mp', 'pp_ms',
-    'pres_1p', 'pres_1s', 'pres_2p', 'pres_2s', 'pres_2sv', 'pres_3p', 'pres_3s',
-    'pres_sub_1p', 'pres_sub_1s', 'pres_sub_2p', 'pres_sub_2s', 'pres_sub_2sv', 'pres_sub_3p', 'pres_sub_3s',
-    'pret_1p', 'pret_1s', 'pret_2p', 'pret_2s', 'pret_3p', 'pret_3s',
-
-    # 2pf and 2sf can be generated using es-verb-form of with old style paramaters
-    # they're not generated interally by es-verb but they are handled by
-    # es-verb form of and so are included here to allow converting from the
-    # old style templates to smart_inflection
-
-    'cond_2pf', 'cond_2sf',
-    'fut_2pf', 'fut_2sf',
-    'fut_sub_2pf', 'fut_sub_2sf',
-    'imp_2pf', 'imp_2sf',
-    'imp_2pf_comb_lo', 'imp_2pf_comb_la', 'imp_2pf_comb_los', 'imp_2pf_comb_les', 'imp_2pf_comb_nos', 'imp_2pf_comb_os', 'imp_2pf_comb_se',
-    'impf_2pf', 'impf_2sf',
-    'impf_sub_ra_2pf', 'impf_sub_ra_2sf',
-    'impf_sub_se_2pf', 'impf_sub_se_2sf',
-    'neg_imp_2pf', 'neg_imp_2sf',
-    'pres_2pf', 'pres_2sf',
-    'pres_sub_2pf', 'pres_sub_2sf',
-    'pret_2pf', 'pret_2sf',
-
-}
-
 _unstresstab = str.maketrans("áéíóú", "aeiou")
 def unstress(text):
     return text.translate(_unstresstab)
@@ -202,6 +133,8 @@ class FormFixer():
         poslemmas = cls.get_declared_poslemmas(form, wordlist, allforms)
         poslemmas = cls.remove_dup_refl_verbs(poslemmas, form, wordlist)
 
+#        print(poslemmas)
+
         declared_forms = []
         for poslemma in poslemmas:
             pos, lemma = poslemma.split("|")
@@ -227,23 +160,8 @@ class FormFixer():
                     if not cls.can_handle_formtype(formtype):
                         continue
 
-                    if pos == "v":
-                        has_reflexive = cls.is_reflexive(lemma) or any(s for s in word.senses if s.qualifier and re.search("(reflexive|pronominal)", s.qualifier))
-                        if has_reflexive and formtype in ["infinitive_comb_se", "infinitive_3p", "infinitive_3s"]:
-                            formtype = "reflexive"
-
-                        elif formtype in smart_inflection_formtypes:
-                            formtype = "smart_inflection"
-
-                        elif formtype == "gerund_comb_se" and self.is_reflexive(lemma):
-                            formtype = "smart_inflection"
-
-                        elif formtype == "gerund_without_se":
-                            if cls.is_reflexive(lemma):
-                                formtype = "gerund"
-                            else:
-                                # TODO: this might never happen if gerund_without_se is only generated for refl verbs
-                                continue
+                    if pos == "v" or pos == "part":
+                        formtype = "smart_inflection"
 
                     # convert feminine plural of masculine noun to plural of feminine
                     if pos == "n" and formtype == "fpl":
@@ -281,29 +199,15 @@ class FormFixer():
         if formtype in cls.formtype_to_genderplural:
             return True
 
-        # inflections should be replaced with more specific templates
-        if formtype == "inflection":
-            return True
-
-        # Generated by es-conj, but only used internally for wiki linking
-        if formtype == "infinitive_linked":
-            return False
-
-        if formtype in {
-        "reflexive",
-#        "infinitive",
-#        "infinitive_comb_se",
-        "gerund",
-#        "pp_ms",
-#        "pp_mp",
-#        "pp_fs",
-#        "pp_fp",
-        }:
-#            return False
-            return True
-
         if formtype == "smart_inflection":
-             return True
+            return True
+
+        # Existing forms than can be replaced with smart_inflection
+        if formtype in ["gerund", "reflexive"]:
+            return True
+
+#        if formtype in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
+#            return True
 
         if "_" in formtype:
             return True
@@ -395,8 +299,12 @@ class FormFixer():
             return plurals[0]
 
     def get_part_head(self, form_obj):
-        #pos, formtype, lemma, lemma_genders = form_obj
-        if form_obj.formtype == "pp_ms":
+
+        # detected formtype will be 'smart_lemma' so check the wordlist for the real form type
+        word = self.wordlist.get_words(form_obj.lemma, "v")[0]
+        formtype = [f for f in word.get_formtypes(form_obj.form) if f.startswith("pp_")][0]
+
+        if formtype == "pp_ms":
             if not form_obj.form.endswith("o"):
                 raise ValueError("Unexpected singular past participle")
 
@@ -404,11 +312,11 @@ class FormFixer():
             impersonal = "|inv=1" if "only3s" in conj_params else ""
             return "{{es-past participle" + impersonal + "}}"
 
-        elif form_obj.formtype in [ "pp_mp", "pp_fs", "pp_fp" ]:
-            g = form_obj.formtype[-2] + "-" + form_obj.formtype[-1]
+        elif formtype in [ "pp_mp", "pp_fs", "pp_fp" ]:
+            g = formtype[-2] + "-" + formtype[-1]
             return "{{head|es|past participle form|g=" + g + "}}"
 
-        return self.get_generic_head(form_obj)
+        raise ValueError("Unexpected part formtype", formtype, form_obj)
 
     def get_noun_head(self, form_obj):
         gender, plural = self.get_gender_plural(form_obj.formtype)
@@ -456,55 +364,6 @@ class FormFixer():
         return "# {{adj form of|es|" + form_obj.lemma + "||" + genderplural + "}}"
 
 
-    slot_to_props = {
-        'cond': {"mood": "conditional"},
-        'fut': {"tense": "future", "mood": "indicative"},
-        'fut_sub': {"tense": "future", "mood": "subjunctive"},
-        'gerund': {"mood": "gerund"},
-        'imp': {"mood": "imperative", "sense": "affirmative"},
-        'impf': {"tense": "imperfect", "mood": "indicative"},
-        'impf_sub_ra': {"tense": "imperfect", "mood": "subjunctive", "sera": "ra"},
-        'impf_sub_se': {"tense": "imperfect", "mood": "subjunctive", "sera": "se"},
-        'neg_imp': {"mood": "imperative", "sense": "negative"},
-        'pp_fs': {"mood": "participle", "gender": "f", "number": "s"},
-        'pp_fp': {"mood": "participle", "gender": "f", "number": "p"},
-        'pp_ms': {"mood": "participle", "gender": "m", "number": "s"},
-        'pp_mp': {"mood": "participle", "gender": "m", "number": "p"},
-        'pres': {"tense": "present", "mood": "indicative"},
-        'pres_sub': {"tense": "present", "mood": "subjunctive"},
-        'pret': {"tense": "preterite", "mood": "indicative"},
-    }
-
-    person_props = {
-    "1s": {"person": "1", "number": "s"},
-    "2s": {"person": "2", "number": "s", "formal": "n"},
-    "2sv": {"person": "2", "number": "s", "formal": "n", "voseo": "y", "region": "Latin America"},
-    "2sf": {"person": "2", "number": "s", "formal": "y"},
-    "3s": {"person": "3", "number": "s"},
-    "1p": {"person": "1", "number": "p"},
-    "2p": {"person": "2", "number": "p", "formal": "n", "region": "Spain"},
-    "2pf": {"person": "2", "number": "p", "formal": "y"},
-    "3p": {"person": "3", "number": "p"},
-}
-
-    param_order = {k:i for i,k in enumerate(["mood", "tense", "sense", "formal", "person", "gender", "number", "voseo", "sera", "participle", "region", "ending"])}
-
-    def get_verb_gloss(self, form_obj):
-        if form_obj.formtype == "infinitive":
-            return "# {{inflection of|es|" + form_obj.lemma + "||inf}}"
-        elif form_obj.formtype == "reflexive":
-            return "# {{reflexive of|es|" + form_obj.lemma + "}}"
-        elif "_comb_" in form_obj.formtype:
-            return self.get_verb_compound_gloss(form_obj)
-        else:
-            return self.get_verb_form_gloss(form_obj)
-
-    def get_verb_form_gloss(self, form_obj):
-        if form_obj.formtype == "smart_inflection":
-            return self.get_smart_verb_form_gloss(form_obj)
-        return self.get_param_verb_form_gloss(form_obj)
-
-
     def get_verb_conj_params(self, form_obj):
 
         meta = self._conj_cache.get(form_obj.lemma)
@@ -519,13 +378,7 @@ class FormFixer():
         if len(words) > 1:
             can_cache = False
 
-        if form_obj.formtype == "smart_inflection":
-            words = [w for w in words
-                        for formtype, forms in w.forms.items()
-                            if formtype in smart_inflection_formtypes
-                                and form_obj.form in forms]
-        else:
-            words = [w for w in words if form_obj.formtype in w.forms and form_obj.form in w.forms[form_obj.formtype]]
+        words = [w for w in words for formtype, forms in w.forms.items() if form_obj.form in forms]
         if not words:
             raise ValueError("No word matches entry for", form_obj)
 
@@ -555,114 +408,11 @@ class FormFixer():
 
         return meta
 
-    def get_smart_verb_form_gloss(self, form_obj):
+    def get_verb_gloss(self, form_obj):
         conj_params = self.get_verb_conj_params(form_obj)
         if not conj_params:
             conj_params = ""
         return "# {{es-verb form of|" + form_obj.lemma + conj_params + "}}"
-
-    def get_param_verb_form_gloss(self, form_obj):
-        # TODO: handle this better
-        if " " in form_obj.lemma:
-            raise ValueError("unsupported lemma", form_obj.lemma)
-
-        data = {}
-
-        parts = form_obj.formtype.split("_")
-        last = parts[-1]
-        if last in self.person_props:
-           parts.pop()
-           data.update(self.person_props[last])
-
-        item = "_".join(parts)
-        if item not in self.slot_to_props:
-            raise ValueError("invalid verb type", item, form_obj)
-
-        data.update(self.slot_to_props[item])
-
-        # some imperatives are the same in the affirmative and the negative
-        if form_obj.formtype in ["imp_3s", "imp_3p"]:
-            #print("using generic imperative", formtype)
-            del data["sense"]
-        elif form_obj.formtype in ["imp_2sf", "imp_1p", "imp_2pf"] and not form_obj.lemma.endswith("rse"):
-            #print("using generic imperative", formtype)
-            del data["sense"]
-
-        data["ending"] = form_obj.lemma[-4:-2] if form_obj.lemma[-2:] == "se" else form_obj.lemma[-2:]
-        if data["ending"] not in ["ar", "er", "ir", "ír"]:
-            raise ValueError("unsupported lemma (can't find verb ending)", form_obj.lemma)
-
-        gloss = "# {{es-verb form of|" + "|".join(f"{k}={v}" for k,v in sorted(data.items(), key=lambda x: self.param_order[x[0]])) + "|" + form_obj.lemma + "}}"
-        return gloss
-
-
-    def get_verb_compound_gloss(self, form_obj):
-        # formtypes: imp_2s_comb_melo
-
-        # TODO: handle this better
-        if " " in form_obj.lemma:
-            raise ValueError("unsupported lemma", form_obj.lemma)
-
-        ending = form_obj.lemma[-4:-2] if form_obj.lemma[-2:] == "se" else form_obj.lemma[-2:]
-        if ending not in ["ar", "er", "ir", "ír"]:
-            raise ValueError("unsupported lemma (can't find verb ending)", form_obj.lemma)
-
-        stem = form_obj.lemma[:-4] if form_obj.lemma[-2:] == "se" else form_obj.lemma[:-2]
-        splits = form_obj.formtype.split("_")
-        combo = splits[-1]
-        if len(combo) > 3 and combo[-2:] in ["lo", "la", "le"]:
-            pronoun1 = combo[:-2]
-            pronoun2 = combo[-2:]
-        elif len(combo) > 3 and combo[-3:] in ["los", "las", "les"]:
-            pronoun1 = combo[:-3]
-            pronoun2 = combo[-3:]
-        else:
-           pronoun1 = combo
-           pronoun2 = None
-
-        if form_obj.formtype.startswith("imp_"):
-            mood = "imperative"
-        elif form_obj.formtype.startswith("gerund_"):
-            mood = "gerund"
-        elif form_obj.formtype.startswith("infinitive_"):
-            mood = "infinitive"
-        else:
-            raise ValueError("unsupported formtype", form_obj.formtype)
-
-        if mood == "imperative":
-            pidx = splits.index("imp") + 1
-            person_tag = splits[pidx]
-
-            person = {"2s": "tú",
-                    "2sf": "usted",
-                    "3s": "usted", # really 2sf
-                    "2sv": "vos",
-                    "1p": "nosotros",
-                    "2p": "vosotros",
-                    "2pf": "ustedes",
-                    "3p": "ustedes", #  really 2pf
-                    }[person_tag]
-        else:
-            person = None
-
-        shortform = unstress(form_obj.form[:-1*(len(combo))])
-        # if shortform is 1p, it may have dropped the s
-        if mood == "imperative" and person == "nosotros":
-            if not shortform.endswith("s"):
-                shortform += "s"
-
-        params = [stem, ending, shortform, pronoun1]
-        if pronoun2:
-            params.append(pronoun2)
-
-        params.append("mood=" + mood)
-        if person:
-            params.append("person=" + person)
-
-        gloss = "# {{es-compound of|" + "|".join(params) + "}}"
-
-        return gloss
-
 
     def get_noun_gloss(self, form_obj):
         gender, plural = self.get_gender_plural(form_obj.formtype)
@@ -687,7 +437,7 @@ class FormFixer():
         elif pos == "v":
             return self.get_verb_gloss(form_obj)
         elif pos == "part":
-            return self.get_smart_verb_form_gloss(form_obj)
+            return self.get_verb_gloss(form_obj)
         elif self.can_handle(form_obj):
             return self.get_generic_gloss(form_obj)
 
@@ -758,14 +508,6 @@ class FormFixer():
             if x.formtype in ["pl", "mpl"]:
                 alt = "pl" if x.formtype == "mpl" else "mpl"
                 alt_item = item._replace(formtype=alt)
-
-            # combined forms of reflexive verbs use the infinitive
-            # TODO: unless it's exclusively a reflexive verb
-            elif "_comb" in item.formtype and item.lemma.endswith("rse"):
-                alt_item = item._replace(lemma=item.lemma[:-2])
-
-            elif item.formtype in smart_inflection_formtypes:
-                alt_item = item._replace(formtype = "smart_inflection")
 
             if item in existing_forms:
                 if item in unexpected_forms:
@@ -1162,6 +904,7 @@ class FormFixer():
         missing_forms, unexpected_forms = self.compare_forms(declared_forms, self.get_existing_forms(title, entry).keys())
 
         if unexpected_forms:
+            print("removing", unexpected_forms)
             self.remove_forms(title, entry, unexpected_forms, ignore_errors)
 
         return str(wikt)
@@ -1188,11 +931,12 @@ class FormFixer():
     def is_allowed_formtype(cls, formtype):
         if not formtype:
             return False
-        if formtype in smart_inflection_formtypes:
-            return True
         if "_comb_" in formtype:
             return True
         if formtype in cls.ALLOWED_FORMTYPES:
+            return True
+
+        if cls.can_handle_formtype(formtype):
             return True
 
         print("unhandled formtype:", formtype)

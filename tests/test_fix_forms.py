@@ -397,6 +397,11 @@ pos: n
   gloss: a crippled person
     q: colloquial, Mexico
 _____
+ir
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: to go
+_____
 kirguiso
 pos: adj
   meta: {{es-adj}}
@@ -500,7 +505,7 @@ def test_get_declared_forms(fixer, allforms):
         "alegres": [('alegres', 'adj', 'pl', 'alegre', ['m', 'f'])],
 
         # when declared by both -r and -se verbs, skip the -se
-        "accidentada": [('accidentada', 'part', 'pp_fs', 'accidentar', [])],
+        "accidentada": [('accidentada', 'part', 'smart_inflection', 'accidentar', [])],
 
         # gender neutral plurals
         "amigues": [('amigues', 'n', 'pl', 'amigue', ['m', 'f']), ('amigues', 'v', 'smart_inflection', 'amigar', []) ],
@@ -559,8 +564,8 @@ def test_get_declared_forms(fixer, allforms):
         "bosniacas": [('bosniacas', 'n', 'pl', 'bosniaca', ['f'])],
 
         # verbs
-        "comida": [('comida', 'part', 'pp_fs', 'comer', [])],
-        "comidas": [('comidas', 'n', 'pl', 'comida', ['f']), ('comidas', 'part', 'pp_fp', 'comer', [])],
+        "comida": [('comida', 'part', 'smart_inflection', 'comer', [])],
+        "comidas": [('comidas', 'n', 'pl', 'comida', ['f']), ('comidas', 'part', 'smart_inflection', 'comer', [])],
     }
 
     for title, forms in tests.items():
@@ -723,7 +728,7 @@ def test_full_entries(fixer, allforms):
 ===Verb===
 {{head|es|verb form}}
 
-# {{es-compound of|com|er|comiendo|se|le|mood=gerund}}""",
+# {{es-verb form of|comer}}""",
 
         "comidas": """\
 ==Spanish==
@@ -737,6 +742,20 @@ def test_full_entries(fixer, allforms):
 {{head|es|past participle form|g=f-p}}
 
 # {{es-verb form of|comer}}""",
+
+        "idos": """\
+==Spanish==
+
+===Participle===
+{{head|es|past participle form|g=m-p}}
+
+# {{es-verb form of|ir}}
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|ir}}""",
+
 
         "sume": """\
 ==Spanish==
@@ -2185,7 +2204,7 @@ def test_female_lemma(fixrunner):
 """
 
     title = "abuelita"
-    res = fixrunner.replace_pos(text, title, None, ["n"])
+    res = fixrunner.replace_pos(text, title, [], ["n"])
     assert res == text
 
 
@@ -2213,7 +2232,7 @@ def test_female_lemma2(fixrunner):
 """
 
     title = "abuelita"
-    res = fixrunner.replace_pos(text, title, None, ["n"])
+    res = fixrunner.replace_pos(text, title, [], ["n"])
     assert res == text
 
     # Deleted pages aren't changed, but an error is logged to error.log
@@ -2384,7 +2403,7 @@ def test_descomida(fixer, allforms):
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
     print(declared_forms)
     assert declared_forms == [
-        ('descomida', 'part', 'pp_fs', 'descomer', []),
+        ('descomida', 'part', 'smart_inflection', 'descomer', []),
         ('descomida', 'v', 'smart_inflection', 'descomedirse', []),
     ]
 
@@ -2393,7 +2412,7 @@ def test_descomida(fixer, allforms):
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
-    assert missing_forms == [('descomida', 'part', 'pp_fs', 'descomer', [])]
+    assert missing_forms == [('descomida', 'part', 'smart_inflection', 'descomer', [])]
 
     assert unexpected_forms == {('descomida', 'v', 'smart_inflection', 'descomer')}
 
@@ -2445,17 +2464,23 @@ def test_gerund_reflexive(fixer, allforms):
 ===Verb===
 {{head|es|verb form}}
 
-# {{es-verb form of|mood=gerund|ending=ar|ababillarse}}
+# {{es-verb form of|ababillarse}}
 """
 
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
 
-    assert declared_forms == [('ababillando', 'v', 'gerund', 'ababillarse', [])]
+    assert declared_forms == [('ababillando', 'v', 'smart_inflection', 'ababillarse', [])]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
+
+    existing_forms = fixer.get_existing_forms(title, wikt)
+    print("existing", existing_forms)
+    print("missing", missing_forms)
+    print("unex", unexpected_forms)
+
     res = fixer.add_missing_forms(title, text, declared_forms, "v")
     res = fixer.remove_undeclared_forms(title, res, declared_forms, "v")
 
@@ -2618,11 +2643,15 @@ def test_convert_verb_to_part(fixer, allforms):
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
 
-    assert declared_forms == [('comido', 'part', 'pp_ms', 'comer', [])]
+    assert declared_forms == [('comido', 'part', 'smart_inflection', 'comer', [])]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
+
+    print("declared", declared_forms)
+    print("missing", missing_forms)
+    print("unexpected", unexpected_forms)
     res = fixer.add_missing_forms(title, text, declared_forms, "part")
     res = fixer.remove_undeclared_forms(title, res, declared_forms, "v")
 
@@ -2651,21 +2680,15 @@ def test_abonarse(fixer, allforms):
     result = """
 ==Spanish==
 
-===Pronunciation===
-{{es-IPA}}
-
 ===Verb===
 {{head|es|verb form}}
 
-# {{reflexive of|es|abonar}}
-# {{es-verb form of|abonar}}
+# {{es-verb form of|abonar}}\
 """
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
 
-    assert declared_forms == [
-        DeclaredForm(form='abonarse', pos='v', formtype='reflexive', lemma='abonar', lemma_genders=[]),
-        DeclaredForm(form='abonarse', pos='v', formtype='smart_inflection', lemma='abonar', lemma_genders=[])]
+    assert declared_forms == [DeclaredForm(form='abonarse', pos='v', formtype='smart_inflection', lemma='abonar', lemma_genders=[])]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
@@ -2703,12 +2726,12 @@ def test_antojando(fixer, allforms):
 ===Verb===
 {{head|es|verb form}}
 
-# {{es-verb form of|mood=gerund|ending=ar|antojarse}}\
+# {{es-verb form of|antojarse}}\
 """
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
 
-    assert declared_forms == [DeclaredForm(form='antojando', pos='v', formtype='gerund', lemma='antojarse', lemma_genders=[])]
+    assert declared_forms == [DeclaredForm(form='antojando', pos='v', formtype='smart_inflection', lemma='antojarse', lemma_genders=[])]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
@@ -2809,6 +2832,173 @@ def test_dadlos(fixer, allforms):
     print("missing", missing_forms)
     print("missing", unexpected_forms)
 
+
+    res = fixer.replace_pos(title, text, declared_forms, "v", [])
+    #res = fixer.add_missing_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result
+
+
+def test_abatirsela(fixer, allforms):
+
+    # double clitics should be smart_inflection
+    title = "abatírsela"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-compound of|abat|ir|abatir|se|la|mood=inf}}
+"""
+
+    result = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|abatir}}\
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+    print("existing", existing_forms)
+    print("declared", declared_forms)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+    print("missing", missing_forms)
+    print("unexpected", unexpected_forms)
+
+    res = fixer.replace_pos(title, text, declared_forms, "v", [])
+    #res = fixer.add_missing_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result
+
+
+def test_abatidos(fixer, allforms):
+
+    # double clitics should be smart_inflection
+    title = "abatidos"
+
+    text = """
+==Spanish==
+
+===Participle===
+{{head|es|past participle form|g=m-p}}
+
+# {{es-verb form of|abatir}}
+"""
+
+    result = """
+==Spanish==
+
+===Participle===
+{{head|es|past participle form|g=m-p}}
+
+# {{es-verb form of|abatir}}
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+    print("existing", existing_forms)
+    print("declared", declared_forms)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+    print("missing", missing_forms)
+    print("unexpected", unexpected_forms)
+
+    res = fixer.replace_pos(title, text, declared_forms, "v", [])
+    #res = fixer.add_missing_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result
+
+
+def test_abatirla(fixer, allforms):
+
+    # double clitics should be smart_inflection
+    title = "abatirla"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-compound of|abatir|ir|abatir|la|mood=infinitive}}
+"""
+
+    result = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|abatir}}\
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+    print("existing", existing_forms)
+    print("declared", declared_forms)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+    print("missing", missing_forms)
+    print("unexpected", unexpected_forms)
+
+    res = fixer.replace_pos(title, text, declared_forms, "v", [])
+    #res = fixer.add_missing_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result
+
+
+def test_aborregad(fixer, allforms):
+
+    title = "aborregad"
+
+    text = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|aborregar|ending=-ar|mood=imperative|number=p|person=2|formal=n|sense=affirmative|region=Spain}}
+"""
+
+    result = """
+==Spanish==
+
+===Verb===
+{{head|es|verb form}}
+
+# {{es-verb form of|aborregarse}}\
+"""
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+    existing_forms = fixer.get_existing_forms(title, wikt)
+    print("existing", existing_forms)
+    print("declared", declared_forms)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+    print("missing", missing_forms)
+    print("unexpected", unexpected_forms)
 
     res = fixer.replace_pos(title, text, declared_forms, "v", [])
     #res = fixer.add_missing_forms(title, res, declared_forms, "v")

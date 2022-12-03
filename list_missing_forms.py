@@ -273,7 +273,7 @@ def main():
         # and then create a set of entries in allpages that are also in allforms
 
         allforms_set = set(allforms.all_forms)
-        allpages = { x.strip() for x in infile if x in allforms_set }
+        allpages = { x.strip() for x in infile if x.strip() in allforms_set }
         del allforms_set
 
 #    form = "achaparrándolo"
@@ -287,7 +287,7 @@ def main():
 #    exit()
 
     count = 0
-    for form in allforms.all_forms:
+    for form in allpages:
 
         # Fix for conversion from <sup>x</sup> -> ^x
         if "^" in form:
@@ -346,8 +346,7 @@ def main():
                     error("missing_pos", form, item, pos_text)
                     missing_pos.append(item.pos)
                 else:
-                    if item.form in allpages:
-                         error("missing_entry", form, item)
+                    error("missing_entry", form, item)
 
                 continue
 
@@ -363,8 +362,8 @@ def main():
             error("missing_sense", form, item)
 
         for item in sorted(unexpected_forms):
-            words = list(wordlist.get_words(item.lemma, item.pos))
-            if words:
+            pos = "v" if item.pos == "part" else item.pos
+            if allforms.has_lemma(item.lemma, pos):
                 error("unexpected_form", form, item)
             else:
                 error("missing_lemma", form, item)
