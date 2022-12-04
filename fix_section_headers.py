@@ -253,7 +253,7 @@ def add_missing_references(entry):
 
     return changes
 
-def move_misnamed_references(entry):
+def rename_misnamed_references(entry):
 
     changes = []
     for section in entry.ifilter_sections():
@@ -264,30 +264,6 @@ def move_misnamed_references(entry):
 
                     changes.append(f"/*{section.path}*/ renamed to References")
                     section.title = "References"
-
-                    target = section.parent
-                    while target.level > 2 and target.parent.title not in COUNTABLE_SECTIONS:
-                        target = target.parent
-                    if target == section.parent:
-                        break
-
-                    found = False
-                    for i, child in enumerate(section.parent._children, 0):
-                        if child == section:
-                            found = section.parent._children.pop(i)
-                            break
-                    if not found:
-                        raise ValueError("can't find child in parent")
-
-                    section.level = target.level + 1
-
-                    # Anagrams is always the last section, otherwise References is the last
-                    if target._children[-1].title == "Anagrams":
-                        target._children.insert(-1, section)
-                    else:
-                        target._children.append(section)
-
-                    break
 
     return changes
 
@@ -377,7 +353,7 @@ def cleanup_sections(text, title, summary, custom):
         changes += fix_section_titles(entry)
         changes += fix_remove_pos_counters(entry)
         changes += fix_bad_l2(entry)
-        changes += move_misnamed_references(entry)
+        changes += rename_misnamed_references(entry)
         changes += add_missing_references(entry)
         changes += move_misplaced_translations(entry)
 
