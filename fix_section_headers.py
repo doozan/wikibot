@@ -6,7 +6,7 @@ from enwiktionary_parser.languages import all_ids as language_constants
 from Levenshtein import distance as fuzzy_distance
 
 from autodooz.sectionparser import SectionParser, Section
-from autodooz.sort_sections import ALL_L3_SECTIONS, ALL_POS, COUNTABLE_SECTIONS
+from autodooz.sections import ALL_L3, ALL_POS, COUNTABLE_SECTIONS
 
 
 # Tags that generate a <ref> link
@@ -38,7 +38,7 @@ COMMON_TYPOS = {
 }
 
 for word, max_typos in COMMON_TYPOS.items():
-    similar = [x for x in ALL_L3_SECTIONS if x != word and fuzzy_distance(word, x)<=max_typos]
+    similar = [x for x in ALL_L3 if x != word and fuzzy_distance(word, x)<=max_typos]
     if len(similar):
         raise ValueError(f"{word} is not a candidate for typo matching, because it's too similar to {similar}")
 
@@ -98,18 +98,18 @@ def fix_section_titles(entry):
             continue
         if section.level == 2:
             continue
-        if section.title in ALL_L3_SECTIONS:
+        if section.title in ALL_L3:
             continue
         if section.title in ALLOWED_VARIATIONS:
             continue
 
         title = section.title.capitalize()
 
-        if title in ALL_L3_SECTIONS:
+        if title in ALL_L3:
             changes.append(f"/*{section.path}*/ renamed to {title}")
             section.title = title
 
-        elif title.endswith("s") and title[:-1] in ALL_L3_SECTIONS:
+        elif title.endswith("s") and title[:-1] in ALL_L3:
             # Special handling for items like "Proverbs", "Idioms" that are allowed to appear below a POS section
             if section.level > 3 and section.parent.title not in COUNTABLE_SECTIONS:
                 #print(f"{entry.title}: {section.title} should be allowed")
@@ -120,7 +120,7 @@ def fix_section_titles(entry):
                 changes.append(f"/*{section.path}*/ renamed to {new_title}")
                 section.title = new_title
 #
-#        elif not title.endswith("s") and title + "s" in ALL_L3_SECTIONS:
+#        elif not title.endswith("s") and title + "s" in ALL_L3:
 #            changed = True
 #            section.title = title + "s"
 
@@ -183,7 +183,7 @@ def fix_bad_l2(entry):
 
         title = child.title.strip("=")
 
-        if prev and title in ALL_L3_SECTIONS:
+        if prev and title in ALL_L3:
             reparent.append((i, prev))
         prev = child
 

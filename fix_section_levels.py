@@ -1,5 +1,6 @@
 from autodooz.sectionparser import SectionParser
-from autodooz.sort_sections import ALL_POS, ALL_L3_SECTIONS, ALL_LANGS, COUNTABLE_SECTIONS, sort_languages, sort_pos_children
+from autodooz.sections import ALL_POS, ALL_L3, ALL_LANGS, COUNTABLE_SECTIONS
+from autodooz.sort_sections import sort_languages, sort_pos_children
 from collections import defaultdict
 
 DEBUG=False
@@ -7,6 +8,8 @@ def dprint(*args):
     if DEBUG:
         print(*args)
 
+# L3 Sections that should never contain a child section with a title in ALL_L3
+# Allowed to have children with unknown titles like "Other conjugations" or "More references"
 CHILDLESS_SECTIONS = [
 
     "Inflection",
@@ -53,6 +56,9 @@ ALWAYS_ADOPTABLE_POS_CHILDREN = {
     "Translations",
 }
 
+# Sections that will be adopted only when there is no ambiguity:
+# when there is only 1 POS section or when the given potential child
+# section also appears as a child section of an earlier sibling
 ADOPTABLE_POS_CHILDREN = {
     "Definitions",
 
@@ -237,7 +243,7 @@ def promote_languages_to_l2(entry, page_title, summary):
 def promote_children_of_childless_sections(entry, page_title, summary):
     # Promote children of childless sections
     for section in entry.filter_sections(matches=lambda x: x.title in CHILDLESS_SECTIONS):
-        if not all(s.title in ALL_L3_SECTIONS for s in section.filter_sections(recursive=False)):
+        if not all(s.title in ALL_L3 for s in section.filter_sections(recursive=False)):
             # TODO: log this to page for manual review
             print("unhandled child section")
         else:
@@ -293,7 +299,7 @@ def process(page_text, page_title, summary=[], custom_args=None):
 
     for lang in langs:
 
-        if not has_only_expected_children(lang, ALL_L3_SECTIONS, page_title, summary):
+        if not has_only_expected_children(lang, ALL_L3, page_title, summary):
             continue
 
         dprint("Scanning", lang.path)
@@ -327,7 +333,7 @@ def process(page_text, page_title, summary=[], custom_args=None):
             if len(all_countable) < 2:
                 continue
 
-            if not has_only_expected_children(lang, ALL_L3_SECTIONS, page_title, summary):
+            if not has_only_expected_children(lang, ALL_L3, page_title, summary):
                 continue
 
             for parent in all_countable:

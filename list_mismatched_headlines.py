@@ -24,7 +24,7 @@ import re
 import sys
 import pywikibot
 from pywikibot import xmlreader
-from autodooz.sort_sections import ALL_POS
+from autodooz.sections import ALL_POS
 from autodooz.wikilog import WikiLogger, BaseHandler
 from autodooz.wikilog_language import WikiByLanguage, FileByLanguage
 from collections import defaultdict

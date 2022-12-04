@@ -1,129 +1,11 @@
 #import locale
 import re
+import unicodedata
 
 from autodooz.sectionparser import SectionParser
+from autodooz.sections import ALL_LANGS, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
 from autodooz.form_fixer import FormFixer
-from enwiktionary_parser.languages.all_ids import languages as lang_ids
-ALL_LANGS = {v:k for k,v in lang_ids.items()}
 
-# this reads the environment and inits the right locale
-#locale.setlocale(locale.LC_ALL, "")
-
-COUNTABLE_SECTIONS = [
-    "Etymology",
-    "Pronunciation",
-    "Glyph origin",
-    "Glyph"
-]
-
-WT_POS = {
-    # Parts of speech
-    "Adjective": "adj",
-    "Adverb": "adv",
-    "Ambiposition": "ambip",
-    "Article": "art",
-    "Circumposition": "circump",
-    "Classifier": "classifier",
-    "Conjunction": "conj",
-    "Contraction": "concentration",
-    "Counter": "counter",
-    "Determiner": "determiner",
-    "Ideophone": "ideophone",
-    "Interjection": "interj",
-    "Noun": "n",
-    "Numeral": "num",
-    "Participle": "v",
-    "Particle": "particle",
-    "Postposition": "postp",
-    "Preposition": "prep",
-    "Pronoun": "pron",
-    "Proper noun": "prop",
-    "Verb": "v",
-
-    # Morphemes
-    "Circumfix": "circumfix",
-    "Combining form": "affix",
-    "Infix": "infix",
-    "Interfix": "interfix",
-    "Prefix": "prefix",
-    "Root": "root",
-    "Suffix": "suffix",
-
-    # Symbols and characters
-    "Diacritical mark": "diacrit",
-    "Letter": "letter",
-    "Ligature": "ligature",
-    "Number": "num",
-    "Punctuation mark": "punct",
-    "Syllable": "syllable",
-    "Symbol": "symbol",
-
-    # Phrases
-    "Phrase": "phrase",
-    "Proverb": "proverb",
-    "Prepositional phrase": "prep",
-
-    # Han characters and language-specific varieties
-    "Han character": "han",
-    "Hanzi": "hanzi",
-    "Kanji": "hanji",
-    "Hanja": "hanja",
-
-    "Romanization": "rom",
-    "Logogram": "logo",
-    "Determinative": "dtv",
-}
-
-ALL_POS = WT_POS | {
-    # Not in WT:POS, but allowed
-    "Transliteration": "translit",
-    "Preverb": "preverb",
-    "Affix": "affix",
-    "Ordinal number": "onum",
-    "Adjectival noun": "adj",
-    "Idiom": "idiom",
-    "Abbreviations": "abbrev",
-}
-
-ALL_POS_CHILDREN = [
-    "Definitions",
-
-    "Usage notes",
-    "Reconstruction notes",
-    "Inflection",
-    "Declension",
-    "Conjugation",
-    "Mutation",
-    "Quotations",
-    "Alternative forms",
-    "Alternative scripts",
-    "Alternative reconstructions",
-
-    "Synonyms",
-    "Antonyms",
-    "Hypernyms",
-    "Hyponyms",
-    "Meronyms",
-    "Holonyms",
-    "Troponyms",
-    "Coordinate terms",
-    "Derived terms",
-    "Derived characters", # not in WT:ELE
-    "Related terms",
-    "Related characters", # not in WT:ELE
-    "Collocations",
-    "Descendants",
-    "Translations",
-    "Statistics", # Not in WT:ELE, but used in 20k pages
-    "Trivia",
-    "See also",
-    "References",
-    "Further reading",
-]
-
-
-
-import unicodedata
 def strip_accents(s):
    return ''.join(c for c in unicodedata.normalize('NFD', s)
                   if unicodedata.category(c) != 'Mn')
@@ -233,48 +115,6 @@ def sort_pos_children(pos):
     return changes
 
 
-WT_ELE = {
-        "Description",
-        "Glyph origin",
-        "Etymology",
-        "Pronunciation",
-        "Production",
-
-        "Definitions",
-
-        "Usage notes",
-        "Reconstruction notes",
-        "Inflection",
-        "Declension",
-        "Conjugation",
-        "Mutation",
-        "Quotations",
-        "Alternative forms",
-        #"Alternative scripts",
-        "Alternative reconstructions",
-
-        "Synonyms",
-        "Antonyms",
-        "Hypernyms",
-        "Hyponyms",
-        "Meronyms",
-        "Holonyms",
-        "Troponyms",
-        "Coordinate terms",
-        "Derived terms",
-        #"Derived characters", # not in WT:ELE
-        "Related terms",
-        #"Related characters", # not in WT:ELE
-        "Collocations",
-        "Descendants",
-        "Translations",
-        #"Statistics", # Not in WT:ELE, but used in 20k pages
-        "Trivia",
-        "See also",
-        "References",
-        "Further reading",
-        "Anagrams",
-}
 
 # Sections that will be a the very top, ranked as they appear here
 top_sort = {k:v for v,k in enumerate([
@@ -338,8 +178,6 @@ bottom_sort_safe = {k:v for v,k in enumerate([
         "Further reading",
         "Anagrams",
     ], 1)}
-
-ALL_L3_SECTIONS = set(COUNTABLE_SECTIONS) | WT_ELE | ALL_POS.keys() | top_sort.keys() | bottom_sort.keys()
 
 def get_l3_sort_key_altforms(item, alt_first=False, lemmas_before_forms=False):
     if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:

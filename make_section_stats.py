@@ -1,17 +1,14 @@
 #!/usr/bin/python3
 
+import autodooz.fix_section_headers as headerfix
 import pywikibot
 import re
 import sys
+
 from collections import defaultdict
 from enwiktionary_parser.languages import all_ids as language_constants
-from autodooz.sort_sections import WT_POS, WT_ELE
 from autodooz.sectionparser import SectionParser
-import autodooz.fix_section_headers as headerfix
-
-ALL_LANGUAGE_IDS = language_constants.languages
-ALL_LANGUAGE_NAMES = { v:k for k,v in ALL_LANGUAGE_IDS.items() }
-
+from autodooz.sections import WT_POS, WT_ELE, ALL_LANGS, COUNTABLE_SECTIONS
 
 errors = defaultdict(list)
 def log(error, section, notes=None):
@@ -127,7 +124,7 @@ def validate_entry(entry):
 
     for section in entry.ifilter_sections():
 
-        if section.count and not section.title in headerfix.COUNTABLE_SECTIONS:
+        if section.count and not section.title in COUNTABLE_SECTIONS:
             log("unexpected_counter", section)
 
         if not section._lines and not section._children:
@@ -263,7 +260,7 @@ def upload_stats(base_url, stats, summary):
         title_stats[title][level] = count
 
         if title not in table_types:
-            if title in ALL_LANGUAGE_NAMES:
+            if title in ALL_LANGS:
                 table_type = "Languages"
             elif title in WT_POS:
                 table_type = "WT:POS"

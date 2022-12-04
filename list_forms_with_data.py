@@ -32,7 +32,7 @@ from autodooz.form_fixer import POS_TO_TITLE, FormFixer
 from enwiktionary_wordlist.utils import wiki_to_text
 
 from autodooz.sectionparser import SectionParser
-from autodooz.sort_sections import ALL_POS
+from autodooz.sections import ALL_POS
 
 class WikiSaver(BaseHandler):
     def page_name(self, items, prev):
