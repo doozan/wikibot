@@ -268,49 +268,6 @@ def rename_misnamed_references(entry):
     return changes
 
 
-def move_misplaced_translations(entry):
-
-    summary = []
-    changes = []
-    target = None
-    found = False
-    for section in entry.ifilter_sections():
-        #print("scanning", section.level, section.title)
-        if section.title in ALL_POS:
-            #print("target is", section.title)
-            target = section
-
-        elif section.title == "Translations" and section.parent.title not in ALL_POS:
-            if not target:
-                print("Translation found before POS, can't move", entry.title)
-                continue
-            changes.append((target, section))
-
-    for target, section in changes:
-
-        index = section.parent._children.index(section)
-        item = section.parent._children.pop(index)
-
-        # Translations shouldn't have any children, promote them to siblings before moving the translation
-        while item._children:
-            newparent = item.parent
-            old_path = item._children[-1].path
-            child = item._children.pop()
-            child.parent = newparent
-            child.level = newparent.level + 1 # TODO: also re-level grandchildren
-            newparent._children.insert(index, child)
-            new_path = child.path
-            summary.append(f"/*{old_path}*/ moved to {new_path}")
-
-        old_path = item.path
-        item.parent = target
-        item.level = target.level + 1
-        target._children.append(item)
-        new_path = item.path
-        summary.append(f"/*{old_path}*/ moved to {new_path}")
-
-    return summary
-
 # this can be called by any cleanup fix that uses SectionParser
 # it will generate summary details for any changes applied by
 # SectionParser
@@ -355,7 +312,6 @@ def cleanup_sections(text, title, summary, custom):
         changes += fix_bad_l2(entry)
         changes += rename_misnamed_references(entry)
         changes += add_missing_references(entry)
-        changes += move_misplaced_translations(entry)
 
         # not safe to run unsupervised
         #changes += remove_empty_sections(entry)

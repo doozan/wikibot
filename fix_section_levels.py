@@ -294,8 +294,6 @@ def process(page_text, page_title, summary=[], custom_args=None):
 #    langs = entry.filter_sections(recursive=False)
     langs = entry.filter_sections(recursive=False, matches=lambda x: x.title not in \
             ["Chinese", "Japanese", "English", "Spanish", "Mandarin", "Cebuano"])
-    if not langs:
-        return page_text
 
     for lang in langs:
 
@@ -341,6 +339,8 @@ def process(page_text, page_title, summary=[], custom_args=None):
 
         pos_adopt_stray_children(lang, summary, page_title)
         cleanup_nested_countable(lang, summary, page_title)
+
+    move_misplaced_translations(entry, summary, page_title)
 
     if not summary:
         return page_text
@@ -524,3 +524,26 @@ def add_children_to_pos(lang):
                     #log(page_title, old_path, new_path)
 
         return str(entry)
+
+
+def move_misplaced_translations(entry, summary, page_title):
+    changes = []
+    target = None
+    found = False
+    for section in entry.ifilter_sections():
+        if section.title in ALL_POS:
+            target = section
+
+        elif section.title == "Translations" and section.parent.title not in ALL_POS:
+            if not target:
+                # TODO: log this
+                print("Translation found before POS, can't move", entry.title)
+                continue
+            changes.append((target, section))
+
+    for new_parent, section in changes:
+        # Translations shouldn't have any children, promote them to siblings before moving the translation
+        promote_children(section, summary, page_title)
+
+        summary.append(f"/*{section.path}*/ moved to {new_parent.path}")
+        reparent(section, new_parent)
