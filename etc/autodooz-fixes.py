@@ -162,8 +162,8 @@ import autodooz.fix_section_levels
 wikifix['fix_section_levels'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
-    "fixes": [(autodooz.fix_sections_levels.process, None)],
-    "post-fixes": [(autodooz.sort_sections.sort_l3, None)]
+    "fixes": [(autodooz.fix_section_levels.process, None)],
+    "post-fixes": [(autodooz.fix_section_order.sort_l3, None)]
 }
 
 
