@@ -434,7 +434,7 @@ $(FIX)pt_syns:
 >   @
 >   FIX="-fix:simple_nyms --lang:pt --wordlist:$(BUILDDIR)/pt-en.enwikt.data-full --sections:Synonyms"
 >   SRC="User:JeffDoozan/lists/Portuguese_with_Synonyms"
->   MAX=100
+>   MAX=1000
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
@@ -542,7 +542,7 @@ $(FIX)es_missing_sense:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/missing_sense_autofix"
 >   FIX="--fix es_replace_pos --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py" # --fix es_add_forms"
->   MAX=100
+>   MAX=22100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
@@ -593,12 +593,12 @@ $(FIX)es_unexpected_form:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/unexpected_form_autofix"
 >   FIX="--fix es_replace_pos --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=200
+>   MAX=2000
 
->   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
->   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(WIKIFIX) -links:$$SRC $$FIX
+#>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+#>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+#>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   echo $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
 $(FIX)l2_unsorted:

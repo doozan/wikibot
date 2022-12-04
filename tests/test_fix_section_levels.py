@@ -1,4 +1,4 @@
-from autodooz.fix_orphaned_sections import process
+from autodooz.fix_section_levels import process
 
 def test_single_ety_no_children():
 
@@ -1163,4 +1163,3 @@ def test_fix_anagrams():
 #    print(res)
 
     assert res == result
-
