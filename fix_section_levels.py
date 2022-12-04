@@ -88,7 +88,7 @@ ADOPTABLE_POS_CHILDREN = {
     "Collocations",
     "Descendants",
     "Translations",
-#    "Statistics", # Not in WT:ELE, but used in 20k pages
+    "Statistics", # Not in WT:ELE, but used in 20k pages
 #    "Trivia",
     #"See also",
 #    "References",
@@ -273,10 +273,6 @@ def fix_anagrams(entry, page_title, summary):
 
 def process(page_text, page_title, summary=[], custom_args=None):
 
-
-#    if "==English==" not in page_text:
-#        return page_text
-
     entry = SectionParser(page_text, page_title)
     if entry.state != 0:
         print(page_title, "unfinished state", entry.state)
@@ -290,12 +286,7 @@ def process(page_text, page_title, summary=[], custom_args=None):
 
     fix_anagrams(entry, page_title, summary)
 
-#    langs = []
-#    langs = entry.filter_sections(recursive=False)
-    langs = entry.filter_sections(recursive=False, matches=lambda x: x.title not in \
-            ["Chinese", "Japanese", "English", "Spanish", "Mandarin", "Cebuano"])
-
-    for lang in langs:
+    for lang in entry.filter_sections(recursive=False):
 
         if not has_only_expected_children(lang, ALL_L3, page_title, summary):
             continue
