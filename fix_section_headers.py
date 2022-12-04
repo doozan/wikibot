@@ -213,36 +213,6 @@ def fix_remove_pos_counters(entry):
 
     return changes
 
-def fix_counters(entry):
-
-    # Assure that countable sections have a counter if there is more than one
-    # And that they do NOT have a counter if there is less than one
-
-    def adjust_countables(sections):
-        changed = False
-        countables = defaultdict(list)
-        for section in sections:
-            if section.title in COUNTABLE_SECTIONS:
-                countables[section.title].append(section)
-
-            if section._children:
-                changed = adjust_countables(section._children) or changed
-
-        for items in countables.values():
-            total = len(items)
-            for i,section in enumerate(items, 1):
-                if total == 1:
-                    if section.count != "":
-                        section.count = ""
-                        changed = True
-                elif section.count != str(i):
-                    section.count = str(i)
-                    changed = True
-
-        return changed
-
-    return adjust_countables(entry._children)
-
 def remove_empty_sections(entry):
 
     changes = []
@@ -410,8 +380,6 @@ def cleanup_sections(text, title, summary, custom):
         changes += move_misnamed_references(entry)
         changes += add_missing_references(entry)
         changes += move_misplaced_translations(entry)
-
-        #fix_counters(entry) and changes.append("corrected section counter")
 
         # not safe to run unsupervised
         #changes += remove_empty_sections(entry)
