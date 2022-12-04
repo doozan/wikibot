@@ -1,7 +1,7 @@
 import pytest
 
 from ..sectionparser import SectionParser
-from ..sort_sections import sort_languages, sort_pos
+from ..fix_section_order import sort_languages, sort_pos
 
 def test_sort_languages():
     text = """\

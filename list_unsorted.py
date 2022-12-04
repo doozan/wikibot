@@ -5,7 +5,7 @@ import re
 import sys
 
 from autodooz.sectionparser import SectionParser
-import autodooz.sort_sections as SectionSorter
+import autodooz.fix_section_order as SectionSorter
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import namedtuple
 

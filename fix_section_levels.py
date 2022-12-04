@@ -1,6 +1,6 @@
 from autodooz.sectionparser import SectionParser
 from autodooz.sections import ALL_POS, ALL_L3, ALL_LANGS, COUNTABLE_SECTIONS
-from autodooz.sort_sections import sort_languages, sort_pos_children
+from autodooz.fix_section_order import sort_languages, sort_pos_children
 from collections import defaultdict
 
 DEBUG=False

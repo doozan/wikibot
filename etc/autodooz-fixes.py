@@ -76,13 +76,13 @@ wikifix['add_tlfi'] = {
 #    "fixes": [(badparents.process, None)]
 #}
 
-import autodooz.sort_sections
+import autodooz.fix_section_order
 wikifix['sort_l2'] = {
     'mode': 'function',
     "pre-fixes": [
         (autodooz.fix_section_headers.default_cleanup, None),
         (autodooz.fix_section_headers.cleanup_sections, None)],
-    "fixes": [(autodooz.sort_sections.sort_l2, None)]
+    "fixes": [(autodooz.fix_section_order.sort_l2, None)]
 }
 
 wikifix['sort_l3'] = {
@@ -90,7 +90,7 @@ wikifix['sort_l3'] = {
     "pre-fixes": [
         (autodooz.fix_section_headers.default_cleanup, None),
         (autodooz.fix_section_headers.cleanup_sections, None)],
-    "fixes": [(autodooz.sort_sections.sort_l3, None)]
+    "fixes": [(autodooz.fix_section_order.sort_l3, None)]
 }
 
 from autodooz.t9n_fixer import T9nFixRunner
@@ -138,7 +138,7 @@ wikifix['es_add_forms'] = {
         "allforms": f"{SPANISH_DATA}/es_allforms.csv",
         "wordlist": f"{SPANISH_DATA}/es-en.data",
         })],
-    "post-fixes": [(autodooz.sort_sections.sort_l3, None)]
+    "post-fixes": [(autodooz.fix_section_order.sort_l3, None)]
 }
 
 def es_replace_forms(text, title, summary, options):
@@ -162,7 +162,7 @@ import autodooz.fix_section_levels
 wikifix['fix_section_levels'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.fix_section_headers.default_cleanup, None)],
-    "fixes": [(autodooz.fix_section_levels.process, None)],
+    "fixes": [(autodooz.fix_sections_levels.process, None)],
     "post-fixes": [(autodooz.sort_sections.sort_l3, None)]
 }
 
