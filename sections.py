@@ -25,7 +25,6 @@ COUNTABLE_SECTIONS = [
     #"Glyph"
 ]
 
-
 # All Parts of Speech defined by WT:ELE
 WT_POS = {
     "Adjective": "adj",
@@ -73,13 +72,6 @@ WT_POS = {
     "Proverb": "proverb",
     "Prepositional phrase": "prep",
 
-    # Han characters and language-specific varieties
-    # Temporarily disabled to avoid fixing pages with Kanji sections
-    #"Han character": "han",
-    #"Hanzi": "hanzi",
-    #"Kanji": "hanji",
-    #"Hanja": "hanja",
-
     "Romanization": "rom",
     "Logogram": "logo",
     "Determinative": "dtv",
@@ -94,6 +86,7 @@ EXTRA_POS = {
     "Adjectival noun": "adj",
     "Idiom": "idiom",
     "Abbreviations": "abbrev",
+    "Verbal noun": "verbalnoun",
 }
 
 ALL_POS = WT_POS | EXTRA_POS
@@ -101,6 +94,8 @@ ALL_POS = WT_POS | EXTRA_POS
 # Sections that can appear inside a Part of Speech section,
 # order enforced by WT:ELE
 ALL_POS_CHILDREN = [
+    "Readings",
+    "Compounds",
     "Definitions",
 
     "Usage notes",
@@ -108,11 +103,9 @@ ALL_POS_CHILDREN = [
     "Inflection",
     "Declension",
     "Conjugation",
-    # Temporarily disabled to avoid fixing pages with Mutation sections
-    #"Mutation",
+    #"Mutation", # Defined in WT:ELE, but generally L3
     "Quotations",
     "Alternative forms",
-    "Alternative scripts",
     "Alternative reconstructions",
 
     "Synonyms",
@@ -124,13 +117,13 @@ ALL_POS_CHILDREN = [
     "Troponyms",
     "Coordinate terms",
     "Derived terms",
-    "Derived characters", # not in WT:ELE
     "Related terms",
+    "Derived characters", # not in WT:ELE
     "Related characters", # not in WT:ELE
     "Collocations",
     "Descendants",
     "Translations",
-    "Statistics", # Not in WT:ELE, but used in 20k pages
+    "Statistics", # not in WT:ELE
     "Trivia",
     "See also",
     "References",
@@ -156,7 +149,6 @@ WT_ELE = {
     "Mutation",
     "Quotations",
     "Alternative forms",
-    #"Alternative scripts",
     "Alternative reconstructions",
 
     "Synonyms",
@@ -168,13 +160,10 @@ WT_ELE = {
     "Troponyms",
     "Coordinate terms",
     "Derived terms",
-    #"Derived characters", # not in WT:ELE
     "Related terms",
-    #"Related characters", # not in WT:ELE
     "Collocations",
     "Descendants",
     "Translations",
-    #"Statistics", # Not in WT:ELE, but used in 20k pages
     "Trivia",
     "See also",
     "References",
@@ -182,4 +171,18 @@ WT_ELE = {
     "Anagrams",
 }
 
-ALL_L3 = set(COUNTABLE_SECTIONS) | ALL_POS.keys() | WT_ELE
+EXTRA_L3 = {
+    "Alternative scripts",
+    "Cuneiform sign",
+    "Statistics", # Not in WT:ELE, but used in 20k pages
+
+    # Han characters and language-specific varieties
+    "Han character",
+    "Hanzi",
+    "Kanji",
+    "Hanja",
+
+    "Mutation",
+}
+
+ALL_L3 = set(COUNTABLE_SECTIONS) | ALL_POS.keys() | WT_ELE | EXTRA_L3
