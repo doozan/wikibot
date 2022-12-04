@@ -278,8 +278,8 @@ pos: n
   gloss: plural of "comida"
 _____
 comido
-pos: v
-  meta: {{es-past participle|comid}}
+pos: part
+  meta: {{es-past participle}}
   gloss: pp_ms of "comer"
 _____
 crudívoro
@@ -320,6 +320,11 @@ pos: v
   meta: {{es-verb|<i>}} {{es-conj|<i>}}
   gloss: to be rude or disrespectful
     q: reflexive
+_____
+descomido
+pos: part
+  meta: {{es-past participle}}
+  gloss: pp_ms of "descomer"
 _____
 errar
 pos: v
@@ -505,7 +510,7 @@ def test_get_declared_forms(fixer, allforms):
         "alegres": [('alegres', 'adj', 'pl', 'alegre', ['m', 'f'])],
 
         # when declared by both -r and -se verbs, skip the -se
-        "accidentada": [('accidentada', 'part', 'smart_inflection', 'accidentar', [])],
+        "accidentada": [('accidentada', 'part', 'pp_fs', 'accidentado', [])],
 
         # gender neutral plurals
         "amigues": [('amigues', 'n', 'pl', 'amigue', ['m', 'f']), ('amigues', 'v', 'smart_inflection', 'amigar', []) ],
@@ -564,8 +569,8 @@ def test_get_declared_forms(fixer, allforms):
         "bosniacas": [('bosniacas', 'n', 'pl', 'bosniaca', ['f'])],
 
         # verbs
-        "comida": [('comida', 'part', 'smart_inflection', 'comer', [])],
-        "comidas": [('comidas', 'n', 'pl', 'comida', ['f']), ('comidas', 'part', 'smart_inflection', 'comer', [])],
+        "comida": [('comida', 'part', 'pp_fs', 'comido', [])],
+        "comidas": [('comidas', 'n', 'pl', 'comida', ['f']), ('comidas', 'part', 'pp_fp', 'comido', [])],
     }
 
     for title, forms in tests.items():
@@ -741,7 +746,7 @@ def test_full_entries(fixer, allforms):
 ===Participle===
 {{head|es|past participle form|g=f-p}}
 
-# {{es-verb form of|comer}}""",
+# {{feminine plural of|es|comido}}""",
 
         "idos": """\
 ==Spanish==
@@ -749,7 +754,7 @@ def test_full_entries(fixer, allforms):
 ===Participle===
 {{head|es|past participle form|g=m-p}}
 
-# {{es-verb form of|ir}}
+# {{masculine plural of|es|ido}}
 
 ===Verb===
 {{head|es|verb form}}
@@ -2403,8 +2408,8 @@ def test_descomida(fixer, allforms):
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
     print(declared_forms)
     assert declared_forms == [
-        ('descomida', 'part', 'smart_inflection', 'descomer', []),
         ('descomida', 'v', 'smart_inflection', 'descomedirse', []),
+        ('descomida', 'part', 'pp_fs', 'descomido', []),
     ]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
@@ -2412,7 +2417,7 @@ def test_descomida(fixer, allforms):
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
-    assert missing_forms == [('descomida', 'part', 'smart_inflection', 'descomer', [])]
+    assert missing_forms == [('descomida', 'part', 'pp_fs', 'descomido', [])]
 
     assert unexpected_forms == {('descomida', 'v', 'smart_inflection', 'descomer')}
 
@@ -2585,7 +2590,7 @@ def test_convert_old_style_verbs(fixer, allforms):
 ===Participle===
 {{head|es|past participle form|g=f-s}}
 
-# {{es-verb form of|descomer}}
+# {{feminine singular of|es|descomido}}
 
 ===Verb===
 {{head|es|verb form}}
@@ -2636,14 +2641,14 @@ def test_convert_verb_to_part(fixer, allforms):
 ===Participle===
 {{es-past participle}}
 
-# {{es-verb form of|comer}}
+# {{past participle of|es|comer}}
 
 """
 
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
 
-    assert declared_forms == [('comido', 'part', 'smart_inflection', 'comer', [])]
+    assert declared_forms == [('comido', 'part', 'pp_ms', 'comer', [])]
 
     wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
 
@@ -2658,6 +2663,104 @@ def test_convert_verb_to_part(fixer, allforms):
     print(res)
     assert res.split("\n") == result.split("\n")
     assert res == result
+
+
+def test_convert_old_part_to_part(fixer, allforms):
+    title = "comido"
+
+    text = """
+==Spanish==
+
+===Participle===
+{{es-past participle}}
+
+# {{es-verb form of|comer}}
+"""
+
+    result = """
+==Spanish==
+
+===Participle===
+{{es-past participle}}
+
+# {{past participle of|es|comer}}
+"""
+
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    assert declared_forms == [('comido', 'part', 'pp_ms', 'comer', [])]
+
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
+
+    print("declared", declared_forms)
+    print("missing", missing_forms)
+    print("unexpected", unexpected_forms)
+    res = fixer.add_missing_forms(title, text, declared_forms, "part")
+    res = fixer.remove_undeclared_forms(title, res, declared_forms, "v")
+
+    print(res)
+    assert res.split("\n") == result.split("\n")
+    assert res == result
+
+
+def test_part_is_good(fixer, allforms):
+
+    tests = {
+
+    "comido": """
+==Spanish==
+
+===Participle===
+{{es-past participle}}
+
+# {{past participle of|es|comer}}
+""",
+
+    "comida": """
+==Spanish==
+
+===Participle===
+{{es-past participle}}
+
+# {{feminine of|es|comido}}
+""",
+
+    "comidas": """
+==Spanish==
+
+===Noun===
+{{head|es|noun form|g=f-p}}
+
+# {{noun form of|es|comida||p}}
+
+===Participle===
+{{es-past participle}}
+
+# {{feminine plural of|es|comido}}
+""",
+
+    "comidos": """
+==Spanish==
+
+===Participle===
+{{es-past participle}}
+
+# {{masculine plural of|es|comido}}
+"""
+    }
+
+    for title, text in tests.items():
+        declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+        wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+        missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, fixer.get_existing_forms(title, wikt))
+
+        print(title, "unexpected", unexpected_forms)
+        print(title, "missing", missing_forms)
+        assert unexpected_forms == set()
+        assert missing_forms == []
 
 
 def test_abonarse(fixer, allforms):

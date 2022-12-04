@@ -152,7 +152,7 @@ wikifix['es_replace_pos'] = {
         "lang": "es",
         "allforms": f"{SPANISH_DATA}/es_allforms.csv",
         "wordlist": f"{SPANISH_DATA}/es-en.data",
-        "pos": ["v", "n", "adj"],
+        "pos": ["v", "n", "adj", "part"],
         })]
 }
 

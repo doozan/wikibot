@@ -102,7 +102,7 @@ class FormFixer():
         res = []
         for poslemma in poslemmas:
             pos, lemma = poslemma.split("|")
-            if pos in ["v", "part"] and cls.is_reflexive(lemma):
+            if pos in ["v"] and cls.is_reflexive(lemma):
                 # If the non-reflexive lemma also exists in poslemmas,
                 # skip this reflexive poslemma
                 alt_lemma = cls.strip_reflexive_clitic(lemma)
@@ -120,7 +120,7 @@ class FormFixer():
         for poslemma in allforms.get_lemmas(form):
             pos, lemma = poslemma.split("|")
 
-            words = wordlist.get_words(lemma, "v") if pos == "part" else wordlist.get_words(lemma, pos)
+            words = wordlist.get_words(lemma, pos)
             if any(w.has_form(form) for w in words):
                 res.append(poslemma)
 
@@ -133,8 +133,6 @@ class FormFixer():
         poslemmas = cls.get_declared_poslemmas(form, wordlist, allforms)
         poslemmas = cls.remove_dup_refl_verbs(poslemmas, form, wordlist)
 
-#        print(poslemmas)
-
         declared_forms = []
         for poslemma in poslemmas:
             pos, lemma = poslemma.split("|")
@@ -142,25 +140,21 @@ class FormFixer():
             if lemma == form:
                 continue
 
-            # If pos is 'part', the lemma will be a verb, not a "part"
-            all_words =  wordlist.get_words(lemma, "v") if pos == "part" else wordlist.get_words(lemma, pos)
+            all_words =  wordlist.get_words(lemma, pos)
             for word in all_words:
 
                 genders = cls.get_word_genders(word)
                 for formtype in word.get_formtypes(form):
 
-                    # part will return all verb forms, limit to just the part forms
-                    if pos == "part" and formtype not in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
-                        continue
-
-                    # Likewise, verb will still contain the part forms, but they should be ignored
                     if pos == "v" and formtype in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
-                        continue
+                        pos = "part"
+                        if formtype != "pp_ms":
+                            lemma = word.forms["pp_ms"][0]
 
                     if not cls.can_handle_formtype(formtype):
                         continue
 
-                    if pos == "v" or pos == "part":
+                    if pos == "v":
                         formtype = "smart_inflection"
 
                     # convert feminine plural of masculine noun to plural of feminine
@@ -300,11 +294,7 @@ class FormFixer():
 
     def get_part_head(self, form_obj):
 
-        # detected formtype will be 'smart_lemma' so check the wordlist for the real form type
-        word = self.wordlist.get_words(form_obj.lemma, "v")[0]
-        formtype = [f for f in word.get_formtypes(form_obj.form) if f.startswith("pp_")][0]
-
-        if formtype == "pp_ms":
+        if form_obj.formtype == "pp_ms":
             if not form_obj.form.endswith("o"):
                 raise ValueError("Unexpected singular past participle")
 
@@ -312,8 +302,8 @@ class FormFixer():
             impersonal = "|inv=1" if "only3s" in conj_params else ""
             return "{{es-past participle" + impersonal + "}}"
 
-        elif formtype in [ "pp_mp", "pp_fs", "pp_fp" ]:
-            g = formtype[-2] + "-" + formtype[-1]
+        elif form_obj.formtype in [ "pp_mp", "pp_fs", "pp_fp" ]:
+            g = form_obj.formtype[-2] + "-" + form_obj.formtype[-1]
             return "{{head|es|past participle form|g=" + g + "}}"
 
         raise ValueError("Unexpected part formtype", formtype, form_obj)
@@ -414,6 +404,20 @@ class FormFixer():
             conj_params = ""
         return "# {{es-verb form of|" + form_obj.lemma + conj_params + "}}"
 
+    def get_part_gloss(self, form_obj):
+        if form_obj.formtype == "pp_ms":
+            return "# {{past participle of|es|" + form_obj.lemma + "}}"
+        else:
+            #part_lemma = self.get_part_lemma(form_obj)
+            if form_obj.formtype == "pp_mp":
+                return "# {{masculine plural of|es|" + form_obj.lemma + "}}"
+            if form_obj.formtype == "pp_fs":
+                return "# {{feminine singular of|es|" + form_obj.lemma + "}}"
+            elif form_obj.formtype == "pp_fp":
+                return "# {{feminine plural of|es|" + form_obj.lemma + "}}"
+            else:
+                raise ValueError("unexpected participle type", formtype, form_obj)
+
     def get_noun_gloss(self, form_obj):
         gender, plural = self.get_gender_plural(form_obj.formtype)
 
@@ -437,7 +441,7 @@ class FormFixer():
         elif pos == "v":
             return self.get_verb_gloss(form_obj)
         elif pos == "part":
-            return self.get_verb_gloss(form_obj)
+            return self.get_part_gloss(form_obj)
         elif self.can_handle(form_obj):
             return self.get_generic_gloss(form_obj)
 
@@ -600,6 +604,9 @@ class FormFixer():
             # Limit to the formtypes we can handle, forms like "misspelling of" aren't our concern
             if cls.can_handle_formtype(formtype):
 
+                if pos == "part":
+                    formtype = {"f": "pp_fs", "fpl": "pp_fp", "mpl": "pp_mp"}.get(formtype,formtype)
+
                 lemma = lemma.strip()
                 item = ExistingForm(title, pos, formtype, lemma)
                 if item in existing_forms:
@@ -745,7 +752,7 @@ class FormFixer():
         #pos, formtype, lemma, lemma_genders = missing_form
 
         # If the gender isn't part of the formtype, use the lemma's gender(s)
-        if missing_form.pos == "v":
+        if missing_form.pos in ["v", "part"]:
             if len(word_targets) > 1:
                 raise ValueError("Multiple word matches")
             return word_targets[0]
@@ -772,9 +779,9 @@ class FormFixer():
         return matches[0]
 
     def _add_forms(self, title, wikt, missing_forms, skip_errors=False):
+
         if not missing_forms:
             return
-
 
         changes = []
         missing = collections.defaultdict(list)
@@ -1322,6 +1329,8 @@ class FixRunner():
 
         for pos in pos_list:
             forms = [f for f in declared_forms if f.pos in pos]
+            if not forms:
+                continue
             text = self.fixer.replace_pos(title, new_text, forms, pos, summary)
             if text != new_text:
                 new_text = text
