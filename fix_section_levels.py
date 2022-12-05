@@ -1,6 +1,5 @@
 from autodooz.sectionparser import SectionParser
 from autodooz.sections import ALL_POS, ALL_L3, ALL_LANGS, COUNTABLE_SECTIONS
-from autodooz.fix_section_order import sort_languages, sort_pos_children
 from collections import defaultdict
 
 DEBUG=False
@@ -237,9 +236,6 @@ def promote_languages_to_l2(entry, page_title, summary):
             reparent(section, entry)
             changed = True
 
-    if changed:
-        summary += sort_languages(entry)
-
 def promote_children_of_childless_sections(entry, page_title, summary):
     # Promote children of childless sections
     for section in entry.filter_sections(matches=lambda x: x.title in CHILDLESS_SECTIONS):
@@ -283,8 +279,6 @@ def process(page_text, page_title, summary=[], custom_args=None):
 
     if has_non_l2_language_section(entry, page_title, summary):
         return page_text
-
-    fix_anagrams(entry, page_title, summary)
 
     for lang in entry.filter_sections(recursive=False):
 
@@ -331,18 +325,11 @@ def process(page_text, page_title, summary=[], custom_args=None):
         pos_adopt_stray_children(lang, summary, page_title)
         cleanup_nested_countable(lang, summary, page_title)
 
+    fix_anagrams(entry, page_title, summary)
     move_misplaced_translations(entry, summary, page_title)
 
     if not summary:
         return page_text
-
-    # Sort languages
-    summary += sort_languages(entry)
-
-    # Sort POS entries if the POS is a direct child of language or countable section (avoids sorting sections buried underneath something unexpected)
-    all_pos = entry.filter_sections(matches=lambda x: x.title in ALL_POS and (x.parent.title in COUNTABLE_SECTIONS or x.parent.title in ALL_LANGS))
-    for section in all_pos:
-        summary += sort_pos_children(section)
 
     # If there were changes, run another pass to ensure promoted items have counters
     if not custom_args or "second_loop" not in custom_args:
@@ -388,9 +375,6 @@ def pos_adopt_stray_children(grandparent, summary, page_title):
         for child in children:
             old_path = child.path
             reparent(child, new_parent)
-
-        summary += sort_pos_children(new_parent)
-
 
 def countable_adopt_stray_children(grandparent, countable_title, summary, page_title):
 
