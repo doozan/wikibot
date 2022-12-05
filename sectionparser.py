@@ -19,6 +19,7 @@ class SectionParser():
         self._children = []
 
         self._log = []
+        self._changes = []
 
         # Parser states
         self.in_comment = False
@@ -158,12 +159,37 @@ class SectionParser():
                         parent = parent.parent
 
                 new_section = Section(parent, level, title, count)
-                parent.add(new_section)
 
+                if section:
+                    separator = section._trailing_empty_lines
+                    if level == 2:
+                        between_text = "\n".join(section._trailing_empty_lines)
+                        separators = between_text.count("----")
+                        if separators < 1:
+                            self._changes.append("added L2 separator")
+                            #print(section.path, [between_text], new_section.path)
+                        elif separators > 1:
+                            self._changes.append("removed duplicate L2 separator")
+                        elif (section._topmost._categories and separator != ["", "", "----", ""]) \
+                                or (not section._topmost._categories and separator != ["", "----", ""]):
+                            #print("L2", self.title, section.path, section._trailing_empty_lines, new_section.path)
+                            self._changes.append("whitespace changes")
+
+                    elif (not section._lines and not section._children and section._trailing_empty_lines != [])\
+                            or ((section._lines or section._children) and section._trailing_empty_lines != [""]):
+                        #print(self.title, section.path, section._trailing_empty_lines, new_section.path, bool(section._lines), bool(section._children))
+                        self._changes.append("whitespace changes")
+
+                    self._changes += section._changes
+
+                parent.add(new_section)
                 section = new_section
                 if header_comment:
                     section.add(header_comment)
                     header_comment = None
+
+                if new_section.header != line:
+                    self._changes.append("whitespace changes")
 
                 continue
 
@@ -171,6 +197,9 @@ class SectionParser():
                 self._header.append(line)
             else:
                 section.add(line)
+
+        if section:
+            self._changes += section._changes
 
 
 class Section():
@@ -190,14 +219,14 @@ class Section():
         self._trailing_empty_lines = []
         self._children = []
 
+        self._changes = []
+
         # Categories are collected in the topmost Section
         target = self
         while hasattr(target.parent, "_add_category"):
             target = target.parent
         if target == self:
             self._categories = []
-            self._moved_categories = False
-            self._duplicate_categories = False
         self._topmost = target
 
     def adjust_level(self, new_level):
@@ -237,9 +266,10 @@ class Section():
 
     def add(self, item):
         if isinstance(item, str):
-            # Ignore empty lines before first data item
             if re.match(r"^(----+)?\s*$", item):
+                # Ignore empty lines before first data item
                 if not self._lines:
+                    self._changes.append("whitespace changes")
                     return
                 # buffer empty lines until there is a data line
                 self._trailing_empty_lines.append(item)
@@ -253,9 +283,11 @@ class Section():
                     self._trailing_empty_lines = []
 
                 self._lines.append(item)
-                # Raise flag if there are additional lines after any category declaration
+
+                # If any section before the final section contains a category, it will
+                # be moved to the bottom
                 if self._topmost._categories:
-                    self._topmost._moved_categories = True
+                    self._changes.append(f"/*{self._topmost.path}*/ moved categories to end of language, per WT:ELE")
 
             return
 
@@ -266,7 +298,7 @@ class Section():
             self.parent._add_category(line)
         else:
             if line in self._categories:
-                self._duplicate_categories = True
+                self._changes.append(f"/*{self._topmost.path}*/ removed duplicate categories")
             else:
                 self._categories.append(line)
 
@@ -321,3 +353,17 @@ class Section():
     def __str__(self):
         return self.header + self.lines + "".join(list(map(str, self._children))) + self.categories
 
+
+# this can be called by any cleanup fix that uses SectionParser
+# it will generate summary details for any changes applied by
+# SectionParser
+def cleanup_summary(text, title, summary, custom):
+    entry = SectionParser(text, title)
+
+    seen = set()
+    for item in entry._changes:
+        if item not in seen:
+            summary.append(item)
+            seen.add(item)
+
+    return str(entry)

@@ -267,35 +267,6 @@ def rename_misnamed_references(entry):
 
     return changes
 
-
-# this can be called by any cleanup fix that uses SectionParser
-# it will generate summary details for any changes applied by
-# SectionParser
-def default_cleanup(text, title, summary, custom):
-    entry = SectionParser(text, title)
-
-    for lang in entry._children:
-        if lang._moved_categories:
-            summary.append(f"/*{lang.title}*/ moved categories to end of language, per WT:ELE")
-
-        if lang._duplicate_categories:
-            summary.append(f"/*{lang.title}*/ removed duplicate categories")
-
-    entry_text = str(entry)
-    if text.count("\n----") < entry_text.count("\n----"):
-        summary.append("added l2 separator")
-    if text.count("\n----") > entry_text.count("\n----"):
-        summary.append("removed trailing l2 separator")
-
-    whitespace_changes = False
-    if entry_text.rstrip() != text.rstrip():
-        ew = re.sub(r"\s", "", str(entry))
-        tw = re.sub(r"\s", "", text)
-        if ew == tw:
-            summary.append("adjusted whitespace")
-
-    return str(entry).rstrip()
-
 # called by wikifix to mass apply the above fixes
 def cleanup_sections(text, title, summary, custom):
 
