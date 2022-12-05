@@ -6,7 +6,7 @@ from enwiktionary_parser.languages import all_ids as language_constants
 from Levenshtein import distance as fuzzy_distance
 
 from autodooz.sectionparser import SectionParser, Section
-from autodooz.sections import ALL_L3, ALL_POS, COUNTABLE_SECTIONS
+from autodooz.sections import ALL_LANGS, ALL_L3, ALL_POS, COUNTABLE_SECTIONS
 
 
 # Tags that generate a <ref> link
@@ -96,7 +96,7 @@ def fix_section_titles(entry):
     for section in entry.ifilter_sections():
         if "=" in section.title:
             continue
-        if section.level == 2:
+        if section.title in ALL_LANGS:
             continue
         if section.title in ALL_L3:
             continue
@@ -268,7 +268,7 @@ def rename_misnamed_references(entry):
     return changes
 
 # called by wikifix to mass apply the above fixes
-def cleanup_sections(text, title, summary, custom):
+def process(text, title, summary, custom):
 
     if ":" in title or "/" in title:
         return text
