@@ -95,7 +95,6 @@ ALL_POS = WT_POS | EXTRA_POS
 # order enforced by WT:ELE
 ALL_POS_CHILDREN = [
     "Readings",
-    "Compounds",
     "Definitions",
 
     "Usage notes",
@@ -117,8 +116,9 @@ ALL_POS_CHILDREN = [
     "Troponyms",
     "Coordinate terms",
     "Derived terms",
-    "Related terms",
     "Derived characters", # not in WT:ELE
+    "Compounds",
+    "Related terms",
     "Related characters", # not in WT:ELE
     "Collocations",
     "Descendants",
@@ -183,6 +183,7 @@ EXTRA_L3 = {
     "Hanja",
 
     "Mutation",
+    "Compounds",
 }
 
 ALL_L3 = set(COUNTABLE_SECTIONS) | ALL_POS.keys() | WT_ELE | EXTRA_L3
