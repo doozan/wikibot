@@ -1,10 +1,10 @@
-#import locale
 import re
 import unicodedata
 
 from autodooz.sectionparser import SectionParser
-from autodooz.sections import ALL_LANGS, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
+from autodooz.sections import ALL_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
 from autodooz.form_fixer import FormFixer
+from collections import defaultdict
 
 def strip_accents(s):
    return ''.join(c for c in unicodedata.normalize('NFD', s)
@@ -20,7 +20,7 @@ def get_language_key(title):
 
     return (2, strip_accents(title))
 
-def sort_languages(entry):
+def sort_l2(entry):
 
     changes = []
 
@@ -35,57 +35,81 @@ def sort_languages(entry):
 
     return changes
 
-def sort_pos(language):
+
+def has_alt_before_pos(l3):
+    for c in l3.ifilter_sections(recursive=False):
+        if c.title in ["Alternative forms", "Alternative scripts"]:
+            return True
+        elif c.title in ALL_POS:
+            return False
+    return False
+
+
+# L3 can be either the full language entry or, if there are countable sections, each countable sections
+#
+# ===Etymology===
+# ===Noun===
+# ===References===
+# ===Usage notes===
+#
+# or
+#
+# ===Etymology 1===
+# ====Noun====
+# ====References====
+# ====Usage notes====
+#
+def sort_l3(language):
 
     changes = []
 
-    assert language.title in L3_SORT_LANGUAGES
-    lemmas_before_forms = language.title in L3_LEMMAS_BEFORE_FORMS
+    if language.title not in ALL_LANGS:
+        return changes
+
+    if not has_only_expected_children(language, ALL_L3):
+        return changes
 
     sortable = language.filter_sections(matches=lambda x: x.title in COUNTABLE_SECTIONS and x.count)
     if not sortable:
         sortable = [ language ]
 
-    for sort_section in sortable:
+    for l3 in sortable:
+
+        if not has_only_expected_children(l3, ALL_L3):
+            continue
+
         # Special case sorting for "Alternative forms" or "Alternative scripts"
         # per WT:ETE, "Alternative forms" must be the first item IFF it appears before a POS item
         # Otherwise, it can be sorted below the POS according to the normal sort order
-        alt_first = False
-        for c in sort_section._children:
-            if c.title in ["Alternative forms", "Alternative scripts"]:
-                alt_first = True
-                break
-            elif c.title in ALL_POS:
-                break
-
-        unhandled = [x for x in sort_section._children if
-                x.title not in top_sort
-                and x.title not in bottom_sort
-                and x.title not in ALL_POS]
-        if unhandled:
-#            for section in unhandled:
-#                print("unhandled section, not sorting", section.path)
-            continue
-
+        alt_first = has_alt_before_pos(l3)
 
         # Spanish can sort all of the section in one go
         if language.title == "Spanish":
-            orig = list(sort_section._children)
-            sort_section._children.sort(key=lambda x: get_l3_sort_key(x, alt_first=alt_first, lemmas_before_forms=lemmas_before_forms))
-            if orig != sort_section._children:
-                changes.append(f"/*{sort_section.path}*/ sorted sections per WT:ELE with forms before lemmas")
+            orig = list(l3._children)
+            l3._children.sort(key=lambda x: get_l3_sort_key(x, alt_first=alt_first, lemmas_before_forms=True))
+            if orig != l3._children:
+                changes.append(f"/*{l3.path}*/ sorted sections per WT:ELE with forms before lemmas")
 
-        # Since English only sorts a few sections, do it in multiple passes to generate a more verbose summary
+        # Sort other languages in two passes to generate a more verbose summary
         else:
-            orig = list(sort_section._children)
-            sort_section._children.sort(key=lambda x: get_l3_sort_key_altforms(x, alt_first=alt_first, lemmas_before_forms=lemmas_before_forms))
-            if orig != sort_section._children:
-                changes.append(f"/*{sort_section.path}*/ moved AltForms found before first POS to first section per WT:ELE")
+#            orig = list(l3._children)
+#            l3._children.sort(key=lambda x: get_l3_sort_key_altforms(x, alt_first=alt_first, lemmas_before_forms=False))
+#            if orig != l3._children:
+#                changes.append(f"/*{l3.path}*/ moved AltForms found before first POS to first section per WT:ELE")
 
-            orig = list(sort_section._children)
-            sort_section._children.sort(key=lambda x: get_l3_sort_key_safe(x, alt_first=alt_first, lemmas_before_forms=lemmas_before_forms))
-            if orig != sort_section._children:
-                changes.append(f"/*{sort_section.path}*/ moved References/Further reading/Anagrams to bottom per WT:ELE")
+            orig = list(l3._children)
+            totals = defaultdict(int)
+            for section in l3._children:
+                totals[section.title] += 1
+
+            if any(count > 1 and title in bottom_sort_safe for title, count in totals.items()):
+                # Don't sort sections with double items
+                # TODO: log this
+                continue
+
+            l3._children.sort(key=lambda x: get_l3_sort_key_safe(x, alt_first=alt_first, lemmas_before_forms=False))
+            if orig != l3._children:
+                changes.append(f"/*{l3.path}*/ sorted References/Further reading/Anagrams to bottom per WT:ELE")
 
     return changes
 
@@ -221,11 +245,11 @@ def get_l3_sort_key(item, alt_first=False, lemmas_before_forms=False):
 
 
 # Called by wikifix
-def sort_l2(text, title, summary, options):
+def export_sort_l2(text, title, summary, options):
 
     entry = SectionParser(text, title)
 
-    changes = sort_languages(entry)
+    changes = sort_l2(entry)
     if not changes:
         return text
 
@@ -233,26 +257,18 @@ def sort_l2(text, title, summary, options):
 
     return str(entry)
 
-L3_SORT_LANGUAGES = ["Spanish", "English"]
-L3_LEMMAS_BEFORE_FORMS = ["Spanish"]
-
-def sort_l3(text, title, summary, options):
+def export_sort_l3(text, title, summary, options):
 
     if ":" in title:
         return text
 
     entry = SectionParser(text, title)
-    languages = entry.filter_sections(matches=lambda x: x.title in L3_SORT_LANGUAGES, recursive=False)
+    languages = entry.filter_sections(recursive=False)
 
     changes = []
     for language in languages:
         old = str(language)
-        changes += sort_pos(language)
-#        if str(language) != old:
-#        extra_options = " with lemmas before forms" if language.title in L3_LEMMAS_BEFORE_FORMS else ""
-#            #changes.append(f"/*{language.title}*/ sorted L3 sections per WT:ELE{extra_options}")
-#            changes.append(f"/*{language.title}*/ moved AltForms found before first POS to first section, per WT:ELE")
-#            #changes.append(f"/*{language.title}*/ moved References/Further reading/Anagrams to bottom per WT:ELE")
+        changes += sort_l3(language)
 
     if not changes:
         return text
@@ -260,3 +276,34 @@ def sort_l3(text, title, summary, options):
     summary += changes
 
     return str(entry).rstrip()
+
+
+# Sorts everything
+def process(page_text, page_title, summary=[], custom_args=None):
+
+    entry = SectionParser(page_text, page_title)
+    if entry.state != 0:
+        print(page_title, "unfinished state", entry.state)
+        return page_text
+
+    summary += sort_l2(entry)
+
+    for lang in entry.filter_sections(recursive=False):
+
+        summary += sort_l3(lang)
+
+        # Sort POS entries if the POS is a direct child of language or countable section (avoids sorting sections buried underneath something unexpected)
+        all_pos = entry.filter_sections(matches=lambda x: x.title in ALL_POS and (x.parent.title in COUNTABLE_SECTIONS or x.parent.title in ALL_LANGS))
+        for section in all_pos:
+            summary += sort_pos_children(section)
+
+    if not summary:
+        return page_text
+
+    return str(entry)
+
+def has_only_expected_children(parent, allowed_children):
+    for section in parent.filter_sections(recursive=False):
+        if section.title not in allowed_children:
+            return False
+    return True
