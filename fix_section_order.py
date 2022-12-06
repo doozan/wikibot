@@ -243,41 +243,6 @@ def get_l3_sort_key(item, alt_first=False, lemmas_before_forms=False):
 
     return (sort_group, sort_class, sort_item)
 
-
-# Called by wikifix
-def export_sort_l2(text, title, summary, options):
-
-    entry = SectionParser(text, title)
-
-    changes = sort_l2(entry)
-    if not changes:
-        return text
-
-    summary += changes
-
-    return str(entry)
-
-def export_sort_l3(text, title, summary, options):
-
-    if ":" in title:
-        return text
-
-    entry = SectionParser(text, title)
-    languages = entry.filter_sections(recursive=False)
-
-    changes = []
-    for language in languages:
-        old = str(language)
-        changes += sort_l3(language)
-
-    if not changes:
-        return text
-
-    summary += changes
-
-    return str(entry).rstrip()
-
-
 # Sorts everything
 def process(page_text, page_title, summary=[], custom_args=None):
 

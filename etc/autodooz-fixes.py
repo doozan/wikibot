@@ -55,11 +55,49 @@ def get_fixer(cls, params):
         _fixers[item] = cls(*params)
     return _fixers[item]
 
+
+
+from autodooz.fix_section_levels import SectionLevelFixer
+import autodooz.fix_section_order
+
+def repeat_until_stable(function, text, title, summary, options):
+    old_text = None
+    loop = 0
+    while text != old_text:
+        old_text = text
+        text = function(text, title, summary, options)
+        loop += 1
+        if loop > 4:
+            print(summary)
+            raise ValueError("loop", title)
+    return text
+
+def ele_cleanup(text, title, summary, options):
+    level_fixer = get_fixer(SectionLevelFixer, ())
+
+    text = autodooz.fix_section_headers.process(text, title, summary, options)
+
+    def _ele_fixes(text, title, summary, options):
+        text = repeat_until_stable(level_fixer.process, text, title, summary, options)
+        text = autodooz.fix_section_order.process(text, title, summary, options)
+        return text
+
+    text = repeat_until_stable(_ele_fixes, text, title, summary, options)
+    return text
+
+wikifix['ele_cleanup'] = {
+    'mode': 'function',
+    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
+    "fixes": [(ele_cleanup, None)],
+}
+
+
+
 import autodooz.fix_section_headers
 wikifix['cleanup_sections'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
-    "fixes": [(autodooz.fix_section_headers.cleanup_sections, None)],
+    "fixes": [(autodooz.fix_section_headers.process, None)],
 }
 
 from autodooz.fix_tlfi import fr_add_tlfi
@@ -67,6 +105,7 @@ wikifix['add_tlfi'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
     "fixes": [(fr_add_tlfi, None)],
+    "post-fixes": [(ele_cleanup, None)],
 }
 
 #import autodooz.list_bad_parents as badparents
@@ -76,22 +115,6 @@ wikifix['add_tlfi'] = {
 #    "fixes": [(badparents.process, None)]
 #}
 
-import autodooz.fix_section_order
-wikifix['sort_l2'] = {
-    'mode': 'function',
-    "pre-fixes": [
-        (autodooz.sectionparser.cleanup_summary, None),
-        (autodooz.fix_section_headers.cleanup_sections, None)],
-    "fixes": [(autodooz.fix_section_order.sort_l2, None)]
-}
-
-wikifix['sort_l3'] = {
-    'mode': 'function',
-    "pre-fixes": [
-        (autodooz.sectionparser.cleanup_summary, None),
-        (autodooz.fix_section_headers.cleanup_sections, None)],
-    "fixes": [(autodooz.fix_section_order.sort_l3, None)]
-}
 
 from autodooz.t9n_fixer import T9nFixRunner
 def wikifix_t9n(text, title, summary, options):
@@ -101,7 +124,8 @@ def wikifix_t9n(text, title, summary, options):
 wikifix['fix_t9n'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
-    "fixes": [(wikifix_t9n, {"allforms": f"{SPANISH_DATA}/es_allforms.csv"})]
+    "fixes": [(wikifix_t9n, {"allforms": f"{SPANISH_DATA}/es_allforms.csv"})],
+    "post-fixes": [(ele_cleanup, None)],
 }
 
 from autodooz.drae_fixer import DraeFixer
@@ -112,7 +136,8 @@ def es_drae_wrong(text, title, summary, options):
 wikifix['es_drae_wrong'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
-    "fixes": [(es_drae_wrong, { "drae_links": f"{DRAE_DATA}/drae.links" })]
+    "fixes": [(es_drae_wrong, { "drae_links": f"{DRAE_DATA}/drae.links" })],
+    "post-fixes": [(ele_cleanup, None)],
 }
 
 def es_drae_missing(text, title, summary, options):
@@ -122,7 +147,8 @@ def es_drae_missing(text, title, summary, options):
 wikifix['es_drae_missing'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
-    "fixes": [(es_drae_missing, { "drae_links": f"{DRAE_DATA}/drae.links" })]
+    "fixes": [(es_drae_missing, { "drae_links": f"{DRAE_DATA}/drae.links" })],
+    "post-fixes": [(ele_cleanup, None)],
 }
 
 from autodooz.form_fixer import FixRunner
@@ -138,7 +164,7 @@ wikifix['es_add_forms'] = {
         "allforms": f"{SPANISH_DATA}/es_allforms.csv",
         "wordlist": f"{SPANISH_DATA}/es-en.data",
         })],
-    "post-fixes": [(autodooz.fix_section_order.sort_l3, None)]
+    "post-fixes": [(ele_cleanup, None)],
 }
 
 def es_replace_forms(text, title, summary, options):
@@ -153,21 +179,8 @@ wikifix['es_replace_pos'] = {
         "allforms": f"{SPANISH_DATA}/es_allforms.csv",
         "wordlist": f"{SPANISH_DATA}/es-en.data",
         "pos": ["v", "n", "adj", "part"],
-        })]
+        })],
+    "post-fixes": [(ele_cleanup, None)],
 }
 
-
-import autodooz.fix_section_levels
-
-wikifix['fix_section_levels'] = {
-    'mode': 'function',
-    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
-    "fixes": [(autodooz.fix_section_levels.process, None)],
-    "post-fixes": [(autodooz.fix_section_order.sort_l3, None)]
-}
-
-wikifix['default_cleanup'] = {
-    'mode': 'function',
-    "fixes": [(autodooz.sectionparser.cleanup_summary, None)],
-}
 
