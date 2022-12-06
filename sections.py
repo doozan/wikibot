@@ -87,6 +87,7 @@ EXTRA_POS = {
     "Idiom": "idiom",
     "Abbreviations": "abbrev",
     "Verbal noun": "verbalnoun",
+    "Enclitic": "enclitic",
 }
 
 ALL_POS = WT_POS | EXTRA_POS
