@@ -269,27 +269,29 @@ def fix_anagrams(entry, page_title, summary):
 
 def process(page_text, page_title, summary=[], custom_args=None):
 
+    changes = []
+
     entry = SectionParser(page_text, page_title)
     if entry.state != 0:
         print(page_title, "unfinished state", entry.state)
         return page_text
 
-    if not has_only_expected_children(entry, ALL_LANGS, page_title, summary):
+    if not has_only_expected_children(entry, ALL_LANGS, page_title, changes):
         return page_text
 
-    if has_non_l2_language_section(entry, page_title, summary):
+    if has_non_l2_language_section(entry, page_title, changes):
         return page_text
 
     for lang in entry.filter_sections(recursive=False):
 
-        if not has_only_expected_children(lang, ALL_L3, page_title, summary):
+        if not has_only_expected_children(lang, ALL_L3, page_title, changes):
             continue
 
         dprint("Scanning", lang.path)
 
-        promote_children_of_childless_sections(lang, page_title, summary)
+        promote_children_of_childless_sections(lang, page_title, changes)
 
-        move_single_pronunciation(lang, summary, page_title)
+        move_single_pronunciation(lang, changes, page_title)
 
         all_countable_titles = []
         for countable in lang.filter_sections(recursive=False, matches=lambda x: x.title in COUNTABLE_SECTIONS):
@@ -298,8 +300,8 @@ def process(page_text, page_title, summary=[], custom_args=None):
 
         for countable_title in all_countable_titles:
 
-            cleanup_countable(countable_title, lang, summary, page_title)
-            countable_adopt_stray_children(lang, countable_title, summary, page_title)
+            cleanup_countable(countable_title, lang, changes, page_title)
+            countable_adopt_stray_children(lang, countable_title, changes, page_title)
 
             all_countable = lang.filter_sections(recursive=False, matches=lambda x: x.title == countable_title)
             if not all_countable:
@@ -310,31 +312,27 @@ def process(page_text, page_title, summary=[], custom_args=None):
                 # TODO: Log this
                 print(page_title, f"/*{lang.path}*/ has empty {countable.title} section, failing")
                 # Childless multi-sections are bad
-                summary = []
                 return page_text
 
             if len(all_countable) < 2:
                 continue
 
-            if not has_only_expected_children(lang, ALL_L3, page_title, summary):
+            if not has_only_expected_children(lang, ALL_L3, page_title, changes):
                 continue
 
             for parent in all_countable:
-                pos_adopt_stray_children(parent, summary, page_title)
+                pos_adopt_stray_children(parent, changes, page_title)
 
-        pos_adopt_stray_children(lang, summary, page_title)
-        cleanup_nested_countable(lang, summary, page_title)
+        pos_adopt_stray_children(lang, changes, page_title)
+        cleanup_nested_countable(lang, changes, page_title)
 
-    fix_anagrams(entry, page_title, summary)
-    move_misplaced_translations(entry, summary, page_title)
+    fix_anagrams(entry, page_title, changes)
+    move_misplaced_translations(entry, changes, page_title)
 
-    if not summary:
+    if not changes:
         return page_text
 
-    # If there were changes, run another pass to ensure promoted items have counters
-    if not custom_args or "second_loop" not in custom_args:
-        return process(str(entry), page_title, summary, custom_args={"second_loop": True})
-
+    summary += changes
     return str(entry)
 
 
