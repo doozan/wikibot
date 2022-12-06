@@ -640,7 +640,7 @@ class AutoDooz(
         original_text = self.current_page.text
         title = self.current_page.title()
 
-        if ":" in title:
+        if ":" in title or "/" in title:
             return
 
         patches = make_patches(self.fixes, original_text, title, self.opt.path_filter, self.opt.context, self.opt.no_children, should_match=False)
@@ -710,14 +710,14 @@ class AutoDooz(
                 self.opt.always = True
             if choice == 'y':
                 self.save(self.current_page, original_text, new_text, summary,
-                          show_diff=False, asynchronous=True, minor=False)
+                          show_diff=False, asynchronous=True, minor=True)
 
             # choice must be 'N'
             break
 
         if self.opt.always and new_text != original_text:
             self.save(self.current_page, original_text, new_text, summary,
-                      show_diff=False, asynchronous=False, minor=False)
+                      show_diff=False, asynchronous=False, minor=True)
 
         self.count += 1
         if self.opt.limit and self.count >= self.opt.limit:
