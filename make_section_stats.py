@@ -101,7 +101,14 @@ def validate_entry(entry):
     headerfix.fix_remove_pos_counters(entry) and log("autofix_numbered_pos", entry)
     headerfix.fix_bad_l2(entry) and log("autofix_bad_l2", entry)
     headerfix.fix_section_levels(entry) and log("autofix_levels", entry)
-    headerfix.remove_empty_sections(entry) and log ("autofix_empty_section", entry)
+    #headerfix.remove_empty_sections(entry) and log ("autofix_empty_section", entry)
+
+    if entry.state & 1:
+        log("trailing_open_html_comment", entry)
+    if entry.state & 2:
+        log("trailing_open_template", entry, entry.template_depth[-1])
+    if entry.state & 4:
+        log("trailing_open_nowiki_tag", entry)
 
     if not entry._children:
         log("empty_page", entry)
@@ -114,13 +121,6 @@ def validate_entry(entry):
     if len(l2_titles) != len(set(l2_titles)):
         duplicates = [title for title in l2_titles if l2_titles.count(title) > 1]
         log("duplicate_l2", entry, ", ".join(duplicates))
-
-    if entry.state & 1:
-        log("trailing_open_html_comment", entry)
-    if entry.state & 2:
-        log("trailing_open_template", entry, entry.template_depth[-1])
-    if entry.state & 4:
-        log("trailing_open_nowiki_tag", entry)
 
     for section in entry.ifilter_sections():
 
@@ -179,7 +179,7 @@ def main():
         for section in entry.ifilter_sections():
             title = section.title if section.title else "(no section title)"
 
-            item = f"{section.level}:{title}"
+            item = (title, section.level)
             stats[item] += 1
             if samples[item] is not None:
                 samples[item].add(page.title)
@@ -202,7 +202,7 @@ def upload_samples(base_url, samples, summary):
         if not samples:
             continue
 
-        level, title = item.split(":",1)
+        title, level = item
         section = title[0] if title[0].isalnum() else "Other"
         sections[section][title][level] = samples
 
@@ -255,8 +255,7 @@ def upload_stats(base_url, stats, summary):
     max_level = defaultdict(int)
 
     for item, count in sorted(stats.items()):
-        level, title = item.split(":",1)
-        level = int(level)
+        title, level = item
         title_stats[title][level] = count
 
         if title not in table_types:
