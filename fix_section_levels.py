@@ -40,7 +40,12 @@ CHILDLESS_SECTIONS = [
     "Anagrams",
 ]
 
-ALWAYS_ADOPTABLE_COUNTABLE_CHILDREN = ALL_POS.keys() | {"Pronunciation"} # | set(COUNTABLE_SECTIONS)
+ALWAYS_ADOPTABLE_COUNTABLE_CHILDREN = ALL_POS.keys() | {
+    "Pronunciation",
+    "Alternative forms",
+    "Alternative scripts",
+    "Alternative reconstructions",
+    } # | set(COUNTABLE_SECTIONS)
 ADOPTABLE_COUNTABLE_CHILDREN = ALWAYS_ADOPTABLE_COUNTABLE_CHILDREN
 
 ALWAYS_ADOPTABLE_POS_CHILDREN = {
@@ -309,9 +314,9 @@ class SectionLevelFixer():
                     for s in all_countable:
                         if not s._children:
                             if not s._lines:
-                                self.warn("empty_countable", f"{countable.path}")
+                                self.warn("empty_countable", f"{s.path}")
                             else:
-                                self.warn("childless_countable", f"{countable.path}")
+                                self.warn("childless_countable", f"{s.path}")
                             return page_text
 
                 elif len(all_countable) < 2:
