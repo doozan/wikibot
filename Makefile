@@ -50,7 +50,7 @@ LIST_COORD_TERMS := $(PYPATH) ./list_coord_terms.py
 LIST_USUALLY_PLURAL := $(PYPATH) ./list_usually_plural.py
 LIST_SPLIT_NOUN_PLURALS := $(PYPATH) ./list_split_noun_plurals.py
 LIST_SPLIT_VERB_DATA := $(PYPATH) ./list_split_verb_data.py
-LIST_UNSORTED := $(PYPATH) ./list_unsorted.py
+LIST_UNSORTED := $(PYPATH) ./list_section_order_errors.py
 LIST_DRAE_ERRORS := $(PYPATH) ./list_drae_errors.py
 LIST_MISSING_DRAE := $(PYPATH) ./list_missing_drae.py
 
