@@ -103,7 +103,7 @@ ALL_POS_CHILDREN = [
     "Inflection",
     "Declension",
     "Conjugation",
-    #"Mutation", # Defined in WT:ELE, but generally L3
+    "Mutation", # Defined in WT:ELE, but generally L3
     "Quotations",
     "Alternative forms",
     "Alternative reconstructions",
