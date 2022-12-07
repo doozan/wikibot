@@ -5,7 +5,7 @@ import re
 import sys
 
 from autodooz.sectionparser import SectionParser
-import autodooz.fix_section_order as SectionSorter
+from autodooz.fix_section_order import SectionOrderFixer
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import namedtuple
 
@@ -28,10 +28,10 @@ class WikiSaver(BaseHandler):
 
     def format_entry(self, entry, prev_entry):
         page = entry.page
-        language = entry.language
-        if not language:
-            return [f": [[{page}]]"]
-        return [f": [[{page}#{language}]]"]
+        section = entry.section if entry.section else ""
+        return [f": [[{page}]] {section} {entry.details}"]
+
+    _paramtype = namedtuple("params", [ "error", "page", "section", "details" ])
 
 class FileSaver(WikiSaver):
 
@@ -45,12 +45,11 @@ class FileSaver(WikiSaver):
         super().save(*args, **nargs, commit_message=None)
 
 class Logger(WikiLogger):
-    _paramtype = namedtuple("params", [ "error", "language", "page" ])
+    _paramtype = namedtuple("params", [ "error", "page", "section", "details" ])
 
 logger = Logger()
-def log(*args, **kwargs):
-    #print(*args, **kwargs)
-    logger.add(*args, **kwargs)
+def log(error, page, section, details):
+    logger.add(error, page, section, details)
 
 def main():
 
@@ -67,6 +66,9 @@ def main():
     dump = xmlreader.XmlDump(args.xmlfile)
     parser = dump.parse()
 
+    fixer = SectionOrderFixer()
+    fixer._log = log
+
     count = 0
     for page in parser:
         if ":" in page.title  or "/" in page.title or page.isredirect:
@@ -78,36 +80,15 @@ def main():
         if args.limit and count > args.limit:
             break
 
-        process(page.text, page.title)
+        fixer.process(page.text, page.title)
 
     if args.save:
-        base_url = "User:JeffDoozan/lists"
+        base_url = "User:JeffDoozan/lists/section_order"
         logger.save(base_url, WikiSaver, commit_message=args.save)
     else:
-        dest = ""
+        dest = "section_order"
         logger.save(dest, FileSaver)
 
-
-def process(page_text, page_title):
-
-    entry = SectionParser(page_text, page_title)
-    for lang in entry._children:
-        if lang.title not in SectionSorter.ALL_LANGS:
-            log("l2_unknown", lang.title, page_title)
-
-    old = str(entry)
-    SectionSorter.sort_languages(entry)
-    if str(entry) != old:
-        log("l2_unsorted", None, page_title)
-
-    languages = entry.filter_sections(matches=lambda x: x.title in SectionSorter.L3_SORT_LANGUAGES, recursive=False)
-    for language in languages:
-        old = str(language)
-        SectionSorter.sort_pos(language)
-        if str(language) != old:
-            log("l3_unsorted", language.title, page_title)
-
-    return str(entry)
 
 if __name__ == "__main__":
     main()
