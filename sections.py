@@ -185,6 +185,8 @@ EXTRA_L3 = {
 
     "Mutation",
     "Compounds",
+
+    "Sign values", # Not in WT:ELE, used in Akkadian
 }
 
 ALL_L3 = set(COUNTABLE_SECTIONS) | ALL_POS.keys() | WT_ELE | EXTRA_L3
