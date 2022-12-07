@@ -49,6 +49,9 @@ class Logger(WikiLogger):
 
 logger = Logger()
 def log(error, page, section, details):
+    if error == "autofix_stray_child":
+        return
+
     #print(error, page, section, details)
     logger.add(error, page, section, details)
 

@@ -1,7 +1,7 @@
 import pytest
 
 from ..sectionparser import SectionParser
-from ..fix_section_order import sort_languages, sort_pos
+from ..fix_section_order import SectionOrderFixer
 
 def test_sort_languages():
     text = """\
@@ -68,7 +68,8 @@ def test_sort_languages():
 """
 
     parsed = SectionParser(text, "test")
-    sort_languages(parsed)
+    fixer = SectionOrderFixer()
+    fixer.sort_l2(parsed)
 
     res = str(parsed)
     print(res)
@@ -106,7 +107,8 @@ Borrowed from {{bor|es|la|āctiō|āctiō, āctiōnem}}, from {{m|la|ago|agere}}
 
     entry = SectionParser(text, "test")
     spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False))
-    sort_pos(spanish)
+    fixer = SectionOrderFixer()
+    fixer.sort_l3(spanish)
 
     res = str(entry)
     print(res)
@@ -158,7 +160,9 @@ def test_l3_sort_lemma_first():
 
     entry = SectionParser(text, "test")
     spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False))
-    sort_pos(spanish)
+
+    fixer = SectionOrderFixer()
+    fixer.sort_l3(spanish)
 
     res = str(entry)
     print(res)

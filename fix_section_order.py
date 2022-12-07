@@ -6,142 +6,9 @@ from autodooz.sections import ALL_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUN
 from autodooz.form_fixer import FormFixer
 from collections import defaultdict
 
-def strip_accents(s):
-   return ''.join(c for c in unicodedata.normalize('NFD', s)
-                  if unicodedata.category(c) != 'Mn')
-
-def get_language_key(title):
-
-    if title == "Translingual":
-        return (0, title)
-
-    elif title == "English":
-        return (1, title)
-
-    return (2, strip_accents(title))
-
-def sort_l2(entry):
-
-    changes = []
-
-    # Only sort if all sections are L2 and match expected language titles
-    if not entry._children or not all(c.level == 2 and c.title in ALL_LANGS for c in entry._children):
-        return changes
-
-    sorted_sections = sorted(entry._children, key=lambda x: get_language_key(x.title))
-    if sorted_sections != entry._children:
-        entry._children = sorted_sections
-        changes.append("Sorted L2 languages per WT:ELE")
-
-    return changes
-
-
-def has_alt_before_pos(l3):
-    for c in l3.ifilter_sections(recursive=False):
-        if c.title in ["Alternative forms", "Alternative scripts"]:
-            return True
-        elif c.title in ALL_POS:
-            return False
-    return False
-
-
-# L3 can be either the full language entry or, if there are countable sections, each countable sections
-#
-# ===Etymology===
-# ===Noun===
-# ===References===
-# ===Usage notes===
-#
-# or
-#
-# ===Etymology 1===
-# ====Noun====
-# ====References====
-# ====Usage notes====
-#
-def sort_l3(language):
-
-    changes = []
-
-    if language.title not in ALL_LANGS:
-        return changes
-
-    if not has_only_expected_children(language, ALL_L3):
-        return changes
-
-    sortable = language.filter_sections(matches=lambda x: x.title in COUNTABLE_SECTIONS and x.count)
-    if not sortable:
-        sortable = [ language ]
-
-    for l3 in sortable:
-
-        if not has_only_expected_children(l3, ALL_L3):
-            continue
-
-        # Special case sorting for "Alternative forms" or "Alternative scripts"
-        # per WT:ETE, "Alternative forms" must be the first item IFF it appears before a POS item
-        # Otherwise, it can be sorted below the POS according to the normal sort order
-        alt_first = has_alt_before_pos(l3)
-
-        # Spanish can sort all of the section in one go
-        if language.title == "Spanish":
-            orig = list(l3._children)
-            l3._children.sort(key=lambda x: get_l3_sort_key(x, alt_first=alt_first, lemmas_before_forms=True))
-            if orig != l3._children:
-                changes.append(f"/*{l3.path}*/ sorted sections per WT:ELE with forms before lemmas")
-
-        # Sort other languages in two passes to generate a more verbose summary
-        else:
-#            orig = list(l3._children)
-#            l3._children.sort(key=lambda x: get_l3_sort_key_altforms(x, alt_first=alt_first, lemmas_before_forms=False))
-#            if orig != l3._children:
-#                changes.append(f"/*{l3.path}*/ moved AltForms found before first POS to first section per WT:ELE")
-
-            orig = list(l3._children)
-            totals = defaultdict(int)
-            for section in l3._children:
-                totals[section.title] += 1
-
-            if any(count > 1 and title in bottom_sort_safe for title, count in totals.items()):
-                # Don't sort sections with double items
-                # TODO: log this
-                continue
-
-            l3._children.sort(key=lambda x: get_l3_sort_key_safe(x, alt_first=alt_first, lemmas_before_forms=False))
-            if orig != l3._children:
-                changes.append(f"/*{l3.path}*/ sorted References/Further reading/Anagrams to bottom per WT:ELE")
-
-    return changes
-
-
-def sort_pos_children(pos):
-
-    changes = []
-
-    # Only sort if the section itself is really a POS
-    if pos.title not in ALL_POS:
-        raise ValueError("unexpected POS, refusing to sort", pos.title)
-
-    can_sort = True
-    for child in pos._children:
-        if child.title not in ALL_POS_CHILDREN:
-            print(pos.path, "can't sort POS, found unexpected child section", child.title)
-            can_sort = False
-
-    if not can_sort:
-        return changes
-
-    orig = list(pos._children)
-    pos._children.sort(key=lambda x: ALL_POS_CHILDREN.index(x.title))
-    if orig != pos._children:
-        changes.append(f"/*{pos.path}*/ sorted child sections per WT:ELE")
-
-    return changes
-
-
 
 # Sections that will be a the very top, ranked as they appear here
-top_sort = {k:v for v,k in enumerate([
+TOP_SORT = {k:v for v,k in enumerate([
         #"Alternative forms",
         "Description",
         "Glyph origin",
@@ -159,116 +26,273 @@ top_sort = {k:v for v,k in enumerate([
 
 
 # Sections that will be at the very bottom, ranked as they appear here
-bottom_sort = {k:v for v,k in enumerate([
-        "Definitions",
+BOTTOM_SORT = {k:v for v,k in enumerate([
+    "Definitions",
 
-        "Usage notes",
-        "Reconstruction notes",
-        "Inflection",
-        "Declension",
-        "Conjugation",
-        "Mutation",
-        "Quotations",
-        "Alternative forms",
-        "Alternative scripts",
-        "Alternative reconstructions",
+    "Usage notes",
+    "Reconstruction notes",
+    "Inflection",
+    "Declension",
+    "Conjugation",
+    "Mutation",
+    "Quotations",
+    "Alternative forms",
+    "Alternative scripts",
+    "Alternative reconstructions",
 
-        "Synonyms",
-        "Antonyms",
-        "Hypernyms",
-        "Hyponyms",
-        "Meronyms",
-        "Holonyms",
-        "Troponyms",
-        "Coordinate terms",
-        "Derived terms",
-        "Derived characters", # not in WT:ELE
-        "Related terms",
-        "Related characters", # not in WT:ELE
-        "Collocations",
-        "Descendants",
-        "Translations",
-        "Statistics", # Not in WT:ELE, but used in 20k pages
-        "Trivia",
-        "See also",
-        "References",
-        "Further reading",
-        "Anagrams",
-    ], 1)}
+    "Synonyms",
+    "Antonyms",
+    "Hypernyms",
+    "Hyponyms",
+    "Meronyms",
+    "Holonyms",
+    "Troponyms",
+    "Coordinate terms",
+    "Derived terms",
+    "Derived characters", # not in WT:ELE
+    "Related terms",
+    "Related characters", # not in WT:ELE
+    "Collocations",
+    "Descendants",
+    "Translations",
+    "Statistics", # Not in WT:ELE, but used in 20k pages
+    "Trivia",
+    "See also",
+    "References",
+    "Further reading",
+    "Anagrams",
+], 1)}
 
 # Categories that can be safely sorted the bottom
-bottom_sort_safe = {k:v for v,k in enumerate([
+BOTTOM_SORT_SAFE = {k:v for v,k in enumerate([
         "References",
         "Further reading",
         "Anagrams",
     ], 1)}
 
-def get_l3_sort_key_altforms(item, alt_first=False, lemmas_before_forms=False):
-    if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
-        return (0, -1, item.title)
 
-    return (0,0,0)
+class SectionOrderFixer:
 
-def get_l3_sort_key_safe(item, alt_first=False, lemmas_before_forms=False):
-    return (0, 0, bottom_sort_safe.get(item.title, 0))
+    @staticmethod
+    def strip_accents(s):
+       return ''.join(c for c in unicodedata.normalize('NFD', s)
+                      if unicodedata.category(c) != 'Mn')
 
-def get_l3_sort_key(item, alt_first=False, lemmas_before_forms=False):
+    @classmethod
+    def get_language_key(cls, title):
 
-    if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
-        return (0, -1, item.title)
+        if title == "Translingual":
+            return (0, title)
 
-    if item.title in top_sort:
-        sort_group = 0
-        sort_class = 0
-        sort_item = 0 # str(top_sort[item.title])
-    elif item.title in ALL_POS:
-        sort_group = 1
-        sort_class = 0
-        sort_item = 0
-        if lemmas_before_forms:
-            if not FormFixer.is_form(item):
-                sort_class = 0
-                sort_item = 0  # Lemmas remain in original order
+        elif title == "English":
+            return (1, title)
+
+        return (2, cls.strip_accents(title))
+
+    def sort_l2(self, entry):
+
+        changes = []
+
+        # Only sort if all sections are L2 and match expected language titles
+        if not entry._children or not all(c.level == 2 and c.title in ALL_LANGS for c in entry._children):
+            return changes
+
+        sorted_sections = sorted(entry._children, key=lambda x: self.get_language_key(x.title))
+        if sorted_sections != entry._children:
+            entry._children = sorted_sections
+            changes.append("Sorted L2 languages per WT:ELE")
+
+        return changes
+
+    def has_alt_before_pos(self, l3):
+        for c in l3.ifilter_sections(recursive=False):
+            if c.title in ["Alternative forms", "Alternative scripts"]:
+                return True
+            elif c.title in ALL_POS:
+                return False
+        return False
+
+
+    # L3 can be either the full language entry or, if there are countable sections, each countable sections
+    #
+    # ===Etymology===
+    # ===Noun===
+    # ===References===
+    # ===Usage notes===
+    #
+    # or
+    #
+    # ===Etymology 1===
+    # ====Noun====
+    # ====References====
+    # ====Usage notes====
+    #
+    def sort_l3(self, language):
+
+        changes = []
+
+        if language.title not in ALL_LANGS:
+            return changes
+
+        if not self.has_only_expected_children(language, ALL_L3):
+            return changes
+
+        sortable = language.filter_sections(matches=lambda x: x.title in COUNTABLE_SECTIONS and x.count)
+        if not sortable:
+            sortable = [ language ]
+
+        for l3 in sortable:
+
+            if not self.has_only_expected_children(l3, ALL_L3):
+                continue
+
+            # Special case sorting for "Alternative forms" or "Alternative scripts"
+            # per WT:ETE, "Alternative forms" must be the first item IFF it appears before a POS item
+            # Otherwise, it can be sorted below the POS according to the normal sort order
+            alt_first = self.has_alt_before_pos(l3)
+
+            # Spanish can sort all of the section in one go
+            if language.title == "Spanish":
+                orig = list(l3._children)
+                l3._children.sort(key=lambda x: self.get_l3_sort_key(x, alt_first=alt_first, lemmas_before_forms=True))
+                if orig != l3._children:
+                    changes.append(f"/*{l3.path}*/ sorted sections per WT:ELE with forms before lemmas")
+
+            # Sort other languages in two passes to generate a more verbose summary
             else:
-                sort_class = 1
-                sort_item = item.title # Forms sorted a-z
+    #            orig = list(l3._children)
+    #            l3._children.sort(key=lambda x: self.get_l3_sort_key_altforms(x, alt_first=alt_first, lemmas_before_forms=False))
+    #            if orig != l3._children:
+    #                changes.append(f"/*{l3.path}*/ moved AltForms found before first POS to first section per WT:ELE")
 
-    elif item.title in bottom_sort:
-        sort_group = 2
-        sort_class = 0
-        sort_item = bottom_sort[item.title]
-    else:
-        raise ValueError("Unhandled section:", item.path)
-        #error("Unexpected section:", item.title)
+                orig = list(l3._children)
+                totals = defaultdict(int)
+                for section in l3._children:
+                    totals[section.title] += 1
 
-    return (sort_group, sort_class, sort_item)
+                if any(count > 1 and title in BOTTOM_SORT_SAFE for title, count in totals.items()):
+                    # Don't sort sections with double items
+                    # TODO: log this
+                    continue
 
-# Sorts everything
-def process(page_text, page_title, summary=[], custom_args=None):
+                l3._children.sort(key=lambda x: self.get_l3_sort_key_safe(x, alt_first=alt_first, lemmas_before_forms=False))
+                if orig != l3._children:
+                    changes.append(f"/*{l3.path}*/ sorted References/Further reading/Anagrams to bottom per WT:ELE")
 
-    entry = SectionParser(page_text, page_title)
-    if entry.state != 0:
-        print(page_title, "unfinished state", entry.state)
-        return page_text
+        return changes
 
-    summary += sort_l2(entry)
 
-    for lang in entry.filter_sections(recursive=False):
+    def sort_pos_children(self, pos):
 
-        summary += sort_l3(lang)
+        changes = []
 
-        # Sort POS entries if the POS is a direct child of language or countable section (avoids sorting sections buried underneath something unexpected)
-        all_pos = entry.filter_sections(matches=lambda x: x.title in ALL_POS and (x.parent.title in COUNTABLE_SECTIONS or x.parent.title in ALL_LANGS))
-        for section in all_pos:
-            summary += sort_pos_children(section)
+        # Only sort if the section itself is really a POS
+        if pos.title not in ALL_POS:
+            raise ValueError("unexpected POS, refusing to sort", pos.title)
 
-    if not summary:
-        return page_text
+        can_sort = True
+        for child in pos._children:
+            if child.title not in ALL_POS_CHILDREN:
+                print(pos.path, "can't sort POS, found unexpected child section", child.title)
+                can_sort = False
 
-    return str(entry)
+        if not can_sort:
+            return changes
 
-def has_only_expected_children(parent, allowed_children):
-    for section in parent.filter_sections(recursive=False):
-        if section.title not in allowed_children:
-            return False
-    return True
+        orig = list(pos._children)
+        pos._children.sort(key=lambda x: ALL_POS_CHILDREN.index(x.title))
+        if orig != pos._children:
+            changes.append(f"/*{pos.path}*/ sorted child sections per WT:ELE")
+
+        return changes
+
+    @staticmethod
+    def get_l3_sort_key_altforms(item, alt_first=False, lemmas_before_forms=False):
+        if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
+            return (0, -1, item.title)
+
+        return (0,0,0)
+
+    @staticmethod
+    def get_l3_sort_key_safe(item, alt_first=False, lemmas_before_forms=False):
+        return (0, 0, BOTTOM_SORT_SAFE.get(item.title, 0))
+
+    @staticmethod
+    def get_l3_sort_key(item, alt_first=False, lemmas_before_forms=False):
+
+        if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
+            return (0, -1, item.title)
+
+        if item.title in TOP_SORT:
+            sort_group = 0
+            sort_class = 0
+            sort_item = 0 # str(TOP_SORT[item.title])
+        elif item.title in ALL_POS:
+            sort_group = 1
+            sort_class = 0
+            sort_item = 0
+            if lemmas_before_forms:
+                if not FormFixer.is_form(item):
+                    sort_class = 0
+                    sort_item = 0  # Lemmas remain in original order
+                else:
+                    sort_class = 1
+                    sort_item = item.title # Forms sorted a-z
+
+        elif item.title in BOTTOM_SORT:
+            sort_group = 2
+            sort_class = 0
+            sort_item = BOTTOM_SORT[item.title]
+        else:
+            raise ValueError("Unhandled section:", item.path)
+            #error("Unexpected section:", item.title)
+
+        return (sort_group, sort_class, sort_item)
+
+    def fix(self, reason, section, details):
+        self._changes.append(f"/*{section.path}*/ {details}")
+        self.log(reason, self.page_title, section.path, details)
+
+    def warn(self, reason, details):
+        self.log(reason, self.page_title, None, details)
+
+    @staticmethod
+    def log(reason, page, section_path, details):
+        print(page, reason, section_path, details)
+
+    # Sorts everything
+    def process(self, page_text, page_title, summary=[], custom_args=None):
+
+        self.page_title = page_title
+        self._changes = []
+
+        entry = SectionParser(page_text, page_title)
+        if entry.state != 0:
+            print(page_title, "unfinished state", entry.state)
+            return page_text
+
+        summary += self.sort_l2(entry)
+
+        for lang in entry.filter_sections(recursive=False):
+
+            summary += self.sort_l3(lang)
+
+            # Sort POS entries if the POS is a direct child of language or countable section (avoids sorting sections buried underneath something unexpected)
+            all_pos = entry.filter_sections(matches=lambda x: x.title in ALL_POS and (x.parent.title in COUNTABLE_SECTIONS or x.parent.title in ALL_LANGS))
+            for section in all_pos:
+                summary += self.sort_pos_children(section)
+
+        if not summary:
+            return page_text
+
+        return str(entry)
+
+
+    def has_only_expected_children(self, parent, allowed_children):
+        # Returns True if all child sections are in allowed_children
+        valid = True
+        for section in parent.filter_sections(recursive=False):
+            if section.title not in allowed_children:
+                self.warn("unexpected_child", section.path)
+                valid = False
+        return valid
