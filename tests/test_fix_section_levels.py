@@ -1,4 +1,4 @@
-from autodooz.fix_section_levels import process
+from ..fix_section_levels import SectionLevelFixer
 
 def test_single_ety_no_children():
 
@@ -23,7 +23,8 @@ blah
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -64,7 +65,8 @@ blah
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -105,7 +107,8 @@ bl-ah
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -151,7 +154,8 @@ blah
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -197,7 +201,8 @@ bl-ah
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -243,7 +248,8 @@ blah
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -296,7 +302,8 @@ bl-ah2
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -342,7 +349,8 @@ bl-ah2
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -437,7 +445,8 @@ See {m|en|Höðr}.
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -516,7 +525,8 @@ Substantive from {{m|la|abecedārius||alphabetical}}.
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -568,7 +578,8 @@ Substantive from {{m|la|abecedārius||alphabetical}}.
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -605,7 +616,8 @@ def no_test_l3_language():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -645,7 +657,8 @@ def test_pos_adopt():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -682,7 +695,8 @@ def test_pos_adopt_without_ety():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -733,7 +747,8 @@ def test_complex():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -784,7 +799,8 @@ def test_complex2():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -827,7 +843,8 @@ def test_complex_single_entry():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -874,7 +891,8 @@ def test_nested_countable():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -916,7 +934,8 @@ def test_bad_nested_countable():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -963,7 +982,8 @@ def test_adopt_matched_cousin():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
     print(res)
 
     assert res == result
@@ -1020,7 +1040,8 @@ def test_multi_adoptions():
 
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
 #    print(res)
 
     assert res == result
@@ -1051,7 +1072,8 @@ def test_adopt_grandchildren():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
 #    print(res)
 
     assert res == result
@@ -1090,7 +1112,8 @@ def test_dont_adopt_uncles():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
 #    print(res)
 
     assert res == result
@@ -1128,7 +1151,8 @@ def test_no_nested_pos():
 """
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
 #    print(res)
 
     assert res == result
@@ -1159,7 +1183,8 @@ def test_fix_anagrams():
 
 
     summary = []
-    res = process(text, "test", summary)
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
 #    print(res)
 
     assert res == result

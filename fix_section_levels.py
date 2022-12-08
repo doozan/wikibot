@@ -111,7 +111,7 @@ class SectionLevelFixer():
             target_idx = lang._children.index(section) + 1
             for peer in peers:
                 print("promoting embedded peer")
-                self.reparent(peer, lang, target_idx)
+                peer.reparent(lang, target_idx)
                 new_peers = True
 
 
@@ -193,7 +193,7 @@ class SectionLevelFixer():
                         self.warn("embedded_pronunciation_has_children", f"{section.path} has Usage notes plus other child sections, ignoring")
                         return
 
-                    self.reparent(section, lang, first_ety_idx)
+                    section.reparent(lang, first_ety_idx)
                     self.fix("autofix_misplaced_pronunciation", lang, "moved single Pronuncation before multiple Etymologies")
 
 
@@ -229,7 +229,7 @@ class SectionLevelFixer():
         for section in entry.filter_sections(matches=lambda x: x.title in ALL_LANGS):
             if section.level != 2: # and section._children:
                 self.fix("autofix_misplaced_language", section, "moved non-l2 language to L2")
-                self.reparent(section, entry)
+                section.reparent(entry)
                 changed = True
 
     def promote_children_of_childless_sections(self, entry):
@@ -256,18 +256,18 @@ class SectionLevelFixer():
 
                 self.promote_children(section)
                 self.fix("autofix_misplaced_anagrams", section, f"moved to {new_parent.path}")
-                self.reparent(section, new_parent)
+                section.reparent(new_parent)
 
 
     def fix(self, reason, section, details):
         self._changes.append(f"/*{section.path}*/ {details}")
-        self.log(reason, self.page_title, section.path, details)
+        self._log(reason, self.page_title, section.path, details)
 
     def warn(self, reason, details):
-        self.log(reason, self.page_title, None, details)
+        self._log(reason, self.page_title, None, details)
 
     @staticmethod
-    def log(reason, page, section_path, details):
+    def _log(reason, page, section_path, details):
         print(page, reason, section_path, details)
 
     def process(self, page_text, page_title, summary=[], custom_args=None):
@@ -416,21 +416,8 @@ class SectionLevelFixer():
 
             for child in children:
                 old_path = child.path
-                self.reparent(child, new_parent)
+                child.reparent(new_parent)
 
-
-    
-
-    @staticmethod
-    def reparent(child, new_parent, index=None):
-        child.parent._children.remove(child)
-        if index is None:
-            new_parent._children.append(child)
-        else:
-            new_parent._children.insert(index, child)
-
-        child.parent = new_parent
-        child.adjust_level(new_parent.level + 1)
 
     def move_misplaced_translations(self, entry):
         changes = []
@@ -451,4 +438,4 @@ class SectionLevelFixer():
             self.promote_children(section)
 
             self.fix("autofix_misplaced_translation", section, f"moved to {new_parent.path}")
-            self.reparent(section, new_parent)
+            section.reparent(new_parent)
