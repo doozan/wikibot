@@ -2,12 +2,11 @@
 
 import re
 from collections import defaultdict
-from enwiktionary_parser.languages import all_ids as language_constants
 from Levenshtein import distance as fuzzy_distance
 
 from autodooz.sectionparser import SectionParser, Section
-from autodooz.sections import ALL_LANGS, ALL_L3, ALL_POS, COUNTABLE_SECTIONS
-
+from autodooz.sections import ALL_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
+from .lang_data import ALT_LANGS
 
 # Tags that generate a <ref> link
 ref_tags = ["<ref[ :>]", r'{{ja-pron\|[^}]*(acc_ref|accent_ref)'] #}} code folding fix
@@ -16,76 +15,196 @@ PATTERN_REF_TAGS = "(?i)(" + "|".join(ref_tags) + ")"
 # Tags that generate <references/>
 PATTERN_REFS = r"(?i)(<\s*references|{{reflist)"
 
-ALL_LANGUAGE_IDS = language_constants.languages
-ALL_LANGUAGE_NAMES = { v:k for k,v in ALL_LANGUAGE_IDS.items() }
+def get_fuzzy_matches(title, words, max_distance):
+    #print(title, words, max_distance)
+    #for x in words:
+    #    print(title, x, fuzzy_distance(title, x))
+    return [x for x in words if fuzzy_distance(title, x)<=max_distance]
 
-# Words will be fuzzy matched for typos
-# WARNING: do not use this for titles that have a similar form, EX: "Prxverb" -> ("Proverb", "Preverb")
-COMMON_TYPOS = {
-    "Alternative forms": 2,
-    "Alternative scripts": 2,
-    "Adjective": 2,
-    "Declension": 2,
-    "Etymology": 2,
-    "Derived terms": 2,
-    "Further reading": 2,
-    "Pronunciation": 2,
-    "References": 2,
-    "Related terms": 2,
-    "Synonyms": 1,
-    "Noun": 1,
-    "Usage notes": 2,
+from section_headers_fuzzy_matches import L2_FUZZY_MATCHES, L3_FUZZY_MATCHES
+
+import unicodedata
+def strip_accents(s):
+   return ''.join(c for c in unicodedata.normalize('NFD', s)
+                  if unicodedata.category(c) != 'Mn')
+
+L2_FIXES = {
+    'allowed': ALL_LANGS,
+    #'allowed_no_accents': {strip_accents(x) for x in ALL_LANGS},
+    # No fuzzy matches for language, too sloppy
+    #'fuzzy_matches': L2_FUZZY_MATCHES,
+
+    'replacements': {
+        'Arabic': 'Arabic', # unicode char on the A
+        'Assyrian neo-aramiac': 'Assyrian Neo-Aramaic',
+        'Guarani': 'Guaraní',
+        'Hijaz Arabic': 'Hijaz Arabic',
+        'Ingrain': 'Ingrian',
+        'Iñupiaq': 'Inupiaq',
+        'Iriga Bikolano': 'Iriga Bicolano',
+        'Jjapanese': 'Japanese',
+        'Kapampangn': 'Kapampangan',
+        'Karachay Balkar': 'Karachay-Balkar',
+        'Khorasani Turkic': 'Khorasani Turkish',
+        'Māori': 'Maori',
+        'Megrelian': 'Mingrelian',
+        'Norwegian (Bokmål)': 'Norwegian Bokmål',
+        'Ogba': 'Ogbah',
+        'Panjabi': 'Punjabi',
+        'Prasun': 'Prasuni',
+        'Serbo-croatian': 'Serbo-Croatian',
+        'Shekhani': 'Sekani',
+        'Slovenian': 'Slovincian',
+        'Tai-nüa': 'Tai Nüa',
+        'Tai nue': 'Tai Nüa',
+        'Transligual': 'Translingual',
+        'Ukrainain': 'Ukrainian',
+        'Yidish': 'Yiddish',
+    }
+}
+#print(len(L2_FIXES["allowed"]), len(L2_FIXES["allowed_no_accents"]))
+#assert len(L2_FIXES["allowed"]) == len(L2_FIXES["allowed_no_accents"])
+
+L3_FIXES = {
+    'allowed': ALL_L3,
+
+    'fuzzy_matches': L3_FUZZY_MATCHES,
+
+    'replacements': {
+        "Alternate forms": "Alternative forms",
+        "Alternate form": "Alternative forms",
+
+        "Alternate term": "Alternative forms",
+        "Alternate terms": "Alternative forms",
+        "Alternative term": "Alternative forms",
+        "Alternative terms": "Alternative forms",
+
+        "Alternative spellings": "Alternative forms",
+
+        "Alternate script": "Alternative scripts",
+        "Alternate scripts": "Alternative scripts",
+
+        #"Note": "Usage notes",
+        #"Notes": "Usage notes",
+        #"Usage": "Usage notes",
+    },
 }
 
-for word, max_typos in COMMON_TYPOS.items():
-    similar = [x for x in ALL_L3 if x != word and fuzzy_distance(word, x)<=max_typos]
-    if len(similar):
-        raise ValueError(f"{word} is not a candidate for typo matching, because it's too similar to {similar}")
+POS_CHILD_FIXES = {
+    'allowed': ALL_POS_CHILDREN + [
+        "Adjectives", # Used by Arabic
+        "Nouns", # Used by Arabic
+        "Verbs", # Used by Arabic
+        "Idioms", # Used by Japanese
+        "Proverbs", # Used by Japanes
+        "Preverb", # Used by Ojibwe
+        "Prenoun", # Used by Munsee
+        "Proper nouns", # Used by Arabic
+        ],
 
-TITLE_FIXES = {
-    "Alternate forms": "Alternative forms",
-    "Alternate form": "Alternative forms",
+    'fuzzy_matches': { k:1 for k in ALL_POS_CHILDREN } | {
+        "Descendants": 3
+    },
 
-    "Alternate term": "Alternative forms",
-    "Alternate terms": "Alternative forms",
-    "Alternative term": "Alternative forms",
-    "Alternative terms": "Alternative forms",
+    'replacements' : {
+        "Derived words": "Derived terms",
+        "Derivatived term": "Derived terms",
+        "Derivative terms": "Derived terms",
+        "Derived form": "Derived terms",
+        "Derived forms": "Derived terms",
+        "Derived words": "Derived terms",
+    }
 
-    "Alternate script": "Alternative scripts",
-    "Alternate scripts": "Alternative scripts",
-
-    "Coordidnate terms": "Coordinate terms",
-    "Coordinated terms": "Coordinate terms",
-
-    "Decendants": "Descendants",
-
-    "Derived words": "Derived terms",
-    "Derivatived term": "Derived terms",
-    "Derivative terms": "Derived terms",
-    "Derived form": "Derived terms",
-    "Derived forms": "Derived terms",
-    "Derived words": "Derived terms",
-
-    "Nouon": "Noun",
-#    "Note": "Usage notes",
-#    "Notes": "Usage notes",
-#    "Usage": "Usage notes",
-
-    "Iñupiaq": "Inupiaq",
-    "Guarani": "Guaraní",
-    "Assyrian Neo-Aramiac": "Assyrian Neo-Aramaic",
 }
 
-ALLOWED_VARIATIONS = {
-#    "Adjectives", # Used by Arabic
-#    "Nouns", # Used by Arabic
-#    "Verbs", # Used by Arabic
-    "Idioms", # Used by Japanese
-    "Proverbs", # Used by Japanes
-    "Preverb", # Used by Ojibwe
-    "Prenoun", # Used by Munsee
-#    "Proper nouns", # Used by Arabic
-}
+def _validate(fixes):
+    for word, max_typos in fixes.get("fuzzy_matches", {}).items():
+        similar = get_fuzzy_matches(word, fixes["allowed"], max_typos)
+        if len(similar) > 1:
+            raise ValueError(f"{word} is not a candidate for typo matching, because it's too similar to {similar}")
+
+_validate(L2_FIXES)
+_validate(L3_FIXES)
+_validate(POS_CHILD_FIXES)
+
+def get_fixed_title(title, fixes):
+
+    allowed = fixes["allowed"]
+
+    if title in allowed:
+        return
+
+    title = title.capitalize()
+    if title in allowed:
+        print("cap change")
+        return title
+
+    if title.endswith("s") and title[:-1] in allowed:
+        print("stripped s")
+        return title[:-1]
+
+    if title in fixes.get("replacements", []):
+        print("exact replacement")
+        return fixes["replacements"].get(title)
+
+    if title in ALT_LANGS:
+        alt_titles = ALT_LANGS[title]
+        if len(alt_titles) == 1:
+            print("alt lang")
+            return alt_titles[0]
+        else:
+            print("ERROR: multi alt langs", title, alt_titles)
+            return
+
+    fuzzy_matches = []
+    for new_title, max_typos in fixes.get("fuzzy_matches",{}).items():
+        fuzzy_matches += get_fuzzy_matches(title, [new_title], max_typos)
+
+    if len(fuzzy_matches) > 1:
+        print("ERROR: ambiguous fuzzy matches", title, fuzzy_matches)
+    elif len(fuzzy_matches) == 1:
+        print("fuzzy match")
+        return fuzzy_matches[0]
+
+def fix_title(section, fixes):
+    if "=" in section.title:
+        return
+
+    if section.title in fixes["allowed"]:
+        return
+
+    new_title = get_fixed_title(section.title, fixes)
+    if new_title:
+        print([section.path], "renamed to", [new_title])
+        section.title = new_title
+
+    else:
+        if section.level == 2:
+            get_maybe_langs(section.title)
+        print("unfixable", section.title)
+
+
+def get_maybe_langs(title):
+    for limit in range(1,5):
+        fuzzy_matches = []
+        for new_title in ALL_LANGS:
+            fuzzy_matches += get_fuzzy_matches(title, [new_title], limit)
+        if fuzzy_matches:
+            print(title, f"MAYBE (fuzzy match {limit})", fuzzy_matches)
+            if len(fuzzy_matches) > 1:
+                return
+
+    for limit in range(1,5):
+        fuzzy_matches = []
+        for new_title in ALT_LANGS:
+            fuzzy_matches += get_fuzzy_matches(title, [new_title], limit)
+
+        if fuzzy_matches:
+            for match in fuzzy_matches:
+                print(title, f"MAYBE (fuzzy match {limit} alt lang name {new_title})", ALT_LANGS[new_title])
+            if len(fuzzy_matches) > 1:
+                return
+
 
 def fix_section_titles(entry):
     """
@@ -93,52 +212,23 @@ def fix_section_titles(entry):
     """
 
     changes = []
+
     for section in entry.ifilter_sections():
-        if "=" in section.title:
-            continue
-        if section.title in ALL_LANGS:
-            continue
-        if section.title in ALL_L3:
-            continue
-        if section.title in ALLOWED_VARIATIONS:
+
+        if section.level < 2:
             continue
 
-        title = section.title.capitalize()
+        if section.level == 2:
+            fix_title(section, L2_FIXES)
 
-        if title in ALL_L3:
-            changes.append(f"/*{section.path}*/ renamed to {title}")
-            section.title = title
+#        elif section.parent.title in COUNTABLE_SECTIONS or section.parent.title in ALL_LANGS:
+#            fix_title(section, L3_FIXES)
 
-        elif title.endswith("s") and title[:-1] in ALL_L3:
-            # Special handling for items like "Proverbs", "Idioms" that are allowed to appear below a POS section
-            if section.level > 3 and section.parent.title not in COUNTABLE_SECTIONS:
-                #print(f"{entry.title}: {section.title} should be allowed")
-                pass
+#        elif section.parent.title in ALL_POS:
+#            fix_title(section, POS_CHILD_FIXES)
 
-            else:
-                new_title = title[:-1]
-                changes.append(f"/*{section.path}*/ renamed to {new_title}")
-                section.title = new_title
-#
-#        elif not title.endswith("s") and title + "s" in ALL_L3:
-#            changed = True
-#            section.title = title + "s"
-
-        elif title in TITLE_FIXES:
-            new_title = TITLE_FIXES[title]
-            changes.append(f"/*{section.path}*/ renamed to {new_title}")
-            section.title = new_title
-
-        else:
-            for word, max_typos in COMMON_TYPOS.items():
-                if fuzzy_distance(word, title) <= max_typos:
-                    new_title = word
-                    changes.append(f"/*{section.path}*/ renamed to {new_title}")
-                    section.title = new_title
-                    break
-
-            # Unfixable
-            pass
+#        else:
+#            fix_title(section, OTHER_FIXES)
 
     return changes
 
@@ -267,37 +357,43 @@ def rename_misnamed_references(entry):
 
     return changes
 
+def rename_misnamed_quotations(entry):
+
+    changes = []
+    for section in entry.ifilter_sections():
+        if len(section._lines) == 1 \
+                and re.match("{{seeCites.*?}}", section._lines[0].strip()) \
+                and "Quotation" not in section.lineage \
+                and section.title == "Quotations":
+                    changes.append(f"/*{section.path}*/ renamed to Quotations")
+                    section.title = "Quotations"
+
+    return changes
+
 # called by wikifix to mass apply the above fixes
 def process(text, title, summary, custom):
 
-    if ":" in title or "/" in title:
+    #if ":" in title or "/" in title:
+    #    return text
+
+    changes = []
+    entry = SectionParser(text, title)
+
+    changes += fix_section_titles(entry)
+    changes += fix_remove_pos_counters(entry)
+    changes += fix_bad_l2(entry)
+    changes += rename_misnamed_references(entry)
+    changes += rename_misnamed_quotations(entry)
+    changes += add_missing_references(entry)
+
+    # not safe to run unsupervised
+    #changes += remove_empty_sections(entry)
+
+    fix_section_levels(entry) and changes.append("adjusted section levels")
+
+    if not changes:
         return text
 
-    try:
+    summary += changes
 
-        changes = []
-        entry = SectionParser(text, title)
-
-        changes += fix_section_titles(entry)
-        changes += fix_remove_pos_counters(entry)
-        changes += fix_bad_l2(entry)
-        changes += rename_misnamed_references(entry)
-        changes += add_missing_references(entry)
-
-        # not safe to run unsupervised
-        #changes += remove_empty_sections(entry)
-
-        if not changes:
-            return text
-
-        fix_section_levels(entry) and changes.append("adjusted section levels")
-
-        summary.append("; ".join(changes))
-
-        return str(entry).rstrip()
-
-    except BaseException as e:
-        print(f"ERROR: '{title}': {e}")
-        raise e
-
-    return text
+    return str(entry)
