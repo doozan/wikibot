@@ -79,18 +79,85 @@ WT_POS = {
 
 # Not in WT:POS, but allowed
 EXTRA_POS = {
-    "Transliteration": "translit",
-    "Preverb": "preverb",
-    "Affix": "affix",
-    "Ordinal number": "onum",
-    "Adjectival noun": "adj",
-    "Idiom": "idiom",
     "Abbreviations": "abbrev",
-    "Verbal noun": "verbalnoun",
+    "Adjectival noun": "adj",
+    "Adnominal": "adnominal",
+    "Affix": "affix",
+    "Clitic": "clitic",
     "Enclitic": "enclitic",
+    "Medial": "medial",
+    "Idiom": "idiom",
+    "Ordinal number": "onum",
+    "Preverb": "preverb",
+    "Prenoun": "preverb",
+    "Transliteration": "translit",
+    "Verbal noun": "verbalnoun",
+
+    "Final": "final",
+    "Stem": "stem",
+    "Initial": "initial",
 }
 
 ALL_POS = WT_POS | EXTRA_POS
+
+# All sections defined by WT:ELE
+WT_ELE = {
+    "Description",
+    "Glyph origin",
+    "Etymology",
+    "Pronunciation",
+    "Production",
+
+    "Usage notes",
+    "Reconstruction notes",
+    "Inflection",
+    "Declension",
+    "Conjugation",
+    "Mutation",
+    "Quotations",
+    "Alternative forms",
+    "Alternative reconstructions",
+
+    "Synonyms",
+    "Antonyms",
+    "Hypernyms",
+    "Hyponyms",
+    "Meronyms",
+    "Holonyms",
+    "Troponyms",
+    "Coordinate terms",
+    "Derived terms",
+    "Related terms",
+    "Collocations",
+    "Descendants",
+    "Translations",
+    "Trivia",
+    "See also",
+    "References",
+    "Further reading",
+    "Anagrams",
+}
+
+EXTRA_L3 = {
+    "Alternative scripts",
+    "Cuneiform sign", # Not in WT:ELE
+    "Statistics", # Not in WT:ELE, but used in 20k pages
+
+    "Definitions", # Used in Chinese and Japanese entries
+
+    # Han characters and language-specific varieties
+    "Han character",
+    "Hanzi",
+    "Kanji",
+    "Hanja",
+
+    "Mutation",
+    "Compounds",
+
+    "Sign values", # Not in WT:ELE, used in Akkadian
+}
+
+ALL_L3 = set(COUNTABLE_SECTIONS) | ALL_POS.keys() | WT_ELE | EXTRA_L3
 
 # Sections that can appear inside a Part of Speech section,
 # order enforced by WT:ELE
@@ -130,63 +197,3 @@ ALL_POS_CHILDREN = [
     "References",
     "Further reading",
 ]
-
-
-# All sections defined by WT:ELE
-WT_ELE = {
-    "Description",
-    "Glyph origin",
-    "Etymology",
-    "Pronunciation",
-    "Production",
-
-    "Definitions",
-
-    "Usage notes",
-    "Reconstruction notes",
-    "Inflection",
-    "Declension",
-    "Conjugation",
-    "Mutation",
-    "Quotations",
-    "Alternative forms",
-    "Alternative reconstructions",
-
-    "Synonyms",
-    "Antonyms",
-    "Hypernyms",
-    "Hyponyms",
-    "Meronyms",
-    "Holonyms",
-    "Troponyms",
-    "Coordinate terms",
-    "Derived terms",
-    "Related terms",
-    "Collocations",
-    "Descendants",
-    "Translations",
-    "Trivia",
-    "See also",
-    "References",
-    "Further reading",
-    "Anagrams",
-}
-
-EXTRA_L3 = {
-    "Alternative scripts",
-    "Cuneiform sign",
-    "Statistics", # Not in WT:ELE, but used in 20k pages
-
-    # Han characters and language-specific varieties
-    "Han character",
-    "Hanzi",
-    "Kanji",
-    "Hanja",
-
-    "Mutation",
-    "Compounds",
-
-    "Sign values", # Not in WT:ELE, used in Akkadian
-}
-
-ALL_L3 = set(COUNTABLE_SECTIONS) | ALL_POS.keys() | WT_ELE | EXTRA_L3
