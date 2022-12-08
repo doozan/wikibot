@@ -235,6 +235,16 @@ class Section():
             for child in self._children:
                 child.adjust_level(new_level + 1)
 
+    def reparent(self, new_parent, index=None):
+        self.parent._children.remove(self)
+        if index is None:
+            new_parent._children.append(self)
+        else:
+            new_parent._children.insert(index, self)
+
+        self.parent = new_parent
+        self.adjust_level(new_parent.level + 1)
+
     @classmethod
     def has_category(cls, line):
         # Returns True if there is a category classifier anywhere on the line
