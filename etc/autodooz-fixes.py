@@ -56,30 +56,37 @@ def get_fixer(cls, params):
     return _fixers[item]
 
 
+import autodooz.sectionparser
 
+from autodooz.fix_section_headers import SectionHeaderFixer
 from autodooz.fix_section_levels import SectionLevelFixer
-import autodooz.fix_section_order
+from autodooz.fix_section_order import SectionOrderFixer
 
 def repeat_until_stable(function, text, title, summary, options):
     old_text = None
     loop = 0
     while text != old_text:
         old_text = text
+        old_summary_len = len(summary)
         text = function(text, title, summary, options)
         loop += 1
         if loop > 4:
             print(summary)
             raise ValueError("loop", title)
+
+    if old_summary_len != len(summary):
+        raise ValueError("summary change but no text change", summary)
     return text
 
 def ele_cleanup(text, title, summary, options):
+    header_fixer = get_fixer(SectionHeaderFixer, ())
     level_fixer = get_fixer(SectionLevelFixer, ())
-
-    text = autodooz.fix_section_headers.process(text, title, summary, options)
+    order_fixer = get_fixer(SectionOrderFixer, ())
 
     def _ele_fixes(text, title, summary, options):
+        text = header_fixer.process(text, title, summary, options)
         text = repeat_until_stable(level_fixer.process, text, title, summary, options)
-        text = autodooz.fix_section_order.process(text, title, summary, options)
+        text = order_fixer.process(text, title, summary, options)
         return text
 
     text = repeat_until_stable(_ele_fixes, text, title, summary, options)
@@ -93,12 +100,12 @@ wikifix['ele_cleanup'] = {
 
 
 
-import autodooz.fix_section_headers
-wikifix['cleanup_sections'] = {
-    'mode': 'function',
-    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
-    "fixes": [(autodooz.fix_section_headers.process, None)],
-}
+#import autodooz.fix_section_headers
+#wikifix['cleanup_sections'] = {
+#    'mode': 'function',
+#    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
+#    "fixes": [(autodooz.fix_section_headers.process, None)],
+#}
 
 from autodooz.fix_tlfi import fr_add_tlfi
 wikifix['add_tlfi'] = {
