@@ -107,7 +107,7 @@ wikifix['ele_cleanup'] = {
 #    "fixes": [(autodooz.fix_section_headers.process, None)],
 #}
 
-from autodooz.fix_tlfi import fr_add_tlfi
+from autodooz.fix_fr_tlfi import fr_add_tlfi
 wikifix['add_tlfi'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
