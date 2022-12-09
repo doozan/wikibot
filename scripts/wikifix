@@ -11,7 +11,7 @@ from collections import defaultdict, namedtuple
 from datetime import datetime
 from enwiktionary_wordlist.wikiextract import WikiExtract, WikiExtractWithRev
 from pathlib import Path
-from pywikibot import pagegenerators
+from pywikibot import pagegenerators, editor
 from pywikibot.bot import (
     AutomaticTWSummaryBot,
     ConfigParserBot,
