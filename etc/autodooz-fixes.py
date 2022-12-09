@@ -158,7 +158,7 @@ wikifix['es_drae_missing'] = {
     "post-fixes": [(ele_cleanup, None)],
 }
 
-from autodooz.form_fixer import FixRunner
+from autodooz.fix_es_forms import FixRunner
 def es_add_forms(text, title, summary, options):
     fixer = get_fixer(FixRunner, tuple(options[k] for k in ["lang", "wordlist", "allforms"]))
     return fixer.add_forms(text, title, summary)

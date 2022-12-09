@@ -3,7 +3,7 @@ import unicodedata
 
 from autodooz.sectionparser import SectionParser
 from autodooz.sections import ALL_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
-from autodooz.form_fixer import FormFixer
+from autodooz.fix_es_forms import FormFixer
 from collections import defaultdict
 
 

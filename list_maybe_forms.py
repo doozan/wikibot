@@ -26,7 +26,7 @@ import pywikibot
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import namedtuple
 from enwiktionary_wordlist.wordlist import Wordlist
-from autodooz.form_fixer import POS_TO_TITLE
+from autodooz.fix_es_forms import POS_TO_TITLE
 
 class WikiSaver(BaseHandler):
     def page_name(self, items, prev):

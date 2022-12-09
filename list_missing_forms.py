@@ -11,7 +11,7 @@ import sys
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
 from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-from form_fixer import FormFixer, FixRunner, ExistingForm
+from autodooz.fix_es_forms import FormFixer, FixRunner, ExistingForm
 from autodooz.wikilog import WikiLogger, BaseHandler
 
 class Logger(WikiLogger):

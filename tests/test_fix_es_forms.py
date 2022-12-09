@@ -5,7 +5,7 @@ import enwiktionary_parser as wtparser
 from autodooz.sectionparser import SectionParser
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
-from ..form_fixer import FormFixer, FixRunner, DeclaredForm, ExistingForm
+from ..fix_es_forms import FormFixer, FixRunner, DeclaredForm, ExistingForm
 
 @pytest.fixture(scope = 'module')
 def wordlist():

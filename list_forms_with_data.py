@@ -28,7 +28,7 @@ from enwiktionary_parser import parse_page
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import namedtuple
 from enwiktionary_wordlist.sense import Sense
-from autodooz.form_fixer import POS_TO_TITLE, FormFixer
+from autodooz.fix_es_forms import POS_TO_TITLE, FormFixer
 from enwiktionary_wordlist.utils import wiki_to_text
 
 from autodooz.sectionparser import SectionParser
