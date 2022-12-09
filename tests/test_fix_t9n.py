@@ -5,7 +5,7 @@ import enwiktionary_parser as wtparser
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
 from enwiktionary_translations import TranslationTable, TranslationLine, UNKNOWN_LANGS, LANG_PARENTS
-from ..t9n_fixer import T9nFixer, T9nFixRunner
+from ..fix_t9n import T9nFixer, T9nFixRunner
 
 @pytest.fixture(scope = 'module')
 def wordlist():

@@ -123,7 +123,7 @@ wikifix['add_tlfi'] = {
 #}
 
 
-from autodooz.t9n_fixer import T9nFixRunner
+from autodooz.fix_t9n import T9nFixRunner
 def wikifix_t9n(text, title, summary, options):
     fixer = get_fixer(T9nFixRunner, tuple(options[k] for k in ["allforms"]))
     return fixer.cleanup_tables(text, title, summary)

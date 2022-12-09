@@ -23,7 +23,7 @@ from collections import defaultdict
 import os
 import re
 import sys
-from autodooz.t9n_fixer import T9nFixer
+from autodooz.fix_t9n import T9nFixer
 from autodooz.wikilog import WikiLogger, BaseHandler
 from autodooz.wikilog_language import WikiByLanguage as BaseWikiByLanguage
 from enwiktionary_translations import TranslationTable, TranslationLine, UNKNOWN_LANGS, LANG_PARENTS
