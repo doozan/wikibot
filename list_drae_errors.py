@@ -4,7 +4,7 @@ import argparse
 import re
 import sys
 
-from autodooz.drae_fixer import DraeFixer
+from autodooz.fix_es_drae import DraeFixer
 from autodooz.sectionparser import SectionParser
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple

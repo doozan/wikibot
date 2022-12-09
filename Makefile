@@ -54,7 +54,6 @@ LIST_SECTION_HEADER_ERRORS := $(PYPATH) ./list_section_header_errors.py
 LIST_SECTION_ORDER_ERRORS := $(PYPATH) ./list_section_order_errors.py
 LIST_SECTION_LEVEL_ERRORS := $(PYPATH) ./list_section_level_errors.py
 LIST_DRAE_ERRORS := $(PYPATH) ./list_drae_errors.py
-LIST_MISSING_DRAE := $(PYPATH) ./list_missing_drae.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
@@ -230,32 +229,6 @@ $(LIST)fr_missing_tlfi: $(BUILDDIR)/fr-en.enwikt.txt.bz2 $(BUILDDIR)/fr-en.enwik
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
 >   $(RM) $@.with_tlf $@.without_tlfi $@.wiki.base
 >   mv $@.wiki $@
-
-$(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.allforms.csv
->   echo "Making $@..."
->   DEST="User:JeffDoozan/lists/es_missing_drae"
->   SUMMARY="DRAE entries missing from Wiktionary"
->
->   $(GETIGNORE) "$$DEST" > $@.ignore
->
->   $(LIST_MISSING_DRAE) \
->       --min-use 5000 \
->       --wikt $(BUILDDIR)/es-en.enwikt.allforms.csv \
->       --drae $(DRAEDATA)/drae.allforms.csv \
->       --drae-links $(DRAEDATA)/drae.links \
->       --wordlist $(DRAEDATA)/drae.data \
->       --freq $(DRAEDATA)/drae.freq.csv \
->       --counts $(DRAEDATA)/drae.txt \
->       --forced-forms $(DRAEDATA)/patterns.csv \
->       --ignore $@.ignore \
->       > $@.wiki.base
->
->   echo "$$SUMMARY as of $(DATETAG_PRETTY)" > $@.wiki
->   cat $@.wiki.base >> $@.wiki
->   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->
->   $(RM) $@.ignore $@.wiki $@.wiki.base
->   touch $@
 
 $(LIST)es_drae_errors: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(SPANISH_DATA)/es-en.data
 >   echo "Running $@..."
@@ -587,7 +560,7 @@ $(FIX)es_drae_wrong:
 >   echo $$LINKS > $@
 
 
-lists: $(patsubst %,$(LIST)%,t9n_problems section_stats es_forms_with_data mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_missing_drae es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals section_header_errors section_level_errors section_order_errors)
+lists: $(patsubst %,$(LIST)%,t9n_problems section_stats es_forms_with_data mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals section_header_errors section_level_errors section_order_errors)
 
 # Fixes that are safe to run automatically and without supervision
 autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order)

@@ -135,7 +135,7 @@ wikifix['fix_t9n'] = {
     "post-fixes": [(ele_cleanup, None)],
 }
 
-from autodooz.drae_fixer import DraeFixer
+from autodooz.fix_es_drae import DraeFixer
 def es_drae_wrong(text, title, summary, options):
     fixer = get_fixer(DraeFixer, tuple(options[k] for k in ["drae_links"]))
     return fixer.fix_wrong_drae(text, title, summary)
