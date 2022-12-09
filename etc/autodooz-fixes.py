@@ -191,3 +191,18 @@ wikifix['es_replace_pos'] = {
 }
 
 
+from autodooz.merge import MergeRunner
+import autodooz.fix_pt_verbs
+
+def pt_merge_verbs(text, title, summary, options):
+    fixer = get_fixer(MergeRunner, (options["pages"], autodooz.fix_pt_verbs.merge, autodooz.fix_pt_verbs.remove))
+    return fixer.merge_pages(text, title, summary, options)
+
+wikifix['pt_merge_verbs'] = {
+    'mode': 'function',
+    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
+    "fixes": [(pt_merge_verbs, {
+        "pages": "split_verbs",
+        })],
+    "post-fixes": [(ele_cleanup, None)],
+}
