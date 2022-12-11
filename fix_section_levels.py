@@ -6,6 +6,8 @@ from collections import defaultdict
 # Allowed to have children with unknown titles like "Other conjugations" or "More references"
 CHILDLESS_SECTIONS = [
 
+    "Alternative forms",
+
     "Inflection",
     "Declension",
     "Conjugation",
