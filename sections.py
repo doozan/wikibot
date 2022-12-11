@@ -79,7 +79,6 @@ WT_POS = {
 
 # Not in WT:POS, but allowed
 EXTRA_POS = {
-    "Abbreviations": "abbrev",
     "Adjectival noun": "adj",
     "Adnominal": "adnominal",
     "Affix": "affix",
@@ -174,6 +173,7 @@ ALL_POS_CHILDREN = [
     "Quotations",
     "Alternative forms",
     "Alternative reconstructions",
+    "Abbreviations", # not in WT:ELE
 
     "Synonyms",
     "Antonyms",
@@ -185,7 +185,7 @@ ALL_POS_CHILDREN = [
     "Coordinate terms",
     "Derived terms",
     "Derived characters", # not in WT:ELE
-    "Compounds",
+    "Compounds", # not in WT:ELE
     "Related terms",
     "Related characters", # not in WT:ELE
     "Collocations",
