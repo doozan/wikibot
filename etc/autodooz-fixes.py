@@ -49,10 +49,10 @@ SPANISH_DATA = "../spanish_data"
 DRAE_DATA = "../drae_data"
 
 _fixers = {}
-def get_fixer(cls, params):
-    item = (cls, params)
+def get_fixer(cls, **kwparams):
+    item = (cls, *kwparams)
     if item not in _fixers:
-        _fixers[item] = cls(*params)
+        _fixers[item] = cls(**kwparams)
     return _fixers[item]
 
 
@@ -79,9 +79,9 @@ def repeat_until_stable(function, text, title, summary, options):
     return text
 
 def ele_cleanup(text, title, summary, options):
-    header_fixer = get_fixer(SectionHeaderFixer, ())
-    level_fixer = get_fixer(SectionLevelFixer, ())
-    order_fixer = get_fixer(SectionOrderFixer, ())
+    header_fixer = get_fixer(SectionHeaderFixer)
+    level_fixer = get_fixer(SectionLevelFixer)
+    order_fixer = get_fixer(SectionOrderFixer)
 
     def _ele_fixes(text, title, summary, options):
         text = header_fixer.process(text, title, summary, options)
@@ -98,14 +98,23 @@ wikifix['ele_cleanup'] = {
     "fixes": [(ele_cleanup, None)],
 }
 
+wikifix['cleanup_sections'] = {
+    'mode': 'function',
+    "fixes": [(autodooz.sectionparser.cleanup_summary, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
 
+def misnamed_further_reading(text, title, summary, options):
+    header_fixer = get_fixer(SectionHeaderFixer)
+    return header_fixer.process(text, title, summary, {"fix_misnamed_further_reading": True})
 
-#import autodooz.fix_section_headers
-#wikifix['cleanup_sections'] = {
-#    'mode': 'function',
-#    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
-#    "fixes": [(autodooz.fix_section_headers.process, None)],
-#}
+wikifix['misnamed_further_reading'] = {
+    'mode': 'function',
+    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
+    "fixes": [(misnamed_further_reading, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
 
 from autodooz.fix_fr_tlfi import fr_add_tlfi
 wikifix['add_tlfi'] = {
@@ -125,7 +134,7 @@ wikifix['add_tlfi'] = {
 
 from autodooz.fix_t9n import T9nFixRunner
 def wikifix_t9n(text, title, summary, options):
-    fixer = get_fixer(T9nFixRunner, tuple(options[k] for k in ["allforms"]))
+    fixer = get_fixer(T9nFixRunner, **options)
     return fixer.cleanup_tables(text, title, summary)
 
 wikifix['fix_t9n'] = {
@@ -137,30 +146,30 @@ wikifix['fix_t9n'] = {
 
 from autodooz.fix_es_drae import DraeFixer
 def es_drae_wrong(text, title, summary, options):
-    fixer = get_fixer(DraeFixer, tuple(options[k] for k in ["drae_links"]))
+    fixer = get_fixer(DraeFixer, **options)
     return fixer.fix_wrong_drae(text, title, summary)
 
 wikifix['es_drae_wrong'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
-    "fixes": [(es_drae_wrong, { "drae_links": f"{DRAE_DATA}/drae.links" })],
+    "fixes": [(es_drae_wrong, { "link_filename": f"{DRAE_DATA}/drae.links" })],
     "post-fixes": [(ele_cleanup, None)],
 }
 
 def es_drae_missing(text, title, summary, options):
-    fixer = get_fixer(DraeFixer, tuple(options[k] for k in ["drae_links"]))
+    fixer = get_fixer(DraeFixer, **options)
     return fixer.fix_missing_drae(text, title, summary)
 
 wikifix['es_drae_missing'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
-    "fixes": [(es_drae_missing, { "drae_links": f"{DRAE_DATA}/drae.links" })],
+    "fixes": [(es_drae_missing, { "link_filename": f"{DRAE_DATA}/drae.links" })],
     "post-fixes": [(ele_cleanup, None)],
 }
 
 from autodooz.fix_es_forms import FixRunner
 def es_add_forms(text, title, summary, options):
-    fixer = get_fixer(FixRunner, tuple(options[k] for k in ["lang", "wordlist", "allforms"]))
+    fixer = get_fixer(FixRunner, **options)
     return fixer.add_forms(text, title, summary)
 
 wikifix['es_add_forms'] = {
@@ -175,7 +184,7 @@ wikifix['es_add_forms'] = {
 }
 
 def es_replace_forms(text, title, summary, options):
-    fixer = get_fixer(FixRunner, tuple(options[k] for k in ["lang", "wordlist", "allforms"]))
+    fixer = get_fixer(FixRunner, **options)
     return fixer.replace_pos(text, title, options["pos"], summary)
 
 wikifix['es_replace_pos'] = {
@@ -195,7 +204,7 @@ from autodooz.merge import MergeRunner
 import autodooz.fix_pt_verbs
 
 def pt_merge_verbs(text, title, summary, options):
-    fixer = get_fixer(MergeRunner, (options["pages"], autodooz.fix_pt_verbs.merge, autodooz.fix_pt_verbs.remove))
+    fixer = get_fixer(MergeRunner, **options)
     return fixer.merge_pages(text, title, summary, options)
 
 wikifix['pt_merge_verbs'] = {
