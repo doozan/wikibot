@@ -367,16 +367,21 @@ class Section():
         return "\n".join(self._lines) + "\n"
 
     @property
-    def lineage(self):
+    def ancestors(self):
         item = self
         while item:
+            yield item
+            if not hasattr(item, "parent"):
+                break
+            item = item.parent
+
+    @property
+    def lineage(self):
+        for item in self.ancestors:
             if getattr(item, "count", None):
                 yield item.title + " " + item.count
             else:
                 yield item.title
-            if not hasattr(item, "parent"):
-                break
-            item = item.parent
 
     @property
     def path(self):
