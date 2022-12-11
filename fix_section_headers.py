@@ -432,31 +432,27 @@ class SectionHeaderFixer():
 
                 self.fix("missing_ref_section", section, "added References section")
 
-    def rename_misnamed_references(self, entry):
+    def rename_misnamed_further_reading(self, entry):
+        for section in entry.ifilter_sections(matches = lambda x: x.title == "References"):
+            if not any(re.match(PATTERN_REFS, line.strip(" #:*")) for line in section._lines):
+                self.fix("misnamed_further_reading", section, "renamed to Further reading")
+                section.title = "Further reading"
 
-        changes = []
-        for section in entry.ifilter_sections():
+    def rename_misnamed_references(self, entry):
+        for section in entry.ifilter_sections(matches = lambda x: x.title == "Further reading"):
             if len(section._lines) == 1 \
                     and re.match(PATTERN_REFS, section._lines[0].strip(" #:*")) \
-                    and "References" not in section.lineage \
-                    and section.title == "Further reading":
+                    and "References" not in section.lineage:
                         self.fix("misnamed_references", section, "renamed to References")
                         section.title = "References"
 
-        return changes
-
     def rename_misnamed_quotations(self, entry):
-
-        changes = []
-        for section in entry.ifilter_sections():
+        for section in entry.ifilter_sections(matches = lambda x: x.title == "Citations"):
             if len(section._lines) == 1 \
                     and re.match("{{seeCites.*?}}", section._lines[0].strip(" #:*")) \
-                    and "Quotation" not in section.lineage \
-                    and section.title == "Citations":
+                    and "Quotation" not in section.lineage:
                         self.fix("misnamed_quotations", section, "renamed to Quotations")
                         section.title = "Quotations"
-
-        return changes
 
     def fix(self, reason, section, details):
         if section:
@@ -494,6 +490,10 @@ class SectionHeaderFixer():
         # not safe to run unsupervised
         if custom_args and custom_args.get("remove_empty"):
             self.remove_empty_sections(entry)
+
+        # not safe to run unsupervised
+        if custom_args and custom_args.get("fix_misnamed_further_reading"):
+            self.rename_misnamed_further_reading(entry)
 
         self.fix_section_levels(entry)
 
