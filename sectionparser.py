@@ -204,10 +204,13 @@ class SectionParser():
 
 class Section():
 
-    templates = [ "c", "C", "cat", "top", "topic", "topics", "categorize", "catlangname", "catlangcode", "cln", "zh-cat" ]
-    re_templates = r"\{\{\s*(" + "|".join(templates) + r")\s*[|}][^{}]*\}*"
+    cat_templates = [ "c", "C", "cat", "top", "topic", "topics", "categorize", "catlangname", "catlangcode", "cln", "zh-cat" ]
+    re_cat_templates = r"\{\{\s*(" + "|".join(cat_templates) + r")\s*[|}][^{}]*\}*"
     re_categories = r"\[\[\s*Category\s*:[^\]]*\]\]"
-    re_match_categories = fr"({re_templates}|{re_categories})"
+    re_match_categories = fr"({re_cat_templates}|{re_categories})"
+
+    topline_templates = [ "LDL", "normalized", "hot word", "rfd" ]
+    re_match_toplines = r"(\{\{\s*(" + "|".join(topline_templates) + r")\s*[|}][^}]*\}*)"
 
     def __init__(self, parent, level, title, count=None):
         self.parent = parent
@@ -221,12 +224,13 @@ class Section():
 
         self._changes = []
 
-        # Categories are collected in the topmost Section
+        # Categories and toplines are collected in the topmost Section
         target = self
         while hasattr(target.parent, "_add_category"):
             target = target.parent
         if target == self:
             self._categories = []
+            self._toplines = []
         self._topmost = target
 
     def adjust_level(self, new_level):
@@ -249,6 +253,19 @@ class Section():
     def has_category(cls, line):
         # Returns True if there is a category classifier anywhere on the line
         return bool(re.search(cls.re_match_categories, line))
+
+    @classmethod
+    def is_topline(cls, line):
+        # Returns True if a line contains a template that should be at the top of the language entry
+
+        # Remove HTML comments first
+        line = re.sub("(<!--.*?-->)", "", line)
+
+        line_without_cats = re.sub(cls.re_match_toplines, '', line)
+        if line_without_cats != line and line_without_cats.strip() == "":
+            return True
+
+        return False
 
     @classmethod
     def is_category(cls, line):
@@ -287,6 +304,12 @@ class Section():
             elif self.is_category(item):
                 self._add_category(item)
 
+            elif self.is_topline(item):
+                if self._lines or self._topmost != self:
+                    template = re.search("\{\{([^|}]*)", item).group(1)
+                    self._changes.append(f"/*{self._topmost.path}*/ moved {template} template to top")
+                self._add_topline(item)
+
             else:
                 if self._trailing_empty_lines:
                     self._lines += self._trailing_empty_lines
@@ -303,14 +326,17 @@ class Section():
 
         self._children.append(item)
 
-    def _add_category(self, line):
-        if hasattr(self.parent, "_add_category"):
-            self.parent._add_category(line)
+    def _add_topline(self, line):
+        if line in self._topmost._toplines:
+            self._changes.append(f"/*{self._topmost.path}*/ removed duplicate topline")
         else:
-            if line in self._categories:
-                self._changes.append(f"/*{self._topmost.path}*/ removed duplicate categories")
-            else:
-                self._categories.append(line)
+            self._topmost._toplines.append(line)
+
+    def _add_category(self, line):
+        if line in self._topmost._categories:
+            self._changes.append(f"/*{self._topmost.path}*/ removed duplicate categories")
+        else:
+            self._topmost._categories.append(line)
 
     @property
     def header(self):
@@ -325,6 +351,13 @@ class Section():
             return ""
 
         return "\n" + "\n".join(self._categories) + "\n"
+
+    @property
+    def toplines(self):
+        if not hasattr(self, "_toplines") or not self._toplines:
+            return ""
+
+        return "\n".join(self._toplines) + "\n"
 
     @property
     def lines(self):
@@ -361,7 +394,7 @@ class Section():
         return list(self.ifilter_sections(*args, **kwargs))
 
     def __str__(self):
-        return self.header + self.lines + "".join(list(map(str, self._children))) + self.categories
+        return self.header + self.toplines + self.lines + "".join(list(map(str, self._children))) + self.categories
 
 
 # this can be called by any cleanup fix that uses SectionParser
