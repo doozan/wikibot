@@ -110,7 +110,7 @@ class DraeFixer():
         section._lines.insert(0, drae_line)
 
         if summary is not None:
-            summary.append("Spanish: added missing DRAE link")
+            summary.append("/*Spanish*/ added missing DRAE link")
 
         return str(entry).rstrip()
 
@@ -168,7 +168,7 @@ class DraeFixer():
             section._lines = new_lines
 
         if summary is not None:
-            summary.append("Spanish: adjusted DRAE link")
+            summary.append("/*Spanish*/ adjusted DRAE link")
 
         return str(entry)
 
