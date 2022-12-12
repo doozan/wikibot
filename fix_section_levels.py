@@ -157,6 +157,17 @@ class SectionLevelFixer():
             child.parent = new_parent
             child.adjust_level(new_parent.level + 1)
 
+    def promote_child_in_place(self, old_parent, child):
+        new_parent = old_parent.parent
+
+        # Adopt all following sections as children of the child section
+        idx = old_parent._children.index(child)
+        child._children += old_parent._children[idx+1:]
+        old_parent._children = old_parent._children[:idx+1]
+
+        idx = new_parent._children.index(old_parent) + 1
+        child.reparent(new_parent, idx)
+
     def cleanup_multi_countable(self, sections):
         for count, section in enumerate(sections, 1):
             count = str(count)
@@ -240,6 +251,37 @@ class SectionLevelFixer():
             if self.has_only_expected_children(section, ALL_L3):
                 self.promote_children(section)
 
+    def fix_unexpected_lineage(self, entry):
+        reparent = []
+
+        for section in entry.ifilter_sections():
+            ancestors = list(section.ancestors)
+            if len(ancestors) <= 2:
+                continue
+            lineage = ancestors[1:-1] # drop the page name and the section name
+
+            # POS sections should never be children of other POS sections
+            if section.title in ALL_POS and section.parent.title in ALL_POS:
+                reparent.append((section.parent, section))
+
+            # Sections should never be descendents of themselves
+            elif any(x.title == section.title for x in lineage):
+                self.warn("circular_child", section.path)
+
+            # Childless sections should have no children
+            elif any(x.title in CHILDLESS_SECTIONS for x in lineage):
+                self.warn("child_of_childless", section.path)
+
+            # POS sections should only ever be found within L2 or L3 sections
+            elif section.title in ALL_POS:
+                if not all(x.title in ALL_LANGS or x.title in COUNTABLE_SECTIONS for x in lineage):
+                    self.warn("pos_bad_lineage", section.path)
+
+        for section, child in reversed(reparent):
+            self.fix("autofix_pos_inside_pos", child, f"promoted in place")
+            self.promote_child_in_place(section, child)
+
+
     def has_only_expected_children(self, parent, allowed_children):
         # Returns True if all child sections are known L3 sections
         valid = True
@@ -259,89 +301,6 @@ class SectionLevelFixer():
                 self.promote_children(section)
                 self.fix("autofix_misplaced_anagrams", section, f"moved to {new_parent.path}")
                 section.reparent(new_parent)
-
-
-    def fix(self, reason, section, details):
-        self._changes.append(f"/*{section.path}*/ {details}")
-        self._log(reason, self.page_title, section.path, details)
-
-    def warn(self, reason, details):
-        self._log(reason, self.page_title, None, details)
-
-    @staticmethod
-    def _log(reason, page, section_path, details):
-        print(page, reason, section_path, details)
-
-    def process(self, page_text, page_title, summary=[], custom_args=None):
-
-        self.page_title = page_title
-        self._changes = []
-
-        entry = SectionParser(page_text, page_title)
-        if entry.state != 0:
-            self.warn("unfinished_state", entry.state)
-            return page_text
-
-        if not self.has_only_expected_children(entry, ALL_LANGS):
-            return page_text
-
-        if self.has_non_l2_language_section(entry):
-            return page_text
-
-        for lang in entry.filter_sections(recursive=False):
-
-            if not self.has_only_expected_children(lang, ALL_L3):
-                continue
-
-            self.promote_children_of_childless_sections(lang)
-
-            self.move_single_pronunciation(lang)
-
-            all_countable_titles = []
-            for countable in lang.filter_sections(recursive=False, matches=lambda x: x.title in COUNTABLE_SECTIONS):
-                if countable.title not in all_countable_titles:
-                    all_countable_titles.append(countable.title)
-
-            for countable_title in all_countable_titles:
-
-                self.cleanup_countable(countable_title, lang)
-                self.countable_adopt_stray_children(lang, countable_title)
-
-                all_countable = lang.filter_sections(recursive=False, matches=lambda x: x.title == countable_title)
-                if not all_countable:
-                    continue
-
-                # Fail if there is an empty countable
-                if len(all_countable) > 1:
-                    for s in all_countable:
-                        if not s._children:
-                            if not s._lines:
-                                self.warn("empty_countable", f"{s.path}")
-                            else:
-                                self.warn("childless_countable", f"{s.path}")
-                            return page_text
-
-                elif len(all_countable) < 2:
-                    continue
-
-                if not self.has_only_expected_children(lang, ALL_L3):
-                    continue
-
-                for parent in all_countable:
-                    self.pos_adopt_stray_children(parent)
-
-            self.pos_adopt_stray_children(lang)
-            self.cleanup_nested_countable(lang)
-
-        self.fix_anagrams(entry)
-        self.move_misplaced_translations(entry)
-
-        if not self._changes:
-            return page_text
-
-        summary += self._changes
-        return str(entry)
-
 
     def pos_adopt_stray_children(self, grandparent):
         all_parents = grandparent.filter_sections(recursive=False, matches=lambda x: x.title in ALL_POS)
@@ -441,3 +400,87 @@ class SectionLevelFixer():
 
             self.fix("autofix_misplaced_translation", section, f"moved to {new_parent.path}")
             section.reparent(new_parent)
+
+
+    def fix(self, reason, section, details):
+        self._changes.append(f"/*{section.path}*/ {details}")
+        self._log(reason, self.page_title, section.path, details)
+
+    def warn(self, reason, details):
+        self._log(reason, self.page_title, None, details)
+
+    @staticmethod
+    def _log(reason, page, section_path, details):
+        print(page, reason, section_path, details)
+
+    def process(self, page_text, page_title, summary=[], custom_args=None):
+
+        self.page_title = page_title
+        self._changes = []
+
+        entry = SectionParser(page_text, page_title)
+        if entry.state != 0:
+            self.warn("unfinished_state", entry.state)
+            return page_text
+
+        if not self.has_only_expected_children(entry, ALL_LANGS):
+            return page_text
+
+        if self.has_non_l2_language_section(entry):
+            return page_text
+
+        for lang in entry.filter_sections(recursive=False):
+
+            if not self.has_only_expected_children(lang, ALL_L3):
+                continue
+
+            self.promote_children_of_childless_sections(lang)
+
+            self.move_single_pronunciation(lang)
+
+            all_countable_titles = []
+            for countable in lang.filter_sections(recursive=False, matches=lambda x: x.title in COUNTABLE_SECTIONS):
+                if countable.title not in all_countable_titles:
+                    all_countable_titles.append(countable.title)
+
+            for countable_title in all_countable_titles:
+
+                self.cleanup_countable(countable_title, lang)
+                self.countable_adopt_stray_children(lang, countable_title)
+
+                all_countable = lang.filter_sections(recursive=False, matches=lambda x: x.title == countable_title)
+                if not all_countable:
+                    continue
+
+                # Fail if there is an empty countable
+                if len(all_countable) > 1:
+                    for s in all_countable:
+                        if not s._children:
+                            if not s._lines:
+                                self.warn("empty_countable", f"{s.path}")
+                            else:
+                                self.warn("childless_countable", f"{s.path}")
+                            return page_text
+
+                elif len(all_countable) < 2:
+                    continue
+
+                if not self.has_only_expected_children(lang, ALL_L3):
+                    continue
+
+                for parent in all_countable:
+                    self.pos_adopt_stray_children(parent)
+
+            self.pos_adopt_stray_children(lang)
+            self.cleanup_nested_countable(lang)
+
+        self.fix_anagrams(entry)
+        self.move_misplaced_translations(entry)
+
+        self.fix_unexpected_lineage(entry)
+
+        if not self._changes:
+            return page_text
+
+        summary += self._changes
+        return str(entry)

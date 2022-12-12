@@ -10,9 +10,11 @@ from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import namedtuple
 
 ALL_FIXES = {
-    "autofix_misplaced_pronunciation": "Misplaced Pronunciation section",
-    "autofix_misplaced_language": "Misplaced Language section",
     "autofix_misplaced_anagrams": "Misplaced Anagrams section",
+    "autofix_misplaced_language": "Misplaced Language section",
+    "autofix_misplaced_pronunciation": "Misplaced Pronunciation section",
+    "autofix_misplaced_translation": "Misplaced Translation section",
+    "autofix_pos_inside_pos": "Misplaced POS sections",
     "autofix_stray_child": "Adoptable stray children",
     "autofix_unneeded_counter": "Unneeded counter",
     "autofix_unwanted_children": "Sections that should have no child sections",
@@ -20,14 +22,17 @@ ALL_FIXES = {
 }
 
 ALL_ERRORS = {
-    "unfinished_state": "Unclosed HTML comment or template",
-    "empty_countable": "Empty countable section",
+    "child_of_childless": "Section found inside a section that shouldn't contain other sections",
     "childless_countable": "Childless countable section",
-    "unexpected_mixed_section": "Unexpected section between known sections",
-    "translation_before_pos": "Translation before first POS section",
+    "circular_child": "Sections with an ancestor of the same name",
     "embedded_pronunciation_has_children": "Pronunciation with child sections",
+    "empty_countable": "Empty countable section",
     "non_l2_language": "Language section is not L2",
+    "pos_bad_lineage": "Section found outside its expected lineage",
+    "translation_before_pos": "Translation before first POS section",
     "unexpected_child": "Unexpected child",
+    "unexpected_mixed_section": "Unexpected section between known sections",
+    "unfinished_state": "Unclosed HTML comment or template",
 }
 
 ALL_TITLES = ALL_ERRORS | ALL_FIXES
