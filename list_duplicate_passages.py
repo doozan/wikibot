@@ -8,64 +8,124 @@ from collections import defaultdict
 from enwiktionary_wordlist.utils import wiki_to_text
 from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
 
-parser = argparse.ArgumentParser(description="Find fixable entries")
-parser.add_argument("extract", help="language extract file")
-parser.add_argument("--list", help="list of articles to check")
-parser.add_argument("--mismatched-trans", help="Generate list of mismatched translations", action='store_true')
-parser.add_argument("--missing-trans", help="Generate list of missing translations", action='store_true')
-args = parser.parse_args()
+def clean(text):
+    text = re.sub(r"[}\|\"“”«»]", "", text).strip()
+    text = re.sub(r"''+", "", text)
+    return text
 
-if args.list:
-    with open(args.list) as infile:
-        search_articles = set(x.strip().partition(": ")[0] for x in infile)
+def get_text_trans_from_passage(t):
 
-    if not len(search_articles):
-        print("no articles to search")
-        exit()
+    passage = next((str(t.get(p).value) for p in ["passage", "text"] if t.has(p) and str(t.get(p).value).strip()), "")
+    passage_text = clean(wiki_to_text(passage, "title"))
 
-    print(f"Searching {len(search_articles)} articles", file=sys.stderr)
-else:
-    search_articles = None
+    trans = next((str(t.get(p).value) for p in ["t", "translation"] if t.has(p) and str(t.get(p).value).strip()), "")
+    trans_text = clean(wiki_to_text(trans, "title"))
 
-seen = defaultdict(lambda: defaultdict(list))
+    return passage_text, trans_text
 
-for article in WikiExtractWithRev.iter_articles_from_bz2(args.extract):
-    title = article.title
-    data = article.text
+def get_text_trans_from_ux(t):
 
-    if search_articles:
-        if title not in search_articles:
-            continue
-    elif not re.search("(passage|text)=", article.text):
-        continue
+    passage = next((str(t.get(p).value) for p in [2] if t.has(p) and str(t.get(p).value).strip()), "")
+    passage_text = clean(wiki_to_text(passage, "title"))
 
-    wiki = mwparserfromhell.parse(data)
-    for t in wiki.ifilter_templates():
-        if not t.has("passage") and not t.has("text"):
-            continue
+    trans = next((str(t.get(p).value) for p in [3, "t", "translation"] if t.has(p) and str(t.get(p).value).strip()), "")
+    trans_text = clean(wiki_to_text(trans, "title"))
 
-        passage = next((str(t.get(p).value) for p in ["passage", "text"] if t.has(p) and str(t.get(p).value)), "")
-        passage_text = wiki_to_text(passage, "title")
-        passage_text = re.sub(r"[}\|'\"“”«»]", "", passage_text).strip()
-        if not passage_text:
+#    print("trans", trans_text, "@", str(t))
+
+    return passage_text, trans_text
+
+def load_passages(filename):
+    passages = defaultdict(lambda: defaultdict(list))
+#    seen_templates = defaultdict(int)
+#    no_trans = defaultdict(int)
+
+    for article in WikiExtractWithRev.iter_articles_from_bz2(filename):
+        title = article.title
+        data = article.text
+
+        if not re.search("{{(ux|quote|RQ|cite)", article.text):
             continue
 
-        trans = next((str(t.get(p).value) for p in ["t", "translation"] if t.has(p) and str(t.get(p).value)), "")
-        trans_text = wiki_to_text(trans, "title")
-        trans_text = re.sub(r"[}\|'\"“”«»]", "", trans_text).strip()
+        wiki = mwparserfromhell.parse(data)
+        for t in wiki.ifilter_templates():
 
-        seen[passage_text][trans_text].append(title)
+            text = trans = None
+            if t.has("passage") or t.has("text"):
+                text, trans = get_text_trans_from_passage(t)
+            elif t.name.strip() in ["uxi", "ux", "quote"]:
+                text, trans = get_text_trans_from_ux(t)
+            else:
+                continue
 
-if args.mismatched_trans:
-    mismatched_trans = [k for k,v in seen.items() if len(v) > 1]
+            if not text:
+#                print("no passage", title, str(t), file=sys.stderr)
+                continue
 
-    for passage in sorted(mismatched_trans):
-        print(f"'''<nowiki>{passage}</nowiki>'''")
-        for trans in seen[passage]:
-            print(f": [[" + "]], [[".join(sorted(seen[passage][trans])) + f"]]: ''<nowiki>{trans}</nowiki>''")
+#            seen_templates[str(t.name).strip()] += 1
+#            if not trans:
+#                no_trans[str(t.name).strip()] += 1
 
-if args.missing_trans:
-    missing_trans = [k for k,v in seen.items() if len(v) == 1 and len(v[""]) > 1]
+            passages[text][trans].append(title)
 
-    for passage in sorted(missing_trans, key=lambda x: (len(seen[x][""])*-1, sorted(seen[x][""]))):
-        print("; [[" + "]], [[".join(sorted(seen[passage][""])) + f"]]: <nowiki>{passage}</nowiki>")
+#    for template, count in sorted(seen_templates.items(), key=lambda x: x[1]):
+#        print(count, template, no_trans.get(template, 0), file=sys.stderr)
+    return passages
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Find fixable entries")
+    parser.add_argument("extract", help="language extract file")
+    parser.add_argument("--list", help="list of articles to check")
+    parser.add_argument("--mismatched-trans", help="Generate list of mismatched translations", action='store_true')
+    parser.add_argument("--missing-trans", help="Generate list of missing translations", action='store_true')
+    parser.add_argument("--dump", help="Dump all missing translations", action='store_true')
+    parser.add_argument("--tag", help="Merge extra data", action='store_true')
+    args = parser.parse_args()
+
+    if args.tag:
+        builder.print_tagged_data(args.sentences, args.tags[0], args.verb_rank, args.verbose)
+
+    if args.list:
+        with open(args.list) as infile:
+            search_articles = set(x.strip().partition(": ")[0] for x in infile)
+
+        if not len(search_articles):
+            print("no articles to search")
+            exit()
+
+        print(f"Searching {len(search_articles)} articles", file=sys.stderr)
+    else:
+        search_articles = None
+
+    passages = load_passages(args.extract)
+
+    if args.mismatched_trans:
+        mismatched_trans = [k for k,v in passages.items() if len(v) > 1]
+
+        for passage in sorted(mismatched_trans):
+            print(f"'''<nowiki>{passage}</nowiki>'''")
+            for trans in passages[passage]:
+                print(f": [[" + "]], [[".join(sorted(passages[passage][trans])) + f"]]: ''<nowiki>{trans}</nowiki>''")
+
+    if args.missing_trans:
+        missing_trans = [k for k,v in passages.items() if len(v) == 1 and len(v[""]) > 1]
+
+        for passage in sorted(missing_trans, key=lambda x: (len(passages[x][""])*-1, sorted(passages[x][""]))):
+            print("; [[" + "]], [[".join(sorted(passages[passage][""])) + f"]]: <nowiki>{passage}</nowiki>")
+
+    count = 0
+    for passage in passages.keys():
+        if "\n" in passage:
+            count += 1
+
+    if args.dump:
+        print("")
+        for passage in [k for k,v in passages.items() if list(v.keys()) == [""]]:
+            passage = passage.replace("\n", " \\ ")
+            pages = "|".join(sorted(passages[passage][""]))
+            print(f"{passage}\t{pages}")
+
+
+if __name__ == "__main__":
+    main()
