@@ -399,7 +399,7 @@ class T9nFixRunner():
 
         replacements = []
         sections = SectionParser(page_text, title)
-        for section in sections.ifilter_sections(matches=lambda x: x.title == "Translations"):
+        for section in sections.ifilter_sections(matches="Translations"):
             pos = section.parent.title
 
             tables = list(TranslationTable.find_tables(str(section)))

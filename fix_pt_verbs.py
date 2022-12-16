@@ -18,12 +18,12 @@
 from autodooz.sectionparser import SectionParser
 
 def get_verb_section(entry):
-    langs = entry.filter_sections(recursive=False, matches = lambda x: x.title == "Portuguese")
+    langs = entry.filter_sections(recursive=False, matches="Portuguese")
     if not len(langs) == 1:
         return
     lang = langs[0]
 
-    verbs = lang.filter_sections(matches = lambda x: x.title == "Verb")
+    verbs = lang.filter_sections(matches="Verb")
     if not len(verbs) == 1:
         return
     return verbs[0]

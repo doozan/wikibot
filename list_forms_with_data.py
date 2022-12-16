@@ -96,7 +96,7 @@ def check_page(title, page_text, log):
         return
 
     entry = SectionParser(page_text, title)
-    for spanish in entry.ifilter_sections(matches=lambda x: x.title == "Spanish"):
+    for spanish in entry.ifilter_sections(matches="Spanish", recursive=False):
         for section in spanish.ifilter_sections(matches=lambda x: FormFixer.is_form(x)):
             FormFixer.is_generated(section, lambda error, line=None: log(error, title, section.title, line))
 

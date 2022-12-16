@@ -557,11 +557,7 @@ def fix_bare_quotes(text, title, summary, options):
         return text
 
     entry = SectionParser(text, title)
-#    english = next(entry.ifilter_sections(recursive=False, matches = lambda x: x.title == "English"), None)
-#    if not english:
-#        return text
 
-    #for section in english.ifilter_sections():
     for section in entry.ifilter_sections():
         if convert_book_quotes(section):
             changes.append(f"/*{section.path}*/ converted bare quote to template")

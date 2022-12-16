@@ -38,6 +38,11 @@ class SectionParser():
             self._children.append(item)
 
     def ifilter_sections(self, recursive=True, matches=lambda x: True):
+
+        if not callable(matches):
+            match_title = matches
+            matches = lambda x: x.title == match_title
+
         for child in self._children:
             if matches(child):
                 yield child
@@ -389,6 +394,11 @@ class Section():
         return ":".join(reversed(lineage[:-1]))
 
     def ifilter_sections(self, recursive=True, matches=lambda x: True):
+
+        if not callable(matches):
+            match_title = matches
+            matches = lambda x: x.title == match_title
+
         for child in self._children:
             if matches(child):
                 yield child

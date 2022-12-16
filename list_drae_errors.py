@@ -99,13 +99,13 @@ def process(text, title, wordlist, fixer):
         return
 
     entry = SectionParser(text, title)
-    spanish = entry.filter_sections(matches=lambda x: x.title == "Spanish", recursive=False)
+    spanish = entry.filter_sections(matches="Spanish", recursive=False)
     if not spanish:
         return
     if len(spanish) > 1:
         print("WARN: multiple spanish entries", title, file=sys.stderr)
     spanish = spanish[0]
-    sections = spanish.filter_sections(matches=lambda x: x.title == "Further reading")
+    sections = spanish.filter_sections(matches="Further reading")
 
     if page_is_form:
         # Fix for lemmas without senses, which are not included in the wordlist and therefor not tagged as lemmas

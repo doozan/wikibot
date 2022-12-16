@@ -103,12 +103,12 @@ class SectionLevelFixer():
 
     def promote_embedded_peers(countable, lang, summary, page_title):
 
-        sections = lang.filter_sections(recursive=False, matches=lambda x: x.title == countable)
+        sections = lang.filter_sections(recursive=False, matches=countable)
 
         new_peers = False
         for section in sections:
             # Countable sections may not have descendents of the same type
-            peers = section.filter_sections(matches=lambda x: x.title == countable)
+            peers = section.filter_sections(matches=countable)
 
             target_idx = lang._children.index(section) + 1
             for peer in peers:
@@ -119,7 +119,7 @@ class SectionLevelFixer():
 
     def cleanup_countable(self, countable_title, parent):
 
-        sections = parent.filter_sections(recursive=False, matches=lambda x: x.title == countable_title)
+        sections = parent.filter_sections(recursive=False, matches=countable_title)
 
         if len(sections) == 1:
             self.cleanup_single_countable(sections[0])
@@ -177,7 +177,7 @@ class SectionLevelFixer():
 
     def move_single_pronunciation(self, lang):
 
-        etys = lang.filter_sections(recursive=False, matches=lambda x: x.title == "Etymology")
+        etys = lang.filter_sections(recursive=False, matches="Etymology")
         if not len(etys) > 1:
             return
 
@@ -185,7 +185,7 @@ class SectionLevelFixer():
         # and only one Pronunciation section,
         # and the Pronunciation section is between the first and second Etymologies
         # move the Pronunciation before the Etys
-        ps = lang.filter_sections(matches=lambda x: x.title == "Pronunciation")
+        ps = lang.filter_sections(matches="Pronunciation")
         if len(ps) == 1:
             section = ps[0]
             if section.level == 3:
@@ -220,7 +220,7 @@ class SectionLevelFixer():
         #  ===Pronunciation===
 
         for countable_title in COUNTABLE_SECTIONS:
-            for section in lang.filter_sections(recursive=False, matches=lambda x: x.title == countable_title):
+            for section in lang.filter_sections(recursive=False, matches=countable_title):
                 for nested_title in COUNTABLE_SECTIONS:
                     if countable_title == nested_title:
                         continue
@@ -292,7 +292,7 @@ class SectionLevelFixer():
         return valid
 
     def fix_anagrams(self, entry):
-        for section in entry.filter_sections(matches=lambda x: x.title == "Anagrams"):
+        for section in entry.filter_sections(matches="Anagrams"):
             if section.level > 3:
                 new_parent = section.parent
                 while new_parent.level > 2:
@@ -309,7 +309,7 @@ class SectionLevelFixer():
 
     def countable_adopt_stray_children(self, grandparent, countable_title):
         # Single countables shouldn't have child sections
-        all_parents = grandparent.filter_sections(recursive=False, matches=lambda x: x.title == countable_title)
+        all_parents = grandparent.filter_sections(recursive=False, matches=countable_title)
         if len(all_parents) < 2:
             return
         stray_children = self.find_stray_children(grandparent, [countable_title], ADOPTABLE_COUNTABLE_CHILDREN)

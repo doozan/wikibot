@@ -60,7 +60,7 @@ class DraeFixer():
             return text
 
         entry = SectionParser(text, title)
-        spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False), None)
+        spanish = next(entry.ifilter_sections(matches="Spanish", recursive=False), None)
         if not spanish:
             return text
 
@@ -90,7 +90,7 @@ class DraeFixer():
             idx = section.parent._children.index(section)
             section.parent._children.pop(idx)
 
-        section = next(spanish.ifilter_sections(matches=lambda x: x.title == "Further reading"), None)
+        section = next(spanish.ifilter_sections(matches="Further reading"), None)
 
         if section:
             if drae_line in str(section):
@@ -117,8 +117,8 @@ class DraeFixer():
     def fix_wrong_drae(self, text, title, summary=None):
 
         entry = SectionParser(text, title)
-        spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False))
-        section = next(spanish.ifilter_sections(matches=lambda x: x.title == "Further reading"))
+        spanish = next(entry.ifilter_sections(matches="Spanish", recursive=False))
+        section = next(spanish.ifilter_sections(matches="Further reading"))
 
         new_section = str(section)
         templates = list(re.finditer("{{R:es:DRAE(.*?)}}", new_section))

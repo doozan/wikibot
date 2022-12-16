@@ -415,7 +415,7 @@ class SectionHeaderFixer():
 
         for section in entry._children:
             if re.search(PATTERN_REF_TAGS, str(section)) and not re.search(PATTERN_REFS, str(section)):
-                ref_section = next(section.ifilter_sections(matches=lambda x: x.title == "References"), None)
+                ref_section = next(section.ifilter_sections(matches="References"), None)
                 if ref_section:
                     ref_section._lines.insert(0, "<references/>")
                     self.fix("missing_ref_target", ref_section, "added missing <references/>")
@@ -523,7 +523,7 @@ class SectionHeaderFixer():
 
         # not safe to run unsupervised
         if custom_args and custom_args.get("fix_misnamed_further_reading"):
-            spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish"), None)
+            spanish = next(entry.ifilter_sections(matches="Spanish"), None)
             if spanish:
                 self.rename_misnamed_further_reading(spanish)
                 self.split_bulky_references(spanish)
