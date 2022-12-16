@@ -438,6 +438,36 @@ class SectionHeaderFixer():
                 self.fix("misnamed_further_reading", section, "renamed to Further reading")
                 section.title = "Further reading"
 
+    def split_bulky_references(self, entry):
+        """
+        EXPERIMENTAL: Move everything except <references/> from the References section to Further reading
+        Not safe to run generally """
+        for section in entry.ifilter_sections(matches = lambda x: x.title == "References"):
+            moved_idx = []
+            for idx, line in enumerate(section._lines):
+                if not re.match(PATTERN_REFS, line.strip(" #:*")):
+                    moved_idx.append(idx)
+
+            if not moved_idx:
+                continue
+
+            moved_lines = []
+            for idx in reversed(moved_idx):
+                moved_lines.insert(0, section._lines.pop(idx))
+
+            existing_section = next(section.parent.ifilter_sections(matches = lambda x: x.title == "Further reading"), None)
+            if existing_section:
+                self.fix("moved_further_reading", section, "moved non-footnotes to Further reading")
+                for line in moved_lines:
+                    if line not in existing_section._lines:
+                        existing_section._lines.append(line)
+
+            else:
+                self.fix("split_further_reading", section, "split non-footnotes to Further reading")
+                new_section = Section(section.parent, section.level, "Further reading")
+                new_section._lines = moved_lines
+                section.parent._children.append(new_section)
+
     def rename_misnamed_references(self, entry):
         for section in entry.ifilter_sections(matches = lambda x: x.title == "Further reading"):
             if len(section._lines) == 1 \
@@ -493,7 +523,10 @@ class SectionHeaderFixer():
 
         # not safe to run unsupervised
         if custom_args and custom_args.get("fix_misnamed_further_reading"):
-            self.rename_misnamed_further_reading(entry)
+            spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish"), None)
+            if spanish:
+                self.rename_misnamed_further_reading(spanish)
+                self.split_bulky_references(spanish)
 
         self.fix_section_levels(entry)
 
