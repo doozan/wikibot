@@ -215,3 +215,14 @@ wikifix['pt_merge_verbs'] = {
         })],
     "post-fixes": [(ele_cleanup, None)],
 }
+
+from autodooz.fix_bare_quotes import fix_bare_quotes
+
+wikifix['en_bare_quotes'] = {
+    'mode': 'function',
+    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
+    "fixes": [(fix_bare_quotes, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
+
