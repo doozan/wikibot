@@ -112,7 +112,7 @@ def get_authors(text):
     authors = []
 
     has_et_al = False
-    new_text = re.sub(r"(''|[;, ]+)et al(\.''|[.,])", "", text)
+    new_text = re.sub(r"(''|[;, ]+)et al((ii|\.)''|[.,])", "", text)
     if new_text != text:
         has_et_al = True
         text = new_text
@@ -295,16 +295,16 @@ def get_url(text):
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
         \[                              # [
-        (http.*?)                       # url
+        (http[^ ]*)                     # url
+        (?P<link_text> .*?)?            # link text
         \]                              # ]
         [;:, ]*(?P<post>.*)$            # trailing text
     """
     m = re.match(pattern, text)
     if m:
-        url, _, link_text = m.group(2).partition(" ")
-        return url, link_text, m.group('pre') + " " + m.group('post')
+        return m.group(2), m.group('pre') + m.group('link_text') + " " + m.group('post')
 
-    return "", "", text
+    return "", text
 
 def get_gbooks(text):
 
@@ -450,8 +450,9 @@ def parse_details(text):
     details["title"] = title
 
     # url may contain the text like 'page 123' or 'chapter 3', so it needs to be extracted first
-    url, link_text, text = get_url(text)
+    url, text = get_url(text)
     gbooks, text = get_gbooks(text)
+    print("gbooks", gbooks)
 
     # get pages before page because pp. and p. both match  pp. 12-14
     pages, text = get_pages(text)
@@ -467,42 +468,6 @@ def parse_details(text):
             details["year_published"] = edition
         else:
             details["edition"] = edition
-
-
-
-    if link_text:
-        link_pages, link_text = get_pages(link_text)
-        if link_pages:
-            if not pages:
-                pages = link_pages
-            details["pageurl"] = url
-            url = ""
-
-        link_page, link_text = get_page(link_text)
-        if link_page:
-            if not page:
-                page = link_page
-            details["pageurl"] = url
-            url = ""
-
-        link_chapter, link_text = get_chapter(link_text)
-        if link_chapter:
-            if not chapter:
-                chapter = link_chapter
-            if url:
-                details["chapterurl"] = url
-                url = ""
-
-    if link_text:
-        link_text = re.sub("(Google preview|Google search result|unnumbered page|online edition|unmarked page|Google [Bb]ooks)", "", link_text)
-        link_text = link_text.strip(':;, ()".')
-        if link_text:
-            # assume three digit numbers are page numbers
-            if len(link_text) == 3 and link_text.isnumeric() and not page:
-                page = link_text
-            else:
-                dprint("unparsed link text:", link_text)
-                return
 
     if gbooks:
         page = gbooks
@@ -547,20 +512,15 @@ def parse_details(text):
     if oclc:
         details["oclc"] = oclc
 
-
-
-    text = text.replace("&nbsp", "").strip('#*:;, ()".')
+    text = re.sub(r"(\(novel\)|&nbsp|Google preview|Google search result|unnumbered page|online edition|unmarked page|Google [Bb]ooks)", "", text)
+    text = text.strip('#*:;, ()".')
+    if page:
+        text = re.sub(r"([Pp]age|p\.|pg\.)", "", text)
     if text:
-        if page:
-            text = re.sub(r"([Pp]age|p\.|pg\.)", "", text)
-
-        text = text.replace("(novel)", "")
-
-        if text.strip('#*:;, ()".'):
-            dprint("unparsed text:", text)
-            dprint(orig_text)
-            dprint("")
-            return
+        dprint("unparsed text:", text)
+        dprint(orig_text)
+        dprint("")
+        return
 
     return details
 
@@ -583,7 +543,7 @@ def get_details_from_pattern(text):
     return params
 
 
-def convert_book_quotes(section):
+def convert_book_quotes(section, title):
 
     lang_id = ALL_LANGS.get(section._topmost.title)
     if not lang_id:
@@ -609,7 +569,7 @@ def convert_book_quotes(section):
 
         params = parse_details(m.group('details'))
         if not params:
-            outfile.write(m.group('details') + "\n")
+            outfile.write(title + "\t" + m.group('details') + "\n")
             continue
 
         passage = section._lines[idx+1].lstrip("#*: ")
@@ -687,7 +647,7 @@ def fix_bare_quotes(text, title, summary=None, options=None):
         return text
 
     for section in entry.ifilter_sections():
-        if convert_book_quotes(section):
+        if convert_book_quotes(section, title):
             changes.append(f"/*{section.path}*/ converted bare quote to template")
 
     if not changes:
