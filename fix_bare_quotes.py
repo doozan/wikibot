@@ -5,7 +5,7 @@ import re
 def get_year(text):
     m = re.match(r"'''(\d{4})'''[;,:—\- ]*(.*)", text)
     if not m:
-        print(text)
+        #print(text)
         exit()
         return
     return m.group(1), m.group(2)
@@ -31,7 +31,7 @@ def get_prefixed_translator(text):
     m = re.match(pattern, text)
     if m:
         if not is_valid_name(m.group(2)):
-            print("***************** invalid translator:", m.group(2))
+            #print("invalid translator:", m.group(2))
             return "", text
 
         return m.group(2), m.group('pre') + " " + m.group('post')
@@ -50,7 +50,7 @@ def get_suffixed_translator(text):
     m = re.match(pattern, text)
     if m:
         if not is_valid_name(m.group(2)):
-            print("***************** invalid translator:", m.group(2))
+            #print("***************** invalid translator:", m.group(2))
             return "", text
 
         return m.group(2), m.group('pre') + " " + m.group('post')
@@ -107,7 +107,7 @@ def get_authors(text):
             author = new_author.strip()
 
         if not is_valid_name(author):
-            print("invalid author:", author)
+            #print("invalid author:", author)
             return [], text
         authors.append(author)
 
@@ -171,17 +171,16 @@ def get_publisher(text):
             location, _, l_publisher = publisher.partition(":")
             location = location.strip()
 
-            print("location:", location)
-
             if location in [ "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal" ]:
                 publisher = l_publisher.strip()
             else:
+                #print("unknown location:", location)
                 location = None
 
 #        publisher = publisher.strip("() ")
 
         if not is_valid_publisher(publisher):
-            print("bad publisher", publisher)
+            #print("bad publisher", publisher)
             return None, None, None, text
 
         return publisher, published_year, location, m.group(2)
@@ -343,14 +342,13 @@ def parse_details(text):
 
     title, text = get_title(text)
     if not title:
-        print("no title", text)
+        #print("no title", text)
         return
     details["title"] = title
 
 
     # url may contain the text like 'page 123' or 'chapter 3', so it needs to be extracted first
     url, link_text, text = get_url(text)
-    print("url", url, link_text)
     gbooks, text = get_gbooks(text)
     page, text = get_page(text)
     chapter, text = get_chapter(text)
@@ -385,7 +383,7 @@ def parse_details(text):
             if len(link_text) == 3 and link_text.isnumeric() and not page:
                 page = link_text
             else:
-                print("unparsed link text:", link_text)
+                #print("unparsed link text:", link_text)
                 return
 
     if gbooks:
@@ -429,9 +427,9 @@ def parse_details(text):
             text = re.sub(r"([Pp]age|p\.|pg\.)", "", text)
 
         if text.strip('#*:;, ()".'):
-            print("unparsed text:", text)
-            print(orig_text)
-            print("")
+            #print("unparsed text:", text)
+            #print(orig_text)
+            #print("")
             return
 
     return details
@@ -462,7 +460,7 @@ def parse_match(m):
 
     passage = m.groupdict().get("passage")
     if "|" in passage:
-        print("| in passage, skipping:", passage)
+        #print("| in passage, skipping:", passage)
         return
 
     nextline = m.group('nextline')
@@ -497,11 +495,11 @@ def convert_book_quotes(section):
             continue
         start = m.group(1)
         if len(section._lines) <= idx+1:
-            print("no following line", list(section.lineage))
+            #print("no following line", list(section.lineage))
             continue
 
         if not section._lines[idx+1].startswith(start + ":"):
-            print("unexpected following line", section._lines[idx+1], list(section.lineage))
+            #print("unexpected following line", section._lines[idx+1], list(section.lineage))
             continue
 
         params = parse_details(m.group('details'))
@@ -516,30 +514,33 @@ def convert_book_quotes(section):
                 passage = m.group(1)
 
             if "|" in passage:
-                print("| in passage", passage)
+                #print("| in passage", passage)
                 continue
 
         translation = None
         if len(section._lines) > idx+2 and section._lines[idx+2].startswith(start + ":"):
             translation = section._lines[idx+2].lstrip("#*: ")
             if "|" in translation:
-                print("| in translation", translation)
+                #print("| in translation", translation)
                 continue
 
-        if translation and len(section._lines) > idx+3 and section._lines[idx+3].startswith(start + ":"):
-            print("too many following lines", list(section.lineage))
-            continue
 
-        section._lines[idx] = start + " {{quote-book|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()])
         if translation:
-            # English should never have a translation
+            # English should never have a translation, it's a multi-line passage
             if lang_id == "en":
+                print("too many following lines", list(section.lineage))
+                continue
+
+            # Fail on multi-line passages
+            if len(section._lines) > idx+3 and section._lines[idx+3].startswith(start + ":"):
+                #print("too many following lines", list(section.lineage))
                 continue
 
             section._lines[idx+1] = "|passage=" + passage
             section._lines[idx+2] = "|t=" + translation + "}}"
         else:
             section._lines[idx+1] = "|passage=" + passage + "}}"
+        section._lines[idx] = start + " {{quote-book|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()])
 
         changed = True
 
@@ -547,23 +548,27 @@ def convert_book_quotes(section):
     return changed
 
 
-def fix_bare_quotes(text, title, summary, options):
+def fix_bare_quotes(text, title, summary=None, options=None):
 
     changes = []
 
     # skip edits on pages with lua memory errors
-    ignore_pages = [ "is", "I", "Daniel", "a", "de" ]
+    ignore_pages = [ "is", "I", "a", "de" ]
     if title in ignore_pages:
         return text
 
     entry = SectionParser(text, title)
+    if entry.state:
+        return text
 
     for section in entry.ifilter_sections():
         if convert_book_quotes(section):
             changes.append(f"/*{section.path}*/ converted bare quote to template")
 
-    if changes:
-        summary += changes
-        return str(entry)
+    if not changes:
+        return text
 
-    return text
+    if summary:
+        summary += changes
+
+    return str(entry)

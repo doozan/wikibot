@@ -56,6 +56,7 @@ LIST_SECTION_LEVEL_ERRORS := $(PYPATH) ./list_section_level_errors.py
 LIST_DRAE_ERRORS := $(PYPATH) ./list_drae_errors.py
 LIST_DRAE_MISMATCHED_GENDERS := $(PYPATH) ./list_drae_mismatched_genders.py
 LIST_ES_FORM_OVERRIDES := $(PYPATH) ./list_es_form_overrides.py
+LIST_BARE_QUOTES := $(PYPATH) ./list_bare_quotes.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
@@ -67,7 +68,7 @@ TLFI_LEMMAS := $(EXTERNAL)/tlfi.lemmas
 LIST := $(BUILDDIR)/.list.
 FIX := $(BUILDDIR)/.fix.
 
-SAVE := --save "Updated with $(DATETAG_PRETTY) data"
+SAVE := #--save "Updated with $(DATETAG_PRETTY) data"
 
 # Call into the spanish_data makefile to build anything not declared here
 $(BUILDDIR)/%.data-full: force
@@ -411,6 +412,12 @@ $(LIST)es_form_overrides: $(SPANISH_DATA)/es-en.data
 >   $(LIST_ES_FORM_OVERRIDES) $(SAVE) $^
 >   touch $@
 
+$(LIST)bare_quotes: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+>   @echo "Running $@..."
+
+>   $(LIST_BARE_QUOTES) $(SAVE) $^
+>   touch $@
+
 # Fixes
 $(FIX)fr_missing_tlfi:
 >   @
@@ -590,11 +597,22 @@ $(FIX)es_form_overrides:
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
+$(FIX)bare_quotes:
+>   SRC="User:JeffDoozan/lists/autofix_bare_quotes"
+>   FIX="--fix bare_quotes --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   MAX=20000
 
-lists: $(patsubst %,$(LIST)%,t9n_problems section_stats es_forms_with_data mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals section_header_errors section_level_errors section_order_errors drae_mismatched_genders)
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(WIKIFIX) -links:$$SRC $$FIX
+>   echo $$LINKS > $@
+
+
+lists: $(patsubst %,$(LIST)%,t9n_problems section_stats es_forms_with_data mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals section_header_errors section_level_errors section_order_errors drae_mismatched_genders bare_quotes)
 
 # Fixes that are safe to run automatically and without supervision
-autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides)
+autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides bare_quotes)
 
 # Fixes that may make mistakes and need human supervision
 otherfixes: $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form)
