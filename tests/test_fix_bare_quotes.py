@@ -292,6 +292,32 @@ def test_parse_details():
     assert res == {'year': '2008', 'author': 'David Squire', 'author2': 'et al', 'title': 'The First-Time Garden Specialist', 'page': '12', 'isbn': '1845379268'}
 
 
+    # ''et al.''
+    text="""'''1988''', Lewis B. Ware ''et al.'', ''Low-Intensity Conflict in the Third World,'' Air Univ. Press, {{ISBN|978-1585660223}}, p. 139:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1988', 'author': 'Lewis B. Ware', 'author2': 'et al', 'title': 'Low-Intensity Conflict in the Third World,', 'page': '139', 'publisher': 'Air Univ. Press', 'isbn': '978-1585660223'}
+
+    # ''et al.'' multiple authors
+    text="""'''2019''', Pierre Terjanian, Andrea Bayer, et al., ''The Last Knight: The Art, Armor, and Ambition of Maximilian I'', Metropolitan Museum of Art ({{ISBN|9781588396747}}), page 96:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2019', 'author': 'Pierre Terjanian', 'author2': 'Andrea Bayer', 'author3': 'et al', 'title': 'The Last Knight: The Art, Armor, and Ambition of Maximilian I', 'page': '96', 'publisher': 'Metropolitan Museum of Art', 'isbn': '9781588396747'}
+
+
+    # publisher followed by ed.
+    text = """'''1940''', [[w:Carson McCullers|Carson McCullers]], ''[[w:The Heart Is a Lonely Hunter|The Heart Is a Lonely Hunter]]'', 2004 Houghton Mifflin ed., {{ISBN|0618526412}}, page 306,"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1940', 'author': '[[w:Carson McCullers|Carson McCullers]]', 'title': '[[w:The Heart Is a Lonely Hunter|The Heart Is a Lonely Hunter]]', 'page': '306', 'publisher': 'Houghton Mifflin', 'year_published': '2004', 'isbn': '0618526412'}
+
+
+    # ''et al.'' in editor
+    text = """'''1842''', [[w:Solomon Ludwig Steinheim|Solomon Ludwig Steinheim]], "On the Perennial and the Ephemeral in Judaism" in ''The Jewish Philosophy Reader'' (2000), edited by Daniel H. Frank ''et al.'', {{ISBN|9780415168601}}, [http://books.google.ca/books?id=_UbNP_Y0edQC&dq=platitudinize+OR+platitudinizes+OR+platitudinized&q=%22platitudinized%2C%3A#v=snippet&q=%22platitudinized%2C%3A&f=false p. 402]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
     # Numbered edition
     text = """'''2007''', John Howells, Don Merwin, ''Choose Mexico for Retirement'', 10th edition {{ISBN|0762753544}}, page 49:"""
     res = parse_details(text)

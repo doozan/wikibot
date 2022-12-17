@@ -111,6 +111,13 @@ def is_valid_name(text):
 def get_authors(text):
     authors = []
 
+    has_et_al = False
+    new_text = re.sub(r"(''|[;, ]+)et al(\.''|[.,])", "", text)
+    if new_text != text:
+        has_et_al = True
+        text = new_text
+
+
     m = re.match("""(.+?) (("|'').*)$""", text)
     if not m:
         return [], text
@@ -127,18 +134,13 @@ def get_authors(text):
                 authors[-1] += f", {author}"
                 continue
 
-        new_author = re.sub(r"et al\.?$", "", author)
-        has_et_al = new_author != author
-        if has_et_al:
-            author = new_author.strip()
-
         if not is_valid_name(author):
             dprint("invalid author:", author)
             return [], text
         authors.append(author)
 
-        if has_et_al:
-            authors.append("et al")
+    if has_et_al:
+        authors.append("et al")
 
     return authors, m.group(2)
 
@@ -197,7 +199,7 @@ def is_valid_publisher(text):
     if text.startswith("{{w|") and text.endswith("}}"):
         return True
 
-    bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''",  " reprint", "\bpage\b", r"\d{4}", " edition", r"\bed\.", r"p\.", "\bpublished\b"]
+    bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''",  r"\b(page|by|published|reprint|edition|ed\.|p\.)\b", r"\d{4}"]
     pattern = "(" +  "|".join(bad_items) + ")"
     if re.search(pattern, text):
         return False
@@ -213,7 +215,7 @@ def get_publisher(text):
     if m and m.group(1):
 
         publisher = m.group(1).strip()
-        publisher = re.sub(r"\s+([Pp]aperback\s*)?[Ee]dition$", "", publisher)
+        publisher = re.sub(r"\s+([Pp]aperback\s*)?[Ee]d(ition|\.)$", "", publisher)
 
         pattern = r"""(?x)
            [,|\(\s]*               # optional separator
@@ -439,11 +441,7 @@ def parse_details(text):
 
     chapter_title, text = get_chapter_title(text)
     if chapter_title:
-        print("chapter", chapter_title)
         details["chapter"] = chapter_title
-    else:
-        print("no chapter", text)
-        print(details)
 
     title, text = get_title(text)
     if not title:
