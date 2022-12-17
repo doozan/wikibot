@@ -111,7 +111,7 @@ def is_valid_name(text):
 def get_authors(text):
     authors = []
 
-    m = re.match("(.+?) (''.*)$", text)
+    m = re.match("""(.+?) (("|'').*)$""", text)
     if not m:
         return [], text
 
@@ -143,11 +143,48 @@ def get_authors(text):
     return authors, m.group(2)
 
 
+def get_chapter_title(text):
+    # The chapter title is the first string closed in " " possibly followed by "in"
+    pattern = r"""(?x)
+        [;:, ]*                 # separator
+        "(.+?)"                 # title enclosed in quotes
+        [;:, ]*                 # separator
+        (in)?                   # in (optional)
+        [;:, ]*(?P<post>.*)$    # trailing text
+    """
+
+    m = re.match(pattern, text)
+    if m:
+        return m.group(1), m.group('post')
+
+
+    # The chapter title is sometimes enclosed in '' '' instead of " ". In this case it MUST be followed by ", in ''"
+    pattern = r"""(?x)
+        [;:, ]*                 # separator
+        ''(.+?)'',\s+in           # title enclosed in quotes
+        [;:, ]*(?P<post>''.*)$    # trailing text
+    """
+
+    m = re.match(pattern, text)
+    if m:
+        return m.group(1), m.group('post')
+
+
+
+    return "", text
+
+
 def get_title(text):
     # The title is the first string closed in '' '' possibly followed by (novel)
     m = re.match(r"[;:, ]*''(.+?)''(?:\s*\(novel\)\s*)?[;:,. ]*(.*)$", text)
     if not m:
         return "", text
+
+    # If the title is followed by another title, the following is a subtitle
+    title = m.group(1)
+    subtitle, post_text = get_title(m.group(2))
+    if subtitle:
+        return f"{title}: {subtitle}", post_text
 
     return m.group(1), m.group(2)
 
@@ -176,7 +213,7 @@ def get_publisher(text):
     if m and m.group(1):
 
         publisher = m.group(1).strip()
-        publisher = re.sub(r"\s+[Ee]dition$", "", publisher)
+        publisher = re.sub(r"\s+([Pp]aperback\s*)?[Ee]dition$", "", publisher)
 
         pattern = r"""(?x)
            [,|\(\s]*               # optional separator
@@ -381,8 +418,8 @@ def parse_details(text):
     details = {}
 
     text = re.sub(r"<\s*/?\s*sup\s*>", "", text)
-#    text = text.replace('<span class="plainlinks">', "")
-#    text = text.replace('</span>', "")
+    text = text.replace('<span class="plainlinks">', "")
+    text = text.replace('</span>', "")
 
     year, text = get_year(text)
     details["year"] = year
@@ -399,6 +436,14 @@ def parse_details(text):
     for count, author in enumerate(authors, 1):
         key = f"author{count}" if count > 1 else "author"
         details[key] = author
+
+    chapter_title, text = get_chapter_title(text)
+    if chapter_title:
+        print("chapter", chapter_title)
+        details["chapter"] = chapter_title
+    else:
+        print("no chapter", text)
+        print(details)
 
     title, text = get_title(text)
     if not title:
@@ -428,17 +473,17 @@ def parse_details(text):
 
 
     if link_text:
-        link_page, link_text = get_page(link_text)
-        if link_page:
-            if not page:
-                page = link_page
-            details["pageurl"] = url
-            url = ""
-
         link_pages, link_text = get_pages(link_text)
         if link_pages:
             if not pages:
                 pages = link_pages
+            details["pageurl"] = url
+            url = ""
+
+        link_page, link_text = get_page(link_text)
+        if link_page:
+            if not page:
+                page = link_page
             details["pageurl"] = url
             url = ""
 
@@ -506,7 +551,7 @@ def parse_details(text):
 
 
 
-    text = text.strip('#*:;, ()".').replace("&nbsp;", "")
+    text = text.replace("&nbsp", "").strip('#*:;, ()".')
     if text:
         if page:
             text = re.sub(r"([Pp]age|p\.|pg\.)", "", text)

@@ -361,6 +361,36 @@ def test_parse_details():
     print(res)
     assert res == {'year': '1991', 'author': 'Katie Hafner', 'author2': '[[w:John Markoff|John Markoff]]', 'title': 'Cyberpunk: Outlaws and Hackers on the Computer Frontier', 'edition': 'revised', 'pages': '255-256', 'publisher': 'Simon and Schuster', 'isbn': '0684818620'}
 
+    # Chapter title
+    text = """'''2008''', Ian Black, "An earthquake hits Newcastle" in ''Geordies vs Mackems & Mackems vs Geordies'', Black & White Publishing {{ISBN|9781845028619}}, page 97"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2008', 'author': 'Ian Black', 'chapter': 'An earthquake hits Newcastle', 'title': 'Geordies vs Mackems & Mackems vs Geordies', 'page': '97', 'publisher': 'Black & White Publishing', 'isbn': '9781845028619'}
+
+    # Chapter title
+    text = """'''2009''', Cate Robertson, "Half-Crown Doxy", in ''Bitten: Dark Erotic Stories'' (ed. Susie Bright), Chronicle Books (2009), {{ISBN|9780811864251}}, [http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false page 126]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2009', 'editor': 'Susie Bright', 'author': 'Cate Robertson', 'chapter': 'Half-Crown Doxy', 'title': 'Bitten: Dark Erotic Stories', 'pageurl': 'http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false', 'page': '126', 'publisher': 'Chronicle Books', 'isbn': '9780811864251'}
+
+    # Chapter title in ''
+    text = """'''2002''' Dave Margoshes, ''Faith, Hope, Charity'', in ''Purity of Absence'', Dundurn Press Ltd., {{ISBN|0888784198}}, page 106:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2002', 'author': 'Dave Margoshes', 'chapter': 'Faith, Hope, Charity', 'title': 'Purity of Absence', 'page': '106', 'publisher': 'Dundurn Press Ltd.', 'isbn': '0888784198'}
+
+    # Sub-title
+    text = """'''2006''', Timothy M. Gay, ''Tris Speaker'', ''The Rough-and-Tumble Life of a Baseball Legend'', U of Nebraska Press, {{ISBN|0803222068}}, page 37:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2006', 'author': 'Timothy M. Gay', 'title': 'Tris Speaker: The Rough-and-Tumble Life of a Baseball Legend', 'page': '37', 'publisher': 'U of Nebraska Press', 'isbn': '0803222068'}
+
+    # Pages in link text
+    text = """'''2009''', Steve Scott, ''Insiders - Outsiders'', {{ISBN|9781907172205}}, [http://books.google.ca/books?id=LKaOUC90pKUC&pg=PA37&dq=%22ashamed+me%22&hl=en&sa=X&ei=uPlIUqWICfPb4AOc34CACQ&ved=0CDoQ6AEwAjgK#v=snippet&q=%22ashamed%20me%22&f=false pp. 36-37 (Google preview)]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2009', 'author': 'Steve Scott', 'title': 'Insiders - Outsiders', 'pageurl': 'http://books.google.ca/books?id=LKaOUC90pKUC&pg=PA37&dq=%22ashamed+me%22&hl=en&sa=X&ei=uPlIUqWICfPb4AOc34CACQ&ved=0CDoQ6AEwAjgK#v=snippet&q=%22ashamed%20me%22&f=false', 'pages': '36-37', 'isbn': '9781907172205'}
+
     # Extra title, unhandled
     text="""'''2010''', S. Suzanne Nielsen, ed, ''Food Analysis, fourth edition'', {{ISBN|978-1-4419-1477-4}}, Chapter 12, "Traditional Methods for Mineral Analysis", page 213"""
     res = parse_details(text)
