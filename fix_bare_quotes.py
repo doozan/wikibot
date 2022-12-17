@@ -322,10 +322,13 @@ def get_gbooks(text):
 def get_page(text):
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
-        (?:[Pp]age|pg\.|p\.|p )(?:&nbsp;)?\s*            # page, pg., or p. optionally followed by whitespace
-        (\d+)                           # numbers
+        \b                              # hard separator
+        (?:[Pp]age|pg\.|p\.|p)          # page, pg, p., or p
+        (?:&nbsp;|\s*)+                 # whitespace
+        ([0-9ivxcdmIVXCDM]+)            # numbers or roman numerals
         [;:, ]*(?P<post>.*)$            # trailing text
     """
+        #([0-9ivxcdmIVXCDM]+)            # numbers or roman numerals
 
     m = re.match(pattern, text)
     if m:
@@ -378,8 +381,9 @@ def get_edition(text):
 def get_volume(text):
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
-        (?:[Vv]olume|vol\.|vol )(?:&nbsp;)?\s*            # page, pg., or p. optionally followed by whitespace
-        (\d+)                           # numbers
+        (?:[Vv]olume|vol\.|vol )        # page, pg., or p. optionally followed by whitespace
+        (?:&nbsp;|\s*)+                 # whitespace
+        ([0-9ivxcdmIVXCDM]+)            # numbers or roman numerals
         [;:, ]*(?P<post>.*)$            # trailing text
     """
 
@@ -393,8 +397,9 @@ def get_chapter(text):
 
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
-        (?:[Cc]hapter|ch.)\s+           # chapter or ch. followed by whitespace
-        (\d+)                           # numbers
+        (?:[Cc]hapter|ch.)              # chapter or ch. followed by whitespace
+        (?:&nbsp;|\s*)+                 # whitespace
+        ([0-9ivxcdmIVXCDM]+)            # numbers or roman numerals
         [;:, ]*(?P<post>.*)$            # trailing text
     """
 

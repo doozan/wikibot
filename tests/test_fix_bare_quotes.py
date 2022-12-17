@@ -78,6 +78,11 @@ def test_parse_details():
     print(res)
     assert res == {'year': '2001', 'author': 'Rudi Bekkers', 'title': 'Mobile Telecommunications Standards: GSM, UMTS, TETRA, and ERMES', 'publisher': 'Artech House', 'isbn': '9781580532501', 'page': '{{gbooks|PrG2URuUfioC|250|patent|pool}}'}
 
+    # roman numerals
+    text = """'''2004''', Rob Shein, ''Zero-Day Exploit: Countdown to Darkness'', Syngress ({{ISBN|9780080543925}}), page [https://books.google.de/books?id=ddGYYKnja1UC&lpg=PR21&dq=%22zero-day%20exploit%22&pg=PR21#v=onepage&q=%22zero-day%20exploit%22&f=false xxi]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2004', 'author': 'Rob Shein', 'title': 'Zero-Day Exploit: Countdown to Darkness', 'url': 'https://books.google.de/books?id=ddGYYKnja1UC&lpg=PR21&dq=%22zero-day%20exploit%22&pg=PR21#v=onepage&q=%22zero-day%20exploit%22&f=false', 'page': 'xxi', 'publisher': 'Syngress', 'isbn': '9780080543925'}
 
     # p.230
     text ="""'''1994''', R. Jeffrey Ringer, ''Queer Words, Queer Images: Communication and Construction of Homosexuality'' {{ISBN|0814774415}}, p.230"""
