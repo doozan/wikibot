@@ -311,7 +311,7 @@ def test_parse_details():
     assert res == {'year': '1945', 'author': 'Neva L. Boyd', 'title': 'Handbook of Recreational Games', 'pageurl': 'http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight', 'page': '16', 'publisher': '[[w:Dover Publications|Dover]]', 'year_published': '1975', 'isbn': '0486232042'}
 
 
-    # Multiple pages, not yet handled
+    # Multiple pages
     text = """'''2013''', Terry Pratchett, ''Raising Steam'', Doubleday, {{ISBN|978-0-857-52227-6}}, pages 345–346:"""
     res = parse_details(text)
     print(res)
@@ -324,16 +324,45 @@ def test_parse_details():
     print(res)
     assert res == {'year': '2006', 'author': '{{w|Alexander McCall Smith}}', 'title': 'Love Over Scotland', 'pageurl': 'http://books.google.com/books?id=_SLjwNeumpoC&pg=PA242&dq=third-person', 'pages': '243-4', 'publisher': 'Random House Digital', 'year_published': '2007', 'isbn': '978-0-307-27598-1'}
 
+    # Strip (novel) from unparsed text
+    text = """'''1959''', [[w:James Michener|James Michener]], ''[[w:Hawaii (novel)|Hawaii]]'' (novel),<sup >[http://books.google.com/books?id=1QHYAAAAMAAJ ]</sup> Fawcett Crest (1986), {{ISBN|9780449213353}}, page 737:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1959', 'author': '[[w:James Michener|James Michener]]', 'title': '[[w:Hawaii (novel)|Hawaii]]', 'url': 'http://books.google.com/books?id=1QHYAAAAMAAJ', 'page': '737', 'publisher': 'Fawcett Crest', 'year_published': '1986', 'isbn': '9780449213353'}
 
+
+    # Strip (novel) from unparsed text
+    text = """'''2003''', Karin Slaughter, ''A Faint Cold Fear'' (novel), HarperCollins, {{ISBN|978-0-688-17458-3}}, [http://books.google.com/books?id=n8yT5KxPzNAC&pg=PA169&dq=rolling page 169]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2003', 'author': 'Karin Slaughter', 'title': 'A Faint Cold Fear', 'pageurl': 'http://books.google.com/books?id=n8yT5KxPzNAC&pg=PA169&dq=rolling', 'page': '169', 'publisher': 'HarperCollins', 'isbn': '978-0-688-17458-3'}
 
     # Travellers edition generated wrong publisher
     text="""'''1999''', Mark Warren, ''Mark Warren's Atlas of Australian Surfing'', traveller's edition 1999, {{ISBN|0-7322-6731-5}}, page 103"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '1999', 'author': 'Mark Warren', 'title': "Mark Warren's Atlas of Australian Surfing", 'page': '103', 'publisher': "traveller's", 'isbn': '0-7322-6731-5'}
+    assert res == {'year': '1999', 'author': 'Mark Warren', 'title': "Mark Warren's Atlas of Australian Surfing", 'edition': "traveller's", 'page': '103', 'isbn': '0-7322-6731-5'}
 
-    # Editor, not yet handled
+    # Editor prefixed
     text="""'''2008''', ''The New Black Lace Book of Women's Sexual Fantasies'' (ed. Mitzi Szereto), Black Lace (2008), {{ISBN|9780352341723}}, [http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false page 38]"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2008', 'editor': 'Mitzi Szereto', 'title': "The New Black Lace Book of Women's Sexual Fantasies", 'pageurl': 'http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false', 'page': '38', 'publisher': 'Black Lace', 'isbn': '9780352341723'}
+
+    # Pages
+    text = """'''1999''', Peter McPhee, ''Runner'', {{ISBN|1550286749}}, pp. 37{{ndash}}8:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1999', 'author': 'Peter McPhee', 'title': 'Runner', 'pages': '37{{ndash}}8', 'isbn': '1550286749'}
+
+    # pages
+    text = """'''1991''', Katie Hafner & [[w:John Markoff|John Markoff]], ''Cyberpunk: Outlaws and Hackers on the Computer Frontier'' (1995 revised edition), Simon and Schuster, {{ISBN|0684818620}}, pp. 255-256:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1991', 'author': 'Katie Hafner', 'author2': '[[w:John Markoff|John Markoff]]', 'title': 'Cyberpunk: Outlaws and Hackers on the Computer Frontier', 'edition': 'revised', 'pages': '255-256', 'publisher': 'Simon and Schuster', 'isbn': '0684818620'}
+
+    # Extra title, unhandled
+    text="""'''2010''', S. Suzanne Nielsen, ed, ''Food Analysis, fourth edition'', {{ISBN|978-1-4419-1477-4}}, Chapter 12, "Traditional Methods for Mineral Analysis", page 213"""
     res = parse_details(text)
     print(res)
     assert res == None

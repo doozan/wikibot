@@ -2,12 +2,17 @@ from autodooz.sectionparser import SectionParser
 from autodooz.sections import ALL_LANGS
 import re
 
+DEBUG=True
+def dprint(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+
 def get_year(text):
-    m = re.match(r"'''(\d{4})'''[;,:—\- ]*(.*)", text)
+    m = re.match(r"^'''(\d{4})'''[;,:—\- ]*(.*)$", text)
     if not m:
-        #print(text)
-        exit()
+        dprint(text)
         return
+
     return m.group(1), m.group(2)
 
 
@@ -22,16 +27,16 @@ def get_prefixed_translator(text):
 
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
-        \(?(?:tr\.|trans\.|translated)\s*by\s*
+        \(?(?:tr\.|trans\.|translated)\s*(?:by)?\s*
         (.*?)
         [),]                            # must end with a ) or ,
-        [;:, ]*(?P<post>.*)             # trailing text
+        [;:, ]*(?P<post>.*)$            # trailing text
     """
 
     m = re.match(pattern, text)
     if m:
         if not is_valid_name(m.group(2)):
-            #print("invalid translator:", m.group(2))
+            dprint("invalid translator:", m.group(2))
             return "", text
 
         return m.group(2), m.group('pre') + " " + m.group('post')
@@ -42,15 +47,36 @@ def get_suffixed_translator(text):
     pattern = r"""(?x)
         ^(?P<pre>.*?)\s*         # leading text
         (?:^|[;:,])\s*           # beginning of line or separator
-        ([^,]*?)\s*               # name
+        ([^,]*?)\s*              # name
         \(translator\)
-        [;:, ]*(?P<post>.*)      # trailing text
+        [;:, ]*(?P<post>.*)$     # trailing text
     """
 
     m = re.match(pattern, text)
     if m:
         if not is_valid_name(m.group(2)):
-            #print("***************** invalid translator:", m.group(2))
+            dprint("***************** invalid translator:", m.group(2))
+            return "", text
+
+        return m.group(2), m.group('pre') + " " + m.group('post')
+    return "", text
+
+
+def get_editor(text):
+
+    pattern = r"""(?x)
+        ^[;:, ]*(?P<pre>.*?)\s*  # leading text
+        [;:,(]\s*                # separator
+        (?:edited by|ed\. )\s+   # edited by
+        (.*?)                    # name
+        [);:,]\s*                 # separator
+        (?P<post>.*)$            # trailing text
+    """
+
+    m = re.match(pattern, text)
+    if m:
+        if not is_valid_name(m.group(2)):
+            dprint("invalid editor:", m.group(2))
             return "", text
 
         return m.group(2), m.group('pre') + " " + m.group('post')
@@ -85,7 +111,7 @@ def is_valid_name(text):
 def get_authors(text):
     authors = []
 
-    m = re.match("(.+?) (''.*)", text)
+    m = re.match("(.+?) (''.*)$", text)
     if not m:
         return [], text
 
@@ -107,7 +133,7 @@ def get_authors(text):
             author = new_author.strip()
 
         if not is_valid_name(author):
-            #print("invalid author:", author)
+            dprint("invalid author:", author)
             return [], text
         authors.append(author)
 
@@ -118,10 +144,11 @@ def get_authors(text):
 
 
 def get_title(text):
-    # The title is the first string closed in '' ''
-    m = re.match("''(.+?)''[;:,. ]*(.*)", text)
+    # The title is the first string closed in '' '' possibly followed by (novel)
+    m = re.match(r"[;:, ]*''(.+?)''(?:\s*\(novel\)\s*)?[;:,. ]*(.*)$", text)
     if not m:
         return "", text
+
     return m.group(1), m.group(2)
 
 
@@ -141,19 +168,22 @@ def is_valid_publisher(text):
 
 def get_publisher(text):
 
+    print("get publisher", text)
+
     # The publisher is all text after the title until the ISBN tag
 
-    m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{ISBN.*)", text)
+    m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{ISBN.*)$", text)
     if m and m.group(1):
 
         publisher = m.group(1).strip()
+        publisher = re.sub(r"\s+[Ee]dition$", "", publisher)
 
         pattern = r"""(?x)
-           \s*(?:,|\()?\s*
-           \s*(?:[Ii]llustrated)?\s*   # optionally preceeded by illustrated
+           [,|\(\s]*               # optional separator
            (\d{4})                 # date
-           \s*(?:[Ee]dition|[Rr]eprint)?\s*   # optionally followed by edition
-           \s*[),.]?\s*
+           \s*
+           (?:[Rr]eprint)?         # optionally followed by reprint
+           [),.\s]*
            """
 
         mp = re.match(pattern, publisher)
@@ -164,7 +194,6 @@ def get_publisher(text):
         if mp:
             published_year = mp.group(1)
             publisher = publisher.replace(mp.group(0), "").strip()
-            publisher = re.sub(r"\s+[Ee]dition$", "", publisher)
 
         location = None
         if ":" in publisher:
@@ -174,13 +203,13 @@ def get_publisher(text):
             if location in [ "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal" ]:
                 publisher = l_publisher.strip()
             else:
-                #print("unknown location:", location)
+                dprint("unknown location:", location)
                 location = None
 
 #        publisher = publisher.strip("() ")
 
         if not is_valid_publisher(publisher):
-            #print("bad publisher", publisher)
+            dprint("bad publisher", publisher)
             return None, None, None, text
 
         return publisher, published_year, location, m.group(2)
@@ -195,7 +224,7 @@ def get_isbn(text):
         ([0-9-X ]+)                     # numbers, -, and X
         \s*}}                           # }}
         \)?                             # optional )
-        [;:, ]*(?P<post>.*)             # trailing text
+        [;:, ]*(?P<post>.*)$            # trailing text
     """
 
     m = re.match(pattern, text)
@@ -213,7 +242,7 @@ def get_oclc(text):
         ([0-9-]+)                       # numbers
         \s*}}                           # }}
         \)?                             # optional )
-        [;:, ]*(?P<post>.*)             # trailing text
+        [;:, ]*(?P<post>.*)$            # trailing text
     """
 
     m = re.match(pattern, text)
@@ -229,7 +258,7 @@ def get_url(text):
         \[                              # [
         (http.*?)                       # url
         \]                              # ]
-        [;:, ]*(?P<post>.*)             # trailing text
+        [;:, ]*(?P<post>.*)$            # trailing text
     """
     m = re.match(pattern, text)
     if m:
@@ -243,7 +272,7 @@ def get_gbooks(text):
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
         ({{gbooks.*?}})                 # gbooks template
-        [;:, ]*(?P<post>.*)             # trailing text
+        [;:, ]*(?P<post>.*)$            # trailing text
     """
     m = re.match(pattern, text)
     if m:
@@ -256,7 +285,7 @@ def get_page(text):
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
         (?:[Pp]age|pg\.|p\.|p )(?:&nbsp;)?\s*            # page, pg., or p. optionally followed by whitespace
         (\d+)                           # numbers
-        [;:, ]*(?P<post>.*)             # trailing text
+        [;:, ]*(?P<post>.*)$            # trailing text
     """
 
     m = re.match(pattern, text)
@@ -266,11 +295,16 @@ def get_page(text):
 
 
 def get_pages(text):
+
     pattern = r"""(?x)
-        ^[;:, ]*(?P<pre>.*?)\s*         # leading text
-        (?:[Pp]ages)(?:&nbsp;)?\s*      # pages
-        (\d+\s*(-|–|&|and|to)+\s*\d+)   # separated numbers
-        [;:, ]*(?P<post>.*)             # trailing text
+        ^[;:, ]*(?P<pre>.*?)\s*             # leading text
+        (?:[Pp]ages|pp\.)                   # Pages or pp.
+        (?:&nbsp;|\s*)*                     # optional whitespace
+        (\d+                                # first number
+        \s*(?:-|–|&|and|to|{{ndash}})+\s*   # mandatory separator(s)
+        \d+)                                # second number
+        [;:, ]*                             # trailing separator or whitespace
+        (?P<post>.*)                        # trailing text
     """
 
     m = re.match(pattern, text)
@@ -281,15 +315,24 @@ def get_pages(text):
 
 def get_edition(text):
     pattern = r"""(?x)
-        ^[;:, ]*(?P<pre>.*?)\s*         # leading text
-        (\d+(?:st|nd|rd|th))\s+         # ordinal number
+        ^[(;:, ]*(?P<pre>.*?)\s*         # leading text
+        ((
+            \d{4}                       # year
+            |[Tt]raveller's
+            |[Ii]llustrated
+            |[Rr]evised
+            |[Ll]imited
+            |\d+(?:st|nd|rd|th)         # ordinal number
+        )\s*)+
+        \s*
         (?:[Ee]dition)
-        [;:, ]*(?P<post>.*)             # trailing text
+        [);:, ]*(?P<post>.*)$            # trailing text
     """
 
     m = re.match(pattern, text)
     if m:
-        return m.group(2), m.group('pre') + " " + m.group('post')
+        return m.group(2).strip(), m.group('pre') + " " + m.group('post')
+
     return "", text
 
 
@@ -298,7 +341,7 @@ def get_volume(text):
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
         (?:[Vv]olume|vol\.|vol )(?:&nbsp;)?\s*            # page, pg., or p. optionally followed by whitespace
         (\d+)                           # numbers
-        [;:, ]*(?P<post>.*)             # trailing text
+        [;:, ]*(?P<post>.*)$            # trailing text
     """
 
     m = re.match(pattern, text)
@@ -313,7 +356,7 @@ def get_chapter(text):
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
         (?:[Cc]hapter|ch.)\s+           # chapter or ch. followed by whitespace
         (\d+)                           # numbers
-        [;:, ]*(?P<post>.*)             # trailing text
+        [;:, ]*(?P<post>.*)$            # trailing text
     """
 
     m = re.match(pattern, text)
@@ -348,31 +391,41 @@ def parse_details(text):
     if translator:
         details["translator"] = translator
 
+    editor, text = get_editor(text)
+    if editor:
+        details["editor"] = editor
+
     authors, text = get_authors(text)
     for count, author in enumerate(authors, 1):
         key = f"author{count}" if count > 1 else "author"
         details[key] = author
 
-
     title, text = get_title(text)
     if not title:
-        #print("no title", text)
+        dprint("no title", text)
         return
     details["title"] = title
-
 
     # url may contain the text like 'page 123' or 'chapter 3', so it needs to be extracted first
     url, link_text, text = get_url(text)
     gbooks, text = get_gbooks(text)
-    page, text = get_page(text)
+
+    # get pages before page because pp. and p. both match  pp. 12-14
     pages, text = get_pages(text)
+    page, text = get_page(text)
     chapter, text = get_chapter(text)
     volume, text = get_volume(text)
     if volume:
         details["volume"] = volume
     edition, text = get_edition(text)
     if edition:
-        details["edition"] = edition
+        print("EDITION", [edition])
+        if edition.isnumeric() and len(edition) == 4:
+            details["year_published"] = edition
+        else:
+            details["edition"] = edition
+
+
 
     if link_text:
         link_page, link_text = get_page(link_text)
@@ -405,7 +458,7 @@ def parse_details(text):
             if len(link_text) == 3 and link_text.isnumeric() and not page:
                 page = link_text
             else:
-                #print("unparsed link text:", link_text)
+                dprint("unparsed link text:", link_text)
                 return
 
     if gbooks:
@@ -437,24 +490,33 @@ def parse_details(text):
     if location:
         details["location"] = location
 
+
     isbn, text = get_isbn(text)
-    details["isbn"] = isbn
+    if isbn:
+        details["isbn"] = isbn
+    else:
+        print("NO ISBN FOUND")
+        print(details)
+        print(text)
+        return
 
     oclc, text = get_oclc(text)
     if oclc:
         details["oclc"] = oclc
 
-    
+
 
     text = text.strip('#*:;, ()".').replace("&nbsp;", "")
     if text:
         if page:
             text = re.sub(r"([Pp]age|p\.|pg\.)", "", text)
 
+        text = text.replace("(novel)", "")
+
         if text.strip('#*:;, ()".'):
-            #print("unparsed text:", text)
-            #print(orig_text)
-            #print("")
+            dprint("unparsed text:", text)
+            dprint(orig_text)
+            dprint("")
             return
 
     return details
@@ -478,28 +540,6 @@ def get_details_from_pattern(text):
     return params
 
 
-
-
-
-def parse_match(m):
-
-    passage = m.groupdict().get("passage")
-    if "|" in passage:
-        #print("| in passage, skipping:", passage)
-        return
-
-    nextline = m.group('nextline')
-#    if re.match("#[#*:]+", nextline):
-#        print("nextline has data")
-#        return
-
-    details = parse_details(m.group('details'))
-    if not details:
-        return
-
-    return details, passage, "\n" + nextline
-
-
 def convert_book_quotes(section):
 
     lang_id = ALL_LANGS.get(section._topmost.title)
@@ -517,11 +557,11 @@ def convert_book_quotes(section):
             continue
         start = m.group(1)
         if len(section._lines) <= idx+1:
-            #print("no following line", list(section.lineage))
+            dprint("no following line", list(section.lineage))
             continue
 
         if not section._lines[idx+1].startswith(start + ":"):
-            #print("unexpected following line", section._lines[idx+1], list(section.lineage))
+            dprint("unexpected following line", section._lines[idx+1], list(section.lineage))
             continue
 
         params = parse_details(m.group('details'))
@@ -536,7 +576,7 @@ def convert_book_quotes(section):
                 passage = m.group(1)
 
             if "|" in passage:
-                #print("| in passage", passage)
+                dprint("| in passage", passage)
                 continue
 
         if lang_id == "en":
@@ -545,7 +585,7 @@ def convert_book_quotes(section):
             to_merge = []
             while len(section._lines) > idx+offset and section._lines[idx+offset].startswith(start + ":"):
                 if "|" in section._lines[idx+offset]:
-                    print("| in multi-line passage")
+                    dprint("| in multi-line passage")
                     failed = True
                     break
                 to_merge.append(idx+offset)
@@ -566,12 +606,12 @@ def convert_book_quotes(section):
             if len(section._lines) > idx+2 and section._lines[idx+2].startswith(start + ":"):
                 translation = section._lines[idx+2].lstrip("#*: ")
                 if "|" in translation:
-                    #print("| in translation", translation)
+                    dprint("| in translation", translation)
                     continue
 
                 # Fail on multi-line passages with translation
                 if len(section._lines) > idx+3 and section._lines[idx+3].startswith(start + ":"):
-                    #print("too many following lines", list(section.lineage))
+                    dprint("too many following lines", list(section.lineage))
                     continue
 
                 section._lines[idx+1] = "|passage=" + passage
@@ -584,7 +624,6 @@ def convert_book_quotes(section):
         changed = True
 
     for idx in reversed(to_remove):
-        print("removing", idx)
         del section._lines[idx]
 
     outfile.close()
