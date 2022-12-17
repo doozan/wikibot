@@ -2,7 +2,7 @@ from autodooz.sectionparser import SectionParser
 from autodooz.sections import ALL_LANGS
 import re
 
-DEBUG=True
+DEBUG=False
 def dprint(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs)
@@ -305,7 +305,7 @@ def get_isbn(text):
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)            # leading text
         [ ;:,(]\s*                      # separator
-        (978(-)?[0-9]{10})                  # ISBN
+        (978(-)?[0-9]{10})              # ISBN
         [ ;:,)]\s*                      # separator
         [;:, ]*(?P<post>.*)$            # trailing text
     """
@@ -617,7 +617,8 @@ def convert_book_quotes(section, title):
 
     pattern = r"""([#:*]+)\s*(?P<details>'''\d{4}'''.*{{ISBN.*)$"""
 
-    outfile = open("unparsed.txt", "a")
+    #outfile = open("unparsed.txt", "a")
+
     changed = False
     to_remove = []
     for idx, line in enumerate(section._lines):
@@ -635,7 +636,7 @@ def convert_book_quotes(section, title):
 
         params = parse_details(m.group('details'))
         if not params:
-            outfile.write(title + "\t" + m.group('details') + "\n")
+            #outfile.write(title + "\t" + m.group('details') + "\n")
             continue
 
         passage = section._lines[idx+1].lstrip("#*: ")
@@ -643,8 +644,10 @@ def convert_book_quotes(section, title):
             m = re.match(r"^{{quote\|" + lang_id + r"\|(.*)}}$", passage)
             if m:
                 passage = m.group(1)
+                if passage.count("|") == 1 and "t=" not in passage and "translation=" not in passage:
+                    passage = passage.replace("|", "|t=")
 
-            if "|" in passage:
+            if passage.count("|") != passage.count("|t=") + passage.count("|translation="):
                 dprint("| in passage", passage)
                 continue
 
@@ -673,6 +676,9 @@ def convert_book_quotes(section, title):
         else:
             translation = None
             if len(section._lines) > idx+2 and section._lines[idx+2].startswith(start + ":"):
+                if "|t=" in passage:
+                    dprint("found translation, but passage already has t=")
+                    continue
                 translation = section._lines[idx+2].lstrip("#*: ")
                 if "|" in translation:
                     dprint("| in translation", translation)
@@ -695,7 +701,7 @@ def convert_book_quotes(section, title):
     for idx in reversed(to_remove):
         del section._lines[idx]
 
-    outfile.close()
+    #outfile.close()
     return changed
 
 
