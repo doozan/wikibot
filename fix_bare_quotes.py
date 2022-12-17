@@ -69,18 +69,34 @@ def get_editor(text):
         [;:,(]\s*                # separator
         (?:edited by|ed\. )\s+   # edited by
         (.*?)                    # name
-        [);:,]\s*                 # separator
+        [);:,]\s*                # separator
         (?P<post>.*)$            # trailing text
     """
 
     m = re.match(pattern, text)
-    if m:
-        if not is_valid_name(m.group(2)):
-            dprint("invalid editor:", m.group(2))
-            return "", text
+    if not m:
 
-        return m.group(2), m.group('pre') + " " + m.group('post')
-    return "", text
+        # Search for (eds. 1, 2)
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*  # leading text
+            (?:\(eds.)\s+            # (eds.
+            (.*?)                    # names
+            [)]\s*                   # )
+            (?P<post>.*)$            # trailing text
+        """
+        m = re.match(pattern, text)
+
+    if not m:
+        return [], text
+
+    names = []
+    for name in split_names(m.group(2)):
+        if not is_valid_name(name):
+            dprint("invalid editor:", name)
+            return [], text
+        names.append(name)
+
+    return "; ".join(names), m.group('pre') + " " + m.group('post')
 
 
 def is_valid_name(text):
@@ -91,7 +107,7 @@ def is_valid_name(text):
     if text.startswith("{{w|") and text.endswith("}}"):
         return True
 
-    bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''",  r"\b(in|of|by|to|et al|Guides|Press|[Cc]hapter|Diverse)\b", r"\.com", r"\btrans" ]
+    bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''",  r"\b(and|in|of|by|to|et al|Guides|Press|[Cc]hapter|Diverse)\b", r"\.com", r"\btrans" ]
     pattern = "(" +  "|".join(bad_items) + ")"
     if re.search(pattern, text):
         return False
@@ -107,6 +123,26 @@ def is_valid_name(text):
 
     return True
 
+def split_names(text):
+    s = re.search("( and| &|,|;) ", text)
+    separator = s.group(1) if s else ", "
+
+    names = []
+    for name in text.split(separator):
+        name = name.strip()
+        if name.startswith("and "):
+            name = name[4:]
+        if name.startswith("& "):
+            name = name[2:]
+        if not name:
+            continue
+        if len(name) < 5:
+            if name in ["Jr.", "Jr", "MD", "PhD", "MSW", "JD", "II", "III", "IV", "jr", "MS", "PHD", "Sr."]:
+                names[-1] += f", {name}"
+                continue
+        names.append(name)
+
+    return names
 
 def get_authors(text):
     authors = []
@@ -124,16 +160,8 @@ def get_authors(text):
 
     author_text = m.group(1).strip(":;, ").replace("&#91;", "").replace(" (author)", "")
 
-    s = re.search("( and| &|,|;) ", author_text)
-    separator = s.group(1) if s else ", "
-
-    for author in author_text.split(separator):
-        author = author.strip()
-        if len(author) < 5:
-            if author in ["Jr.", "Jr", "MD", "PhD", "MSW", "JD", "II", "III", "IV", "jr", "MS", "PHD", "Sr."]:
-                authors[-1] += f", {author}"
-                continue
-
+    authors = []
+    for author in split_names(author_text):
         if not is_valid_name(author):
             dprint("invalid author:", author)
             return [], text
@@ -171,8 +199,6 @@ def get_chapter_title(text):
     if m:
         return m.group(1), m.group('post')
 
-
-
     return "", text
 
 
@@ -207,8 +233,6 @@ def is_valid_publisher(text):
 
 def get_publisher(text):
 
-    print("get publisher", text)
-
     # The publisher is all text after the title until the ISBN tag
 
     m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{ISBN.*)$", text)
@@ -221,8 +245,8 @@ def get_publisher(text):
            [,|\(\s]*               # optional separator
            (\d{4})                 # date
            \s*
-           (?:[Rr]eprint)?         # optionally followed by reprint
-           [),.\s]*
+           (?:([Rr]eprint|[Pp]aperback))?         # optionally followed by reprint
+           [);,.\s]*
            """
 
         mp = re.match(pattern, publisher)
@@ -239,7 +263,7 @@ def get_publisher(text):
             location, _, l_publisher = publisher.partition(":")
             location = location.strip()
 
-            if location in [ "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal" ]:
+            if location in [ "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]" ]:
                 publisher = l_publisher.strip()
             else:
                 dprint("unknown location:", location)
@@ -256,6 +280,8 @@ def get_publisher(text):
 
 
 def get_isbn(text):
+
+    # Find ISBN templates
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
         \(?                             # option (
@@ -266,10 +292,33 @@ def get_isbn(text):
         [;:, ]*(?P<post>.*)$            # trailing text
     """
 
-    m = re.match(pattern, text)
-    if m:
-        return m.group(2).replace(" ", ""), m.group('pre') + " " + m.group('post')
-    return "", text
+    isbn = []
+    while True:
+        m = re.match(pattern, text)
+        if not m:
+            break
+        isbn.append(m.group(2).replace(" ", ""))
+        text = m.group('pre') + " " + m.group('post')
+
+
+    # Find bare ISBN numbers
+    pattern = r"""(?x)
+        ^[;:, ]*(?P<pre>.*?)            # leading text
+        [ ;:,(]\s*                      # separator
+        (978(-)?[0-9]{10})                  # ISBN
+        [ ;:,)]\s*                      # separator
+        [;:, ]*(?P<post>.*)$            # trailing text
+    """
+
+    while True:
+        m = re.match(pattern, text)
+        if not m:
+            break
+        isbn.append(m.group(2).replace(" ", ""))
+        text = m.group('pre') + " " + m.group('post')
+
+
+    return isbn, text
 
 
 def get_oclc(text):
@@ -340,10 +389,10 @@ def get_pages(text):
 
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)\s*             # leading text
-        (?:[Pp]ages|pp\.)                   # Pages or pp.
+        (?:[Pp]age[s]*|pp\.)                   # Pages or pp.
         (?:&nbsp;|\s*)*                     # optional whitespace
         (\d+                                # first number
-        \s*(?:-|–|&|and|to|{{ndash}})+\s*   # mandatory separator(s)
+        \s*(?:,|-|–|&|and|to|{{ndash}})+\s*   # mandatory separator(s)
         \d+)                                # second number
         [;:, ]*                             # trailing separator or whitespace
         (?P<post>.*)                        # trailing text
@@ -362,12 +411,16 @@ def get_edition(text):
             \d{4}                       # year
             |[Tt]raveller's
             |[Ii]llustrated
+            |[Pp]aperback
+            |[Hh]ardcover
+            |[Ss]oftcover
             |[Rr]evised
+            |[Rr]eprint
             |[Ll]imited
             |\d+(?:st|nd|rd|th)         # ordinal number
         )\s*)+
         \s*
-        (?:[Ee]dition)
+        (?:[Ee]dition|[Ee]d\.)
         [);:, ]*(?P<post>.*)$            # trailing text
     """
 
@@ -397,7 +450,7 @@ def get_chapter(text):
 
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
-        (?:[Cc]hapter|ch.)              # chapter or ch. followed by whitespace
+        (?:[Cc]hapter|ch\.)             # chapter or ch. followed by whitespace
         (?:&nbsp;|\s*)+                 # whitespace
         ([0-9ivxcdmIVXCDM]+)            # numbers or roman numerals
         [;:, ]*(?P<post>.*)$            # trailing text
@@ -457,7 +510,6 @@ def parse_details(text):
     # url may contain the text like 'page 123' or 'chapter 3', so it needs to be extracted first
     url, text = get_url(text)
     gbooks, text = get_gbooks(text)
-    print("gbooks", gbooks)
 
     # get pages before page because pp. and p. both match  pp. 12-14
     pages, text = get_pages(text)
@@ -468,7 +520,6 @@ def parse_details(text):
         details["volume"] = volume
     edition, text = get_edition(text)
     if edition:
-        print("EDITION", [edition])
         if edition.isnumeric() and len(edition) == 4:
             details["year_published"] = edition
         else:
@@ -514,7 +565,9 @@ def parse_details(text):
 
     isbn, text = get_isbn(text)
     if isbn:
-        details["isbn"] = isbn
+        for count, isbn in enumerate(isbn, 1):
+            key = f"isbn{count}" if count > 1 else "isbn"
+            details[key] = isbn
     else:
         print("NO ISBN FOUND")
         print(details)
@@ -525,10 +578,10 @@ def parse_details(text):
     if oclc:
         details["oclc"] = oclc
 
-    text = re.sub(r"(\(novel\)|&nbsp|Google preview|Google search result|unnumbered page|online edition|unmarked page|Google [Bb]ooks)", "", text)
+    text = re.sub(r"(\(novel\)|&nbsp|Google online preview|Google [Pp]review|Google snippet view|online|preview|Google search result|unknown page|unpaged|unnumbered page(s)?|online edition|unmarked page|no page number|page n/a|Google books view|Google [Bb]ooks)", "", text)
     text = text.strip('#*:;, ()".')
     if page:
-        text = re.sub(r"([Pp]age|p\.|pg\.)", "", text)
+        text = re.sub(r"([Pp]age(s)?|pp\.|p\.|pg\.)", "", text)
     if text:
         dprint("unparsed text:", text)
         dprint(orig_text)

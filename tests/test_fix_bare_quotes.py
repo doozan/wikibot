@@ -441,6 +441,23 @@ def test_parse_details():
     print(res)
     assert res == None
 
+    # multi ISBN
+    text = """'''2008''': Martin Walters, ''Chinese Wildlife: A Visitor’s Guide'', [http://books.google.co.uk/books?id=yIqTV8t_ElAC&pg=PA25&dq=%22Chinese+grapefruit%22&ei=nJNLSv60J42mM7HXzK4K page 25] ([https://web.archive.org/web/20090917020647/http://www.bradt-travelguides.com/details.asp?prodid=177 Bradt Travel Guides]; {{ISBN|1841622206}}, 9781841622200)"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2008', 'author': 'Martin Walters', 'title': 'Chinese Wildlife: A Visitor’s Guide', 'pageurl': 'http://books.google.co.uk/books?id=yIqTV8t_ElAC&pg=PA25&dq=%22Chinese+grapefruit%22&ei=nJNLSv60J42mM7HXzK4K', 'page': '25', 'publisher': '[https://web.archive.org/web/20090917020647/http://www.bradt-travelguides.com/details.asp?prodid=177 Bradt Travel Guides]', 'isbn': '1841622206', 'isbn2': '9781841622200'}
+
+    # x, y, and z authors
+    text = """'''2001''', Delys Bird, Robert Dixon, and Christopher Lee, ''Authority and Influence'', [http://books.google.co.uk/books?id=DABZAAAAMAAJ&q=ambilaevous&dq=ambilaevous&ei=QiuSSImiGIHAigHKibD6DA&pgis=1 page 54] (University of Queensland Press; {{ISBN|0702232033}}, 9780702232039)"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2001', 'author': 'Delys Bird', 'author2': 'Robert Dixon', 'author3': 'Christopher Lee', 'title': 'Authority and Influence', 'pageurl': 'http://books.google.co.uk/books?id=DABZAAAAMAAJ&q=ambilaevous&dq=ambilaevous&ei=QiuSSImiGIHAigHKibD6DA&pgis=1', 'page': '54', 'publisher': 'University of Queensland Press', 'isbn': '0702232033', 'isbn2': '9780702232039'}
+
+    # Multiple editors
+    text = """'''2014''', Cornel Sandvoss & Laura Kearns, "From Interpretive Communities to Interpretive Fairs: Ordinary Fandom, Textual Selection and Digital Media", in ''The Ashgate Research Companion to Fan Cultures'' (eds. Stijn Reijnders, Koos Zwaan, & Linda Duits), Ashgate (2014), {{ISBN|9781409455622}}, [https://books.google.com/books?id=sfTiBAAAQBAJ&pg=PA93&dq=%22aca-fans%22 page 93]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2014', 'editor': 'Stijn Reijnders; Koos Zwaan; Linda Duits', 'author': 'Cornel Sandvoss', 'author2': 'Laura Kearns', 'chapter': 'From Interpretive Communities to Interpretive Fairs: Ordinary Fandom, Textual Selection and Digital Media', 'title': 'The Ashgate Research Companion to Fan Cultures', 'pageurl': 'https://books.google.com/books?id=sfTiBAAAQBAJ&pg=PA93&dq=%22aca-fans%22', 'page': '93', 'publisher': 'Ashgate', 'isbn': '9781409455622'}
 
     # Unhandled
     text = """'''1934''', {{w|George Herriman}}, ''{{w|Krazy Kat}}'', Tuesday, April 17 comic strip ({{ISBN|978-1-63140-408-5}}, p. 112):"""
@@ -473,9 +490,9 @@ def notest_all():
 
     with open("isbn.txt") as infile:
         for line in infile:
+            page, line = line.split("\t")
             line = line.lstrip("#:* ").strip()
-            try:
-                res = parse_details(line)
+            res = parse_details(line)
 #                if res and "publisher" in res:
 #                    print(res["publisher"])
 #                authors = [v for k,v in res.items() if k.startswith("author")]
@@ -487,7 +504,5 @@ def notest_all():
 #                else:
 #                    print("         ", authors)
 #                print("")
-            except:
-                pass
 
     assert 0
