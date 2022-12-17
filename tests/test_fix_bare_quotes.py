@@ -311,11 +311,26 @@ def test_parse_details():
     assert res == {'year': '1945', 'author': 'Neva L. Boyd', 'title': 'Handbook of Recreational Games', 'pageurl': 'http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight', 'page': '16', 'publisher': '[[w:Dover Publications|Dover]]', 'year_published': '1975', 'isbn': '0486232042'}
 
 
-    # Travellers edition
+    # Multiple pages, not yet handled
+    text = """'''2013''', Terry Pratchett, ''Raising Steam'', Doubleday, {{ISBN|978-0-857-52227-6}}, pages 345–346:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2013', 'author': 'Terry Pratchett', 'title': 'Raising Steam', 'pages': '345–346', 'publisher': 'Doubleday', 'isbn': '978-0-857-52227-6'}
+
+
+    # Pages in link text
+    text = """'''2006''', {{w|Alexander McCall Smith}}, ''Love Over Scotland'', Random House Digital (2007), {{ISBN|978-0-307-27598-1}}, [http://books.google.com/books?id=_SLjwNeumpoC&pg=PA242&dq=third-person pages 243-4]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2006', 'author': '{{w|Alexander McCall Smith}}', 'title': 'Love Over Scotland', 'pageurl': 'http://books.google.com/books?id=_SLjwNeumpoC&pg=PA242&dq=third-person', 'pages': '243-4', 'publisher': 'Random House Digital', 'year_published': '2007', 'isbn': '978-0-307-27598-1'}
+
+
+
+    # Travellers edition generated wrong publisher
     text="""'''1999''', Mark Warren, ''Mark Warren's Atlas of Australian Surfing'', traveller's edition 1999, {{ISBN|0-7322-6731-5}}, page 103"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '1945', 'author': 'Neva L. Boyd', 'title': 'Handbook of Recreational Games', 'pageurl': 'http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight', 'page': '16', 'publisher': '[[w:Dover Publications|Dover]]', 'year_published': '1975', 'isbn': '0486232042'}
+    assert res == {'year': '1999', 'author': 'Mark Warren', 'title': "Mark Warren's Atlas of Australian Surfing", 'page': '103', 'publisher': "traveller's", 'isbn': '0-7322-6731-5'}
 
     # Editor, not yet handled
     text="""'''2008''', ''The New Black Lace Book of Women's Sexual Fantasies'' (ed. Mitzi Szereto), Black Lace (2008), {{ISBN|9780352341723}}, [http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false page 38]"""
@@ -325,12 +340,6 @@ def test_parse_details():
 
     # Part, not yet handled
     text="""'''2002''', John Maynard, ''Aborigines and the ‘Sport of Kings’: Aboriginal Jockeys in Australian Racing History'', Aboriginal Studies Press (2013), {{ISBN|9781922059543}}, part II, {{gbooks|4erLAgAAQBAJ|96|streeted}}:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
-
-    # Multiple pages, not yet handled
-    text = """'''2013''', Terry Pratchett, ''Raising Steam'', Doubleday, {{ISBN|978-0-857-52227-6}}, pages 345–346:"""
     res = parse_details(text)
     print(res)
     assert res == None

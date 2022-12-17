@@ -265,6 +265,20 @@ def get_page(text):
     return "", text
 
 
+def get_pages(text):
+    pattern = r"""(?x)
+        ^[;:, ]*(?P<pre>.*?)\s*         # leading text
+        (?:[Pp]ages)(?:&nbsp;)?\s*      # pages
+        (\d+\s*(-|–|&|and|to)+\s*\d+)   # separated numbers
+        [;:, ]*(?P<post>.*)             # trailing text
+    """
+
+    m = re.match(pattern, text)
+    if m:
+        return m.group(2), m.group('pre') + " " + m.group('post')
+    return "", text
+
+
 def get_edition(text):
     pattern = r"""(?x)
         ^[;:, ]*(?P<pre>.*?)\s*         # leading text
@@ -351,6 +365,7 @@ def parse_details(text):
     url, link_text, text = get_url(text)
     gbooks, text = get_gbooks(text)
     page, text = get_page(text)
+    pages, text = get_pages(text)
     chapter, text = get_chapter(text)
     volume, text = get_volume(text)
     if volume:
@@ -364,6 +379,13 @@ def parse_details(text):
         if link_page:
             if not page:
                 page = link_page
+            details["pageurl"] = url
+            url = ""
+
+        link_pages, link_text = get_pages(link_text)
+        if link_pages:
+            if not pages:
+                pages = link_pages
             details["pageurl"] = url
             url = ""
 
@@ -397,6 +419,9 @@ def parse_details(text):
 
     if page:
         details["page"] = page
+
+    if pages:
+        details["pages"] = pages
 
     # Parse publisher after removing page, chapter, and volume info
 
@@ -483,12 +508,9 @@ def convert_book_quotes(section):
 
     pattern = r"""([#:*]+)\s*(?P<details>'''\d{4}'''.*{{ISBN.*)$"""
 
-#    """\n\1: (?P<passage>.*$)\n(?P<nextline>.*)"""
-
-
     outfile = open("unparsed.txt", "a")
-
     changed = False
+    to_remove = []
     for idx, line in enumerate(section._lines):
         m = re.match(pattern, line)
         if not m:
@@ -517,32 +539,53 @@ def convert_book_quotes(section):
                 #print("| in passage", passage)
                 continue
 
-        translation = None
-        if len(section._lines) > idx+2 and section._lines[idx+2].startswith(start + ":"):
-            translation = section._lines[idx+2].lstrip("#*: ")
-            if "|" in translation:
-                #print("| in translation", translation)
+        if lang_id == "en":
+            offset = 2
+            failed = False
+            to_merge = []
+            while len(section._lines) > idx+offset and section._lines[idx+offset].startswith(start + ":"):
+                if "|" in section._lines[idx+offset]:
+                    print("| in multi-line passage")
+                    failed = True
+                    break
+                to_merge.append(idx+offset)
+                offset += 1
+
+            if failed:
                 continue
 
+            for merge_idx in to_merge:
+                passage += "<br>" + section._lines[merge_idx].lstrip("#*: ")
 
-        if translation:
-            # English should never have a translation, it's a multi-line passage
-            if lang_id == "en":
-                print("too many following lines", list(section.lineage))
-                continue
+            to_remove += to_merge
 
-            # Fail on multi-line passages
-            if len(section._lines) > idx+3 and section._lines[idx+3].startswith(start + ":"):
-                #print("too many following lines", list(section.lineage))
-                continue
-
-            section._lines[idx+1] = "|passage=" + passage
-            section._lines[idx+2] = "|t=" + translation + "}}"
-        else:
             section._lines[idx+1] = "|passage=" + passage + "}}"
+
+        else:
+            translation = None
+            if len(section._lines) > idx+2 and section._lines[idx+2].startswith(start + ":"):
+                translation = section._lines[idx+2].lstrip("#*: ")
+                if "|" in translation:
+                    #print("| in translation", translation)
+                    continue
+
+                # Fail on multi-line passages with translation
+                if len(section._lines) > idx+3 and section._lines[idx+3].startswith(start + ":"):
+                    #print("too many following lines", list(section.lineage))
+                    continue
+
+                section._lines[idx+1] = "|passage=" + passage
+                section._lines[idx+2] = "|t=" + translation + "}}"
+            else:
+                section._lines[idx+1] = "|passage=" + passage + "}}"
+
         section._lines[idx] = start + " {{quote-book|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()])
 
         changed = True
+
+    for idx in reversed(to_remove):
+        print("removing", idx)
+        del section._lines[idx]
 
     outfile.close()
     return changed
@@ -568,7 +611,7 @@ def fix_bare_quotes(text, title, summary=None, options=None):
     if not changes:
         return text
 
-    if summary:
+    if summary is not None:
         summary += changes
 
     return str(entry)
