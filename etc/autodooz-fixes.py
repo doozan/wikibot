@@ -218,11 +218,21 @@ wikifix['pt_merge_verbs'] = {
 
 from autodooz.fix_bare_quotes import fix_bare_quotes
 
-wikifix['en_bare_quotes'] = {
+wikifix['bare_quotes'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
     "fixes": [(fix_bare_quotes, None)],
     "post-fixes": [(ele_cleanup, None)],
 }
 
+from autodooz.fix_es_form_overrides import OverrideFixer
+def es_form_overrides(text, title, summary, options):
+    fixer = get_fixer(OverrideFixer)
+    return fixer.process(text, title, summary)
 
+wikifix['es_form_overrides'] = {
+    'mode': 'function',
+    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
+    "fixes": [(es_form_overrides, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}

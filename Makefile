@@ -55,6 +55,7 @@ LIST_SECTION_ORDER_ERRORS := $(PYPATH) ./list_section_order_errors.py
 LIST_SECTION_LEVEL_ERRORS := $(PYPATH) ./list_section_level_errors.py
 LIST_DRAE_ERRORS := $(PYPATH) ./list_drae_errors.py
 LIST_DRAE_MISMATCHED_GENDERS := $(PYPATH) ./list_drae_mismatched_genders.py
+LIST_ES_FORM_OVERRIDES := $(PYPATH) ./list_es_form_overrides.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
@@ -404,6 +405,12 @@ $(LIST)section_order_errors: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.
 >   $(LIST_SECTION_ORDER_ERRORS) $(SAVE) $^
 >   touch $@
 
+$(LIST)es_form_overrides: $(SPANISH_DATA)/es-en.data
+>   @echo "Running $@..."
+
+>   $(LIST_ES_FORM_OVERRIDES) $(SAVE) $^
+>   touch $@
+
 # Fixes
 $(FIX)fr_missing_tlfi:
 >   @
@@ -458,7 +465,7 @@ $(FIX)section_levels:
 >   @
 >   SRC="User:JeffDoozan/lists/section_levels/fixes"
 >   FIX="--fix ele_cleanup --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=20000
+>   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
@@ -470,7 +477,7 @@ $(FIX)section_order:
 >   @
 >   SRC="User:JeffDoozan/lists/section_order/fixes"
 >   FIX="--fix ele_cleanup --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=20000
+>   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
@@ -542,7 +549,7 @@ $(FIX)es_unexpected_form:
 >   @
 >   SRC="User:JeffDoozan/lists/es/forms/unexpected_form_autofix"
 >   FIX="--fix es_replace_pos --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=2000
+>   MAX=200
 
 #>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 #>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
@@ -572,11 +579,22 @@ $(FIX)es_drae_wrong:
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
+$(FIX)es_form_overrides:
+>   SRC="User:JeffDoozan/lists/es/autofix_form_overrides"
+>   FIX="--fix es_form_overrides --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   MAX=200
 
-lists: $(patsubst %,$(LIST)%,t9n_problems section_stats es_forms_with_data mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals section_header_errors section_level_errors section_order_errors es_drae_mismatched_genders)
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(WIKIFIX) -links:$$SRC $$FIX
+>   echo $$LINKS > $@
+
+
+lists: $(patsubst %,$(LIST)%,t9n_problems section_stats es_forms_with_data mismatched_headlines maybe_forms missing_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals section_header_errors section_level_errors section_order_errors drae_mismatched_genders)
 
 # Fixes that are safe to run automatically and without supervision
-autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order)
+autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides)
 
 # Fixes that may make mistakes and need human supervision
 otherfixes: $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form)
