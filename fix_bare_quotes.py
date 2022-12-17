@@ -478,7 +478,15 @@ def parse_details(text):
         page = gbooks
 
     if url:
-        details["url"] = url
+        if "books.google" in url:
+            if page or pages:
+                details["pageurl"] = url
+            elif chapter:
+                details["chapterurl"] = url
+            else:
+                details["url"] = url
+        else:
+            details["url"] = url
 
     if chapter:
         details["chapter"] = chapter

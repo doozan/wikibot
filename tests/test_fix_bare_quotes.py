@@ -64,13 +64,13 @@ def test_parse_details():
     text = """'''2006''', W. Stanley Taft Jr. and James W. Mayer, ''The Science of Paintings'', {{ISBN|9780387217413}}, [https://books.google.ca/books?id=nobhBwAAQBAJ&pg=PA9&dq=%22deattributions%22&hl=en&sa=X&redir_esc=y#v=onepage&q=%22deattributions%22&f=false p. 9 (Google preview)]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2006', 'author': 'W. Stanley Taft Jr.', 'author2': 'James W. Mayer', 'title': 'The Science of Paintings', 'isbn': '9780387217413', 'url': 'https://books.google.ca/books?id=nobhBwAAQBAJ&pg=PA9&dq=%22deattributions%22&hl=en&sa=X&redir_esc=y#v=onepage&q=%22deattributions%22&f=false', 'page': '9'}
+    assert res == {'year': '2006', 'author': 'W. Stanley Taft Jr.', 'author2': 'James W. Mayer', 'title': 'The Science of Paintings', 'isbn': '9780387217413', 'pageurl': 'https://books.google.ca/books?id=nobhBwAAQBAJ&pg=PA9&dq=%22deattributions%22&hl=en&sa=X&redir_esc=y#v=onepage&q=%22deattributions%22&f=false', 'page': '9'}
 
     # google link, chapter in link
     text = """'''2010''', Rachel Cohn, ''Very Lefreak'', Random House, {{ISBN|9780375895524}}, [http://books.google.com/books?id=B7jw88zb_jEC&pg=PT19&dq=Wikipediaing chapter 3]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2010', 'author': 'Rachel Cohn', 'title': 'Very Lefreak', 'publisher': 'Random House', 'isbn': '9780375895524', 'url': 'http://books.google.com/books?id=B7jw88zb_jEC&pg=PT19&dq=Wikipediaing', 'chapter': '3'}
+    assert res == {'year': '2010', 'author': 'Rachel Cohn', 'title': 'Very Lefreak', 'publisher': 'Random House', 'isbn': '9780375895524', 'chapterurl': 'http://books.google.com/books?id=B7jw88zb_jEC&pg=PT19&dq=Wikipediaing', 'chapter': '3'}
 
     # gbooks for page
     text = """'''2001''', Rudi Bekkers, ''Mobile Telecommunications Standards: GSM, UMTS, TETRA, and ERMES'', Artech House ({{ISBN|9781580532501}}), page {{gbooks|PrG2URuUfioC|250|patent|pool}}:"""
@@ -82,7 +82,7 @@ def test_parse_details():
     text = """'''2004''', Rob Shein, ''Zero-Day Exploit: Countdown to Darkness'', Syngress ({{ISBN|9780080543925}}), page [https://books.google.de/books?id=ddGYYKnja1UC&lpg=PR21&dq=%22zero-day%20exploit%22&pg=PR21#v=onepage&q=%22zero-day%20exploit%22&f=false xxi]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2004', 'author': 'Rob Shein', 'title': 'Zero-Day Exploit: Countdown to Darkness', 'url': 'https://books.google.de/books?id=ddGYYKnja1UC&lpg=PR21&dq=%22zero-day%20exploit%22&pg=PR21#v=onepage&q=%22zero-day%20exploit%22&f=false', 'page': 'xxi', 'publisher': 'Syngress', 'isbn': '9780080543925'}
+    assert res == {'year': '2004', 'author': 'Rob Shein', 'title': 'Zero-Day Exploit: Countdown to Darkness', 'pageurl': 'https://books.google.de/books?id=ddGYYKnja1UC&lpg=PR21&dq=%22zero-day%20exploit%22&pg=PR21#v=onepage&q=%22zero-day%20exploit%22&f=false', 'page': 'xxi', 'publisher': 'Syngress', 'isbn': '9780080543925'}
 
     # p.230
     text ="""'''1994''', R. Jeffrey Ringer, ''Queer Words, Queer Images: Communication and Construction of Homosexuality'' {{ISBN|0814774415}}, p.230"""
@@ -94,7 +94,7 @@ def test_parse_details():
     text="""'''2003''', Gillian Cloke, ''This Female Man of God: Women and Spiritual Power in the Patristic Age, 350–450 AD'', Routledge, {{ISBN|9781134868254}}, [https://books.google.com/books?id=KCGIAgAAQBAJ&lpg=PA66&dq=%22inchastity%22&pg=PA66#v=onepage&q=%22inchastity%22&f=false p.&nbsp;66]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2003', 'author': 'Gillian Cloke', 'title': 'This Female Man of God: Women and Spiritual Power in the Patristic Age, 350–450 AD', 'publisher': 'Routledge', 'isbn': '9781134868254', 'url': 'https://books.google.com/books?id=KCGIAgAAQBAJ&lpg=PA66&dq=%22inchastity%22&pg=PA66#v=onepage&q=%22inchastity%22&f=false', 'page': '66'}
+    assert res == {'year': '2003', 'author': 'Gillian Cloke', 'title': 'This Female Man of God: Women and Spiritual Power in the Patristic Age, 350–450 AD', 'publisher': 'Routledge', 'isbn': '9781134868254', 'pageurl': 'https://books.google.com/books?id=KCGIAgAAQBAJ&lpg=PA66&dq=%22inchastity%22&pg=PA66#v=onepage&q=%22inchastity%22&f=false', 'page': '66'}
 
     # translator
     text = """'''2013''', Charles Dickens (tr. by Hans Jørgen Birkmose), ''Oliver Twist'', Klim ({{ISBN|9788771292855}})#"""
@@ -164,7 +164,7 @@ def test_parse_details():
     text="""'''1998''', [[w:Frank M. Robinson|Frank M. Robinson]] and Lawrence Davidson, ''Pulp Culture: The Art of Fiction Magazines'',<sup >[http://books.google.com/books?id=mhYfL6Dn5g8C ]</sup> Collectors Press, Inc., {{ISBN|1-888054-12-3}}, page 103"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '1998', 'author': '[[w:Frank M. Robinson|Frank M. Robinson]]', 'author2': 'Lawrence Davidson', 'title': 'Pulp Culture: The Art of Fiction Magazines', 'url': 'http://books.google.com/books?id=mhYfL6Dn5g8C', 'page': '103', 'publisher': 'Collectors Press, Inc.', 'isbn': '1-888054-12-3'}
+    assert res == {'year': '1998', 'author': '[[w:Frank M. Robinson|Frank M. Robinson]]', 'author2': 'Lawrence Davidson', 'title': 'Pulp Culture: The Art of Fiction Magazines', 'pageurl': 'http://books.google.com/books?id=mhYfL6Dn5g8C', 'page': '103', 'publisher': 'Collectors Press, Inc.', 'isbn': '1-888054-12-3'}
 
     # page before ISBN
     text="""'''2011''', Steve Urick, ''Practical Christian Living'', p. 214 ({{ISBN|978-1-4520-8297-4}}):"""
@@ -240,7 +240,7 @@ def test_parse_details():
     text="""'''2007''', David J. Wishart, ''Encyclopedia of the Great Plains Indians'', University of Nebraska Press (2007), {{ISBN|0-8032-9862-5}}, [http://books.google.ca/books?id=646oX4hA8EkC&lpg=PA32&dq=%22quilled%22&pg=PA32#v=onepage&q=%22quilled%22&f=false page 32]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2007', 'author': 'David J. Wishart', 'title': 'Encyclopedia of the Great Plains Indians', 'url': 'http://books.google.ca/books?id=646oX4hA8EkC&lpg=PA32&dq=%22quilled%22&pg=PA32#v=onepage&q=%22quilled%22&f=false', 'page': '32', 'publisher': 'University of Nebraska Press', 'isbn': '0-8032-9862-5'}
+    assert res == {'year': '2007', 'author': 'David J. Wishart', 'title': 'Encyclopedia of the Great Plains Indians', 'pageurl': 'http://books.google.ca/books?id=646oX4hA8EkC&lpg=PA32&dq=%22quilled%22&pg=PA32#v=onepage&q=%22quilled%22&f=false', 'page': '32', 'publisher': 'University of Nebraska Press', 'isbn': '0-8032-9862-5'}
 
     # publisher followed by year
     text="""'''2007''' Rachel M. Harper: ''Brass Ankle Blues''. Simon&Schuster 2007. {{ISBN|0743296583}} page 88:"""
@@ -264,13 +264,13 @@ def test_parse_details():
     text="""'''1958''', [[w:John Kenneth Galbraith|John Kenneth Galbraith]], ''The Affluent Society'' (1998 edition), {{ISBN|9780395925003}}, [http://books.google.ca/books?id=IfH010hvIqcC&printsec=frontcover&source=gbs_ge_summary_r&cad=0#v=onepage&q=niggardly&f=false p. 186]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '1958', 'author': '[[w:John Kenneth Galbraith|John Kenneth Galbraith]]', 'title': 'The Affluent Society', 'url': 'http://books.google.ca/books?id=IfH010hvIqcC&printsec=frontcover&source=gbs_ge_summary_r&cad=0#v=onepage&q=niggardly&f=false', 'page': '186', 'year_published': '1998', 'isbn': '9780395925003'}
+    assert res == {'year': '1958', 'author': '[[w:John Kenneth Galbraith|John Kenneth Galbraith]]', 'title': 'The Affluent Society', 'pageurl': 'http://books.google.ca/books?id=IfH010hvIqcC&printsec=frontcover&source=gbs_ge_summary_r&cad=0#v=onepage&q=niggardly&f=false', 'page': '186', 'year_published': '1998', 'isbn': '9780395925003'}
 
     # illustrated edition
     text="""'''2001''', [[w:Yann Martel|Yann Martel]], ''Life of Pi'' (illustrated 2007 edition), {{ISBN|9780156035811}}, [http://books.google.ca/books?id=RmkhNOzuV5YC&pg=PA186&dq=%22calendar+day%22+subject:%22fiction%22&hl=en&sa=X&ei=ChOEU8PrEMiT8QHQxoC4Bw&ved=0CCwQ6AEwADgK#v=onepage&q=%22calendar%20day%22%20subject%3A%22fiction%22&f=false p. 186 (Google preview)]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2001', 'author': '[[w:Yann Martel|Yann Martel]]', 'title': 'Life of Pi', 'url': 'http://books.google.ca/books?id=RmkhNOzuV5YC&pg=PA186&dq=%22calendar+day%22+subject:%22fiction%22&hl=en&sa=X&ei=ChOEU8PrEMiT8QHQxoC4Bw&ved=0CCwQ6AEwADgK#v=onepage&q=%22calendar%20day%22%20subject%3A%22fiction%22&f=false', 'page': '186', 'year_published': '2007', 'isbn': '9780156035811'}
+    assert res == {'year': '2001', 'author': '[[w:Yann Martel|Yann Martel]]', 'title': 'Life of Pi', 'pageurl': 'http://books.google.ca/books?id=RmkhNOzuV5YC&pg=PA186&dq=%22calendar+day%22+subject:%22fiction%22&hl=en&sa=X&ei=ChOEU8PrEMiT8QHQxoC4Bw&ved=0CCwQ6AEwADgK#v=onepage&q=%22calendar%20day%22%20subject%3A%22fiction%22&f=false', 'page': '186', 'year_published': '2007', 'isbn': '9780156035811'}
 
     # No author
     text="""'''2008''', ''Household Economy Approach'' ({{ISBN|9781841871196}}), page 3:"""
@@ -314,7 +314,7 @@ def test_parse_details():
     text="""'''1964''': Nikolay Rimsky-Korsakov ''et alii'', ''Principles of orchestration: with musical examples drawn from his own works'', [http://books.google.co.uk/books?id=erS-2XR-kPUC&pg=PA112&dq=crescendi&ei=58nkSeaJIYyykASju4yfDQ page 112] ([http://store.doverpublications.com/0486212661.html DoverPublications.com]; {{ISBN|0486212661}}"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '1964', 'author': 'Nikolay Rimsky-Korsakov', 'author2': 'et al', 'title': 'Principles of orchestration: with musical examples drawn from his own works', 'url': 'http://books.google.co.uk/books?id=erS-2XR-kPUC&pg=PA112&dq=crescendi&ei=58nkSeaJIYyykASju4yfDQ', 'page': '112', 'publisher': '[http://store.doverpublications.com/0486212661.html DoverPublications.com]', 'isbn': '0486212661'}
+    assert res == {'year': '1964', 'author': 'Nikolay Rimsky-Korsakov', 'author2': 'et al', 'title': 'Principles of orchestration: with musical examples drawn from his own works', 'pageurl': 'http://books.google.co.uk/books?id=erS-2XR-kPUC&pg=PA112&dq=crescendi&ei=58nkSeaJIYyykASju4yfDQ', 'page': '112', 'publisher': '[http://store.doverpublications.com/0486212661.html DoverPublications.com]', 'isbn': '0486212661'}
 
 
     # publisher followed by ed.
@@ -346,7 +346,7 @@ def test_parse_details():
     text="""'''1945''', Neva L. Boyd, ''Handbook of Recreational Games'', 1975 [[w:Dover Publications|Dover]] edition, {{ISBN|0486232042}}, [http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight p.16]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '1945', 'author': 'Neva L. Boyd', 'title': 'Handbook of Recreational Games', 'url': 'http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight', 'page': '16', 'publisher': '[[w:Dover Publications|Dover]]', 'year_published': '1975', 'isbn': '0486232042'}
+    assert res == {'year': '1945', 'author': 'Neva L. Boyd', 'title': 'Handbook of Recreational Games', 'pageurl': 'http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight', 'page': '16', 'publisher': '[[w:Dover Publications|Dover]]', 'year_published': '1975', 'isbn': '0486232042'}
 
 
     # Multiple pages
@@ -360,20 +360,20 @@ def test_parse_details():
     text = """'''2006''', {{w|Alexander McCall Smith}}, ''Love Over Scotland'', Random House Digital (2007), {{ISBN|978-0-307-27598-1}}, [http://books.google.com/books?id=_SLjwNeumpoC&pg=PA242&dq=third-person pages 243-4]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2006', 'author': '{{w|Alexander McCall Smith}}', 'title': 'Love Over Scotland', 'url': 'http://books.google.com/books?id=_SLjwNeumpoC&pg=PA242&dq=third-person', 'pages': '243-4', 'publisher': 'Random House Digital', 'year_published': '2007', 'isbn': '978-0-307-27598-1'}
+    assert res == {'year': '2006', 'author': '{{w|Alexander McCall Smith}}', 'title': 'Love Over Scotland', 'pageurl': 'http://books.google.com/books?id=_SLjwNeumpoC&pg=PA242&dq=third-person', 'pages': '243-4', 'publisher': 'Random House Digital', 'year_published': '2007', 'isbn': '978-0-307-27598-1'}
 
     # Strip (novel) from unparsed text
     text = """'''1959''', [[w:James Michener|James Michener]], ''[[w:Hawaii (novel)|Hawaii]]'' (novel),<sup >[http://books.google.com/books?id=1QHYAAAAMAAJ ]</sup> Fawcett Crest (1986), {{ISBN|9780449213353}}, page 737:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '1959', 'author': '[[w:James Michener|James Michener]]', 'title': '[[w:Hawaii (novel)|Hawaii]]', 'url': 'http://books.google.com/books?id=1QHYAAAAMAAJ', 'page': '737', 'publisher': 'Fawcett Crest', 'year_published': '1986', 'isbn': '9780449213353'}
+    assert res == {'year': '1959', 'author': '[[w:James Michener|James Michener]]', 'title': '[[w:Hawaii (novel)|Hawaii]]', 'pageurl': 'http://books.google.com/books?id=1QHYAAAAMAAJ', 'page': '737', 'publisher': 'Fawcett Crest', 'year_published': '1986', 'isbn': '9780449213353'}
 
 
     # Strip (novel) from unparsed text
     text = """'''2003''', Karin Slaughter, ''A Faint Cold Fear'' (novel), HarperCollins, {{ISBN|978-0-688-17458-3}}, [http://books.google.com/books?id=n8yT5KxPzNAC&pg=PA169&dq=rolling page 169]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2003', 'author': 'Karin Slaughter', 'title': 'A Faint Cold Fear', 'url': 'http://books.google.com/books?id=n8yT5KxPzNAC&pg=PA169&dq=rolling', 'page': '169', 'publisher': 'HarperCollins', 'isbn': '978-0-688-17458-3'}
+    assert res == {'year': '2003', 'author': 'Karin Slaughter', 'title': 'A Faint Cold Fear', 'pageurl': 'http://books.google.com/books?id=n8yT5KxPzNAC&pg=PA169&dq=rolling', 'page': '169', 'publisher': 'HarperCollins', 'isbn': '978-0-688-17458-3'}
 
     # Travellers edition generated wrong publisher
     text="""'''1999''', Mark Warren, ''Mark Warren's Atlas of Australian Surfing'', traveller's edition 1999, {{ISBN|0-7322-6731-5}}, page 103"""
@@ -385,7 +385,7 @@ def test_parse_details():
     text="""'''2008''', ''The New Black Lace Book of Women's Sexual Fantasies'' (ed. Mitzi Szereto), Black Lace (2008), {{ISBN|9780352341723}}, [http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false page 38]"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2008', 'editor': 'Mitzi Szereto', 'title': "The New Black Lace Book of Women's Sexual Fantasies", 'url': 'http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false', 'page': '38', 'publisher': 'Black Lace', 'isbn': '9780352341723'}
+    assert res == {'year': '2008', 'editor': 'Mitzi Szereto', 'title': "The New Black Lace Book of Women's Sexual Fantasies", 'pageurl': 'http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false', 'page': '38', 'publisher': 'Black Lace', 'isbn': '9780352341723'}
 
     # Pages
     text = """'''1999''', Peter McPhee, ''Runner'', {{ISBN|1550286749}}, pp. 37{{ndash}}8:"""
@@ -409,7 +409,7 @@ def test_parse_details():
     text = """'''2009''', Cate Robertson, "Half-Crown Doxy", in ''Bitten: Dark Erotic Stories'' (ed. Susie Bright), Chronicle Books (2009), {{ISBN|9780811864251}}, [http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false page 126]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2009', 'editor': 'Susie Bright', 'author': 'Cate Robertson', 'chapter': 'Half-Crown Doxy', 'title': 'Bitten: Dark Erotic Stories', 'url': 'http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false', 'page': '126', 'publisher': 'Chronicle Books', 'isbn': '9780811864251'}
+    assert res == {'year': '2009', 'editor': 'Susie Bright', 'author': 'Cate Robertson', 'chapter': 'Half-Crown Doxy', 'title': 'Bitten: Dark Erotic Stories', 'pageurl': 'http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false', 'page': '126', 'publisher': 'Chronicle Books', 'isbn': '9780811864251'}
 
     # Chapter title in ''
     text = """'''2002''' Dave Margoshes, ''Faith, Hope, Charity'', in ''Purity of Absence'', Dundurn Press Ltd., {{ISBN|0888784198}}, page 106:"""
@@ -427,7 +427,7 @@ def test_parse_details():
     text = """'''2009''', Steve Scott, ''Insiders - Outsiders'', {{ISBN|9781907172205}}, [http://books.google.ca/books?id=LKaOUC90pKUC&pg=PA37&dq=%22ashamed+me%22&hl=en&sa=X&ei=uPlIUqWICfPb4AOc34CACQ&ved=0CDoQ6AEwAjgK#v=snippet&q=%22ashamed%20me%22&f=false pp. 36-37 (Google preview)]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2009', 'author': 'Steve Scott', 'title': 'Insiders - Outsiders', 'url': 'http://books.google.ca/books?id=LKaOUC90pKUC&pg=PA37&dq=%22ashamed+me%22&hl=en&sa=X&ei=uPlIUqWICfPb4AOc34CACQ&ved=0CDoQ6AEwAjgK#v=snippet&q=%22ashamed%20me%22&f=false', 'pages': '36-37', 'isbn': '9781907172205'}
+    assert res == {'year': '2009', 'author': 'Steve Scott', 'title': 'Insiders - Outsiders', 'pageurl': 'http://books.google.ca/books?id=LKaOUC90pKUC&pg=PA37&dq=%22ashamed+me%22&hl=en&sa=X&ei=uPlIUqWICfPb4AOc34CACQ&ved=0CDoQ6AEwAjgK#v=snippet&q=%22ashamed%20me%22&f=false', 'pages': '36-37', 'isbn': '9781907172205'}
 
     # Extra title, unhandled
     text="""'''2010''', S. Suzanne Nielsen, ed, ''Food Analysis, fourth edition'', {{ISBN|978-1-4419-1477-4}}, Chapter 12, "Traditional Methods for Mineral Analysis", page 213"""
