@@ -4,7 +4,7 @@ import argparse
 import re
 import sys
 
-from autodooz.fix_bare_quotes import fix_bare_quotes
+from autodooz.fix_bare_quotes import QuoteFixer
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 from enwiktionary_wordlist.wordlist import Wordlist
@@ -13,12 +13,29 @@ from pywikibot import xmlreader
 class WikiSaver(BaseHandler):
 
     def sort_items(self, items):
-        return sorted(items)
+        count = defaultdict(int)
+        for item in items:
+            count[item.error] += 1
+
+        # sort autofix sections first so they can be split into other pages
+        # everything else sorted by count of section entries (smallest to largest)
+        return sorted(items, key=lambda x: ("autofix" in x.error, count[x.error], x.error, x.page))
+
+    def is_new_section(self, item, prev_item):
+        return prev_item and prev_item.error != item.error
+
+    def is_new_page(self, page_sections, section_entries):
+        return page_sections and (page_sections[-1][-1].error.startswith("autofix") != section_entries[0].error.startswith("autofix"))
 
     def page_name(self, page_sections, prev):
-        return "autofix_bare_quotes"
+        if "autofix" in page_sections[0][0].error:
+            return "fixes"
+        else:
+            return "errors"
 
     def format_entry(self, entry, prev_entry):
+        if entry.details:
+            return [f": [[{entry.page}]] <nowiki>{entry.details}</nowiki>"]
         return [f": [[{entry.page}]]"]
 
     def get_section_header(self, base_path, page_name, section_entries, prev_section_entries, pages):
@@ -45,11 +62,12 @@ class FileSaver(WikiSaver):
         super().save(*args, **nargs, commit_message=None)
 
 class Logger(WikiLogger):
-    _paramtype = namedtuple("params", [ "error", "page" ])
+    _paramtype = namedtuple("params", [ "error", "page", "details" ])
 
 logger = Logger()
-def log(error, page):
-    logger.add(error, page)
+def log(error, section, details=None):
+    page = list(section.lineage)[-1]
+    logger.add(error, page, details)
 
 def main():
     parser = argparse.ArgumentParser(description="Find Spanish nouns with manually specified forms")
@@ -58,6 +76,8 @@ def main():
     parser.add_argument("--progress", help="Display progress", action='store_true')
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
     args = parser.parse_args()
+
+    fixer = QuoteFixer(log)
 
     dump = xmlreader.XmlDump(args.xml)
     parser = dump.parse()
@@ -73,12 +93,10 @@ def main():
             break
         count += 1
 
-        new_text = fix_bare_quotes(page.text, page.title)
-        if new_text != page.text:
-            log("autofix_bare_quote", page.title)
+        fixer.process(page.text, page.title)
 
     if args.save:
-        base_url = f"User:JeffDoozan/lists"
+        base_url = f"User:JeffDoozan/lists/bare_quotes"
         logger.save(base_url, WikiSaver, commit_message=args.save)
     else:
         dest = ""

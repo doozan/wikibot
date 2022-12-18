@@ -216,7 +216,10 @@ wikifix['pt_merge_verbs'] = {
     "post-fixes": [(ele_cleanup, None)],
 }
 
-from autodooz.fix_bare_quotes import fix_bare_quotes
+from autodooz.fix_bare_quotes import QuoteFixer
+def fix_bare_quotes(text, title, summary, options):
+    fixer = get_fixer(QuoteFixer)
+    return fixer.process(text, title, summary)
 
 wikifix['bare_quotes'] = {
     'mode': 'function',

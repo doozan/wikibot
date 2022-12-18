@@ -68,7 +68,7 @@ TLFI_LEMMAS := $(EXTERNAL)/tlfi.lemmas
 LIST := $(BUILDDIR)/.list.
 FIX := $(BUILDDIR)/.fix.
 
-SAVE := #--save "Updated with $(DATETAG_PRETTY) data"
+SAVE := --save "Updated with $(DATETAG_PRETTY) data"
 
 # Call into the spanish_data makefile to build anything not declared here
 $(BUILDDIR)/%.data-full: force
@@ -598,9 +598,9 @@ $(FIX)es_form_overrides:
 >   echo $$LINKS > $@
 
 $(FIX)bare_quotes:
->   SRC="User:JeffDoozan/lists/autofix_bare_quotes"
+>   SRC="User:JeffDoozan/lists/bare_quotes/fixes"
 >   FIX="--fix bare_quotes --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=20000
+>   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit

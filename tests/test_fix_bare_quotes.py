@@ -1,4 +1,5 @@
-from ..fix_bare_quotes import parse_details
+from ..fix_bare_quotes import QuoteFixer
+parse_details = QuoteFixer.parse_details
 
 def test_parse_details():
 
