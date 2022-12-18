@@ -690,6 +690,8 @@ class AutoDooz(
                 as_edited = text_editor.edit(edit_text)
                 # if user didn't press Cancel
                 if as_edited and as_edited != new_text:
+                    if not summary.endswith(" (manually adjusted)"):
+                        summary += " (manually adjusted)"
                     new_text = as_edited
                     if choice == 'l':
                         # prevent changes from being applied again
