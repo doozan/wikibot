@@ -382,6 +382,11 @@ def test_parse_details():
     print(res)
     assert res == {'year': '1999', 'author': 'Mark Warren', 'title': "Mark Warren's Atlas of Australian Surfing", 'edition': "traveller's", 'page': '103', 'isbn': '0-7322-6731-5'}
 
+    text = """'''1999''', K. Zakrzewska, R. Lavery, "Modelling DNA-protein interactions", in ''Computational Molecular Biology'' (edited by J. Leszczynski; {{ISBN|008052964X}}:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1999', 'editor': 'J. Leszczynski', 'author': 'K. Zakrzewska', 'author2': 'R. Lavery', 'chapter': 'Modelling DNA-protein interactions', 'title': 'Computational Molecular Biology', 'isbn': '008052964X'}
+
     # Editor prefixed
     text="""'''2008''', ''The New Black Lace Book of Women's Sexual Fantasies'' (ed. Mitzi Szereto), Black Lace (2008), {{ISBN|9780352341723}}, [http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false page 38]"""
     res = parse_details(text)
@@ -459,6 +464,12 @@ def test_parse_details():
     res = parse_details(text)
     print(res)
     assert res == {'year': '2014', 'editor': 'Stijn Reijnders; Koos Zwaan; Linda Duits', 'author': 'Cornel Sandvoss', 'author2': 'Laura Kearns', 'chapter': 'From Interpretive Communities to Interpretive Fairs: Ordinary Fandom, Textual Selection and Digital Media', 'title': 'The Ashgate Research Companion to Fan Cultures', 'pageurl': 'https://books.google.com/books?id=sfTiBAAAQBAJ&pg=PA93&dq=%22aca-fans%22', 'page': '93', 'publisher': 'Ashgate', 'isbn': '9781409455622'}
+
+    # '''''
+    text = """'''2014''', Larisa Kharakhinova, ''Heart-to-heart letters: to MrRight from '''CCCP''''', Litres {{ISBN|9785457226449}}, page 22"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2014', 'author': 'Larisa Kharakhinova', 'title': "Heart-to-heart letters: to MrRight from '''CCCP'''", 'page': '22', 'publisher': 'Litres', 'isbn': '9785457226449'}
 
     # Unhandled
     text = """'''1934''', {{w|George Herriman}}, ''{{w|Krazy Kat}}'', Tuesday, April 17 comic strip ({{ISBN|978-1-63140-408-5}}, p. 112):"""

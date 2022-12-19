@@ -21,6 +21,8 @@ class QuoteFixer():
     def warn(self, code, section, details=None):
         if self._logger:
             self._logger(code, section, details)
+        else:
+            print(code, section.path, details)
 
     @staticmethod
     def get_year(text):
@@ -87,7 +89,7 @@ class QuoteFixer():
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*  # leading text
             [;:,(]\s*                # separator
-            (?:edited by|ed\. )\s+   # edited by
+            (?:edited\sby|ed\.)\s+   # edited by
             (.*?)                    # name
             [);:,]\s*                # separator
             (?P<post>.*)$            # trailing text
@@ -227,17 +229,21 @@ class QuoteFixer():
     @classmethod
     def get_title(cls, text):
         # The title is the first string closed in '' '' possibly followed by (novel)
-        m = re.match(r"[;:, ]*''(.+?)''(?:\s*\(novel\)\s*)?[;:,. ]*(.*)$", text)
+
+        # match exactly 2 or 5 single quotes
+        q = "(?<!')(?:'{2}|'{5})(?!')"
+
+        m = re.match(fr"[;:, ]*({q}.+?{q})(?:\s*\(novel\)\s*)?[;:,. ]*(.*)$", text)
         if not m:
             return "", text
 
         # If the title is followed by another title, the following is a subtitle
-        title = m.group(1)
+        title = m.group(1)[2:-2]
         subtitle, post_text = cls.get_title(m.group(2))
         if subtitle:
             return f"{title}: {subtitle}", post_text
 
-        return m.group(1), m.group(2)
+        return title, m.group(2)
 
 
     @staticmethod
@@ -288,13 +294,14 @@ class QuoteFixer():
                 location, _, l_publisher = publisher.partition(":")
                 location = location.strip()
 
-                if location in [ "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]" ]:
+                if location in [ "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y." ]:
                     publisher = l_publisher.strip()
                 else:
                     dprint("unknown location:", location)
                     location = None
 
-    #        publisher = publisher.strip("() ")
+            publisher = re.sub(r"\s*\(publisher\)$", "", publisher)
+            publisher = re.sub(r"^published by( the)?", "", publisher)
 
             if not cls.is_valid_publisher(publisher):
                 dprint("bad publisher", publisher)
@@ -504,7 +511,8 @@ class QuoteFixer():
         # may occurr in any order:
         # (OCLC) page 1, chapter 2,
 
-        if "quoted" in text or "comic" in text or "&quot;" in text:
+        #if "quoted" in text or "comic" in text or "&quot;" in text or "<!--" in text or "-->" in text:
+        if "<!--" in text or "-->" in text:
             return
 
         orig_text = text
@@ -513,6 +521,9 @@ class QuoteFixer():
         text = re.sub(r"<\s*/?\s*sup\s*>", "", text)
         text = text.replace('<span class="plainlinks">', "")
         text = text.replace('</span>', "")
+        text = text.replace('<small>', "")
+        text = text.replace('</small>', "")
+        text = text.replace('{{,}}', ",")
 
         year, text = cls.get_year(text)
         details["year"] = year
@@ -639,17 +650,18 @@ class QuoteFixer():
             if not m:
                 continue
             start = m.group(1)
+
+            params = self.parse_details(m.group('details'))
+            if not params:
+                self.warn("unparsable_line", section, line)
+                continue
+
             if len(section._lines) <= idx+1:
                 self.warn("no_following_line", section, section.path)
                 continue
 
             if not section._lines[idx+1].startswith(start + ":"):
-                self.warn("unexpected_following_line", section, section._lines[idx+1])
-                continue
-
-            params = self.parse_details(m.group('details'))
-            if not params:
-                self.warn("unparsable_line", section, line)
+                self.warn("unexpected_following_line", section, section.path)
                 continue
 
             passage = section._lines[idx+1].lstrip("#*: ")
@@ -692,11 +704,11 @@ class QuoteFixer():
                 translation = None
                 if len(section._lines) > idx+2 and section._lines[idx+2].startswith(start + ":"):
                     if "|t=" in passage:
-                        self.warn("multi_translations", section, passage)
+                        self.warn("multi_translations", section, passage + " ----> " + section._lines[idx+2])
                         continue
                     translation = section._lines[idx+2].lstrip("#*: ")
                     if "|" in translation:
-                        self.warn("pipe_in_translation", section, passage)
+                        self.warn("pipe_in_translation", section, translation)
                         continue
 
                     # Fail on multi-line passages with translation
