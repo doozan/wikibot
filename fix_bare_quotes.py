@@ -9,20 +9,20 @@ def dprint(*args, **kwargs):
 
 class QuoteFixer():
 
-    def __init__(self, logger=None):
-        self._logger = logger
+    def __init__(self):
+        self._summary = None
+        self._log = []
 
     def fix(self, code, section, details):
-        if self._logger:
-            self._logger("autofix_" + code, section)
-        else:
+        if self._summary is not None:
             self._summary.append(f"/*{section.path}*/ {details}")
 
+        page = list(section.lineage)[-1]
+        self._log.append(("autofix_" + code, page))
+
     def warn(self, code, section, details=None):
-        if self._logger:
-            self._logger(code, section, details)
-        else:
-            print(code, section.path, details)
+        page = list(section.lineage)[-1]
+        self._log.append((code, page, details))
 
     @staticmethod
     def get_year(text):
@@ -730,21 +730,31 @@ class QuoteFixer():
         return changed
 
 
-    def process(self, text, title, summary=[], options=None):
+    def process(self, text, title, summary=None, options=None):
+        # This function runs in two modes: fix and report
+        #
+        # When summary is None, this function runs in 'report' mode and
+        # returns [(code, page, details)] for each fix or warning
+        #
+        # When run using wikifix, summary is not null and the function
+        # runs in 'fix' mode.
+        # summary will be appended with a description of any changes made
+        # and the function will return the modified page text
 
+        self._log = []
         self._summary = summary
 
         # skip edits on pages with lua memory errors
         ignore_pages = [ "is", "I", "a", "de" ]
         if title in ignore_pages:
-            return text
+            return [] if summary is None else text
 
         entry = SectionParser(text, title)
         if entry.state:
-            return text
+            return [] if summary is None else text
 
         for section in entry.ifilter_sections():
             if self.convert_book_quotes(section, title):
                 self.fix("bare_quote", section, "converted bare quote to quote-book")
 
-        return str(entry)
+        return self._log if summary is None else str(entry)
