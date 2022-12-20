@@ -1,5 +1,6 @@
 from ..fix_bare_quotes import QuoteFixer
-parse_details = QuoteFixer.parse_details
+fixer = QuoteFixer()
+parse_details = fixer.parse_details
 
 def test_parse_details():
 
@@ -487,16 +488,76 @@ def test_parse_details():
 
 def test_entry():
 
-    text = """
+    text = """\
+==German==
+
+===Noun===
 #* '''2014''', Dr. Aneesa Khan, ''Spice Doctor'', Author House ({{ISBN|9781496993014}}), page 37:#
-#*: Marinade: 4 tbsp tomato puree
-#*: 3 tbsp lemon juice
-#*: 1 tsp crushed garlic
-#*: {{...}}
-#*: 1 tsp turmeric powder
-#*: 1⁄2 tsp '''elachi''' powder
-#*: 1⁄2 tsp pepper
+#*: line 1
+#*: line 2
+#*:: trans1
+#*:: trans2
 """
+
+    expected = """\
+==German==
+
+===Noun===
+#* {{quote-book|de|year=2014|author=Dr. Aneesa Khan|title=Spice Doctor|page=37|publisher=Author House|isbn=9781496993014
+|passage=line 1<br>line 2
+|translation=trans1<br>trans2}}\
+"""
+
+    res = fixer.process(text, "test", [])
+    print([res])
+    assert res == expected
+
+
+def test_entry_too_many_depths():
+
+    text = """\
+==Quechua==
+
+===Etymology===
+{{rfe|qu}}
+
+===Noun===
+{{head|qu|noun}}
+
+# [[noise]]
+#* '''2012''', ''Languages of the Amazon'' {{ISBN|0199593566}}:
+#*: ancha-p ancha-p-ña-m '''buulla'''-kta-lula-n kada tuta-m
+#*:: too.much-GEN too.much-GEN-NOW-DIR.EV noise-ACC make-3p each night-DIR.EV
+#*::: He really makes to much '''noise''' ... every night. (I [have direct knowledge of this, in that] hear it.)\
+"""
+    res = fixer.process(text, "test", [])
+    assert res == text
+
+def test_get_passage():
+
+    text = """\
+#*: line1
+#*: line2\
+"""
+    expected = "line1<br>line2"
+
+    passage, translation = fixer.get_passage(text.splitlines())
+    print(passage)
+    assert passage == expected
+    assert translation == ""
+
+
+def test_get_passage_with_translation():
+
+    text = """\
+#*: {{quote|de|blah|transblah}}
+"""
+    expected = ('blah', 'transblah')
+
+    res = fixer.get_passage(text.splitlines())
+    print(res)
+    assert res == expected
+
 
 def notest_all():
 

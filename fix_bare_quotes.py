@@ -635,6 +635,45 @@ class QuoteFixer():
         return details
 
 
+    def get_passage(self, passage_lines, section=None):
+        lines = []
+        converted_template = False
+        for line in passage_lines:
+            passage = line.lstrip("#*: ")
+            if "|" in passage:
+                m = re.match(r"^{{(?:quote|ux)\|[^|]*\|(.*)}}\s*$", passage)
+                if m:
+                    passage = m.group(1)
+                    if passage.count("|") == 1 and "|t=" not in passage and "|translation=" not in passage:
+                        passage = passage.replace("|", "|t=")
+
+                    passage = passage.replace("|translation=", "|t=")
+
+                    if converted_template:
+                        if section:
+                            self.warn("passage_has_multi_templates", section)
+                        return
+                    converted_template = True
+
+            lines.append(passage)
+
+        passage = "<br>".join(lines)
+
+        passage, _, translation = passage.partition("|t=")
+
+        allowed_pipes = passage.count("{{...|") + passage.count("{{w|")
+        if passage.count("|") != allowed_pipes:
+            if section:
+                self.warn("pipe_in_passage", section, passage)
+            return
+
+        return passage, translation
+
+
+    def get_translation(self, translation_lines):
+        return "<br>".join(l.lstrip("#*: ") for l in translation_lines)
+
+
     def convert_book_quotes(self, section, title):
 
         lang_id = ALL_LANGS.get(section._topmost.title)
@@ -656,72 +695,74 @@ class QuoteFixer():
                 self.warn("unparsable_line", section, line)
                 continue
 
-            if len(section._lines) <= idx+1:
+            passage_lines = []
+            translation_lines = []
+
+            offset = 1
+            failed = False
+            while idx+offset < len(section._lines) and section._lines[idx+offset].startswith(start + ":"):
+
+                if re.match(re.escape(start) + ":[^:]", section._lines[idx+offset]):
+                    if translation_lines and passage_lines:
+                        self.warn("multi_passage", section, section._lines[idx+offset])
+                    passage_lines.append(section._lines[idx+offset])
+
+                elif re.match(re.escape(start) + "::[^:]", section._lines[idx+offset]):
+                    if not passage_lines:
+                        self.warn("translation_before_passage", section, section._lines[idx+offset])
+                    translation_lines.append(section._lines[idx+offset])
+
+                else:
+                    self.warn("unhandled_following_line", section, section._lines[idx+offset])
+                    failed = True
+
+                offset += 1
+
+            if failed:
+                continue
+
+            res = self.get_passage(passage_lines, section)
+            if not res:
+                continue
+            passage, translation1 = res
+
+            translation2 = self.get_translation(translation_lines)
+            if translation1 and translation2:
+                self.warn("multi_translations", section, translation + " ----> " + translation2)
+            else:
+                translation = translation1 if translation1 else translation2
+
+            if "|" in translation:
+                self.warn("pipe_in_translation", section, translation)
+                return
+
+
+            if translation and not passage:
+                self.warn("translation_without_passage", section, section.path)
+                continue
+
+            if not passage:
+                # TODO: convert to cite-book instead of quote-book
                 self.warn("no_following_line", section, section.path)
                 continue
 
-            if not section._lines[idx+1].startswith(start + ":"):
-                self.warn("unexpected_following_line", section, section.path)
+            if lang_id == "en" and translation:
+                self.warn("english_with_translation", section, translation)
                 continue
 
-            passage = section._lines[idx+1].lstrip("#*: ")
-            if "|" in passage:
-                m = re.match(r"^{{(?:quote|ux)\|" + lang_id + r"\|(.*)}}$", passage)
-                if m:
-                    passage = m.group(1)
-                    if passage.count("|") == 1 and "t=" not in passage and "translation=" not in passage:
-                        passage = passage.replace("|", "|t=")
-
-                allowed_pipes = passage.count("|t=") + passage.count("|translation=") + passage.count("{{...|") + passage.count("{{w|")
-
-                if passage.count("|") != allowed_pipes:
-                    self.warn("pipe_in_passage", section, passage)
-                    continue
-
-            if lang_id == "en":
-                offset = 2
-                failed = False
-                to_merge = []
-                while len(section._lines) > idx+offset and section._lines[idx+offset].startswith(start + ":"):
-                    if "|" in section._lines[idx+offset]:
-                        self.warn("pipe_in_passage", section, passage)
-                        failed = True
-                        break
-                    to_merge.append(idx+offset)
-                    offset += 1
-
-                if failed:
-                    continue
-
-                for merge_idx in to_merge:
-                    passage += "<br>" + section._lines[merge_idx].lstrip("#*: ")
-
-                to_remove += to_merge
-
+            section._lines[idx] = start + " {{quote-book|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()])
+            if translation2:
+                section._lines[idx+1] = "|passage=" + passage
+                section._lines[idx+2] = "|translation=" + translation + "}}"
+            elif translation1:
+                section._lines[idx+1] = "|passage=" + passage + "|t=" + translation + "}}"
+            else:
                 section._lines[idx+1] = "|passage=" + passage + "}}"
 
-            else:
-                translation = None
-                if len(section._lines) > idx+2 and section._lines[idx+2].startswith(start + ":"):
-                    if "|t=" in passage:
-                        self.warn("multi_translations", section, passage + " ----> " + section._lines[idx+2])
-                        continue
-                    translation = section._lines[idx+2].lstrip("#*: ")
-                    if "|" in translation:
-                        self.warn("pipe_in_translation", section, translation)
-                        continue
+            used = 3 if translation2 else 2
+            for to_remove_idx in range(idx+used, idx+offset):
+                to_remove.append(to_remove_idx)
 
-                    # Fail on multi-line passages with translation
-                    if len(section._lines) > idx+3 and section._lines[idx+3].startswith(start + ":"):
-                        self.warn("multi_line_translation", section, passage)
-                        continue
-
-                    section._lines[idx+1] = "|passage=" + passage
-                    section._lines[idx+2] = "|t=" + translation + "}}"
-                else:
-                    section._lines[idx+1] = "|passage=" + passage + "}}"
-
-            section._lines[idx] = start + " {{quote-book|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()])
             changed = True
 
         for idx in reversed(to_remove):
