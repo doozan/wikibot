@@ -122,7 +122,7 @@ class SectionParser():
                 if not section:
                     self._header.append(line)
                 else:
-                    section.add(line)
+                    section.add(line, line_state)
 
                 if m:
                     if line_state & 1:
@@ -296,9 +296,14 @@ class Section():
         if line_without_cats != line and line_without_cats.strip() == "":
             return True
 
-    def add(self, item):
+    def add(self, item, state=None):
         if isinstance(item, str):
-            if re.match(r"^(----+)?\s*$", item):
+            # If the line is inside a template or html comment, just add it
+            # without checking if it's a category or a topline
+            if state:
+                self._lines.append(item)
+
+            elif re.match(r"^(----+)?\s*$", item):
                 # Ignore empty lines before first data item
                 if not self._lines:
                     self._changes.append("whitespace changes")
@@ -311,7 +316,7 @@ class Section():
 
             elif self.is_topline(item):
                 if self._lines or self._topmost != self:
-                    template = re.search("\{\{([^|}]*)", item).group(1)
+                    template = re.search(r"\{\{([^|}]*)", item).group(1)
                     self._changes.append(f"/*{self._topmost.path}*/ moved {template} template to top")
                 self._add_topline(item)
 

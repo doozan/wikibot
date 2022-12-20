@@ -151,3 +151,20 @@ def test_l2_joiner():
     res = str(parsed)
     print(res)
     assert res.splitlines() == result.splitlines()
+
+
+def test_categories_inside_open_templates():
+    text = """\
+==English==
+
+===Noun===
+# blah {{blah|
+[[Category:en:blah]]
+blah}}\
+"""
+
+    parsed = SectionParser(text, "test")
+    res = str(parsed)
+    print(res)
+    assert res.splitlines() == text.splitlines()
+
