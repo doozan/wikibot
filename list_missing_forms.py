@@ -9,6 +9,7 @@ import pywikibot
 import re
 import sys
 from enwiktionary_wordlist.wordlist import Wordlist
+from enwiktionary_wordlist.wordlist_builder import WordlistBuilder as WB
 from enwiktionary_wordlist.all_forms import AllForms
 from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
 from autodooz.fix_es_forms import FormFixer, FixRunner, ExistingForm
@@ -203,9 +204,9 @@ def error(error_id, form, item, text=None):
 
 
 def get_existing_forms(form, wordlist):
-    return get_word_forms(wordlist.get_iwords(form))
+    return get_word_forms(wordlist.get_iwords(form), wordlist)
 
-def get_word_forms(words):
+def get_word_forms(words, wordlist):
     existing_forms = set()
 
     for word in words:
@@ -226,9 +227,20 @@ def get_word_forms(words):
                     existing_forms.add(ExistingForm(word.word, word.pos, gender, mate_lemma))
 
         for sense in word.senses:
+            if not sense.formtype:
+                continue
+
+            formtype = sense.formtype
+            lemma = sense.lemma
+
+            # Override part formtype and lemma
+            if word.pos == "part":
+                formtype = WB.get_part_formtype(formtype)
+#                lemma = sense.lemma if formtype == "pp_ms" else WB.get_part_lemma(sense.lemma, wordlist)
+
             # Limit to the formtypes we can handle, forms like "misspelling of" aren't our concern
             if sense.formtype and FormFixer.can_handle_formtype(sense.formtype):
-                existing_forms.add(ExistingForm(word.word, word.pos, sense.formtype, sense.lemma))
+                existing_forms.add(ExistingForm(word.word, word.pos, formtype, lemma))
 
     return existing_forms
 
@@ -282,23 +294,20 @@ def main():
         if "^" in form:
             continue
 
-        try:
-            declared_forms = fixer.get_declared_forms(form, wordlist, allforms)
-        except ValueError as e:
-            print("ERROR", e)
-            #error("form_errors", form, str(e))
-            continue
-
-        if not count % 1000 and args.progress:
+        if args.progress and not count % 1000:
             print(count, end = '\r', file=sys.stderr)
 
         if args.limit and count >= args.limit:
             break
         count += 1
 
+        declared_forms = fixer.get_declared_forms(form, wordlist, allforms)
+
         existing_forms = get_existing_forms(form, wordlist)
 
         missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+        if not missing_forms:
+            continue
 
         missing_pos = []
         for item in missing_forms:
