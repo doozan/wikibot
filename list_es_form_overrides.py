@@ -68,7 +68,13 @@ class WikiSaver(BaseHandler):
         rows = self.make_rows(section_entries)
         return headers + self.make_wiki_table(rows, extra_class="sortable", headers=head_rows)
 
-
+    # Add empty pages if they generated no errors
+    def make_pages(self, *args, **nargs):
+        pages = super().make_pages(*args, **nargs)
+        for page_name in ["autofix_form_overrides", "form_overrides"]:
+            if page_name not in pages:
+                pages[page_name] = []
+        return pages
 
 
 class FileSaver(WikiSaver):
