@@ -53,9 +53,10 @@ class WikiSaver(BaseHandler):
     # Add empty pages if they generated no errors
     def make_pages(self, *args, **nargs):
         pages = super().make_pages(*args, **nargs)
-        for error in self.error_header.keys():
-            if error not in pages:
-                pages[error] = []
+        for page_name in list(self.error_header.keys()) \
+                + [x + "_autofix" for x in self.error_header.keys() if "unexpected" in x or "missing" in x]:
+            if page_name not in pages:
+                pages[page_name] = []
         return pages
 
     def page_header(self, base_path, page_name, page_sections, pages):
@@ -269,95 +270,83 @@ def main():
     fixrunner = FixRunner("es", wordlist, allforms)
 
     with open(args.allpages) as infile:
-        # Loading the entire contents of allpages takes 600M
-        # To conserve memory, temporarily load allforms into a set
-        # and then create a set of entries in allpages that are also in allforms
-
-        allforms_set = set(allforms.all_forms)
-        allpages = { x.strip() for x in infile if x.strip() in allforms_set }
-        del allforms_set
-
-#    form = "achaparrándolo"
-#    declared_forms = fixer.get_declared_forms(form, wordlist, allforms)
-#    existing_forms = get_existing_forms(form, wordlist)
-#    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
-#    print("declared", declared_forms)
-#    print("existing", existing_forms)
-#    print("missing", missing_forms)
-#    print("unexpected", unexpected_forms)
-#    exit()
-
-    count = 0
-    for form in allpages:
-
-        # Fix for conversion from <sup>x</sup> -> ^x
-        if "^" in form:
-            continue
-
-        if args.progress and not count % 1000:
-            print(count, end = '\r', file=sys.stderr)
-
-        if args.limit and count >= args.limit:
-            break
-        count += 1
-
-        declared_forms = fixer.get_declared_forms(form, wordlist, allforms)
-
-        existing_forms = get_existing_forms(form, wordlist)
-
-        missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
-        if not missing_forms:
-            continue
-
-        missing_pos = []
-        for item in missing_forms:
-
-            if item.form != form:
-                raise ValueError(form, item)
-
-            if not FormFixer.can_handle_formtype(item.formtype):
+        count = 0
+        for form in infile:
+            form = form.strip()
+            if not form:
                 continue
 
-            # TODO: for now skip multi word verbs
-            if item.pos == "v" and " " in item.lemma:
+            if not allforms.has_form(form):
                 continue
 
-            if item.pos == "n" and item.formtype == "m":
-                error("should_be_lemma", item.form, item)
+            # Fix for conversion from <sup>x</sup> -> ^x
+            if "^" in form:
                 continue
 
-            words = list(wordlist.get_words(item.form, item.pos))
-            if not words:
-                matches = list(wordlist.get_words(item.form))
-                if matches:
-                    if item.pos in missing_pos:
-                        continue
-                    ety = {w.etymology for w in matches}
-                    level = 4 if len(ety) > 1 else 3
-#                    error("missing_pos_multi_ety", form, item)
-                    items = [i for i in missing_forms if i.pos == item.pos]
+            if args.progress and not count % 1000:
+                print(count, end = '\r', file=sys.stderr)
 
-                    if fixer.can_handle(item):
-                        pos_text = str(fixer.full_pos(level, items))
+            if args.limit and count >= args.limit:
+                break
+            count += 1
+
+            declared_forms = FormFixer.get_declared_forms(form, wordlist, allforms)
+            existing_forms = get_existing_forms(form, wordlist)
+            missing_forms, unexpected_forms = FormFixer.compare_forms(declared_forms, existing_forms)
+            if not missing_forms:
+                continue
+
+            missing_pos = []
+            for item in missing_forms:
+
+                if item.form != form:
+                    raise ValueError(form, item)
+
+                if not FormFixer.can_handle_formtype(item.formtype):
+                    continue
+
+                # TODO: for now skip multi word verbs
+                if item.pos == "v" and " " in item.lemma:
+                    continue
+
+                if item.pos == "n" and item.formtype == "m":
+                    error("should_be_lemma", item.form, item)
+                    continue
+
+                words = list(wordlist.get_words(item.form, item.pos))
+                if not words:
+                    matches = list(wordlist.get_words(item.form))
+                    if matches:
+                        if item.pos in missing_pos:
+                            continue
+                        ety = {w.etymology for w in matches}
+                        level = 4 if len(ety) > 1 else 3
+#                        error("missing_pos_multi_ety", form, item)
+                        items = [i for i in missing_forms if i.pos == item.pos]
+
+                        if FormFixer.can_handle(item):
+                            pos_text = str(fixer.full_pos(level, items))
+                        else:
+                            pos_text = ""
+                        error("missing_pos", form, item, pos_text)
+                        missing_pos.append(item.pos)
                     else:
-                        pos_text = ""
-                    error("missing_pos", form, item, pos_text)
-                    missing_pos.append(item.pos)
-                else:
-                    error("missing_entry", form, item)
+                        error("missing_entry", form, item)
 
-                continue
+                    continue
 
-#            if pos == "n" and formtype == "pl" and unexpected_forms:
-#                masculines = get_masculines_from_fpl(words[0])
-#                masculine_links = [m for m in masculines if (pos, "fpl", m) in unexpected_forms]
-#                if masculine_links:
-#                    for m in masculine_links:
-#                        unexpected_forms.remove((pos, "fpl", m))
-#                    print(f"{form}:{pos} links to masculine {masculine_links} instead of feminine $is_doublet")
-#                    continue
+#                if pos == "n" and formtype == "pl" and unexpected_forms:
+#                    masculines = get_masculines_from_fpl(words[0])
+#                    masculine_links = [m for m in masculines if (pos, "fpl", m) in unexpected_forms]
+#                    if masculine_links:
+#                        for m in masculine_links:
+#                            unexpected_forms.remove((pos, "fpl", m))
+#                        print(f"{form}:{pos} links to masculine {masculine_links} instead of feminine $is_doublet")
+#                        continue
 
-            error("missing_sense", form, item)
+                error("missing_sense", form, item)
+
+        del allforms # Unload allforms in an attempt to recover memory before generating pages
 
         for item in sorted(unexpected_forms):
             pos = "v" if item.pos == "part" else item.pos

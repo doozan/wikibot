@@ -3163,3 +3163,31 @@ def test_strip_reflexive_clitic():
     assert FormFixer.strip_reflexive_clitic("no darse cuenta") == "no dar cuenta"
 
     assert FormFixer.strip_reflexive_clitic("dar darse") == "dar dar" # NO validation that it's the real verb
+
+
+def test_parts(fixer, allforms):
+
+    text = """
+==Spanish==
+
+===Participle===
+{{head|es|past participle form|g=m-p}}
+
+# {{masculine plural of|es|accidentado}}\
+"""
+
+    title = "accidentados"
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+
+    entry = fixer.get_language_entry(title, wikt, "Spanish")
+    existing_forms = fixer.get_existing_forms(title, entry)
+
+    assert declared_forms == [DeclaredForm(form='accidentados', pos='part', formtype='pp_mp', lemma='accidentado', lemma_genders=[])]
+
+    assert existing_forms == { ExistingForm(form='accidentados', pos='part', formtype='pp_mp', lemma='accidentado'): '# {{masculine plural of|es|accidentado}}' }
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+    assert missing_forms ==  []
+    assert unexpected_forms == set()
