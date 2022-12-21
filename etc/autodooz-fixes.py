@@ -176,7 +176,7 @@ wikifix['es_add_forms'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
     "fixes": [(es_add_forms, {
-        "lang": "es",
+        "lang_id": "es",
         "allforms": f"{SPANISH_DATA}/es_allforms.csv",
         "wordlist": f"{SPANISH_DATA}/es-en.data",
         })],
@@ -191,7 +191,7 @@ wikifix['es_replace_pos'] = {
     'mode': 'function',
     "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
     "fixes": [(es_replace_forms, {
-        "lang": "es",
+        "lang_id": "es",
         "allforms": f"{SPANISH_DATA}/es_allforms.csv",
         "wordlist": f"{SPANISH_DATA}/es-en.data",
         "pos": ["v", "n", "adj", "part"],

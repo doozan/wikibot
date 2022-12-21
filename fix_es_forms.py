@@ -1079,7 +1079,7 @@ class FixRunner():
 
     """ Harness for running FormFixer from the fun_replace.py script """
 
-    def __init__(self, lang_id, wordlist, allforms):
+    def __init__(self, lang_id, wordlist, allforms, **kwargs):
         self.language = lang_ids[lang_id]
         self._fixer = None
         self._wordlist = None
