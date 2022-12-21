@@ -35,7 +35,7 @@ class WikiSaver(BaseHandler):
         super().save_page(page, page_text)
 
     def sort_items(self, items):
-        return sorted(filter_items(items), key=lambda x:(x.error,  x.form))
+        return sorted(self.filter_items(items), key=lambda x:(x.error,  x.form))
 
     def is_new_page(self, page_sections, section_entries):
         # each error is a new page
@@ -74,7 +74,7 @@ class WikiSaver(BaseHandler):
         #if entry.error in [ "missing_sense", "missing_pos_multi_ety", "missing_pos" ]:
         if error == "missing_sense":
             try:
-                data = f"{f.pos} ({f.formtype}) <nowiki>" + fixer.get_form_gloss(entry.item) + "</nowiki>"
+                data = f"{f.pos} ({f.formtype}) <nowiki>" + self.args.fixer.get_form_gloss(entry.item) + "</nowiki>"
             except ValueError:
                 data = f"{f.pos} ({f.formtype} of {lemmalink})"
 
@@ -126,6 +126,65 @@ class WikiSaver(BaseHandler):
             prev_entry = entry
         return res
 
+    def filter_items(self, errors):
+
+        # NOTE: if an error occurs in a page not included in the language_file,
+        # it will be lost in this filter, which ONLY returns items that do exist
+        # In most cases this won't matter as the problem should only have been
+        # found in a search of pages in the language file, but still, just a heads-up
+
+        search_titles = defaultdict(list)
+        for e in errors:
+            search_titles[e.form].append(e)
+
+        for article in WikiExtractWithRev.iter_articles_from_bz2(self.args.articles):
+            title = article.title
+            entry = article.text
+            if title not in search_titles:
+                continue
+
+            page_errors = search_titles[title]
+            for error in page_errors:
+                try:
+                    autofix = self.can_autofix(entry, title, error)
+                except ValueError:
+                    autofix = False
+
+                yield error._replace(error=error.error+"_autofix") if autofix else error
+
+    def can_autofix(self, page_text, title, error):
+
+    #    if error.error == "wrong_form":
+    #        pos = error.item
+    #        if self.args.fixrunner._replace_pos(page_text, title, pos) != page_text:
+    #            return True
+    #        if self.args.fixrunner._remove_forms(page_text, title, pos) != page_text \
+    #                and self.args.fixrunner._add_forms(page_text, title, pos) != page_text:
+    #            return True
+
+        if error.error == "unexpected_form":
+            if not hasattr(error.item, "pos"):
+                raise ValueError("tuple", error, error.item, title)
+            if self.args.fixrunner.replace_pos(page_text, title, error.item.pos) != page_text:
+                return True
+    #        if self.args.fixrunner._remove_forms(page_text, title, error.item.pos) != page_text:
+    #            return True
+
+        elif error.error in ["missing_entry", "missing_pos"]:
+            if self.args.fixrunner.add_forms(page_text, title) != page_text:
+                return True
+
+        elif error.error == "missing_sense":
+            if self.args.fixrunner.replace_pos(page_text, title, error.item.pos) != page_text:
+                return True
+            if self.args.fixrunner.add_forms(page_text, title) != page_text:
+                return True
+
+
+
+
+
+
 class FileSaver(WikiSaver):
 
     def save_page(self, dest, page_text):
@@ -142,9 +201,6 @@ logger = Logger()
 def error(error_id, form, item, text=None):
     logger.add(error_id, form, item, text)
 
-
-fixer = None
-fixrunner = None
 
 def get_existing_forms(form, wordlist):
     return get_word_forms(wordlist.get_iwords(form))
@@ -180,71 +236,7 @@ def get_masculines_from_fpl(word):
     return [lemma for lemma, forms in word.form_of.items() if "fpl" in forms]
 
 
-ARTICLE_FILE = None
-#def filter_fixes(extract, errors):
-def filter_items(errors):
-
-    # eww
-    if not ARTICLE_FILE:
-        raise ValueError("global variable ARTICLE_FILE has not been initialized")
-
-    # NOTE: if an error occurs in a page not included in the language_file,
-    # it will be lost in this filter, which ONLY returns items that do exist
-    # In most cases this won't matter as the problem should only have been
-    # found in a search of pages in the language file, but still, just a heads-up
-
-    search_titles = defaultdict(list)
-    for e in errors:
-        search_titles[e.form].append(e)
-
-    for article in WikiExtractWithRev.iter_articles_from_bz2(ARTICLE_FILE):
-        title = article.title
-        entry = article.text
-        if title not in search_titles:
-            continue
-
-        page_errors = search_titles[title]
-        for error in page_errors:
-            try:
-                autofix = can_autofix(entry, title, error)
-            except ValueError:
-                autofix = False
-
-            yield error._replace(error=error.error+"_autofix") if autofix else error
-
-def can_autofix(page_text, title, error):
-
-#    if error.error == "wrong_form":
-#        pos = error.item
-#        if fixrunner._replace_pos(page_text, title, pos) != page_text:
-#            return True
-#        if fixrunner._remove_forms(page_text, title, pos) != page_text \
-#                and fixrunner._add_forms(page_text, title, pos) != page_text:
-#            return True
-
-    if error.error == "unexpected_form":
-        if not hasattr(error.item, "pos"):
-            raise ValueError("tuple", error, error.item, title)
-        if fixrunner.replace_pos(page_text, title, error.item.pos) != page_text:
-            return True
-#        if fixrunner._remove_forms(page_text, title, error.item.pos) != page_text:
-#            return True
-
-    elif error.error in ["missing_entry", "missing_pos"]:
-        if fixrunner.add_forms(page_text, title) != page_text:
-            return True
-
-    elif error.error == "missing_sense":
-        if fixrunner.replace_pos(page_text, title, error.item.pos) != page_text:
-            return True
-        if fixrunner.add_forms(page_text, title) != page_text:
-            return True
-
-
 def main():
-
-    global fixer
-    global fixrunner
 
     import argparse
 
@@ -257,9 +249,6 @@ def main():
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     args = parser.parse_args()
-
-    global ARTICLE_FILE
-    ARTICLE_FILE = args.articles
 
     wordlist = Wordlist.from_file(args.wordlist)
 
@@ -370,9 +359,9 @@ def main():
 
     if args.save:
         base_url = "User:JeffDoozan/lists/es/forms"
-        logger.save(base_url, WikiSaver, commit_message=args.save)
+        logger.save(base_url, WikiSaver, fixer=fixer, fixrunner=fixrunner, articles=args.articles, commit_message=args.save)
     else:
-        logger.save("forms", FileSaver)
+        logger.save("forms", FileSaver, fixer=fixer, fixrunner=fixrunner, articles=args.articles)
 
 if __name__ == "__main__":
     main()
