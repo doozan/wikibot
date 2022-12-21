@@ -135,7 +135,7 @@ class DraeFixer():
             if not target in targets or target == title:
                 if targets:
                     if target != title:
-                        if " " in title and " " not in target:
+                        if " " in title and target and " " not in target:
                             if len(targets) > 1:
                                 self.log("drae_link_custom_target", title, "is '{target}', should be ('" + "', '".join(targets) +"')")
                             else:
