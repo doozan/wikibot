@@ -19,92 +19,91 @@ def get_fuzzy_matches(title, words, max_distance):
     #print(title, words, max_distance)
     #for x in words:
     #    print(title, x, fuzzy_distance(title, x))
-    return [x for x in words if fuzzy_distance(title, x)<=max_distance]
+    return [x for x in words if title != x and fuzzy_distance(title, x)<=max_distance]
 
 import unicodedata
 def strip_accents(s):
    return ''.join(c for c in unicodedata.normalize('NFD', s)
                   if unicodedata.category(c) != 'Mn')
 L3_FUZZY_MATCHES = {
-    "Abbreviations": 3,
     "Adjectival noun": 3,
     "Adjective": 2,
     "Adnominal": 2,
     "Adverb": 1,
-    "Affix": 1,
-    "Alternative forms": 3,
+    "Affix": 0,
+    "Alternative forms": 2,
     "Alternative reconstructions": 3,
-    "Alternative scripts": 3,
-    "Ambiposition": 3,
+    "Alternative scripts": 2,
+    "Ambiposition": 1,
     "Anagrams": 2,
     "Antonyms": 1,
-    "Article": 1,
+    "Article": 0,
     "Circumfix": 2,
-    "Circumposition": 3,
+    "Circumposition": 2,
     "Classifier": 3,
-    "Clitic": 1,
-    "Collocations": 3,
+    "Clitic": 0,
+    "Collocations": 2,
     "Combining form": 3,
     "Compounds": 2,
-    "Conjugation": 1,
-    "Conjunction": 1,
-    "Contraction": 2,
+    "Conjugation": 0,
+    "Conjunction": 0,
+    "Contraction": 1,
     "Coordinate terms": 3,
     "Counter": 2,
     "Cuneiform sign": 3,
-    "Declension": 3,
-    "Definitions": 3,
-    "Derived terms": 3,
+    "Declension": 1,
+    "Definitions": 2,
+    "Derived terms": 1,
     "Descendants": 3,
-    "Description": 3,
-    "Determinative": 3,
-    "Determiner": 3,
+    "Description": 2,
+    "Determinative": 1,
+    "Determiner": 1,
     "Diacritical mark": 3,
-    "Enclitic": 2,
+    "Enclitic": 0,
     "Etymology": 2,
     "Final": 1,
     "Further reading": 3,
     "Glyph origin": 3,
     "Han character": 3,
-    "Hanja": 1,
-    "Hanzi": 1,
-    "Holonyms": 1,
-    "Hypernyms": 1,
-    "Hyponyms": 1,
+    "Hanja": 0,
+    "Hanzi": 0,
+    "Holonyms": 0,
+    "Hypernyms": 0,
+    "Hyponyms": 0,
     "Ideophone": 2,
     "Idiom": 1,
-    "Infix": 1,
-    "Inflection": 3,
+    "Infix": 0,
+    "Inflection": 1,
     "Initial": 2,
     "Interfix": 2,
-    "Interjection": 3,
+    "Interjection": 1,
     "Kanji": 1,
     "Letter": 1,
     "Ligature": 2,
     "Logogram": 2,
     "Medial": 1,
     "Meronyms": 1,
-    "Mutation": 2,
+    "Mutation": 1,
     "Noun": 1,
     "Number": 1,
-    "Numeral": 2,
+    "Numeral": 1,
     "Ordinal number": 3,
     "Participle": 1,
-    "Particle": 1,
+    "Particle": 0,
     "Phrase": 1,
-    "Postposition": 2,
+    "Postposition": 1,
     "Prefix": 1,
-    "Preposition": 2,
+    "Preposition": 1,
     "Prepositional phrase": 3,
-    "Production": 3,
-    "Pronunciation": 3,
-    "Proper noun": 3,
+    "Production": 1,
+    "Pronunciation": 2,
+    "Proper noun": 2,
     "Punctuation mark": 3,
-    "Quotations": 2,
+    "Quotations": 1,
     "Reconstruction notes": 3,
     "References": 3,
-    "Related terms": 3,
-    "Romanization": 3,
+    "Related terms": 1,
+    "Romanization": 2,
     "Root": 1,
     "See also": 2,
     "Sign values": 3,
@@ -114,13 +113,13 @@ L3_FUZZY_MATCHES = {
     "Syllable": 2,
     "Symbol": 1,
     "Synonyms": 1,
-    "Translations": 3,
-    "Transliteration": 3,
+    "Translations": 2,
+    "Transliteration": 2,
     "Trivia": 1,
     "Troponyms": 1,
     "Usage notes": 3,
     "Verb": 1,
-    "Verbal noun": 3
+    "Verbal noun": 2
 }
 
 
@@ -199,7 +198,9 @@ POS_CHILD_FIXES = {
         ],
 
     'fuzzy_matches': { k:1 for k in ALL_POS_CHILDREN } | {
-        "Descendants": 3
+        "Descendants": 3,
+        "Hyponyms": 0,
+        "Abbreviations": 2,
     },
 
     'replacements' : {
@@ -215,14 +216,17 @@ POS_CHILD_FIXES = {
 
 def _validate(fixes):
     for word, max_typos in fixes.get("fuzzy_matches", {}).items():
-        similar = get_fuzzy_matches(word, fixes["allowed"], max_typos)
-        if len(similar) > 1:
-            raise ValueError(f"{word} is not a candidate for typo matching, because it's too similar to {similar}")
+        if word not in fixes["allowed"]:
+            raise ValueError(f"fuzzy match '{word}' is not in list of 'allowed' titles")
+        for word2, max_typos2 in fixes.get("fuzzy_matches", {}).items():
+            if word != word2:
+                distance = fuzzy_distance(word, word2)
+                if distance <= max_typos + max_typos2:
+                    raise ValueError(f"{word} is not a candidate for typo matching, because it's too similar to {word2} {distance} ({max_typos}, {max_typos2})")
 
 _validate(L2_FIXES)
 _validate(L3_FIXES)
 _validate(POS_CHILD_FIXES)
-
 
 class SectionHeaderFixer():
 
