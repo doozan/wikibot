@@ -116,6 +116,30 @@ wikifix['misnamed_further_reading'] = {
 }
 
 
+def misnamed_ety(text, title, summary, options):
+    header_fixer = get_fixer(SectionHeaderFixer)
+    return header_fixer.process(text, title, summary, {"fix_misnamed_etymology": True})
+
+wikifix['misnamed_ety'] = {
+    'mode': 'function',
+    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
+    "fixes": [(misnamed_ety, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
+
+def misnamed_pronunciation(text, title, summary, options):
+    header_fixer = get_fixer(SectionHeaderFixer)
+    return header_fixer.process(text, title, summary, {"fix_misnamed_pronunciation": True})
+
+wikifix['misnamed_pronunciation'] = {
+    'mode': 'function',
+    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
+    "fixes": [(misnamed_pronunciation, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
+
 from autodooz.fix_fr_tlfi import fr_add_tlfi
 wikifix['add_tlfi'] = {
     'mode': 'function',
