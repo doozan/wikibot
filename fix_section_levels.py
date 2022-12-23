@@ -172,7 +172,7 @@ class SectionLevelFixer():
         for count, section in enumerate(sections, 1):
             count = str(count)
             if section.count != count:
-                self.fix("autofix_wrong_counter", section, f"renamed to {section.title} {section.count}")
+                self.fix("autofix_wrong_counter", section, f"renamed to {section.title} {count}")
                 section.count = count
 
     def move_single_pronunciation(self, lang):
