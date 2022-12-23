@@ -15,6 +15,27 @@ PATTERN_REF_TAGS = "(?i)(" + "|".join(ref_tags) + ")"
 # Tags that generate <references/>
 PATTERN_REFS = r"(?i)(<\s*references|{{reflist)"
 
+ety_templates = [
+    "back-form",
+    "compound", "com",
+    "compoundsee",
+    "affix", "af",
+    "prefix", "pre",
+    #"prefixsee",
+    "suffix", "suf",
+    #"suffixsee",
+    "confix",
+    "circumfix",
+    "transfix",
+    "infix",
+    "inh",
+    #"infixsee",
+    #"interfixsee",
+    "blend",
+    "univerbation",
+]
+PATTERN_ETY_TEMPLATES = r"{{(" + "|".join(ety_templates) + r")\s*[|}]"
+
 def get_fuzzy_matches(title, words, max_distance):
     #print(title, words, max_distance)
     #for x in words:
@@ -132,26 +153,35 @@ L2_FIXES = {
     'replacements': {
         'Arabic': 'Arabic', # unicode char on the A
         'Assyrian neo-aramiac': 'Assyrian Neo-Aramaic',
+        'Assyrian Neo-Aramic': 'Assyrian Neo-Aramaic', 
+        'Azerbaijan': 'Azerbaijani', 
         'Guarani': 'Guaraní',
-        'Hijaz Arabic': 'Hijaz Arabic',
+        'Hijaz Arabic': 'Hijazi Arabic', 
         'Ingrain': 'Ingrian',
         'Iñupiaq': 'Inupiaq',
         'Iriga Bikolano': 'Iriga Bicolano',
         'Jjapanese': 'Japanese',
         'Kapampangn': 'Kapampangan',
-        'Karachay Balkar': 'Karachay-Balkar',
-        'Khorasani Turkic': 'Khorasani Turkish',
+        'Karachay Balkar': 'Karachay-Balkar', 
+        'Kashmir': 'Kashmiri', 
+        'Khorasani Turkic': 'Khorasani Turkish', 
         'Māori': 'Maori',
         'Megrelian': 'Mingrelian',
-        'Norwegian (Bokmål)': 'Norwegian Bokmål',
+        'Mezquital otomi': 'Mezquital Otomi', 
+        'Middle Mongolian': 'Middle Mongolian', 
+        'Norwegian (Bokmål)': 'Norwegian Bokmål', 
         'Ogba': 'Ogbah',
+        'Pahari-Pothwari': 'Pahari-Potwari', 
         'Panjabi': 'Punjabi',
         'Prasun': 'Prasuni',
+        'Queretaro Otomi': 'Querétaro Otomi', 
+        'Sanksrit': 'Sanskrit', 
         'Serbo-croatian': 'Serbo-Croatian',
         'Shekhani': 'Sekani',
+        'Siclian': 'Sicilian', 
         'Slovenian': 'Slovincian',
-        'Tai-nüa': 'Tai Nüa',
         'Tai nue': 'Tai Nüa',
+        'Tai-nüa': 'Tai Nüa',
         'Transligual': 'Translingual',
         'Ukrainain': 'Ukrainian',
         'Yidish': 'Yiddish',
@@ -436,6 +466,19 @@ class SectionHeaderFixer():
 
                 self.fix("missing_ref_section", section, "added References section")
 
+    def rename_misnamed_etymology(self, entry):
+        for section in entry.ifilter_sections(matches = lambda x: x.title == "Pronunciation"):
+            if any(re.search(PATTERN_ETY_TEMPLATES, line) for line in section._lines):
+                self.fix("misnamed_etymology", section, "renamed to Etymology (manually reviewed)")
+                section.title = "Etymology"
+
+    def rename_misnamed_pronunciation(self, entry):
+        for section in entry.ifilter_sections(matches = lambda x: x.title == "Etymology"):
+            print("scanning", section.path)
+            if any("IPA" in line and "IPAchar" not in line and "IPAfont" not in line for line in section._lines):
+                self.fix("misnamed_pronunciation", section, "renamed to Pronunciation (manually reviewed)")
+                section.title = "Pronunciation"
+
     def rename_misnamed_further_reading(self, entry):
         for section in entry.ifilter_sections(matches = lambda x: x.title == "References"):
             if not any(re.match(PATTERN_REFS, line.strip(" #:*")) for line in section._lines):
@@ -531,6 +574,14 @@ class SectionHeaderFixer():
             if spanish:
                 self.rename_misnamed_further_reading(spanish)
                 self.split_bulky_references(spanish)
+
+        # not safe to run unsupervised
+        if custom_args and custom_args.get("fix_misnamed_etymology"):
+            self.rename_misnamed_etymology(entry)
+
+        # not safe to run unsupervised
+        if custom_args and custom_args.get("fix_misnamed_pronunciation"):
+            self.rename_misnamed_pronunciation(entry)
 
         self.fix_section_levels(entry)
 
