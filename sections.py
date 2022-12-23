@@ -150,7 +150,7 @@ EXTRA_L3 = {
     "Kanji",
     "Hanja",
 
-    "Mutation",
+    "Mutation", # Should always be L3
     "Compounds",
 
     "Sign values", # Not in WT:ELE, used in Akkadian
@@ -169,7 +169,7 @@ ALL_POS_CHILDREN = [
     "Inflection",
     "Declension",
     "Conjugation",
-    "Mutation", # Defined in WT:ELE, but generally L3
+    #"Mutation", # Defined in WT:ELE, but should always be L3
     "Quotations",
     "Alternative forms",
     "Alternative reconstructions",
