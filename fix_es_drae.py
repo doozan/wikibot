@@ -55,6 +55,8 @@ class DraeFixer():
 
     def fix_missing_drae(self, text, title, summary=None):
 
+        text = text.replace("{{R:DRAE", "{{R:es:DRAE")
+
         # Skip single letters
         if len(title) == 1:
             return text
@@ -115,6 +117,8 @@ class DraeFixer():
         return str(entry).rstrip()
 
     def fix_wrong_drae(self, text, title, summary=None):
+
+        text = text.replace("{{R:DRAE", "{{R:es:DRAE")
 
         entry = SectionParser(text, title)
         spanish = next(entry.ifilter_sections(matches="Spanish", recursive=False))
