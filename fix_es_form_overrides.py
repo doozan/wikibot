@@ -141,6 +141,6 @@ class OverrideFixer():
         if not entry_changed:
             return text
 
-        if summary:
+        if summary is not None:
             summary += self._summary
         return str(entry)
