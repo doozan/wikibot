@@ -116,14 +116,12 @@ $(BUILDDIR)/%.lemmas_without_etymology: $(BUILDDIR)/%.lemmas $(BUILDDIR)/%.with_
 
 # Lists
 
-#../wikibot/src/list_t9n_problems.py
 $(LIST)t9n_problems: $(BUILDDIR)/translations.bz2 $(BUILDDIR)/es-en.enwikt.allforms.csv
 >   @echo "Running $@..."
 
 >   $(LIST_T9N_PROBLEMS) --trans $< --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv $(SAVE)
 >   touch $@
 
-#../wikibot/src/make_section_stats.py
 $(LIST)section_stats: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 >   @echo "Running $@..."
 # --tag $(DATETAG)
@@ -131,29 +129,23 @@ $(LIST)section_stats: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 >   touch $@
 
 $(LIST)es_forms_with_data: $(BUILDDIR)/es-en.enwikt.txt.bz2
-#../wikibot/src/list_forms_with_data.py
 >   @echo "Running $@..."
 >   $(LIST_FORMS_WITH_DATA) --file $< $(SAVE)
 >   touch $@
 
-
 $(LIST)mismatched_headlines: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
-#../wikibot/src/list_mismatched_headlines.py
 >   @echo "Running $@..."
 
 >   $(LIST_MISMATCHED_HEADLINES) --xml $<  $(SAVE)
 >   touch $@
 
 $(LIST)maybe_forms: $(BUILDDIR)/es-en.enwikt.data-full
-#../wikibot/src/list_maybe_forms.py
 >   @echo "Running $@..."
 
 >   $(LIST_MAYBE_FORMS) --wordlist $< $(SAVE)
 >   touch $@
 
-
 $(LIST)missing_forms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/wiki.pages $(BUILDDIR)/es-en.enwikt.txt.bz2
-#../wikibot/src/list_missing_forms.py
 >   echo "Running $@..."
 >   $(LIST_MISSING_FORMS) --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv --allpages $(BUILDDIR)/wiki.pages --articles $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data-full $(SAVE)
 >   touch $@
