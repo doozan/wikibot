@@ -153,32 +153,32 @@ L2_FIXES = {
     'replacements': {
         'Arabic': 'Arabic', # unicode char on the A
         'Assyrian neo-aramiac': 'Assyrian Neo-Aramaic',
-        'Assyrian Neo-Aramic': 'Assyrian Neo-Aramaic', 
-        'Azerbaijan': 'Azerbaijani', 
+        'Assyrian Neo-Aramic': 'Assyrian Neo-Aramaic',
+        'Azerbaijan': 'Azerbaijani',
         'Guarani': 'Guaraní',
-        'Hijaz Arabic': 'Hijazi Arabic', 
+        'Hijaz Arabic': 'Hijazi Arabic',
         'Ingrain': 'Ingrian',
         'Iñupiaq': 'Inupiaq',
         'Iriga Bikolano': 'Iriga Bicolano',
         'Jjapanese': 'Japanese',
         'Kapampangn': 'Kapampangan',
-        'Karachay Balkar': 'Karachay-Balkar', 
-        'Kashmir': 'Kashmiri', 
-        'Khorasani Turkic': 'Khorasani Turkish', 
+        'Karachay Balkar': 'Karachay-Balkar',
+        'Kashmir': 'Kashmiri',
+        'Khorasani Turkic': 'Khorasani Turkish',
         'Māori': 'Maori',
         'Megrelian': 'Mingrelian',
-        'Mezquital otomi': 'Mezquital Otomi', 
-        'Middle Mongolian': 'Middle Mongolian', 
-        'Norwegian (Bokmål)': 'Norwegian Bokmål', 
+        'Mezquital otomi': 'Mezquital Otomi',
+        'Middle Mongolian': 'Middle Mongolian',
+        'Norwegian (Bokmål)': 'Norwegian Bokmål',
         'Ogba': 'Ogbah',
-        'Pahari-Pothwari': 'Pahari-Potwari', 
+        'Pahari-Pothwari': 'Pahari-Potwari',
         'Panjabi': 'Punjabi',
         'Prasun': 'Prasuni',
-        'Queretaro Otomi': 'Querétaro Otomi', 
-        'Sanksrit': 'Sanskrit', 
+        'Queretaro Otomi': 'Querétaro Otomi',
+        'Sanksrit': 'Sanskrit',
         'Serbo-croatian': 'Serbo-Croatian',
         'Shekhani': 'Sekani',
-        'Siclian': 'Sicilian', 
+        'Siclian': 'Sicilian',
         'Slovenian': 'Slovincian',
         'Tai nue': 'Tai Nüa',
         'Tai-nüa': 'Tai Nüa',
@@ -273,10 +273,12 @@ class SectionHeaderFixer():
         if section.title in allowed:
             return
 
-        title = section.title.capitalize()
-        if title in allowed:
-            self.fix("cap_change", section, f"renamed to {title}")
-            return title
+        title = section.title
+
+        cap_title = section.title.capitalize()
+        if cap_title in allowed:
+            self.fix("cap_change", section, f"renamed to {cap_title}")
+            return cap_title
 
         if title.endswith("s") and title[:-1] in allowed:
             new_title = title[:-1]
