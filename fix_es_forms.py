@@ -996,31 +996,6 @@ class FormFixer():
         return True
 
 
-    @staticmethod
-    def section_has_non_form_data(item, title):
-        # remove conjugations section, since it's not appropriate for forms
-        if any(x.title != "Conjugation" for x in item._children):
-            raise ValueError(title, "Can't remove - has subsections")
-
-        for sense in item._lines[1:]: # Skip the headline
-            if "|t=" in str(sense) or "|gloss=" in str(sense):
-                raise ValueError(title, "Can't remove - sense has gloss", str(sense))
-
-            # strip syn/ant templates before checking for extra text
-            sense_temp = str(sense)
-            sense_temp = re.sub("{{(syn|ant)[^}]}}", "", sense_temp)
-            sense_text = wiki_to_text(sense_temp, title).strip("\n #:")
-            if not sense_text:
-                continue
-            if "\n" in sense_text:
-                raise ValueError(title, "Can't remove - sense has extra info", str(sense))
-
-            formtype, lemma, nonform = Sense.parse_form_of(sense_text)
-            if not formtype:
-                raise ValueError(title, "Can't remove - sense has non-form gloss", str(sense))
-
-        return False
-
     def replace_pos(self, title, page_text, x_forms, target_pos, summary):
         """ Removes the pos section entirely and then re-creates it with the given forms
         fails if the existing pos has anything other than generic form or data """
