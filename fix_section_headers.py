@@ -435,17 +435,11 @@ class SectionHeaderFixer():
                 section.count = None
 
     def remove_empty_sections(self, entry):
-
-        for section in reversed(entry.filter_sections()):
-            if section.level == 2:
-                continue
-
-            if section.title in COUNTABLE_SECTIONS:
-                continue
-
-            if not section._lines and not section._children:
-                self.fix("empty_section", section, "removed empty section")
-                section.parent._children.remove(section)
+        for lang in entry.filter_sections(recursive=False):
+            for section in lang.filter_sections():
+                if not section._lines and not section._children:
+                    self.fix("empty_section", section, "removed empty section")
+                    section.parent._children.remove(section)
 
     def add_missing_references(self, entry):
 
@@ -558,6 +552,8 @@ class SectionHeaderFixer():
             return page_text
 
         entry = SectionParser(page_text, page_title)
+        if entry.state != 0:
+            return page_text
 
         self.fix_section_titles(entry)
         self.fix_remove_pos_counters(entry)
