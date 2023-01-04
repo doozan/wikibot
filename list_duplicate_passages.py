@@ -13,23 +13,23 @@ def clean(text):
     text = re.sub(r"''+", "", text)
     return text
 
-def get_text_trans_from_passage(t):
+def get_text_trans_from_passage(t, title):
 
     passage = next((str(t.get(p).value) for p in ["passage", "text"] if t.has(p) and str(t.get(p).value).strip()), "")
-    passage_text = clean(wiki_to_text(passage, "title"))
+    passage_text = clean(wiki_to_text(passage, title))
 
     trans = next((str(t.get(p).value) for p in ["t", "translation"] if t.has(p) and str(t.get(p).value).strip()), "")
-    trans_text = clean(wiki_to_text(trans, "title"))
+    trans_text = clean(wiki_to_text(trans, title))
 
     return passage_text, trans_text
 
-def get_text_trans_from_ux(t):
+def get_text_trans_from_ux(t, title):
 
     passage = next((str(t.get(p).value) for p in [2] if t.has(p) and str(t.get(p).value).strip()), "")
-    passage_text = clean(wiki_to_text(passage, "title"))
+    passage_text = clean(wiki_to_text(passage, title))
 
     trans = next((str(t.get(p).value) for p in [3, "t", "translation"] if t.has(p) and str(t.get(p).value).strip()), "")
-    trans_text = clean(wiki_to_text(trans, "title"))
+    trans_text = clean(wiki_to_text(trans, title))
 
 #    print("trans", trans_text, "@", str(t))
 
@@ -52,9 +52,9 @@ def load_passages(filename):
 
             text = trans = None
             if t.has("passage") or t.has("text"):
-                text, trans = get_text_trans_from_passage(t)
+                text, trans = get_text_trans_from_passage(t, title)
             elif t.name.strip() in ["uxi", "ux", "quote"]:
-                text, trans = get_text_trans_from_ux(t)
+                text, trans = get_text_trans_from_ux(t, title)
             else:
                 continue
 
