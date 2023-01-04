@@ -274,12 +274,12 @@ class SectionLevelFixer():
 
             # POS sections should only ever be found within L2 or L3 sections
             elif section.title in ALL_POS:
-                if not all(x.title in ALL_LANGS or x.title in COUNTABLE_SECTIONS for x in lineage):
+                if not all(x.title in ALL_LANGS or (x.title in COUNTABLE_SECTIONS and x.count) for x in lineage):
                     self.warn("pos_bad_lineage", section.path)
 
             # countables should only ever be found within L2 sections
             elif section.title in COUNTABLE_SECTIONS:
-                if not all(x.title in ALL_LANGS or x.title in COUNTABLE_SECTIONS for x in lineage):
+                if not all(x.title in ALL_LANGS or (x.title in COUNTABLE_SECTIONS and x.count) for x in lineage):
                     self.warn("countable_bad_lineage", section.path)
 
         for section, child in reversed(reparent):
@@ -464,7 +464,8 @@ class SectionLevelFixer():
                             if not s._lines:
                                 self.warn("empty_countable", f"{s.path}")
                             else:
-                                self.warn("childless_countable", f"{s.path}")
+                                if not any("{{zh-see" in l or "{{ja-see" in l for l in s._lines):
+                                    self.warn("childless_countable", f"{s.path}")
                             return page_text
 
                 elif len(all_countable) < 2:
