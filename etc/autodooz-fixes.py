@@ -139,6 +139,17 @@ wikifix['misnamed_pronunciation'] = {
     "post-fixes": [(ele_cleanup, None)],
 }
 
+def empty_sections(text, title, summary, options):
+    header_fixer = get_fixer(SectionHeaderFixer)
+    return header_fixer.process(text, title, summary, {"remove_empty": True})
+
+wikifix['empty_sections'] = {
+    'mode': 'function',
+    "pre-fixes": [(autodooz.sectionparser.cleanup_summary, None)],
+    "fixes": [(empty_sections, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
 
 from autodooz.fix_fr_tlfi import fr_add_tlfi
 wikifix['add_tlfi'] = {
