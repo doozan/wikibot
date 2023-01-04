@@ -277,6 +277,11 @@ class SectionLevelFixer():
                 if not all(x.title in ALL_LANGS or x.title in COUNTABLE_SECTIONS for x in lineage):
                     self.warn("pos_bad_lineage", section.path)
 
+            # countables should only ever be found within L2 sections
+            elif section.title in COUNTABLE_SECTIONS:
+                if not all(x.title in ALL_LANGS or x.title in COUNTABLE_SECTIONS for x in lineage):
+                    self.warn("countable_bad_lineage", section.path)
+
         for section, child in reversed(reparent):
             self.fix("autofix_pos_inside_pos", child, f"promoted in place")
             self.promote_child_in_place(section, child)
@@ -448,7 +453,7 @@ class SectionLevelFixer():
                 self.cleanup_countable(countable_title, lang)
                 self.countable_adopt_stray_children(lang, countable_title)
 
-                all_countable = lang.filter_sections(recursive=False, matches=lambda x: x.title == countable_title)
+                all_countable = lang.filter_sections(recursive=False, matches=countable_title)
                 if not all_countable:
                     continue
 
