@@ -22,12 +22,11 @@ fix translation tables
 import os
 import re
 import sys
+from autodooz.sectionparser import SectionParser
+from autodooz.sections import ALL_LANGS, ALL_LANG_IDS
 from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation, UNKNOWN_LANGS, LANG_PARENTS
 from enwiktionary_wordlist.all_forms import AllForms
-from autodooz.sectionparser import SectionParser
 from enwiktionary_parser.utils import nest_aware_resplit, nest_aware_split
-from enwiktionary_parser.languages.all_ids import languages as lang_ids
-ALL_LANGS = {v:k for k,v in lang_ids.items()}
 
 ttbc_fixes = {}
 
@@ -83,7 +82,7 @@ class T9nFixer():
             return
 
         lang_id = match.group(2)
-        full_lang = lang_ids.get(lang_id)
+        full_lang = ALL_LANG_IDS.get(lang_id)
         if not full_lang:
             return
 

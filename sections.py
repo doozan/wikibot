@@ -1,5 +1,4 @@
-from enwiktionary_parser.languages.all_ids import languages as ALL_LANG_IDS
-ALL_LANGS = {v:k for k,v in ALL_LANG_IDS.items()}
+from enwiktionary_parser.languages.all_ids import ALL_LANG_IDS, ALL_LANGS, ALT_LANGS
 
 # Sections that must be numbered when they appear more than once at the same level
 #

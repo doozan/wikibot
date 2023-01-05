@@ -24,12 +24,10 @@ import re
 import sys
 import pywikibot
 from pywikibot import xmlreader
-from autodooz.sections import ALL_POS
+from autodooz.sections import ALL_POS, ALL_LANGS, ALL_LANG_IDS
 from autodooz.wikilog import WikiLogger, BaseHandler
 from autodooz.wikilog_language import WikiByLanguage, FileByLanguage
 from collections import defaultdict
-from enwiktionary_parser.languages.all_ids import languages as lang_ids
-ALL_LANGS = {v:k for k,v in lang_ids.items()}
 
 from collections import namedtuple
 
@@ -194,10 +192,10 @@ LANGUAGE_ALTS = {
 }
 
 def language_matches(lang_id, lang_name):
-    if lang_id not in lang_ids:
+    if lang_id not in ALL_LANG_IDS:
         return True
 
-    id_name = lang_ids[lang_id]
+    id_name = ALL_LANG_IDS[lang_id]
     if id_name == lang_name:
         return True
 
@@ -310,7 +308,7 @@ def check_page(title, page_text):
                     template_lang_id = "-".join(splits[0:2])
 
                 # Fallback to unhyphenated language code
-                if template_lang_id not in lang_ids:
+                if template_lang_id not in ALL_LANG_IDS:
                     template_lang_id = splits[0]
 
             # The first paramater of the {{head}} template is the language code

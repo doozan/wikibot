@@ -5,7 +5,8 @@ import re
 import sys
 import enwiktionary_parser as wtparser
 import enwiktionary_templates as templates
-from enwiktionary_parser.languages.all_ids import languages as lang_ids
+from autodooz.sectionparser import SectionParser, Section
+from autodooz.sections import ALL_LANG_IDS
 from enwiktionary_parser.wtnodes.wordsense import WordSense
 from enwiktionary_wordlist.utils import wiki_to_text
 from enwiktionary_wordlist.sense import Sense
@@ -13,7 +14,6 @@ from enwiktionary_wordlist.word import Word
 from enwiktionary_parser.sections.pos import ALL_POS
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
-from autodooz.sectionparser import SectionParser, Section
 
 # Some pos entries have multiple titles, pick favorites
 POS_TO_TITLE = {v: k for k, v in ALL_POS.items()}
@@ -1055,7 +1055,7 @@ class FixRunner():
     """ Harness for running FormFixer from the fun_replace.py script """
 
     def __init__(self, lang_id, wordlist, allforms, **kwargs):
-        self.language = lang_ids[lang_id]
+        self.language = ALL_LANG_IDS[lang_id]
         self._fixer = None
         self._wordlist = None
         self._allforms = None

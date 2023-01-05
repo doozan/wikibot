@@ -5,8 +5,7 @@ from collections import defaultdict
 from Levenshtein import distance as fuzzy_distance
 
 from autodooz.sectionparser import SectionParser, Section
-from autodooz.sections import ALL_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
-from autodooz.lang_data import ALT_LANGS
+from autodooz.sections import ALL_LANGS, ALT_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
 
 # Tags that generate a <ref> link
 ref_tags = ["<ref[ :>]", r'{{ja-pron\|[^}]*(acc_ref|accent_ref)'] #}} code folding fix

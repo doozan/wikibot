@@ -5,7 +5,6 @@ import re
 import sys
 
 from collections import defaultdict
-from enwiktionary_parser.languages import all_ids as language_constants
 from autodooz.sectionparser import SectionParser
 from autodooz.sections import WT_POS, WT_ELE, ALL_LANGS, COUNTABLE_SECTIONS
 

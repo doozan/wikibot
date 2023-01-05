@@ -38,11 +38,11 @@ from enwiktionary_parser.sections.pos import ALL_POS
 
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-from enwiktionary_parser.languages.all_ids import languages as lang_ids
+from autodooz.sections import ALL_LANG_IDS
 
 class NymSectionToTag:
     def __init__(self, lang_id, wordlist=None, debug=()):
-        self.LANG_SECTION = lang_ids[lang_id]
+        self.LANG_SECTION = ALL_LANG_IDS[lang_id]
         self.LANG_ID = lang_id
         self._problems = {}
         self._stats = {}
@@ -456,7 +456,7 @@ def main():
 #    parser = dump.parse()
 #    parser = LanguageParser(args.bz2)
 
-    if args.lang_id not in lang_ids:
+    if args.lang_id not in ALL_LANG_IDS:
         raise ValueError(f"Unknown language id: {args.lang_id}")
 
     wordlist = Wordlist.from_file(args.wordlist) if args.wordlist else None
