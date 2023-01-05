@@ -54,6 +54,7 @@ LIST_SECTION_HEADER_ERRORS := $(PYPATH) ./list_section_header_errors.py
 LIST_SECTION_ORDER_ERRORS := $(PYPATH) ./list_section_order_errors.py
 LIST_SECTION_LEVEL_ERRORS := $(PYPATH) ./list_section_level_errors.py
 LIST_DRAE_ERRORS := $(PYPATH) ./list_drae_errors.py
+LIST_MISSING_DRAE := $(PYPATH) ./list_missing_drae.py
 LIST_DRAE_MISMATCHED_GENDERS := $(PYPATH) ./list_drae_mismatched_genders.py
 LIST_ES_FORM_OVERRIDES := $(PYPATH) ./list_es_form_overrides.py
 LIST_BARE_QUOTES := $(PYPATH) ./list_bare_quotes.py
@@ -225,6 +226,32 @@ $(LIST)fr_missing_tlfi: $(BUILDDIR)/fr-en.enwikt.txt.bz2 $(BUILDDIR)/fr-en.enwik
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
 >   $(RM) $@.with_tlf $@.without_tlfi $@.wiki.base
 >   mv $@.wiki $@
+
+$(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.allforms.csv
+>   echo "Making $@..."
+>   DEST="User:JeffDoozan/lists/es_missing_drae"
+>   SUMMARY="DRAE entries missing from Wiktionary"
+>
+>   $(GETIGNORE) "$$DEST" > $@.ignore
+>
+>   $(LIST_MISSING_DRAE) \
+>       --min-use 5000 \
+>       --wikt $(BUILDDIR)/es-en.enwikt.allforms.csv \
+>       --drae $(DRAEDATA)/drae.allforms.csv \
+>       --drae-links $(DRAEDATA)/drae.links \
+>       --wordlist $(DRAEDATA)/drae.data \
+>       --freq $(DRAEDATA)/drae.freq.csv \
+>       --counts $(DRAEDATA)/drae.txt \
+>       --forced-forms $(DRAEDATA)/patterns.csv \
+>       --ignore $@.ignore \
+>       > $@.wiki.base
+>
+>   echo "$$SUMMARY as of $(DATETAG_PRETTY)" > $@.wiki
+>   cat $@.wiki.base >> $@.wiki
+>   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
+>
+>   $(RM) $@.ignore $@.wiki $@.wiki.base
+>   touch $@
 
 $(LIST)es_drae_errors: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(SPANISH_DATA)/es-en.data
 >   echo "Running $@..."
