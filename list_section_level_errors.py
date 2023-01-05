@@ -7,7 +7,7 @@ import sys
 from autodooz.sectionparser import SectionParser
 from autodooz.fix_section_levels import SectionLevelFixer
 from autodooz.wikilog import WikiLogger, BaseHandler
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
 ALL_FIXES = {
     "autofix_misplaced_anagrams": "Misplaced Anagrams section",
@@ -71,6 +71,33 @@ class WikiSaver(BaseHandler):
         page = entry.page
         section = entry.section if entry.section else ""
         return [f": [[{page}]] {section} {entry.details}"]
+
+    # Override display for unexpected_mixed_section
+    def make_section(self, base_path, page_name, section_entries, prev_section_entries, pages):
+        if section_entries and section_entries[0].error == "unexpected_mixed_section":
+            return self.custom_format(section_entries)
+        else:
+            return super().make_section(base_path, page_name, section_entries, prev_section_entries, pages)
+
+    def custom_format(self, section_entries):
+        item = section_entries[0]
+        count = len(section_entries)
+        title = ALL_TITLES[item.error] if item.error in ALL_TITLES else item.error
+        res = [f"{title}, {count} item{'s' if count>1 else ''}"]
+
+        data = defaultdict(lambda: defaultdict(list))
+        for entry in section_entries:
+            lang, section, parent = entry.details
+            data[lang][section].append((entry.page, parent))
+
+        for lang, sections in sorted(data.items()):
+            res.append(f"==={lang}===")
+            count = sum(len(v) for v in sections.values())
+            res.append(f"{count} item{'s' if count>1 else ''}")
+            for section, entries in sorted(sections.items(), key=lambda x: (len(x[1]), x[0])):
+                for page, parent in sorted(entries, key=lambda x: x[0]):
+                    res.append(f": [[{page}]] {section} found after {parent}")
+        return res
 
     # Add empty pages if they generated no errors
     def make_pages(self, *args, **nargs):

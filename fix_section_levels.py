@@ -48,7 +48,11 @@ ALWAYS_ADOPTABLE_COUNTABLE_CHILDREN = ALL_POS.keys() | {
     "Alternative scripts",
     "Alternative reconstructions",
     } # | set(COUNTABLE_SECTIONS)
-ADOPTABLE_COUNTABLE_CHILDREN = ALWAYS_ADOPTABLE_COUNTABLE_CHILDREN
+ADOPTABLE_COUNTABLE_CHILDREN = ALWAYS_ADOPTABLE_COUNTABLE_CHILDREN | {
+    "See also",
+    "References",
+    "Further reading",
+}
 
 ALWAYS_ADOPTABLE_POS_CHILDREN = {
     "Definitions",
@@ -69,7 +73,6 @@ ADOPTABLE_POS_CHILDREN = ALWAYS_ADOPTABLE_POS_CHILDREN | {
     "Inflection",
     "Declension",
     "Conjugation",
-    #"Mutation",
     "Quotations",
     "Alternative forms",
     "Alternative scripts",
@@ -92,10 +95,9 @@ ADOPTABLE_POS_CHILDREN = ALWAYS_ADOPTABLE_POS_CHILDREN | {
     "Translations",
     "Statistics", # Not in WT:ELE, but used in 20k pages
 #    "Trivia",
-    #"See also",
+    "See also",
 #    "References",
 #    "Further reading",
-#        "Anagrams",
     }
 
 
@@ -302,10 +304,15 @@ class SectionLevelFixer():
                 new_parent = section.parent
                 while new_parent.level > 2:
                     new_parent = new_parent.parent
+            elif section.parent._children.index(section) != len(section.parent._children)-1:
+                new_parent = section.parent
+            else:
+                continue
 
-                self.promote_children(section)
-                self.fix("autofix_misplaced_anagrams", section, f"moved to {new_parent.path}")
-                section.reparent(new_parent)
+            self.promote_children(section)
+            self.fix("autofix_misplaced_anagrams", section, f"moved to end of {new_parent.path}")
+            section.reparent(new_parent)
+
 
     def pos_adopt_stray_children(self, grandparent):
         all_parents = grandparent.filter_sections(recursive=False, matches=lambda x: x.title in ALL_POS)
@@ -320,36 +327,34 @@ class SectionLevelFixer():
         stray_children = self.find_stray_children(grandparent, [countable_title], ADOPTABLE_COUNTABLE_CHILDREN)
         self.adopt_stray_children(all_parents, stray_children, ADOPTABLE_COUNTABLE_CHILDREN, ALWAYS_ADOPTABLE_COUNTABLE_CHILDREN)
 
-    def find_stray_children(self, grandparent, parents, grandchildren):
+    def find_stray_children(self, grandparent, parents, all_grandchildren):
 
         # Given a grandparent section, scans all children
         # When it encounters a child listed in [parents], that node will
-        # adopt all following sections if they are in [grandchildren] until it encounters
+        # adopt all following sections if they are in [all_grandchildren] until it encounters
         # a section listed in [parents]
 
-        multi_parent = False
         prev_parent = None
         stray_children = defaultdict(list)
-        unhandled_between_parents = False
+        unhandled = []
 
         for section in grandparent.filter_sections(recursive=False):
             if section.title in parents:
-                if prev_parent:
-                    multi_parent = True
-                    if unhandled_sections:
-                        self.warn("unexpected_mixed_section", f"{unhandled_sections} between {prev_parent.path} and {section.path}")
-                        return
                 prev_parent = section
-                unhandled_sections = False
-            elif prev_parent:
-                if section.title in grandchildren:
-                    if unhandled_sections:
-                        self.warn("unexpected_mixed_section", f"{unhandled_sections} between {prev_parent.path} and {section.path}")
-                        return
 
+            elif prev_parent:
+                if section.title in all_grandchildren:
                     stray_children[prev_parent].append(section)
                 else:
-                    unhandled_sections = section.path
+                    unhandled.append((prev_parent, section))
+
+        # Ignore any unhandled sections after the last parent
+        unhandled = [x for x in unhandled if x[0] != prev_parent]
+        if unhandled:
+            for parent, section in unhandled:
+                language = list(section.ancestors)[-2].title
+                self.warn("unexpected_mixed_section", (language, section.title, parent.path))
+            return
 
         return stray_children
 
