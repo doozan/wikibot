@@ -115,6 +115,13 @@ def validate_entry(entry):
         if not section._lines and not section._children:
             log("empty_section", section)
 
+        PATTERN_SIMPLE_REFS = r"(?i)(<\s*references\s*/>|{{reflist}})"
+        if any(re.search(PATTERN_SIMPLE_REFS, d) for d in section._lines):
+            if "References" not in section.lineage:
+                if len(section._lines) == 1:
+                    log("misnamed_references_section", section)
+                else:
+                    log("reference_tag_outside_references", section)
 
 def main():
 
