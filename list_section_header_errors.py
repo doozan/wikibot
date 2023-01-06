@@ -19,6 +19,7 @@ ALL_FIXES = {
     'misnamed_quotations': "Section contains only seeCites but is not named Quotations",
     'misnamed_references': "Section contains only references tag but is not named References",
     'missing_ref_section': "L2 uses references but has no References section",
+    'missing_ref_target': "Missing <nowiki><references/></nowiki> tag",
     'not_plural': "Section title is plural but should be singular",
     'pos_counter': "Section has counter",
 }
