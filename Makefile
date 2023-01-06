@@ -84,6 +84,10 @@ $(BUILDDIR)/%.frequency.csv: force
 >   @echo "Subcontracting $@..."
 >   $(MAKE) -C $(SPANISH_DATA) $(@:$(SPANISH_DATA)/%=%)
 
+$(BUILDDIR)/%.json: force
+>   @echo "Subcontracting $@..."
+>   $(MAKE) -C $(SPANISH_DATA) $(@:$(SPANISH_DATA)/%=%)
+
 force: ;
 # force used per https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 
@@ -114,6 +118,18 @@ $(BUILDDIR)/%.with_etymology: $(BUILDDIR)/%.data-full
 $(BUILDDIR)/%.lemmas_without_etymology: $(BUILDDIR)/%.lemmas $(BUILDDIR)/%.with_etymology
 >   @echo "Making $@..."
 >   comm -23 $(BUILDDIR)/$*.lemmas $(BUILDDIR)/$*.with_etymology > $@
+
+$(BUILDDIR)/wikt.sentences: $(BUILDDIR)/es-en.enwikt.txt.bz2
+>   @echo "Making $@..."
+>   $(LIST_DUPLICATE_PASSAGES) $^ --dump > $@
+
+$(BUILDDIR)/wikt.untagged: $(BUILDDIR)/wikt.sentences
+>   @echo "Making $@..."
+>   cat $^ | cut -f 1 > $@
+
+/var/local/wikt/wikt.sentences.tgz: $(BUILDDIR)/wikt.sentences $(BUILDDIR)/wikt.untagged $(BUILDDIR)/wikt.json
+>   @echo "Making $@..."
+>   tar czvf /var/local/wikt/wikt.sentences.tgz -C $(BUILDDIR) wikt.sentences wikt.json
 
 # Lists
 
@@ -628,7 +644,7 @@ $(FIX)bare_quotes:
 >   echo $$LINKS > $@
 
 
-lists: $(patsubst %,$(LIST)%,t9n_problems section_stats es_forms_with_data mismatched_headlines maybe_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals section_header_errors section_level_errors section_order_errors es_drae_mismatched_genders bare_quotes es_form_overrides missing_forms) # missing_forms last because it's slow on low memory machine
+lists: /var/local/wikt/wikt.sentences.tgz $(patsubst %,$(LIST)%,t9n_problems section_stats es_forms_with_data mismatched_headlines maybe_forms fr_missing_lemmas es_missing_lemmas es_missing_ety fr_missing_tlfi es_drae_errors es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms pt_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals section_header_errors section_level_errors section_order_errors es_drae_mismatched_genders bare_quotes es_form_overrides missing_forms) # missing_forms last because it's slow on low memory machine
 
 # Fixes that are safe to run automatically and without supervision
 autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides bare_quotes)
