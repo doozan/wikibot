@@ -19,9 +19,6 @@ class BaseHandler():
         # by the the overridden functions
         self.args = namedtuple('args', nargs.keys())(*nargs.values())
 
-        if not items:
-            return
-
         items = self.sort_items(items)
         pages = self.make_pages(items)
 
@@ -42,6 +39,7 @@ class BaseHandler():
 
         section_start = 0
         prev_item = None
+        i = 0
         for i, item in enumerate(items):
             if prev_item and self.is_new_section(item, prev_item):
 
