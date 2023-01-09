@@ -330,8 +330,9 @@ class SectionHeaderFixer():
 
     def get_lang_guesses(self, section):
         title = section.title
+
+        fuzzy_matches = []
         for limit in range(1,5):
-            fuzzy_matches = []
             for new_title in ALL_LANGS:
                 fuzzy_matches += get_fuzzy_matches(title, [new_title], limit)
             if fuzzy_matches:
@@ -339,14 +340,23 @@ class SectionHeaderFixer():
                 if len(fuzzy_matches) > 1:
                     break
 
+        fuzzy_matches = []
         for limit in range(1,5):
-            fuzzy_matches = []
             new_matches = []
             for new_title in ALT_LANGS:
-                new_matches += get_fuzzy_matches(title, [new_title], limit)
-                for match in new_matches:
+                matches = get_fuzzy_matches(title, [new_title], limit)
+                if matches:
+                    new_matches.append((new_title, matches))
+
+            # If there was an earlier, more specific match, don't include lots of fuzzier matches
+            if len(new_matches) > 5 and fuzzy_matches:
+                break
+
+            for new_title, matches in new_matches:
+                for match in matches:
                     self.warn("l2_fuzzy_guess", f"{section.path} MAYBE (fuzzy match alt lang '{new_title}' {limit}): {'; '.join(ALT_LANGS[new_title])}")
-                fuzzy_matches += new_matches
+                fuzzy_matches += matches
+
             if len(fuzzy_matches) > 1:
                 break
 
