@@ -441,10 +441,10 @@ $(LIST)section_order_errors: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.
 >   $(LIST_SECTION_ORDER_ERRORS) $(SAVE) $^
 >   touch $@
 
-$(LIST)es_form_overrides: $(SPANISH_DATA)/es-en.data
+$(LIST)es_form_overrides: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
->   $(LIST_ES_FORM_OVERRIDES) $(SAVE) --dictionary $^
+>   $(LIST_ES_FORM_OVERRIDES) $(SAVE) $^
 >   touch $@
 
 $(LIST)bare_quotes: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2

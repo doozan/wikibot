@@ -7,7 +7,7 @@ import sys
 from autodooz.fix_es_form_overrides import OverrideFixer
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
-from enwiktionary_wordlist.wordlist import Wordlist
+from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
 from pywikibot import xmlreader
 
 class WikiSaver(BaseHandler):
@@ -98,30 +98,13 @@ def log(error, page, current, default, *args):
 def main():
     parser = argparse.ArgumentParser(description="Find Spanish nouns with manually specified forms")
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
-    parser.add_argument("--dictionary", help="Dictionary file name")
-    parser.add_argument("--extract", help="Extract file name")
+    parser.add_argument("extract", help="Extract file name")
     args = parser.parse_args()
 
     fixer = OverrideFixer(log)
 
-    if args.extract:
-        for article in WikiExtractWithRev.iter_articles_from_bz2(args.extract):
-            fixer.process(article.text, article.title)
-
-    elif args.dictionary:
-        wordlist = Wordlist.from_file(args.dictionary)
-        for word in wordlist.iter_all_words():
-            if not word.pos == "n":
-                continue
-
-            if not word.meta:
-                continue
-
-            fixer._section = word.word
-            fixer.cleanup_line(word.meta, word.word)
-    else:
-        print("must use --extract or --dictionary")
-        exit(1)
+    for article in WikiExtractWithRev.iter_articles_from_bz2(args.extract):
+        fixer.process(article.text, article.title)
 
     if args.save:
         base_url = f"User:JeffDoozan/lists/es"

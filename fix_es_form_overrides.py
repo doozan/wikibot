@@ -8,7 +8,6 @@ import sys
 
 from autodooz.sectionparser import SectionParser
 from collections import namedtuple, defaultdict
-from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.word import Word
 
 # Removes unnecessary form overrides from es-noun templates
@@ -20,18 +19,17 @@ class OverrideFixer():
 
     def __init__(self, logger=None):
         self._logger = logger
-        self._section = None
         self._changes = []
 
-    def fix(self, code, current, default, details):
+    def fix(self, error, page, current, default, details):
         if self._logger:
-            self._logger("autofix_" + code, self._section, current, default)
+            self._logger("autofix_" + error, page, current, default)
         else:
-            self._summary.append(f"/*{self._section.path}*/ {details}")
+            self._summary.append(f"/*{section.path}*/ {details}")
 
-    def warn(self, code, current, default):
+    def warn(self, error, page, current, default):
         if self._logger:
-            self._logger(code, self._section, current, default)
+            self._logger(error, page, current, default)
 
     def get_default_forms(self, word, gender):
 
@@ -47,7 +45,12 @@ class OverrideFixer():
 
         return forms
 
-    def cleanup_overrides(self, title, template):
+    def is_simple_female_equivalent(self, custom, default, section):
+        masculines = custom if custom and custom not in [ ["1"], ["+"] ] else default
+        masculine = masculines[0]
+        return not section._children and section._lines[1:] == ['', "# {{female equivalent of|es|" + masculine + "}}"]
+
+    def cleanup_overrides(self, title, template, section):
 
         if "+" in title:
             return
@@ -73,12 +76,20 @@ class OverrideFixer():
             if p in current_forms:
                 current = current_forms[p]
                 default = default_forms[p]
+
+                if p == "m" and self.is_simple_female_equivalent(current, default, section):
+                    for rp in ["m", "mpl"]:
+                        if template.has(p):
+                            template.remove(p)
+                            self.fix(f"removed_{p}", title, current, default, f"removed '{p}={current[0]}' from female equivalent of")
+                    continue
+
                 if len(current) == 1 and current == default and template.has(p):
                     template.add(p, "+")
-                    self.fix(f"replaced_{p}", current, default, f"replaced '{p}={current[0]}' with '{p}=+'")
+                    self.fix(f"replaced_{p}", title, current, default, f"replaced '{p}={current[0]}' with '{p}=+'")
                 else:
                     if current != ["+"] and current != ["1"]:
-                        self.warn(f"custom_{p}", current, default)
+                        self.warn(f"custom_{p}", title, current, default)
 
         for p in ["mpl", "fpl"]:
             if p in current_forms:
@@ -86,9 +97,9 @@ class OverrideFixer():
                 default = default_forms[p]
                 if len(current_forms[p]) == 1 and current_forms[p] == default_forms[p] and template.has(p):
                     template.remove(p)
-                    self.fix(f"removed_{p}", current, default, f"removed '{p}={current[0]}'")
+                    self.fix(f"removed_{p}", title, current, default, f"removed '{p}={current[0]}'")
                 else:
-                    self.warn(f"custom_{p}", current, default)
+                    self.warn(f"custom_{p}", title, current, default)
 
         p = "pl"
         if p in current_forms:
@@ -96,19 +107,19 @@ class OverrideFixer():
             default = default_forms[p]
             if len(current_forms[p]) == 1 and current_forms[p] == default_forms[p]:
                 template.remove(2)
-                self.fix(f"removed_{p}", current, default, "removed unneeded plural override")
+                self.fix(f"removed_{p}", title, current, default, "removed unneeded plural override")
             else:
-                self.warn(f"custom_{p}", current, default)
+                self.warn(f"custom_{p}", title, current, default)
 
 
-    def cleanup_line(self, line, title):
+    def cleanup_line(self, line, title, section):
 
         for template in templates.iter_templates(line):
             if template.name != "es-noun":
                 continue
 
             old_template = str(template)
-            self.cleanup_overrides(title, template)
+            self.cleanup_overrides(title, template, section)
             new_template = str(template)
 
             if new_template != old_template:
@@ -130,10 +141,7 @@ class OverrideFixer():
                     if "{{es-noun" not in line:
                         continue
 
-                    # needed for logging to work
-                    self._section = section
-
-                    new_line = self.cleanup_line(line, title)
+                    new_line = self.cleanup_line(line, title, section)
                     if new_line != line:
                         entry_changed = True
                         section._lines[idx] = new_line
