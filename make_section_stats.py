@@ -5,17 +5,17 @@ import re
 import sys
 
 from collections import defaultdict
-from autodooz.sectionparser import SectionParser
+import enwiktionary_sectionparser as sectionparser
 from autodooz.sections import WT_POS, WT_ELE, ALL_LANGS, COUNTABLE_SECTIONS
 
 errors = defaultdict(list)
 def log(error, section, notes=None):
     if isinstance(section, str):
         path = section
-    elif isinstance(section, SectionParser):
-        path = section.title + ":"
-    else:
+    elif hasattr(section, "lineage"):
         path = ":".join(reversed(list(section.lineage)))
+    else:
+        path = section.title + ":"
 
     #print(path, error, notes)
     errors[error].append((path, notes))
@@ -82,9 +82,9 @@ def export_errors(prefix, summary):
         export_error(prefix, error, [], summary)
 
 
-def validate_entry(entry):
+def validate_entry(entry, errors):
 
-    for x in entry._log:
+    for x in errors:
         error, path, line = x
         log(error, path, line)
 
@@ -152,9 +152,9 @@ def main():
         if args.limit and count > args.limit:
             break
 
-        entry = SectionParser(page.text, page.title)
-
-        validate_entry(entry)
+        errors = []
+        entry = sectionparser.parse(page.text, page.title, errors)
+        validate_entry(entry, errors)
 
         for section in entry.ifilter_sections():
             title = section.title if section.title else "(no section title)"

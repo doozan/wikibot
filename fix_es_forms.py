@@ -1,11 +1,10 @@
-import timeit
-
 import collections
+import enwiktionary_sectionparser as sectionparser
 import re
 import sys
 import enwiktionary_parser as wtparser
 import enwiktionary_templates as templates
-from autodooz.sectionparser import SectionParser, Section
+
 from autodooz.sections import ALL_LANG_IDS
 from enwiktionary_parser.wtnodes.wordsense import WordSense
 from enwiktionary_wordlist.utils import wiki_to_text
@@ -470,13 +469,13 @@ class FormFixer():
             lines.append(self.get_form_gloss(form_obj))
             added_forms.add(item)
 
-        section = Section(None, level, title)
+        section = sectionparser.Section(None, level, title)
         section._lines = lines
         return section
 
     def generate_full_entry(self, title, forms):
 
-        spanish = Section(None, 2, "Spanish")
+        spanish = sectionparser.Section(None, 2, "Spanish")
 
         prev_pos = None
         pos_forms = []
@@ -1005,7 +1004,10 @@ class FormFixer():
         if not forms:
             return page_text
 
-        entry = SectionParser(page_text, title)
+        entry = sectionparser.parse(page_text, title)
+        if not entry:
+            return page_text
+
         languages = entry.filter_sections(matches=lambda x: x.title == "Spanish", recursive=False)
         if len(languages) != 1:
             return page_text
@@ -1209,11 +1211,6 @@ class FixRunner():
     def _remove_forms(self, page_text, title, allow_blank=False, ignore_errors=False):
 
         declared_forms = self.fixer.get_declared_forms(title, self.wordlist, self.allforms)
-        lean_text, lean_tail = self.get_lean_entry(page_text)
-
-        # IF there's no spanish entry, there's nothing to remove
-        if not lean_text:
-            return page_text
 
         try:
             new_text = self.fixer.remove_undeclared_forms(title, page_text, declared_forms, ignore_errors)
@@ -1288,7 +1285,7 @@ class FixRunner():
         if not self.can_handle_page(title):
             return page_text
 
-        if summary:
+        if summary is not None:
              summary.append("/*Spanish*/ Removed forms")
         return self._remove_forms(page_text, title)
 

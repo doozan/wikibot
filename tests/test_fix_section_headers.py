@@ -1,6 +1,7 @@
 import pytest
 
-from ..sectionparser import SectionParser
+import enwiktionary_sectionparser as sectionparser
+
 from ..fix_section_headers import SectionHeaderFixer
 
 fixer = SectionHeaderFixer()
@@ -37,7 +38,7 @@ def test_fix_section_titles():
 ===Usage notes===
 """
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
     fixer.fix_section_titles(entry)
     res = str(entry)
     assert res.splitlines() == result.splitlines()
@@ -77,11 +78,11 @@ def test_fix_section_levels():
 =====BlahC=====
 """
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
 
     fixer.fix_section_levels(entry)
     res = str(entry)
-    entry = SectionParser(res, "test")
+    entry = sectionparser.parse(res, "test")
     assert res.splitlines() == result.splitlines()
 
 
@@ -89,7 +90,7 @@ def test_fix_section_levels():
 ===Noun===
 """
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
     assert str(entry).strip() == text.strip()
 #    with pytest.raises(Exception) as e_info:
 #        fixer.fix_section_levels(entry)
@@ -127,7 +128,7 @@ def test_fix_remove_pos_counters():
 =====Noun=====
 """
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
 
     fixer.fix_remove_pos_counters(entry)
     res = str(entry)
@@ -157,7 +158,7 @@ blah
 blah
 """
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
 
     fixer.remove_empty_sections(entry)
     res = str(entry)
@@ -186,7 +187,7 @@ def test_fix_bad_l2():
 {{reflist}}
 """
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
     print(entry)
 
     fixer.fix_bad_l2(entry)
@@ -277,7 +278,7 @@ Borrowed from {{bor|en|la|asportō}}.
 * {{anagrams|en|a=aoprst|Portas|Sproat|pastor|portas|sap rot|saprot}}\
 """
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
     assert fixer.move_misplaced_translations(entry)
 
     res = str(entry)
@@ -366,7 +367,7 @@ def notest_t9n_moving2():
 {{trans-bottom}}\
 """
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
     assert fixer.move_misplaced_translations(entry)
 
     res = str(entry)
@@ -403,7 +404,7 @@ def test_remove_empty_children():
 [[Category:mul:Birds]]
 """
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
 
     # ===Further reading== is a bad L2 and also an empty section
     # Make sure there's no crash after it is moved and then removed

@@ -4,7 +4,6 @@ import pywikibot
 import re
 import sys
 
-from autodooz.sectionparser import SectionParser
 from autodooz.fix_section_order import SectionOrderFixer
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import namedtuple

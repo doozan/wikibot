@@ -1,4 +1,4 @@
-from autodooz.sectionparser import SectionParser
+import enwiktionary_sectionparser as sectionparser
 from autodooz.sections import ALL_LANGS
 import re
 import sys
@@ -790,8 +790,8 @@ class QuoteFixer():
         if title in ignore_pages:
             return [] if summary is None else text
 
-        entry = SectionParser(text, title)
-        if entry.state:
+        entry = sectionparser.parse(text, title)
+        if not entry:
             return [] if summary is None else text
 
         for section in entry.ifilter_sections():

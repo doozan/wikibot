@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 
 import argparse
+import enwiktionary_sectionparser as sectionparser
 import enwiktionary_templates as templates
 import os
 import re
 import sys
 
-from autodooz.sectionparser import SectionParser
 from collections import namedtuple, defaultdict
 from enwiktionary_wordlist.word import Word
 
@@ -132,7 +132,9 @@ class OverrideFixer():
 
         self._summary = []
 
-        entry = SectionParser(text, title)
+        entry = sectionparser.parse(text, title)
+        if not entry:
+            return text
 
         entry_changed = False
         for spanish in entry.ifilter_sections(matches="Spanish", recursive=False):

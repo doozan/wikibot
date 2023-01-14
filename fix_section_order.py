@@ -1,7 +1,7 @@
+import enwiktionary_sectionparser as sectionparser
 import re
 import unicodedata
 
-from autodooz.sectionparser import SectionParser
 from autodooz.sections import ALL_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
 from autodooz.fix_es_forms import FormFixer
 from collections import defaultdict
@@ -274,9 +274,8 @@ class SectionOrderFixer:
         self.page_title = page_title
         self._changes = []
 
-        entry = SectionParser(page_text, page_title)
-        if entry.state != 0:
-            #print(page_title, "unfinished state", entry.state)
+        entry = sectionparser.parse(page_text, page_title)
+        if not entry:
             return page_text
 
         self.sort_l2(entry)

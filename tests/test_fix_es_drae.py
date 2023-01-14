@@ -2,7 +2,6 @@ import pytest
 
 import re
 import enwiktionary_parser as wtparser
-from autodooz.sectionparser import SectionParser
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
 from ..fix_es_drae import DraeFixer

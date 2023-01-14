@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
+import enwiktionary_sectionparser as sectionparser
 import re
+
+from autodooz.sections import ALL_LANGS, ALT_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
 from collections import defaultdict
 from Levenshtein import distance as fuzzy_distance
-
-from autodooz.sectionparser import SectionParser, Section
-from autodooz.sections import ALL_LANGS, ALT_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
 
 # Tags that generate a <ref> link
 ref_tags = ["<ref[ :>]", r'{{ja-pron\|[^}]*(acc_ref|accent_ref)'] #}} code folding fix
@@ -460,7 +460,7 @@ class SectionHeaderFixer():
                     self.fix("missing_ref_target", ref_section, "added missing <references/>")
                     continue
 
-                new_section = Section(entry, 3, "References")
+                new_section = sectionparser.Section(entry, 3, "References")
                 new_section.add("<references/>")
 
                 # Anagrams is always the last section, otherwise References is the last
@@ -516,7 +516,7 @@ class SectionHeaderFixer():
 
             else:
                 self.fix("split_further_reading", section, "split non-footnotes to Further reading")
-                new_section = Section(section.parent, section.level, "Further reading")
+                new_section = sectionparser.Section(section.parent, section.level, "Further reading")
                 new_section._lines = moved_lines
                 section.parent._children.append(new_section)
 
@@ -560,8 +560,8 @@ class SectionHeaderFixer():
         if ":" in page_title or "/" in page_title:
             return page_text
 
-        entry = SectionParser(page_text, page_title)
-        if entry.state != 0:
+        entry = sectionparser.parse(page_text, page_title)
+        if not entry:
             return page_text
 
         self.fix_section_titles(entry)

@@ -1,8 +1,8 @@
+import enwiktionary_sectionparser as sectionparser
 import mwparserfromhell
 import re
 import sys
 
-from autodooz.sectionparser import SectionParser, Section
 from collections import defaultdict
 
 class DraeFixer():
@@ -61,7 +61,10 @@ class DraeFixer():
         if len(title) == 1:
             return text
 
-        entry = SectionParser(text, title)
+        entry = sectionparser.parse(text, title)
+        if not entry:
+            return text
+
         spanish = next(entry.ifilter_sections(matches="Spanish", recursive=False), None)
         if not spanish:
             return text
@@ -98,7 +101,7 @@ class DraeFixer():
             if drae_line in str(section):
                 return text
         else:
-            section = Section(spanish, 3, "Further reading")
+            section = sectionparser.Section(spanish, 3, "Further reading")
 
             # New section goes before the first Anagrams section, if it exists
             pos = [x for x,e in enumerate(spanish._children) if e.title == "Anagrams"]
@@ -120,7 +123,10 @@ class DraeFixer():
 
         text = text.replace("{{R:DRAE", "{{R:es:DRAE")
 
-        entry = SectionParser(text, title)
+        entry = sectionparser.parse(text, title)
+        if not entry:
+            return text
+
         spanish = next(entry.ifilter_sections(matches="Spanish", recursive=False))
         section = next(spanish.ifilter_sections(matches="Further reading"))
 

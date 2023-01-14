@@ -1,4 +1,5 @@
-from autodooz.sectionparser import SectionParser
+import enwiktionary_sectionparser as sectionparser
+
 from autodooz.sections import ALL_POS, ALL_L3, ALL_LANGS, COUNTABLE_SECTIONS
 from collections import defaultdict
 
@@ -428,9 +429,8 @@ class SectionLevelFixer():
         self.page_title = page_title
         self._changes = []
 
-        entry = SectionParser(page_text, page_title)
-        if entry.state != 0:
-            self.warn("unfinished_state", entry.state)
+        entry = sectionparser.parse(page_text, page_title)
+        if not entry:
             return page_text
 
         if not self.has_only_expected_children(entry, ALL_LANGS):

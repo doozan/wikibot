@@ -19,10 +19,12 @@
 Find possible mismatches between a POS section header and the headline
 """
 
+import enwiktionary_sectionparser as sectionparser
 import os
 import re
 import sys
 import pywikibot
+
 from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
 from enwiktionary_parser import parse_page
 from autodooz.wikilog import WikiLogger, BaseHandler
@@ -31,7 +33,6 @@ from enwiktionary_wordlist.sense import Sense
 from autodooz.fix_es_forms import POS_TO_TITLE, FormFixer
 from enwiktionary_wordlist.utils import wiki_to_text
 
-from autodooz.sectionparser import SectionParser
 from autodooz.sections import ALL_POS
 
 class WikiSaver(BaseHandler):
@@ -95,7 +96,10 @@ def check_page(title, page_text, log):
     if "{{head|es" not in page_text:
         return
 
-    entry = SectionParser(page_text, title)
+    entry = sectionparser.parse(page_text, title)
+    if not entry:
+        return
+
     for spanish in entry.ifilter_sections(matches="Spanish", recursive=False):
         for section in spanish.ifilter_sections(matches=lambda x: FormFixer.is_form(x)):
             FormFixer.is_generated(section, lambda error, line=None: log(error, title, section.title, line))
@@ -145,7 +149,7 @@ class MoveSubsectionsRunner():
         page_text = match.group(0)
 
         body = get_lean_spanish_entry(page_text)
-        entry = SectionParser(body, title)
+        entry = sectionparser.parse(body, title)
         if not entry:
            return
 

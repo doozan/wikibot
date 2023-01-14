@@ -19,10 +19,11 @@
 fix translation tables
 """
 
+import enwiktionary_sectionparser as sectionparser
 import os
 import re
 import sys
-from autodooz.sectionparser import SectionParser
+
 from autodooz.sections import ALL_LANGS, ALL_LANG_IDS
 from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation, UNKNOWN_LANGS, LANG_PARENTS
 from enwiktionary_wordlist.all_forms import AllForms
@@ -397,7 +398,10 @@ class T9nFixRunner():
             return page_text
 
         replacements = []
-        sections = SectionParser(page_text, title)
+        sections = sectionparser.parse(page_text, title)
+        if not sections:
+            return page_text
+
         for section in sections.ifilter_sections(matches="Translations"):
             pos = section.parent.title
 

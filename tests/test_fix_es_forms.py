@@ -1,8 +1,8 @@
+import enwiktionary_sectionparser as sectionparser
 import pytest
 
 import re
 import enwiktionary_parser as wtparser
-from autodooz.sectionparser import SectionParser
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
 from ..fix_es_forms import FormFixer, FixRunner, DeclaredForm, ExistingForm
@@ -3144,7 +3144,7 @@ def test_is_generated():
 # {{es-verb form of|dar}}
 """
 
-    entry = SectionParser(text, "title")
+    entry = sectionparser.parse(text, "title")
     section = next(entry.ifilter_sections(matches=lambda x: x.title == "Verb"))
     assert FormFixer.is_generated(section) == True
 

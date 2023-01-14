@@ -1,4 +1,4 @@
-from autodooz.sectionparser import SectionParser, Section
+import enwiktionary_sectionparser as sectionparser
 
 def fr_add_tlfi(text, title, summary, options):
 
@@ -8,7 +8,10 @@ def fr_add_tlfi(text, title, summary, options):
     if "{{R:TLFi" in text:
         return text
 
-    entry = SectionParser(text, title)
+    entry = sectionparser.parse(text, title)
+    if not entry:
+        return text
+
     all_french = entry.filter_sections(matches="French", recursive=False)
     if not all_french:
         return text
@@ -23,7 +26,7 @@ def fr_add_tlfi(text, title, summary, options):
         return str(entry)
 
     # Otherwise, create and insert or append the new section
-    further_reading = Section(entry, 3, "References")
+    further_reading = sectionparser.Section(entry, 3, "References")
     further_reading._lines.append("* {{R:TLFi}}")
 
     anagrams = french.filter_sections(matches="Anagrams", recursive=False)

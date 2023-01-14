@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from autodooz.sectionparser import SectionParser
+import enwiktionary_sectionparser as sectionparser
 
 def get_verb_section(entry):
     langs = entry.filter_sections(recursive=False, matches="Portuguese")
@@ -31,12 +31,18 @@ def get_verb_section(entry):
 def merge(page_text, page_title, summary, options, src_text, src_title):
     print("X"*80)
     print("MERGE", src_title, "-->", page_title)
-    entry = SectionParser(page_text, page_title)
+    entry = sectionparser.parse(page_text, page_title)
+    if not entry:
+        return
+
     dest = get_verb_section(entry)
     if not dest:
         return
 
-    src_entry = SectionParser(src_text, src_title)
+    src_entry = sectionparser.parse(src_text, src_title)
+    if not src_entry:
+        return
+
     src = get_verb_section(src_entry)
     if not src:
         return
@@ -48,7 +54,10 @@ def merge(page_text, page_title, summary, options, src_text, src_title):
     return str(entry)
 
 def remove(page_text, page_title, summary, options, dest_title):
-    entry = SectionParser(page_text, page_title)
+    entry = sectionparser.parse(page_text, page_title)
+    if not entry:
+        return page_text
+
     section = get_verb_section(entry)
     if not section:
         raise ValueError(f"No verb section found in merge source {page_title}, this should never happend")

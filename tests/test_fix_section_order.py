@@ -1,6 +1,6 @@
+import enwiktionary_sectionparser as sectionparser
 import pytest
 
-from ..sectionparser import SectionParser
 from ..fix_section_order import SectionOrderFixer
 
 def test_sort_languages():
@@ -67,7 +67,7 @@ def test_sort_languages():
 ==Yoruba==
 """
 
-    parsed = SectionParser(text, "test")
+    parsed = sectionparser.parse(text, "test")
     fixer = SectionOrderFixer()
     fixer.sort_l2(parsed)
 
@@ -105,7 +105,7 @@ Borrowed from {{bor|es|la|āctiō|āctiō, āctiōnem}}, from {{m|la|ago|agere}}
     # out of order lemmas retain their original order
     result = text
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
     spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False))
     fixer = SectionOrderFixer()
     fixer.sort_l3(spanish)
@@ -158,7 +158,7 @@ def test_l3_sort_lemma_first():
 * {{R:es:DRAE}}\
 """
 
-    entry = SectionParser(text, "test")
+    entry = sectionparser.parse(text, "test")
     spanish = next(entry.ifilter_sections(matches=lambda x: x.title == "Spanish", recursive=False))
 
     fixer = SectionOrderFixer()

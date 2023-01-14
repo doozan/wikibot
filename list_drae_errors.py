@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
 import argparse
+import enwiktionary_sectionparser as sectionparser
 import re
 import sys
 
 from autodooz.fix_es_drae import DraeFixer
-from autodooz.sectionparser import SectionParser
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 from enwiktionary_wordlist.all_forms import AllForms
@@ -98,7 +98,10 @@ def process(text, title, wordlist, fixer):
     if page_is_form and "{{R:es:DRAE" not in text:
         return
 
-    entry = SectionParser(text, title)
+    entry = sectionparser.parse(text, title)
+    if not entry:
+        return
+
     spanish = entry.filter_sections(matches="Spanish", recursive=False)
     if not spanish:
         return
