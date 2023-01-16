@@ -96,7 +96,7 @@ ADOPTABLE_POS_CHILDREN = ALWAYS_ADOPTABLE_POS_CHILDREN | {
     "Translations",
     "Statistics", # Not in WT:ELE, but used in 20k pages
 #    "Trivia",
-    "See also",
+    #"See also",
 #    "References",
 #    "Further reading",
     }
@@ -179,6 +179,7 @@ class SectionLevelFixer():
                 section.count = count
 
     def move_single_pronunciation(self, lang):
+        ps = lang.filter_sections(matches="Pronunciation")
 
         etys = lang.filter_sections(recursive=False, matches="Etymology")
         if not len(etys) > 1:
@@ -300,12 +301,14 @@ class SectionLevelFixer():
         return valid
 
     def fix_anagrams(self, entry):
-        for section in entry.filter_sections(matches="Anagrams"):
+        anagrams = entry.filter_sections(matches="Anagrams")
+        for section in anagrams:
             if section.level > 3:
                 new_parent = section.parent
                 while new_parent.level > 2:
                     new_parent = new_parent.parent
-            elif section.parent._children.index(section) != len(section.parent._children)-1:
+            elif section.parent._children.index(section) < len(section.parent._children)-len(anagrams):
+                print(section.parent._children.index(section), len(section.parent._children))
                 new_parent = section.parent
             else:
                 continue
