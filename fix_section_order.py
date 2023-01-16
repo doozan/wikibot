@@ -7,16 +7,6 @@ from autodooz.fix_es_forms import FormFixer
 from collections import defaultdict
 
 
-# Sections that will be a the very top, ranked as they appear here
-TOP_SORT = {k:v for v,k in enumerate([
-        #"Alternative forms",
-        "Description",
-        "Glyph origin",
-        "Etymology",
-        "Pronunciation",
-        "Production",
-    ], 1)}
-
 #NONSTANDARD_OTHER = {
 #    "Transliteration",
 #    "Compounds",
@@ -68,6 +58,20 @@ BOTTOM_SORT_SAFE = {k:v for v,k in enumerate([
         "References",
         "Further reading",
         "Anagrams",
+    ], 1)}
+
+
+# Categories that can be safely sorted the bottom
+TOP_SORT = {k:v for v,k in enumerate([
+        "Description",
+        "Glyph origin",
+        "Kanji", # Differs from WT:ELE order, but follows common practice in Japanese
+        "Hanzi", # Differs from WT:ELE order, but follows common practice in Japanese
+        "Etymology",
+        "Pronunciation",
+        "Production",
+        "Hanja", # Differs from WT:ELE order, but follows common practice in Korean
+        "Han character", # Difers from WT:ELE order, but follows common practice in Translingual
     ], 1)}
 
 
@@ -170,12 +174,25 @@ class SectionOrderFixer:
                 for section in l3._children:
                     totals[section.title] += 1
 
+                has_dup = False
                 for title, count in totals.items():
-                    # Don't sort sections with double items
-                    if count > 1 and title in BOTTOM_SORT_SAFE:
+                    if count > 1 and (title in BOTTOM_SORT_SAFE or title in TOP_SORT):
                         self.warn("dup_sections", f"{l3.path} has {count} {title} sections")
-                        continue
+                        has_dup = True
+                # Don't sort sections with double items
+                if has_dup:
+                    continue
 
+                l3._children.sort(key=lambda x: self.get_l3_topsort_key(x, alt_first=alt_first, lemmas_before_forms=False))
+                if orig != l3._children:
+                    top = []
+                    for x in l3._children:
+                        if x.title not in TOP_SORT and (not alt_first or x.title not in ["Alternative forms", "Alternative scripts"]):
+                            break
+                        top.append(x.title)
+                    self.fix("l3_sort", l3, "sorted " + "/".join(top) + " to top per WT:ELE")
+
+                orig = list(l3._children)
                 l3._children.sort(key=lambda x: self.get_l3_sort_key_safe(x, alt_first=alt_first, lemmas_before_forms=False))
                 if orig != l3._children:
                     self.fix("l3_sort", l3, "sorted References/Further reading/Anagrams to bottom per WT:ELE")
@@ -213,6 +230,13 @@ class SectionOrderFixer:
         return (0, 0, BOTTOM_SORT_SAFE.get(item.title, 0))
 
     @staticmethod
+    def get_l3_topsort_key(item, alt_first=False, lemmas_before_forms=False):
+        if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
+            return (0, -1, item.title)
+
+        return (0, 0, TOP_SORT.get(item.title, 999))
+
+    @staticmethod
     def get_l3_sort_key(item, alt_first=False, lemmas_before_forms=False):
 
         if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
@@ -221,7 +245,7 @@ class SectionOrderFixer:
         if item.title in TOP_SORT:
             sort_group = 0
             sort_class = 0
-            sort_item = 0 # str(TOP_SORT[item.title])
+            sort_item = str(TOP_SORT[item.title])
         elif item.title in ALL_POS:
             sort_group = 1
             sort_class = 0
@@ -247,10 +271,17 @@ class SectionOrderFixer:
     def has_only_expected_children(self, parent, allowed_children):
         # Returns True if all child sections are in allowed_children
         valid = True
+
+        lineage = [x.title for x in list(parent.ancestors)[:-1]]
         for section in parent.filter_sections(recursive=False):
             if section.title not in allowed_children:
                 self.warn("unexpected_child", section.path)
                 valid = False
+
+            if section.title in lineage:
+                self.warn("bad_lineage", section.path)
+                valid = False
+
         return valid
 
     def fix(self, reason, section, details):
