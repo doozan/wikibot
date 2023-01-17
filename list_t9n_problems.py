@@ -24,7 +24,7 @@ import os
 import re
 import sys
 from autodooz.fix_t9n import T9nFixer
-from autodooz.sections import ALL_LANGS
+from autodooz.sections import ALL_LANGS, ALL_LANG_IDS
 from autodooz.wikilog import WikiLogger, BaseHandler
 from autodooz.wikilog_language import WikiByLanguage as BaseWikiByLanguage
 from enwiktionary_translations import TranslationTable, TranslationLine, UNKNOWN_LANGS, LANG_PARENTS
@@ -341,7 +341,7 @@ def main():
             for item in table.items:
                 if isinstance(item, TranslationLine) and item.lang_id not in seen:
                     stats["total_entries"] += len(item.entries)
-                    stats["lang_entries"][lang_ids[item.lang_id]] += 1
+                    stats["lang_entries"][ALL_LANG_IDS[item.lang_id]] += 1
                     seen.add(item.lang_id) # Don't count more than one entry per table
 
             if len(tables) > 1 and not table.gloss and table.template in ["tran-top", "trans-top-see", "trans-top-also"]:
@@ -379,7 +379,7 @@ def main():
         for lang,codes in sorted(UNKNOWN_LANGS.items()):
             for code, count in sorted(codes.items(), key=lambda x: x[1]*-1):
                 if count > 20:
-                    print(f"    '{lang}': '{lang_ids[code]}', # {code} found in {count} entries")
+                    print(f"    '{lang}': '{ALL_LANG_IDS[code]}', # {code} found in {count} entries")
                 break
         print("}")
 
@@ -390,7 +390,7 @@ def main():
                 print(f"    '{lang}', # used in {count} entries")
         print("}")
 
-    colons = [x for x in lang_ids.values() if ":" in x]
+    colons = [x for x in ALL_LANG_IDS.values() if ":" in x]
     if colons:
         raise ValueError("A language exists with a colon in the name, this may cause problems for nested languages that use : as a separator")
 

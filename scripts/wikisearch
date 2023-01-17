@@ -21,7 +21,6 @@ import re
 import os
 from enwiktionary_wordlist.utils import wiki_to_text
 from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-from enwiktionary_parser.languages.all_ids import languages as lang_ids
 
 from autodooz.wikimatch import get_matches, format_matches
 from pywikibot import xmlreader
