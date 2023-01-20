@@ -10,7 +10,6 @@ from autodooz.fix_bare_quotes import QuoteFixer
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 from enwiktionary_wordlist.wordlist import Wordlist
-from pywikibot import xmlreader
 
 class WikiSaver(BaseHandler):
 
@@ -70,13 +69,13 @@ logger = Logger()
 def log(error, page, details=None):
     logger.add(error, page, details)
 
-def iter_xml(datafile, limit=None, show_progress=False):
+def iter_wxt(datafile, limit=None, show_progress=False):
 
     if not os.path.isfile(datafile):
         raise FileNotFoundError(f"Cannot open: {datafile}")
 
-    dump = xmlreader.XmlDump(datafile)
-    parser = dump.parse()
+    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
+    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
 
     count = 0
     for entry in parser:
@@ -101,7 +100,7 @@ def process(args):
 def main():
     global fixer
     parser = argparse.ArgumentParser(description="Find Spanish nouns with manually specified forms")
-    parser.add_argument("xml", help="XML file to load")
+    parser.add_argument("wxt", help="Wiktionary extract file")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
@@ -113,7 +112,7 @@ def main():
     if not args.j:
         args.j = multiprocessing.cpu_count()-1
 
-    iter_entries = iter_xml(args.xml, args.limit, args.progress)
+    iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
 
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)

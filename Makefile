@@ -91,21 +91,16 @@ $(BUILDDIR)/%.json: force
 force: ;
 # force used per https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 
-$(BUILDDIR)/wiki.pages: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
->   @echo "Making $@..."
->   bzcat $< | grep -o '<title>[^<:/]*</title>' | sed 's|<title>\(.*\)</title>|\1|' > $@
-
 $(BUILDDIR)/%.sortorder: $(BUILDDIR)/%.frequency.csv
 >   @echo "Making $@..."
 >   cat $< | tail -n +2 | grep -v NODEF | cut -d "," -f 2 > $@
 
-$(BUILDDIR)/es-en.enwikt.allpages: $(BUILDDIR)/es-en.enwikt.txt.bz2
+$(BUILDDIR)/%.pages: $(BUILDDIR)/%.txt.bz2
 >   @echo "Making $@..."
->   $(WIKIGREP) $< "=\s*Spanish\s*=" | cut -d ":" -f 1 | sort -u > $@
-
-$(BUILDDIR)/fr-en.enwikt.allpages: $(BUILDDIR)/fr-en.enwikt.txt.bz2
->   @echo "Making $@..."
->   $(WIKIGREP) $< "=\s*French\s*=" | cut -d ":" -f 1 | sort -u > $@
+>   bzcat $< | perl -ne '/^_____([^_]+):[^_]+_____$$/ && print "$$1\n"' > $@.unsorted
+>   sort -u $@.unsorted > $@.sorted
+>   $(RM) $@.formonly $@.wiki.base
+>   mv $@.sorted $@
 
 $(BUILDDIR)/%.lemmas: $(BUILDDIR)/%.data-full
 >   @echo "Making $@..."
@@ -139,7 +134,7 @@ $(LIST)t9n_problems: $(BUILDDIR)/translations.bz2 $(BUILDDIR)/es-en.enwikt.allfo
 >   $(LIST_T9N_PROBLEMS) --trans $< --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv $(SAVE)
 >   touch $@
 
-$(LIST)section_stats: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+$(LIST)section_stats: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 # --tag $(DATETAG)
 >   $(MAKE_SECTION_STATS) $< $(SAVE)
@@ -150,10 +145,10 @@ $(LIST)es_forms_with_data: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   $(LIST_FORMS_WITH_DATA) --file $< $(SAVE)
 >   touch $@
 
-$(LIST)mismatched_headlines: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+$(LIST)mismatched_headlines: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
->   $(LIST_MISMATCHED_HEADLINES) --xml $<  $(SAVE)
+>   $(LIST_MISMATCHED_HEADLINES) $<  $(SAVE)
 >   touch $@
 
 $(LIST)es_maybe_forms: $(BUILDDIR)/es-en.enwikt.data-full
@@ -162,18 +157,18 @@ $(LIST)es_maybe_forms: $(BUILDDIR)/es-en.enwikt.data-full
 >   $(LIST_MAYBE_FORMS) --wordlist $< $(SAVE)
 >   touch $@
 
-$(LIST)missing_forms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/wiki.pages $(BUILDDIR)/es-en.enwikt.txt.bz2
+$(LIST)missing_forms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/all-en.enwikt.pages $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   echo "Running $@..."
->   $(LIST_MISSING_FORMS) --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv --allpages $(BUILDDIR)/wiki.pages --articles $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data-full $(SAVE)
+>   $(LIST_MISSING_FORMS) --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv --allpages $(BUILDDIR)/all-en.enwikt.pages --articles $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data-full $(SAVE)
 >   touch $@
 
-$(LIST)fr_missing_lemmas: $(BUILDDIR)/fr-en.enwikt.lemmas $(BUILDDIR)/fr-en.enwikt.allpages $(TLFI_LEMMAS)
+$(LIST)fr_missing_lemmas: $(BUILDDIR)/fr-en.enwikt.lemmas $(BUILDDIR)/fr-en.enwikt.pages $(TLFI_LEMMAS)
 >   @echo "Running $@..."
 >   DEST="User:JeffDoozan/lists/fr_forms_with_tlfi_lemmata"
 >   SUMMARY="French entries where we have forms but the TLFi has a lemma"
 >   echo "still Running $@..."
 
->   comm -23 $(BUILDDIR)/fr-en.enwikt.allpages $(BUILDDIR)/fr-en.enwikt.lemmas > $@.formonly
+>   comm -23 $(BUILDDIR)/fr-en.enwikt.pages $(BUILDDIR)/fr-en.enwikt.lemmas > $@.formonly
 >   comm -12 $@.formonly $(TLFI_LEMMAS) \
 >   | awk '{print "; [["$$0"#French|"$$0"]] [https://www.cnrtl.fr/definition/"$$0" TLFi]"}' \
 >   > $@.wiki.base
@@ -186,12 +181,12 @@ $(LIST)fr_missing_lemmas: $(BUILDDIR)/fr-en.enwikt.lemmas $(BUILDDIR)/fr-en.enwi
 >   $(RM) $@.formonly $@.wiki.base
 >   mv $@.wiki $@
 
-$(LIST)es_missing_lemmas: $(BUILDDIR)/es-en.enwikt.lemmas $(BUILDDIR)/es-es.drae.lemmas $(BUILDDIR)/es-es.drae.sortorder $(BUILDDIR)/es-en.enwikt.allpages
+$(LIST)es_missing_lemmas: $(BUILDDIR)/es-en.enwikt.lemmas $(BUILDDIR)/es-es.drae.lemmas $(BUILDDIR)/es-es.drae.sortorder $(BUILDDIR)/es-en.enwikt.pages
 >   @echo "Running $@..."
 >   DEST="User:JeffDoozan/lists/es_forms_with_drae_lemmata"
 >   SUMMARY="Spanish entries where we have forms but the DRAE has a lemma"
 
->   comm -23 $(BUILDDIR)/es-en.enwikt.allpages $(BUILDDIR)/es-en.enwikt.lemmas > $@.formonly
+>   comm -23 $(BUILDDIR)/es-en.enwikt.pages $(BUILDDIR)/es-en.enwikt.lemmas > $@.formonly
 >   comm -12 $@.formonly $(BUILDDIR)/es-es.drae.lemmas > $@.sorted_az
 >   $(WIKISORT) $(BUILDDIR)/es-es.drae.sortorder $@.sorted_az \
 >   | awk '{print "; [["$$0"#Spanish|"$$0"]] [https://dle.rae.es/"$$0" drae]"}'\
@@ -423,19 +418,19 @@ $(LIST)es_split_noun_plurals: $(BUILDDIR)/es-en.enwikt.data
 >   $(LIST_SPLIT_NOUN_PLURALS) $(SAVE) --dictionary $<
 >   touch $@
 
-$(LIST)section_header_errors: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+$(LIST)section_header_errors: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
 >   $(LIST_SECTION_HEADER_ERRORS) $(SAVE) $^
 >   touch $@
 
-$(LIST)section_level_errors: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+$(LIST)section_level_errors: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
 >   $(LIST_SECTION_LEVEL_ERRORS) $(SAVE) $^
 >   touch $@
 
-$(LIST)section_order_errors: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+$(LIST)section_order_errors: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
 >   $(LIST_SECTION_ORDER_ERRORS) $(SAVE) $^
@@ -447,7 +442,7 @@ $(LIST)es_form_overrides: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   $(LIST_ES_FORM_OVERRIDES) $(SAVE) $^
 >   touch $@
 
-$(LIST)bare_quotes: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+$(LIST)bare_quotes: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
 >   $(LIST_BARE_QUOTES) $(SAVE) $^
@@ -507,7 +502,7 @@ $(FIX)section_levels:
 >   @
 >   SRC="User:JeffDoozan/lists/section_levels/fixes"
 >   FIX="--fix ele_cleanup --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=500
+>   MAX=800
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
@@ -519,7 +514,7 @@ $(FIX)section_order:
 >   @
 >   SRC="User:JeffDoozan/lists/section_order/fixes"
 >   FIX="--fix ele_cleanup --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=500
+>   MAX=800
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit

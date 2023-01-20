@@ -105,26 +105,22 @@ def log(error, page, section, details):
 def main():
 
     import argparse
-    from pywikibot import xmlreader
 
     parser = argparse.ArgumentParser(description="Find fixable entries")
-    parser.add_argument("xmlfile", help="Wiktionary dump")
+    parser.add_argument("wxt", help="Wiktionary extract file")
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     args = parser.parse_args()
 
-    dump = xmlreader.XmlDump(args.xmlfile)
-    parser = dump.parse()
+    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
+    parser = WikiExtractWithRev.iter_articles_from_bz2(args.wxt)
 
     fixer = SectionHeaderFixer()
     fixer._log = log
 
     count = 0
     for page in parser:
-        if ":" in page.title  or "/" in page.title or page.isredirect:
-            continue
-
         count += 1
         if count % 1000 == 0 and args.progress:
             print(count, file=sys.stderr, end="\r")

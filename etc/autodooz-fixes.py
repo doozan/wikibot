@@ -286,3 +286,15 @@ wikifix['es_form_overrides'] = {
     "fixes": [(es_form_overrides, None)],
     "post-fixes": [(ele_cleanup, None)],
 }
+
+from autodooz.fix_inline_modifiers import InlineFixer
+def inline_modifiers(text, title, summary, options):
+    fixer = get_fixer(InlineFixer)
+    return fixer.process(text, title, summary)
+
+wikifix['inline_modifiers'] = {
+    'mode': 'function',
+    "pre-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(inline_modifiers, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}

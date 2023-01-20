@@ -346,18 +346,16 @@ def main():
 
     import argparse
     argparser = argparse.ArgumentParser(description="Detect possibly mismatched POS headers from enwiktionary dump.\nBy default, scans all languages.")
-    argparser.add_argument("--xml", help="XML file to load", required=True)
+    argparser.add_argument("wxt", help="Wiktionary extract file")
     argparser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     argparser.add_argument("--progress", help="Display progress", action='store_true')
     argparser.add_argument("--date", help="Date of the database dump (used to generate page messages)")
     argparser.add_argument("--save", help="Save to wiktionary with specified commit message")
     args = argparser.parse_args()
 
-    if not os.path.isfile(args.xml):
-        raise FileNotFoundError(f"Cannot open: {args.xml}")
+    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
+    parser = WikiExtractWithRev.iter_articles_from_bz2(args.wxt)
 
-    dump = xmlreader.XmlDump(args.xml)
-    parser = dump.parse()
     count = 0
     for page in parser:
         if ":" in page.title or "/" in page.title:
