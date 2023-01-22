@@ -118,13 +118,13 @@ $(BUILDDIR)/wikt.sentences: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   @echo "Making $@..."
 >   $(LIST_DUPLICATE_PASSAGES) $^ --dump > $@
 
-$(BUILDDIR)/wikt.untagged: $(BUILDDIR)/wikt.sentences
+$(BUILDDIR)/spa.sentences: $(BUILDDIR)/eng-spa.tsv
 >   @echo "Making $@..."
->   cat $^ | cut -f 1 > $@
+>   cp $< $@
 
-/var/local/wikt/wikt.sentences.tgz: $(BUILDDIR)/wikt.sentences $(BUILDDIR)/wikt.untagged $(BUILDDIR)/wikt.json
+/var/local/wikt/%.sentences.tgz: $(BUILDDIR)/%.sentences $(BUILDDIR)/%.json
 >   @echo "Making $@..."
->   tar czvf /var/local/wikt/wikt.sentences.tgz -C $(BUILDDIR) wikt.sentences wikt.json
+>   tar czvf $@ -C $(BUILDDIR) $*.sentences $*.json
 
 # Lists
 
@@ -638,8 +638,7 @@ $(FIX)bare_quotes:
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-
-lists: /var/local/wikt/wikt.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals es_drae_mismatched_genders es_form_overrides mismatched_headlines bare_quotes section_header_errors section_level_errors section_order_errors t9n_problems fr_missing_lemmas fr_missing_tlfi pt_with_synonyms section_stats missing_forms) # missing_forms last because it's slow on low memory machine
+lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals es_drae_mismatched_genders es_form_overrides mismatched_headlines bare_quotes section_header_errors section_level_errors section_order_errors t9n_problems fr_missing_lemmas fr_missing_tlfi pt_with_synonyms section_stats missing_forms) # missing_forms last because it's slow on low memory machine
 
 # Fixes that are safe to run automatically and without supervision
 autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides bare_quotes)
