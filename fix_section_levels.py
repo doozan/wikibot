@@ -308,7 +308,6 @@ class SectionLevelFixer():
                 while new_parent.level > 2:
                     new_parent = new_parent.parent
             elif section.parent._children.index(section) < len(section.parent._children)-len(anagrams):
-                print(section.parent._children.index(section), len(section.parent._children))
                 new_parent = section.parent
             else:
                 continue
@@ -374,11 +373,18 @@ class SectionLevelFixer():
 
             # The final parent in a multi-parent group should inherit all sections in [always_adoptable]
             # plus any sections in [all_adoptable] that already exist in an earlier sibling
+            # unless it already has a similarly named section
             if new_parent == last_multi_parent:
                 all_cousins = set(cousin.title for uncle in all_parents[:-1] for cousin in uncle._children)
+                existing_children = set(child.title for child in new_parent._children)
                 new_children = []
                 for child in children:
-                    if child.title in always_adoptable or (child.title in all_cousins and child.title in all_adoptable):
+                    if child.title in always_adoptable:
+                        new_children.append(child)
+                    elif child.title in existing_children:
+                        self.warn("adoptable_duplicate", f"{new_parent.path} already contains {child.title}")
+                        break
+                    elif child.title in all_adoptable and child.title in all_cousins:
                         new_children.append(child)
                     else:
                         break
