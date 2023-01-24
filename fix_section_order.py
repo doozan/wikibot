@@ -177,7 +177,9 @@ class SectionOrderFixer:
                 has_dup = False
                 for title, count in totals.items():
                     if count > 1 and (title in BOTTOM_SORT_SAFE or title in TOP_SORT):
-                        self.warn("dup_sections", f"{l3.path} has {count} {title} sections")
+                        # Multi countables shouldn't be sorted, but don't need to produce a warning
+                        if title not in COUNTABLE_SECTIONS:
+                            self.warn("dup_sections", f"{l3.path} has {count} {title} sections")
                         has_dup = True
                 # Don't sort sections with double items
                 if has_dup:
