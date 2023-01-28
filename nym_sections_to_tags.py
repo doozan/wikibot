@@ -27,6 +27,8 @@ import regex
 import sys
 from Levenshtein import distance
 
+import enwiktionary_sectionparser as sectionparser
+
 import enwiktionary_parser as wtparser
 from enwiktionary_parser.sections import WiktionarySection
 from enwiktionary_parser.sections.language import LanguageSection
@@ -330,6 +332,39 @@ class NymSectionToTag:
         items = [decoratedlink.item for decoratedlink in nymsense.filter_decoratedlinks()]
         if items:
             nymline.add(items)
+
+
+    def process(self, page_text, page_title, summary=None, fixes=[], sections=["Synonyms", "Antonyms"], dump_unfixable=False):
+
+        entry = sectionparser.parse(page_text, page_title)
+        if not entry:
+            return page_text
+
+        # TODO: get lang from self.LANG_ID
+        lang_name = "Spanish"
+        l2 = entry.filter_sections(matches=lang_name, recursive=False)
+        if not l2 or not len(l2) == 1:
+            return page_text
+
+        lang = l2[0]
+
+        old_text = str(lang)
+        new_text = self.run_fix(str(lang), fixes, page_title)
+        if old_text == new_text:
+            return page_text
+
+        header, children, changes = entry.parse(new_text)
+        if header or len(children) != 1:
+            raise ValueError("unexpected changes")
+        new_lang = children[0]
+
+        idx = entry._children.index(lang)
+        entry._children[idx] = new_lang
+
+        if summary is not None:
+            summary.append(f"/*{lang_name}*/ replaced Synonym section with template")
+
+        return str(entry)
 
     def run_fix(self, text, fixes=[], page_title="", sections=["Synonyms", "Antonyms"], dump_unfixable=False):
         """

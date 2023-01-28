@@ -298,3 +298,59 @@ wikifix['inline_modifiers'] = {
     "fixes": [(inline_modifiers, None)],
     "post-fixes": [(ele_cleanup, None)],
 }
+
+from autodooz.nym_sections_to_tags import NymSectionToTag
+simple_nym_fixes = [ #{
+    "autofix",
+    "automatch_sense",
+    "automatch_nymsection_outside_word",
+    "automatch_nymsection_outside_pos",
+    "using_gloss_as_qualifier",
+#    "long_nymline",
+#    "autofix_bad_nymline",
+    "pos_has_multiple_words",
+    "autofix_gloss_has_quotes",
+    "autofix_skip_duplicate_values",
+    "unexpected_section",
+    "autofix_nymsection_has_subsections",
+    "autofix_gloss_as_sense",
+    "autofix_parenthetical_as_sense",
+    "both_nym_line_and_section",
+    "duplicate_section",
+#    "nymsection_matches_multiple_pos",
+#    "nymsense_matches_no_defs",
+#    "partial_fix",
+    "link_wrong_lang",
+    "link_is_multi_brackets",
+] #}
+
+def _fix_nyms(text, title, summary, options, fixes):
+    fixer = get_fixer(NymSectionToTag, **options)
+    return fixer.process(text, title, summary, fixes)
+
+def fix_simple_nyms(text, title, summary, options):
+    return _fix_nyms(text, title, summary, options, simple_nym_fixes)
+
+def fix_all_nyms(text, title, summary, options):
+    return _fix_nyms(text, title, summary, options, ["all"])
+
+wikifix['es_simple_nyms'] = {
+    'mode': 'function',
+    "pre-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(fix_simple_nyms, {
+        "lang_id": "es",
+        "wordlist": f"{SPANISH_DATA}/es-en.data",
+        })],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
+# Not safe to run automatically
+wikifix['es_all_nyms'] = {
+    'mode': 'function',
+    "pre-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(fix_all_nyms, {
+        "lang_id": "es",
+        "wordlist": f"{SPANISH_DATA}/es-en.data",
+        })],
+    "post-fixes": [(ele_cleanup, None)],
+}

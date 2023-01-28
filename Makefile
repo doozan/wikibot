@@ -464,14 +464,14 @@ $(FIX)fr_missing_tlfi:
 # TODO: some sort of list maker to check if they can be auto fixed
 $(FIX)es_syns:
 >   @
->   FIX="-fix:simple_nyms --lang:es --wordlist:$(SPANISH_DATA)/es-en.data --sections:Synonyms"
+>   FIX="--fix es_simple_nyms"
 >   SRC="User:JeffDoozan/lists/es_with_synonyms"
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)pt_syns:
