@@ -4,7 +4,7 @@ import csv
 import sys
 import urllib.parse
 
-from autodooz.drae_fixer import DraeFixer
+from autodooz.fix_es_drae import DraeFixer
 from collections import defaultdict
 from enwiktionary_wordlist.all_forms import AllForms
 from enwiktionary_wordlist.wordlist import Wordlist
