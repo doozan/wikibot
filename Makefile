@@ -48,7 +48,6 @@ LIST_T9N_PROBLEMS := $(PYPATH) ./list_t9n_problems.py
 LIST_ISMO_ISTA := $(PYPATH) ./list_ismo_ista.py
 LIST_COORD_TERMS := $(PYPATH) ./list_coord_terms.py
 LIST_USUALLY_PLURAL := $(PYPATH) ./list_usually_plural.py
-LIST_SPLIT_NOUN_PLURALS := $(PYPATH) ./list_split_noun_plurals.py
 LIST_SPLIT_VERB_DATA := $(PYPATH) ./list_split_verb_data.py
 LIST_SECTION_HEADER_ERRORS := $(PYPATH) ./list_section_header_errors.py
 LIST_SECTION_ORDER_ERRORS := $(PYPATH) ./list_section_order_errors.py
@@ -412,12 +411,6 @@ $(LIST)pt_split_verb_data: $(BUILDDIR)/pt-en.enwikt.data
 >   $(LIST_SPLIT_VERB_DATA) $(SAVE) --lang pt --dictionary $<
 >   touch $@
 
-$(LIST)es_split_noun_plurals: $(BUILDDIR)/es-en.enwikt.data
->   @echo "Running $@..."
-
->   $(LIST_SPLIT_NOUN_PLURALS) $(SAVE) --dictionary $<
->   touch $@
-
 $(LIST)section_header_errors: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
@@ -638,7 +631,7 @@ $(FIX)bare_quotes:
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_split_noun_plurals es_drae_mismatched_genders es_form_overrides mismatched_headlines bare_quotes section_header_errors section_level_errors section_order_errors t9n_problems fr_missing_lemmas fr_missing_tlfi pt_with_synonyms section_stats missing_forms) # missing_forms last because it's slow on low memory machine
+lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides mismatched_headlines bare_quotes section_header_errors section_level_errors section_order_errors t9n_problems fr_missing_lemmas fr_missing_tlfi pt_with_synonyms section_stats missing_forms) # missing_forms last because it's slow on low memory machine
 
 # Fixes that are safe to run automatically and without supervision
 autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides bare_quotes)

@@ -12,14 +12,25 @@ from collections import namedtuple
 
 class WikiSaver(BaseHandler):
 
+    header = {
+        "es/split_noun_plurals": "Nouns with data in both the singular and plural entries",
+        "es/usually_plural": "Nouns that are used more in the plural than in the singular in Google Ngram data since 1950",
+    }
+
     def sort_items(self, items):
-        return sorted(items, key=lambda x: (x.ratio*-1, x.lemma))
+        return sorted(set(items), key=lambda x: (x.error, x.ratio*-1, x.lemma))
+
+    def is_new_section(self, item, prev_item):
+        return prev_item and prev_item.error != item.error
+
+    def is_new_page(self, page_sections, section_entries):
+        return True
 
     def page_name(self, page_sections, prev):
-        return f"es/usually_plural"
+        return f"es/" + page_sections[0][0].error
 
     def page_header(self, base_path, page_name, page_sections, pages):
-        return [f"Nouns that are used more in the plural than in the singular in Google Ngram data since 1950"]
+        return [self.header[page_name]]
 
     def make_rows(self, entries):
         for x in entries:
@@ -42,16 +53,16 @@ class FileSaver(WikiSaver):
         super().save(*args, **nargs, commit_message=None)
 
 class Logger(WikiLogger):
-    _paramtype = namedtuple("params", [ "lemma", "plural", "lemma_count", "plural_count", "ratio"])
+    _paramtype = namedtuple("params", [ "error", "lemma", "plural", "lemma_count", "plural_count", "ratio"])
 
 logger = Logger()
 
-def log(lemma, plural, lemma_count, plural_count):
+def log(error, lemma, plural, lemma_count, plural_count):
     ratio = round(plural_count/lemma_count, 2)
-    logger.add(lemma, plural, lemma_count, plural_count, ratio)
+    logger.add(error, lemma, plural, lemma_count, plural_count, ratio)
 
 def main():
-    parser = argparse.ArgumentParser(description="Find usually plural nouns")
+    parser = argparse.ArgumentParser(description="Find usually plural and split singular/plural nouns")
     parser.add_argument("--dictionary", help="Dictionary file name", required=True)
     parser.add_argument("--ngprobs", help="Ngram probability data file")
     parser.add_argument("--ngcase", help="Ngram case data file")
@@ -61,7 +72,7 @@ def main():
     probs = NgramPosProbability(args.ngprobs, args.ngcase)
     wordlist = Wordlist.from_file(args.dictionary)
 
-    for form, data in probs.form_probs.items():
+    for form in probs.form_probs:
         s_total, s_form_count = probs.get_data(form)
         s_usage = 0
 
@@ -106,7 +117,10 @@ def main():
                     continue
 
             if pl_usage >= s_usage:
-                log(form, plural, s_usage, pl_usage)
+                log("usually_plural", form, plural, s_usage, pl_usage)
+
+            if wordlist.has_word(plural, "n"):
+                log("split_noun_plurals", form, plural, s_usage, pl_usage)
 
     if args.save:
         base_url = "User:JeffDoozan/lists"
