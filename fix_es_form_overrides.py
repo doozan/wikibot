@@ -21,14 +21,16 @@ class OverrideFixer():
         self._logger = logger
         self._changes = []
 
-    def fix(self, error, page, current, default, details):
+    def fix(self, error, section, current, default, details):
         if self._logger:
+            page = list(section.lineage)[-1]
             self._logger("autofix_" + error, page, current, default)
         else:
             self._summary.append(f"/*{section.path}*/ {details}")
 
-    def warn(self, error, page, current, default):
+    def warn(self, error, section, current, default):
         if self._logger:
+            page = list(section.lineage)[-1]
             self._logger(error, page, current, default)
 
     def get_default_forms(self, word, gender):
@@ -81,15 +83,15 @@ class OverrideFixer():
                     for rp in ["m", "mpl"]:
                         if template.has(p):
                             template.remove(p)
-                            self.fix(f"removed_{p}", title, current, default, f"removed '{p}={current[0]}' from female equivalent of")
+                            self.fix(f"removed_{p}", section, current, default, f"removed '{p}={current[0]}' from female equivalent of")
                     continue
 
                 if len(current) == 1 and current == default and template.has(p):
                     template.add(p, "+")
-                    self.fix(f"replaced_{p}", title, current, default, f"replaced '{p}={current[0]}' with '{p}=+'")
+                    self.fix(f"replaced_{p}", section, current, default, f"replaced '{p}={current[0]}' with '{p}=+'")
                 else:
                     if current != ["+"] and current != ["1"]:
-                        self.warn(f"custom_{p}", title, current, default)
+                        self.warn(f"custom_{p}", section, current, default)
 
         for p in ["mpl", "fpl"]:
             if p in current_forms:
@@ -97,9 +99,9 @@ class OverrideFixer():
                 default = default_forms[p]
                 if len(current_forms[p]) == 1 and current_forms[p] == default_forms[p] and template.has(p):
                     template.remove(p)
-                    self.fix(f"removed_{p}", title, current, default, f"removed '{p}={current[0]}'")
+                    self.fix(f"removed_{p}", section, current, default, f"removed '{p}={current[0]}'")
                 else:
-                    self.warn(f"custom_{p}", title, current, default)
+                    self.warn(f"custom_{p}", section, current, default)
 
         p = "pl"
         if p in current_forms:
@@ -107,9 +109,9 @@ class OverrideFixer():
             default = default_forms[p]
             if len(current_forms[p]) == 1 and current_forms[p] == default_forms[p]:
                 template.remove(2)
-                self.fix(f"removed_{p}", title, current, default, "removed unneeded plural override")
+                self.fix(f"removed_{p}", section, current, default, "removed unneeded plural override")
             else:
-                self.warn(f"custom_{p}", title, current, default)
+                self.warn(f"custom_{p}", section, current, default)
 
 
     def cleanup_line(self, line, title, section):
