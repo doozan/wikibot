@@ -449,7 +449,7 @@ $(FIX)fr_missing_tlfi:
 >   MAX=500
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -462,7 +462,7 @@ $(FIX)es_syns:
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -474,7 +474,7 @@ $(FIX)pt_syns:
 >   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -486,7 +486,7 @@ $(FIX)section_headers:
 >   MAX=500
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -495,10 +495,10 @@ $(FIX)section_levels:
 >   @
 >   SRC="User:JeffDoozan/lists/section_levels/fixes"
 >   FIX="--fix ele_cleanup --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=800
+>   MAX=1000
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -510,7 +510,7 @@ $(FIX)section_order:
 >   MAX=800
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -522,7 +522,7 @@ $(FIX)t9n_consolidate_forms:
 >   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -534,7 +534,7 @@ $(FIX)t9n_remove_gendertags:
 >   MAX=100
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -546,7 +546,7 @@ $(FIX)es_missing_entry:
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   echo $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -558,7 +558,7 @@ $(FIX)es_missing_pos:
 >   MAX=300
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -570,7 +570,7 @@ $(FIX)es_missing_sense:
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
@@ -582,7 +582,7 @@ $(FIX)es_unexpected_form:
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
@@ -593,7 +593,7 @@ $(FIX)es_drae_missing:
 >   MAX=500
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
@@ -604,7 +604,7 @@ $(FIX)es_drae_wrong:
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
@@ -615,7 +615,7 @@ $(FIX)es_form_overrides:
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
@@ -626,7 +626,7 @@ $(FIX)bare_quotes:
 >   MAX=200
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
