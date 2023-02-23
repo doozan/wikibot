@@ -153,6 +153,7 @@ L2_FIXES = {
         'Arabic': 'Arabic', # unicode char on the A
         'Assyrian neo-aramiac': 'Assyrian Neo-Aramaic',
         'Assyrian Neo-Aramic': 'Assyrian Neo-Aramaic',
+        'Assyrian Neo-Aramiac': 'Assyrian Neo-Aramaic',
         'Azerbaijan': 'Azerbaijani',
         'Guarani': 'Guaraní',
         'Hijaz Arabic': 'Hijazi Arabic',
@@ -166,6 +167,7 @@ L2_FIXES = {
         'Khorasani Turkic': 'Khorasani Turkish',
         'Māori': 'Maori',
         'Megrelian': 'Mingrelian',
+        'Messapian': 'Messapic',
         'Mezquital otomi': 'Mezquital Otomi',
         'Middle Mongolian': 'Middle Mongolian',
         'Norwegian (Bokmål)': 'Norwegian Bokmål',
