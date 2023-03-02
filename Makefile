@@ -94,6 +94,10 @@ $(BUILDDIR)/%.sortorder: $(BUILDDIR)/%.frequency.csv
 >   @echo "Making $@..."
 >   cat $< | tail -n +2 | grep -v NODEF | cut -d "," -f 2 > $@
 
+$(BUILDDIR)/es-es.drae.sortorder: $(DRAEDATA)/drae.freq.csv
+>   @echo "Making $@..."
+>   cat $< | tail -n +2 | grep -v NODEF | cut -d "," -f 2 > $@
+
 $(BUILDDIR)/%.pages: $(BUILDDIR)/%.txt.bz2
 >   @echo "Making $@..."
 >   bzcat $< | perl -ne '/^_____([^_]+):[^_]+_____$$/ && print "$$1\n"' > $@.unsorted
