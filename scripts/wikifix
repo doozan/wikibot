@@ -15,7 +15,7 @@ from pywikibot import pagegenerators, editor
 from pywikibot.bot import (
     AutomaticTWSummaryBot,
     ConfigParserBot,
-    ExistingPageBot,
+    CurrentPageBot,
     SingleSiteBot,
 )
 
@@ -609,7 +609,7 @@ class AutoDooz(
     # Refer pywikobot.bot for generic bot classes
     SingleSiteBot,  # A bot only working on one site
     ConfigParserBot,  # A bot which reads options from scripts.ini setting file
-    ExistingPageBot,  # CurrentPageBot which only treats existing pages
+    CurrentPageBot,
 ):
 
     def __init__(self, generator, fixes, **kwargs):
