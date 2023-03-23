@@ -532,19 +532,15 @@ class FormFixer():
         if preceeding_targets:
             # Inserting between two entries
             if following_targets:
-                wikt.insert_after(preceeding_targets[-1],  entry + "\n\n----\n\n")
+                wikt.insert_after(preceeding_targets[-1],  entry + "\n\n")
 
             # Appending to a single entry
             else:
-                # Single entry, but ends with ---- (unusual, but exists)
-                if re.search(r"\n----\s*$", str(preceeding_targets[-1])):
-                    wikt.insert_after(preceeding_targets[-1], "\n" + entry )
-                else:
-                    wikt.insert_after(preceeding_targets[-1],  "\n\n----\n\n" + entry )
+                wikt.insert_after(preceeding_targets[-1],  "\n\n" + entry )
 
         elif following_targets:
             target = following_targets[0]
-            wikt.insert_before(target, entry + "\n\n----\n\n")
+            wikt.insert_before(target, entry + "\n\n")
         else:
             wikt.add_text(entry)
 
