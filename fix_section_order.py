@@ -67,6 +67,7 @@ TOP_SORT = {k:v for v,k in enumerate([
         "Glyph origin",
         "Kanji", # Differs from WT:ELE order, but follows common practice in Japanese
         "Hanzi", # Differs from WT:ELE order, but follows common practice in Japanese
+        "Sign values", # Not in WT:ELE, used in Akkadian
         "Etymology",
         "Pronunciation",
         "Production",
