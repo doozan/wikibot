@@ -162,7 +162,7 @@ $(LIST)es_maybe_forms: $(BUILDDIR)/es-en.enwikt.data-full
 
 $(LIST)missing_forms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/all-en.enwikt.pages $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   echo "Running $@..."
->   $(LIST_MISSING_FORMS) --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv --allpages $(BUILDDIR)/all-en.enwikt.pages --articles $(BUILDDIR)/es-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data-full $(SAVE)
+>   $(LIST_MISSING_FORMS) --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv --allpages $(BUILDDIR)/all-en.enwikt.pages --articles $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data-full $(SAVE)
 >   touch $@
 
 $(LIST)fr_missing_lemmas: $(BUILDDIR)/fr-en.enwikt.lemmas $(BUILDDIR)/fr-en.enwikt.pages $(TLFI_LEMMAS)
@@ -552,7 +552,7 @@ $(FIX)es_missing_entry:
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   echo $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)es_missing_pos:
