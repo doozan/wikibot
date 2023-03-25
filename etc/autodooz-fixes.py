@@ -299,6 +299,37 @@ wikifix['inline_modifiers'] = {
     "post-fixes": [(ele_cleanup, None)],
 }
 
+from autodooz.fix_html_comments import CommentFixer
+def fix_html_comments(text, title, summary, options):
+    fixer = get_fixer(CommentFixer)
+    return fixer.process(text, title, summary)
+
+wikifix['html_comments'] = {
+    'mode': 'function',
+    "pre-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(fix_html_comments, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
+
+
+from autodooz.fix_list_to_col import ListToColFixer
+def fix_list_to_col(text, title, summary, options):
+    fixer = get_fixer(ListToColFixer)
+    return fixer.process(text, title, summary, options)
+
+wikifix['list_to_col'] = {
+    'mode': 'function',
+    "pre-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(fix_list_to_col, {
+        "lang_ids": ["cs"],
+        "sections": ["Derived terms", "Related terms"],
+        })],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
+
+
 from autodooz.nym_sections_to_tags import NymSectionToTag
 simple_nym_fixes = [ #{
     "autofix",
