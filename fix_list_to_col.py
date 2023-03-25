@@ -72,7 +72,7 @@ class ListToColFixer():
             if lines[0].startswith("* {{q"):
                 new_lines = self.titled_lists_to_templates(lang_id, lines, title, section)
             else:
-                new_lines =self.lines_to_template(lang_id, lines, title, section)
+                new_lines = self.lines_to_template(lang_id, lines, title, section)
 
         if new_lines:
             return pre + new_lines
@@ -98,52 +98,74 @@ class ListToColFixer():
     def lines_to_template(self, lang_id, lines, title=None, section=None):
         """ Converts a list of bulleted {{l}} items to {{col-auto}}:
         * {{l|es|one}}
-        * {{l|es|two}}
+        * {{l|es|two}} {{g|m}}
         * {{l|es|three}}
         ==
-        {{col-auto|es|one|two|three}}
+        {{col-auto|es|one|{{l|es|two|g=m}}|three}}
         """
 
         pre = []
         items = []
+        use_expanded_template = False
         for line in lines:
             if not line.strip():
                 continue
 
-            if not line.startswith("* "):
+            if not re.match(r"\*\s*{{", line):
                 self.warn("unhandled_line", section, line)
                 return
 
-            no_templates = self.strip_templates(line[2:])
+            no_templates = line.lstrip("* ")
+            no_templates = self.strip_templates(no_templates)
             if no_templates.strip(" ,;"):
                 self.warn("text_outside_template", section, line)
                 return
 
             wikicode = mwparserfromhell.parse(line)
             item = None
+            item_gender = None
             for template in wikicode.filter_templates():
 
                 if template.name.strip() == "l":
                     if len(template.params) != 2:
-                        self.warn("l_has_extra_params", section, line)
-                        return
+                        if len(template.params) == 3 and template.has("g"):
+                            item_gender = template.get("g").value.strip()
+                        else:
+                            self.warn("l_has_extra_params", section, line)
+                            return
 
                     if item:
                         self.warn("multiple_l_templates", section, line)
                         return
+
                     item = template.get(2).strip()
-                    if item not in items:
-                        items.append(item)
+
+                elif template.name.strip() == "g":
+                    if len(template.params) != 1:
+                        self.warn("g_has_multiple_params", section, line)
+                        return
+                    gender = template.get(1).value.strip()
+                    if item_gender and item_gender != gender:
+                        self.warn("item_has_multiple_genders", section, line)
+                        return
+                    item_gender = gender
 
                 else:
                     self.warn("unexpected_template", section, line)
                     return
 
+            if item and item_gender:
+                item = "{{l|" + lang_id + "|" + item + "|g=" + item_gender + "}}"
+                use_expanded_template = True
+            if item not in items:
+                items.append(item)
+
         if not items:
             self.warn("no_items", section, line)
             return
 
-        return pre + ["{{col-auto|" + lang_id + "|" + "|".join(items) + "}}"]
+        br = "\n" if use_expanded_template else ""
+        return pre + ["{{col-auto|" + lang_id + br + "|" + f"{br}|".join(items) + br + "}}"]
 
 
     def titled_lists_to_templates(self, lang_id, lines, title=None, section=None):
@@ -195,7 +217,7 @@ class ListToColFixer():
         if not line.strip():
             return line
 
-        if not line.startswith("* "):
+        if not re.match(r"\*\s*{{", line):
             self.warn("unhandled_line", section, line)
             return
 

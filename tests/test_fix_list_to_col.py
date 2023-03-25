@@ -66,11 +66,26 @@ def test_cleanup_lines():
 
     lines = [
         "* {{l|cs|a1}}",
-        "* {{l|cs|a2}}",
-        "* {{l|cs|a3}}",
+        "*{{l|cs|a2}}",
+        "*   {{l|cs|a3}}",
     ]
     expected = [
         "{{col-auto|cs|a1|a2|a3}}",
+    ]
+
+    assert fixer.lines_to_template("cs", lines) == expected
+
+    lines = [
+        "* {{l|cs|a1}}",
+        "* {{l|cs|a2|g=m}}",
+        "* {{l|cs|a3}} {{g|f}}",
+    ]
+    expected = [
+        """{{col-auto|cs
+|a1
+|{{l|cs|a2|g=m}}
+|{{l|cs|a3|g=f}}
+}}""",
     ]
 
     assert fixer.lines_to_template("cs", lines) == expected
