@@ -167,7 +167,7 @@ def main():
 
         total += 1
 
-    res.insert(0,f"({total} entries); sorted by frequency of use in Google Ngram corpus 2012-2019")
+    res.insert(0,f"({total} entries); used at least {args.min_use} times in Google Ngram corpus 2012-2019, sorted by frequency of use")
     for line in res:
         print(line)
 
