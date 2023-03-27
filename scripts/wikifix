@@ -931,7 +931,7 @@ def main():
             for search in args.search:
                 if not args.regex and "*" in search:
                     print(f"Warning: search term '{search}' contains wildcard, but --regex not supplied, matching as literal string", file=sys.stderr)
-                generated_fixes.append(Fix(None, None, search, replacement, args.mode))
+                generated_fixes.append(Fix(None, None, search, replacement, mode))
 
         else:
             if len(args.match)%2 != 0:
@@ -941,7 +941,7 @@ def main():
             for i in range(0,len(args.match),2):
                 search = args.match[i]
                 replacement = args.match[i+1]
-                generated_fixes.append(Fix(None, None, search, replacement, args.mode))
+                generated_fixes.append(Fix(None, None, search, replacement, mode))
 
         if fixes:
             # Probably fine, but no reason to make things more complicated
