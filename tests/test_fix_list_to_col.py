@@ -28,10 +28,25 @@ def test_titled_lists_to_templates():
     lines = [
         "* {{q|adjectives}} {{l|cs|a1}}, {{l|cs|a2}}, {{l|cs|a3}}",
         "* {{q|nouns}} {{l|cs|n1}}, {{l|cs|n2}}, {{l|cs|n3}}",
-    ]
+        "{{rel-top3|Related terms}}",
+        "* {{l|cs|r1}}",
+        "* {{l|cs|r2}}",
+        "{{rel-bottom}}",
+        "{{der-top}}",
+        "* {{l|cs|d1}}",
+        "* {{l|cs|d2}}",
+        "{{der-bottom}}",
+        "{{top}}",
+        "* {{l|cs|t1}}",
+        "* {{l|cs|t2}}",
+        "{{bottom}}",
+        ]
     expected = [
         "{{col-auto|cs|title=adjectives|a1|a2|a3}}",
         "{{col-auto|cs|title=nouns|n1|n2|n3}}",
+        "{{col-auto|cs|r1|r2}}",
+        "{{col-auto|cs|d1|d2}}",
+        "{{col-auto|cs|t1|t2}}",
     ]
 
     res = fixer.titled_lists_to_templates("cs", lines)
@@ -68,12 +83,20 @@ def test_cleanup_lines():
         "* {{l|cs|a1}}",
         "*{{l|cs|a2}}",
         "*   {{l|cs|a3}}",
+        "* [[a4]]",
     ]
     expected = [
-        "{{col-auto|cs|a1|a2|a3}}",
+        "{{col-auto|cs|a1|a2|a3|a4}}",
     ]
 
     assert fixer.lines_to_template("cs", lines) == expected
+
+    lines = [
+        "* {{l|cs|a1}}",
+        "* [[a4|XXXXX]]",  # Links with | should error
+    ]
+
+    assert fixer.lines_to_template("cs", lines) == None
 
     lines = [
         "* {{l|cs|a1}}",
