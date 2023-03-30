@@ -69,7 +69,7 @@ class ListToColFixer():
         new_lines = self.convert_list_templates(lang_id, lines, section, title)
 
         if not new_lines:
-            if re.match(r"(\* {{q|{{\s*(rel-|der-)?top[2-5]{0,1})\s*[|}]", lines[0]):
+            if re.match(r"(\* {{q|{{\s*(rel-|der-)?top[1-5]{0,1})\s*[|}]", lines[0]):
                 new_lines = self.titled_lists_to_templates(lang_id, lines, title, section)
             else:
                 new_lines = self.lines_to_template(lang_id, lines, title, section)
@@ -103,18 +103,19 @@ class ListToColFixer():
         for template in wikicode.filter_templates():
 
             if template.name.strip() == "l":
-                if len(template.params) != 2:
-                    if len(template.params) == 3 and template.has("g"):
-                        item_gender = template.get("g").value.strip()
-                    else:
-                        self.warn("l_has_extra_params", section, line)
-                        return
-
                 if item:
                     self.warn("multiple_l_templates", section, line)
                     return
 
-                item = template.get(2).strip()
+                if len(template.params) != 2:
+                    item = template
+                    #if len(template.params) == 3 and template.has("g"):
+                    #    item_gender = template.get("g").value.strip()
+                    #else:
+                    #    self.warn("l_has_extra_params", section, line)
+                    #    return
+                else:
+                    item = template.get(2).strip()
 
             elif template.name.strip() == "g":
                 if len(template.params) != 1:
@@ -129,6 +130,18 @@ class ListToColFixer():
             else:
                 self.warn("unexpected_template", section, line)
                 return
+
+        if not item:
+            self.warn("no_item", section, line)
+            return
+
+        if isinstance(item, mwparserfromhell.nodes.template.Template):
+            if item_gender:
+                if item.has("g") and item.get("g") != item_gender:
+                    self.warn("item_has_multiple_genders", section, line)
+                    return
+                item["g"] = item_gender
+            return str(item)
 
         if item and item_gender:
             return "{{l|" + lang_id + "|" + item + "|g=" + item_gender + "}}"
@@ -244,7 +257,7 @@ class ListToColFixer():
                 continue
 
             # Line contains only a single rel-topX der-topX or top template
-            if re.match(r"{{\s*(rel-|der-)?top[2-5]{0,1}\s*[|}][^{]*}$", line) and self.strip_templates(line) == "":
+            if re.match(r"{{\s*(rel-|der-)?top[1-5]{0,1}\s*[|}][^{]*}$", line) and self.strip_templates(line) == "":
                 in_multi_line = True
                 continue
 

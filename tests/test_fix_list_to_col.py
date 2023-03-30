@@ -94,6 +94,29 @@ def test_lines_to_template():
     assert res == expected
 
 
+
+    lines = [
+        "* {{l|es|barbechar|pos=v}}",
+        "* {{l|es|barbechera}} {{g|f}}",
+        "* {{l|es|en barbecho}}",
+    ]
+    expected = [
+        """\
+{{col-auto|cs
+|{{l|es|barbechar|pos=v}}
+|{{l|cs|barbechera|g=f}}
+|en barbecho
+}}"""]
+
+    res = fixer.lines_to_template("cs", lines)
+    print(res)
+    assert res == expected
+
+    res = fixer.cleanup_lines("cs", lines)
+    print(res)
+    assert res == expected
+
+
 def test_cleanup_lines():
 
     lines = [
@@ -156,7 +179,14 @@ def test_cleanup_lines():
         "* {{l|cs|a2}}",
         "* {{l|cs|a3}}",
     ]
-    assert fixer.cleanup_lines("cs", lines) == None
+    expected = [
+        """{{col-auto|cs
+|{{l|cs|a1|param2}}
+|a2
+|a3
+}}"""
+    ]
+    assert fixer.cleanup_lines("cs", lines) == expected
 
 
     # Convert existing templates
