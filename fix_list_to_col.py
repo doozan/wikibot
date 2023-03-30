@@ -69,7 +69,7 @@ class ListToColFixer():
         new_lines = self.convert_list_templates(lang_id, lines, section, title)
 
         if not new_lines:
-            if re.match(r"(\* {{q|{{\s*(rel-|der-)?top[3-5]{0,1})\s*[|}]", lines[0]):
+            if re.match(r"(\* {{q|{{\s*(rel-|der-)?top[2-5]{0,1})\s*[|}]", lines[0]):
                 new_lines = self.titled_lists_to_templates(lang_id, lines, title, section)
             else:
                 new_lines = self.lines_to_template(lang_id, lines, title, section)
@@ -144,9 +144,18 @@ class ListToColFixer():
         * {{l|es|three}}
         ==
         {{col-auto|es|one|{{l|es|two|g=m}}|three}}
+
+        or
+
+        converts a single line of multiple, comma-separated {{l}} items to {{col-auto}}
+        * {{l|es|one}}, {{l|es|two}} {{g|m}}, {{l|es|three}}
+        {{col-auto|es|one|{{l|es|two|g=m}}|three}}
         """
 
-        pre = []
+        if len(lines) == 1 and "}}, " in lines[0]:
+            split_lines = lines[0].split(", ")
+            lines = split_lines[:1] + ["* " + l for l in split_lines[1:]]
+
         items = []
         for line in lines:
             if not line.strip():
@@ -161,7 +170,7 @@ class ListToColFixer():
 
             no_templates = line.lstrip("* ")
             no_templates = self.strip_templates(no_templates)
-            if no_templates.strip(" ,;") and no_templates.strip(" ,;") != "se":
+            if no_templates.strip(" ,;"):
                 self.warn("text_outside_template", section, line)
                 return
 
@@ -176,11 +185,11 @@ class ListToColFixer():
             self.warn("no_items", section, line)
             return
 
-        return pre + [self.generate_template(lang_id, items)]
+        return [self.generate_template(lang_id, items)]
 
     @staticmethod
     def generate_template(lang_id, items, table_title=None):
-        use_expanded_template = len(items) > 4 or any("{{" in item for item in items)
+        use_expanded_template = len(items) > 4 or sum(len(i) for i in items) > 60 or any("{{" in item for item in items)
         br = "\n" if use_expanded_template else ""
 
         title_param = f"|title={table_title}" if table_title else ""
@@ -235,7 +244,7 @@ class ListToColFixer():
                 continue
 
             # Line contains only a single rel-topX der-topX or top template
-            if re.match(r"{{\s*(rel-|der-)?top[3-5]{0,1}\s*[|}][^{]*}$", line) and self.strip_templates(line) == "":
+            if re.match(r"{{\s*(rel-|der-)?top[2-5]{0,1}\s*[|}][^{]*}$", line) and self.strip_templates(line) == "":
                 in_multi_line = True
                 continue
 

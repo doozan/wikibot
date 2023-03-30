@@ -77,6 +77,23 @@ def test_lines_to_template():
     assert res == expected
 
 
+
+    lines = [
+        "* {{l|cs|a1}}, {{l|cs|a2}}, {{l|cs|a3}}",
+    ]
+    expected = [
+        "{{col-auto|cs|a1|a2|a3}}",
+    ]
+
+    res = fixer.lines_to_template("cs", lines)
+    print(res)
+    assert res == expected
+
+    res = fixer.cleanup_lines("cs", lines)
+    print(res)
+    assert res == expected
+
+
 def test_cleanup_lines():
 
     lines = [
