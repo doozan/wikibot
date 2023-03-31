@@ -35,16 +35,16 @@ class ListToColFixer():
         page = list(section.lineage)[-1]
         self._log.append((code, page, details))
 
-    def cleanup_section(self, section, title):
+    def cleanup_section(self, section, page):
         """ Returns True if the section was modified """
 
         lang_id = ALL_LANGS[list(section.lineage)[-2]]
-        new_lines = self.cleanup_lines(lang_id, section._lines, section, title)
-        if new_lines:
+        new_lines = self.cleanup_lines(lang_id, section._lines, section, page)
+        if new_lines and new_lines != section._lines:
             section._lines = new_lines
             return True
 
-    def cleanup_lines(self, lang_id, lines, section=None, title=None):
+    def cleanup_lines(self, lang_id, lines, section=None, page=None):
         if not lines:
             return
 
@@ -66,18 +66,32 @@ class ListToColFixer():
             return
 
         # If there are existing list templates, convert them to {{col-auto}}
-        new_lines = self.convert_list_templates(lang_id, lines, section, title)
-
-        if not new_lines:
-            if re.match(r"(\* {{q|{{\s*(rel-|der-)?top[1-5]{0,1})\s*[|}]", lines[0]):
-                new_lines = self.titled_lists_to_templates(lang_id, lines, title, section)
-            else:
-                new_lines = self.lines_to_template(lang_id, lines, title, section)
-
+        new_lines = self.convert_list_templates(lang_id, lines, section, page)
         if new_lines:
             return pre + new_lines
 
-    def convert_list_templates(self, lang_id, lines, section=None, title=None):
+        # Convert any exist {{top}}, {{rel-N}} or {{der-N}} lists
+        new_lines = self.convert_top_templates(lang_id, lines, section, page)
+        if new_lines:
+            return pre + new_lines
+
+        # titled, single lines lists to templates
+        new_lines = self.convert_titled_lists_to_templates(lang_id, lines, section, page)
+        if new_lines:
+            return pre + new_lines
+
+        # Single line of comma separated items
+        if len(lines) == 1 and "}}, " in lines[0]:
+            new_line = self.line_to_template(lang_id, lines[0], section, page)
+            if new_line:
+                return pre + [new_line]
+
+        # Convert a simple bulleted list of items
+        new_lines = self.convert_lines_to_template(lang_id, lines, section, page)
+        if new_lines:
+            return pre + new_lines
+
+    def convert_list_templates(self, lang_id, lines, section, page):
         """
         Converts {{derX}} {{relX}} and {{colX}} templates to {{col-auto}}
         returns None if no templates were converted
@@ -85,109 +99,52 @@ class ListToColFixer():
 
         # If the section is using an older template, just replace the template with {{col-auto}}
         new_lines = []
-        converted = False
         for line in lines:
             new_line = re.sub(r"\{\{(\s*(rel|col|der)[2345]\s*)", "{{col-auto", line)
-            if new_line != line:
-                converted = True
             new_lines.append(new_line)
-        if converted:
+        if new_lines and new_lines != lines:
             return new_lines
 
+    def cleanup_line(self, lang_id, line, section, page):
+        """ Strips leading "* " and converts [[link]] to {{l|lang_id|link}} """
 
+        # Convert [[link]] to {{l|XX|link}}
+        line = re.sub(r"\[\[([^\[\]\|]*)\]\]", "{{l|" + lang_id + "|" + r"\1" + "}}", line)
 
-    def line_to_item(self, lang_id, line, title=None, section=None):
-        wikicode = mwparserfromhell.parse(line)
-        item = None
-        item_gender = None
-        for template in wikicode.filter_templates():
-
-            if template.name.strip() == "l":
-                if item:
-                    self.warn("multiple_l_templates", section, line)
-                    return
-
-                if len(template.params) != 2:
-                    item = template
-                    #if len(template.params) == 3 and template.has("g"):
-                    #    item_gender = template.get("g").value.strip()
-                    #else:
-                    #    self.warn("l_has_extra_params", section, line)
-                    #    return
-                else:
-                    item = template.get(2).strip()
-
-            elif template.name.strip() == "g":
-                if len(template.params) != 1:
-                    self.warn("g_has_multiple_params", section, line)
-                    return
-                gender = template.get(1).value.strip()
-                if item_gender and item_gender != gender:
-                    self.warn("item_has_multiple_genders", section, line)
-                    return
-                item_gender = gender
-
-            else:
-                self.warn("unexpected_template", section, line)
-                return
-
-        if not item:
-            self.warn("no_item", section, line)
+        if not re.match(r"\*\s*{{", line):
+            self.warn("unhandled_line", section, line)
             return
 
-        if isinstance(item, mwparserfromhell.nodes.template.Template):
-            if item_gender:
-                if item.has("g") and item.get("g") != item_gender:
-                    self.warn("item_has_multiple_genders", section, line)
-                    return
-                item["g"] = item_gender
-            return str(item)
+        # Strip leading bullet
+        line = re.sub(r"\*\s*", "", line)
 
-        if item and item_gender:
-            return "{{l|" + lang_id + "|" + item + "|g=" + item_gender + "}}"
+        no_templates = self.strip_templates(line)
+        if no_templates.strip(" ,;"):
+            self.warn("text_outside_template", section, line)
+            return
 
-        return item
+        return line.strip()
 
-
-
-    def lines_to_template(self, lang_id, lines, title=None, section=None):
-        """ Converts a list of bulleted {{l}} items to {{col-auto}}:
+    def convert_lines_to_template(self, lang_id, lines, section, page):
+        """
+        converts a list of bulleted {{l}} items to {{col-auto}}:
         * {{l|es|one}}
         * {{l|es|two}} {{g|m}}
         * {{l|es|three}}
         ==
         {{col-auto|es|one|{{l|es|two|g=m}}|three}}
-
-        or
-
-        converts a single line of multiple, comma-separated {{l}} items to {{col-auto}}
-        * {{l|es|one}}, {{l|es|two}} {{g|m}}, {{l|es|three}}
-        {{col-auto|es|one|{{l|es|two|g=m}}|three}}
         """
-
-        if len(lines) == 1 and "}}, " in lines[0]:
-            split_lines = lines[0].split(", ")
-            lines = split_lines[:1] + ["* " + l for l in split_lines[1:]]
 
         items = []
         for line in lines:
             if not line.strip():
                 continue
 
-            # Convert [[link]] to {{l|XX|link}}
-            line = re.sub(r"\[\[([^\[\]\|]*)\]\]", "{{l|" + lang_id + "|" + r"\1" + "}}", line)
-
-            if not re.match(r"\*\s*{{", line):
-                self.warn("unhandled_line", section, line)
+            line = self.cleanup_line(lang_id, line, section, page)
+            if not line:
                 return
 
-            no_templates = line.lstrip("* ")
-            no_templates = self.strip_templates(no_templates)
-            if no_templates.strip(" ,;"):
-                self.warn("text_outside_template", section, line)
-                return
-
-            item = self.line_to_item(lang_id, line, title, section)
+            item = self.get_item(lang_id, line, section, page)
             if not item:
                 return
 
@@ -209,16 +166,11 @@ class ListToColFixer():
 
         return "{{col-auto|" + lang_id + title_param + br + "|" + f"{br}|".join(items) + br + "}}"
 
-    def titled_lists_to_templates(self, lang_id, lines, title=None, section=None):
+    def convert_top_templates(self, lang_id, lines, section, page):
         """
-        Converts single-line, bulleted, titled, lists into {{col-auto}}
-        * {{q|adjectives}} {{l|pl|a1}}, {{l|pl|a2}}, {{l|pl|a3}}
-        * {{q|nouns}} {{l|pl|n1}}, {{l|pl|n2}}, {{l|pl|n3}}
-        ==
-        {{col-auto|pl|title=adjectives|a1|a2|a3}}
-        {{col-auto|pl|title=nouns|n1|n2|n3}}
+        Converts multi-line lists between {{*-top}} and {{*-bottom}} tags:
+        returns None if no templates were converted
 
-        Also converts multi-line lists between {{*-top}} and {{*-bottom}} tags:
         {{rel-top}}
         * [[r1]]
         * [[r2]]
@@ -234,11 +186,16 @@ class ListToColFixer():
         {{col-auto|pl|d1|d2|d3}}
         """
 
+        if not re.match(r"{{\s*(rel-|der-)?top[1-5]{0,1}\s*[|}][^{]*}$", lines[0]):
+            return
+
         new_lines = []
         items = []
         in_multi_line = False
         changed = False
         for line in lines:
+            if not line.strip():
+                continue
 
             if in_multi_line:
                 if re.match(r"{{\s*(rel-|der-)?bottom\s*}}$", line):
@@ -249,7 +206,7 @@ class ListToColFixer():
                     new_lines.append(self.generate_template(lang_id, items))
                     items = []
                 else:
-                    item = self.line_to_item(lang_id, line, title, section)
+                    item = self.get_item(lang_id, line, section, page)
                     if not item:
                         return
                     if item not in items:
@@ -261,13 +218,43 @@ class ListToColFixer():
                 in_multi_line = True
                 continue
 
-            new_line = self.line_to_template(lang_id, line, title, section)
+            # Not a multi-item list
+            self.warn("unexpected_line", section, line)
+            return
+
+        if in_multi_line:
+            self.warn("unclosed_list", section, line)
+            return
+
+        if new_lines and new_lines != lines:
+            return new_lines
+
+
+    def convert_titled_lists_to_templates(self, lang_id, lines, section, page):
+        """
+        Converts single-line, bulleted, titled, lists into {{col-auto}}
+        * {{q|adjectives}} {{l|pl|a1}}, {{l|pl|a2}}, {{l|pl|a3}}
+        * {{q|nouns}} {{l|pl|n1}}, {{l|pl|n2}}, {{l|pl|n3}}
+        ==
+        {{col-auto|pl|title=adjectives|a1|a2|a3}}
+        {{col-auto|pl|title=nouns|n1|n2|n3}}
+        """
+
+        if not re.match(r"\*\s*{{(q|qualifier|i|qual|sense|s)\s*\|([^{]*?)}}", lines[0]):
+            return
+
+        new_lines = []
+        for line in lines:
+            if not line.strip():
+                continue
+
+            new_line = self.line_to_template(lang_id, line, section, page, label_required=True)
             if new_line is None:
                 return
 
             new_lines.append(new_line)
 
-        if new_lines != lines:
+        if new_lines and new_lines != lines:
             return new_lines
 
     @staticmethod
@@ -275,11 +262,30 @@ class ListToColFixer():
         old_text = None
         while text != old_text:
             old_text = text
-            text = re.sub(r"\{\{[^}]*?\}\}", "", old_text)
+            text = re.sub(r"\{\{[^{}]*?\}\}", "", old_text)
 
         return text
 
-    def line_to_template(self, lang_id, line, title=None, section=None):
+    def split_label(self, text, section, page):
+        """ If text starts with a label template, strip it and return
+        label, following_text
+
+        split_label("{{q|test}} foo bar") == ("test", " foo bar")
+        """
+
+        # if first template is a label, process and strip it
+        label = None
+        match = re.match(r"{{(q|qualifier|i|qual|sense|s)\s*\|([^{]*?)}}", text)
+        if match:
+            label = match.group(2).strip()
+            if "|" in label or "=" in label:
+                self.warn("label_has_extra_param", section, text)
+                return None, None
+            text = text[len(match.group(0)):]
+
+        return label, text
+
+    def line_to_template(self, lang_id, line, section, page, label_required=False):
         """
         Converts a single-line, bulleted, titled, list into {{col-auto}}
         * {{q|adjectives}} {{l|pl|a1}}, {{l|pl|a2}}, {{l|pl|a3}}
@@ -289,58 +295,95 @@ class ListToColFixer():
         Returns None if a line does not match expected input
         """
 
-        new_lines = []
-
-        if not line.strip():
-            return line
-
-        if not re.match(r"\*\s*{{", line):
-            self.warn("unhandled_line", section, line)
+        line = self.cleanup_line(lang_id, line, section, page)
+        if not line:
             return
 
-        no_templates = self.strip_templates(line[2:])
-        if no_templates.strip(" ,;"):
-            self.warn("text_outside_template", section, line)
+        label, text = self.split_label(line, section, page)
+        if text is None:
+            return
+        if not label and label_required:
+            self.warn("no_label", section, line)
             return
 
-        wikicode = mwparserfromhell.parse(line)
-        label = None
+        items = self.get_items(lang_id, text, section, page)
+        if not items:
+            return
+
+        return self.generate_template(lang_id, items, label)
+
+    def get_items(self, lang_id, line, section, page):
+        """ Returns None if all items could not be parsed """
+
+        # TODO: only split on commas outside templates
+        split_text = line.split(", ")
         items = []
+        for text in split_text:
+             item = self.get_item(lang_id, text, section, page)
+             if not item:
+                 return
+             if item not in items:
+                 items.append(item)
+
+        return items
+
+    def get_item(self, lang_id, line, section, page):
+        wikicode = mwparserfromhell.parse(line)
+        item = None
+        item_gender = None
+        item_qualifier = ""
         for template in wikicode.filter_templates():
-            if template.name.strip() in ["q", "qualifier", "i", "qual"]:
-                if label:
-                    self.warn("multi_labels", section, line)
-                    return
-                if items:
-                    self.warn("label_after_item", section, line)
-                    return
-                if len(template.params) != 1:
-                    self.warn("q_has_extra_params", section, line)
+
+            if template.name.strip() == "l":
+                if item:
+                    self.warn("multiple_l_templates", section, line)
                     return
 
-                label = template.get(1)
-
-            elif template.name.strip() == "l":
                 if len(template.params) != 2:
-                    self.warn("l_has_extra_params", section, line)
+                    item = template
+                else:
+                    item = template.get(2).strip()
+
+            elif template.name.strip() == "g":
+                if len(template.params) != 1:
+                    self.warn("g_has_multiple_params", section, line)
                     return
-                item = template.get(2).strip()
-                if item not in items:
-                    items.append(item)
+                gender = template.get(1).value.strip()
+                if item_gender and item_gender != gender:
+                    self.warn("item_has_multiple_genders", section, line)
+                    return
+                item_gender = gender
+
+            elif template.name.strip() in ["q", "qualifier", "i", "qual"]:
+                if item_qualifier:
+                    self.warn("item_has_multiple_qualifiers", section, line)
+                    return
+                item_qualifier = f" {template}"
 
             else:
                 self.warn("unexpected_template", section, line)
                 return
 
-        if not label:
-            self.warn("no_label", section, line)
+        if not item:
+            self.warn("no_item", section, line)
             return
 
-        if not items:
-            self.warn("no_items", section, line)
-            return
+        if isinstance(item, mwparserfromhell.nodes.template.Template):
+            if item_gender:
+                if item.has("g") and item.get("g") != item_gender:
+                    self.warn("item_has_multiple_genders", section, line)
+                    return
+                item["g"] = item_gender
+            return f"{item}{item_qualifier}"
 
-        return self.generate_template(lang_id, items, label)
+        if item and item_gender:
+            return "{{l|" + lang_id + "|" + item + "|g=" + item_gender + "}}" + item_qualifier
+
+        if item_qualifier:
+            return "{{l|" + lang_id + "|" + item + "}}" + item_qualifier
+
+        return item
+
 
     def process(self, text, title, summary=None, options=None):
         # This function runs in two modes: fix and report

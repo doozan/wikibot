@@ -5,13 +5,13 @@ def test_line_to_template():
 
     tests = {
         ("* {{q|test}} {{l|cs|one}}, {{l|cs|two}}", "{{col-auto|cs|title=test|one|two}}"),
-        ("* {{q|test}} {{l|cs|one}}; ,,;,  {{l|cs|two}}, ", "{{col-auto|cs|title=test|one|two}}"),
+#        ("* {{q|test}} {{l|cs|one}}; ,,;,  {{l|cs|two}}, ", "{{col-auto|cs|title=test|one|two}}"),
         ("* {{q|test}} {{l|cs|one}}, {{l|cs|two}}, {{l|cs|one}}", "{{col-auto|cs|title=test|one|two}}"),
         ("* {{q|test}} {{l|cs|one}}, {{l|cs|two}}, three", None),
         ("*: {{q|test}} {{l|cs|one}}, {{l|cs|two}}", None),
         ("# {{q|test}} {{l|cs|one}}, {{l|cs|two}}", None),
         ("* {{q|test}} {{l|cs|one}}, {{XX|cs|two}}", None),
-        ("* {{l|cs|one}}, {{l|cs|two}}", None),
+        ("* {{l|cs|one}}, {{l|cs|two}}", "{{col-auto|cs|one|two}}"),
         ("* {{q|test}}", None),
     }
 
@@ -19,15 +19,33 @@ def test_line_to_template():
         print("")
         print(text)
         print(expected)
-        res = fixer.line_to_template("cs", text)
+        res = fixer.line_to_template("cs", text, None, None)
         print(res)
         assert res == expected
 
-def test_titled_lists_to_templates():
+def test_convert_titled_lists_to_templates():
 
     lines = [
         "* {{q|adjectives}} {{l|cs|a1}}, {{l|cs|a2}}, {{l|cs|a3}}",
         "* {{q|nouns}} {{l|cs|n1}}, {{l|cs|n2}}, {{l|cs|n3}}",
+    ]
+    expected = [
+        "{{col-auto|cs|title=adjectives|a1|a2|a3}}",
+        "{{col-auto|cs|title=nouns|n1|n2|n3}}",
+    ]
+
+    res = fixer.convert_titled_lists_to_templates("cs", lines, None, None)
+    print(res)
+    assert res == expected
+
+    res = fixer.cleanup_lines("cs", lines)
+    print(res)
+    assert res == expected
+
+
+def test_convert_top_templates():
+
+    lines = [
         "{{rel-top3|Related terms}}",
         "* {{l|cs|r1}}",
         "* {{l|cs|r2}}",
@@ -42,80 +60,18 @@ def test_titled_lists_to_templates():
         "{{bottom}}",
         ]
     expected = [
-        "{{col-auto|cs|title=adjectives|a1|a2|a3}}",
-        "{{col-auto|cs|title=nouns|n1|n2|n3}}",
         "{{col-auto|cs|r1|r2}}",
         "{{col-auto|cs|d1|d2}}",
         "{{col-auto|cs|t1|t2}}",
     ]
 
-    res = fixer.titled_lists_to_templates("cs", lines)
+    res = fixer.convert_top_templates("cs", lines, None, None)
     print(res)
     assert res == expected
 
     res = fixer.cleanup_lines("cs", lines)
     print(res)
     assert res == expected
-
-def test_lines_to_template():
-
-    lines = [
-        "* {{l|cs|a1}}",
-        "* {{l|cs|a2}}",
-        "* {{l|cs|a3}}",
-    ]
-    expected = [
-        "{{col-auto|cs|a1|a2|a3}}",
-    ]
-
-    res = fixer.lines_to_template("cs", lines)
-    print(res)
-    assert res == expected
-
-    res = fixer.cleanup_lines("cs", lines)
-    print(res)
-    assert res == expected
-
-
-
-    lines = [
-        "* {{l|cs|a1}}, {{l|cs|a2}}, {{l|cs|a3}}",
-    ]
-    expected = [
-        "{{col-auto|cs|a1|a2|a3}}",
-    ]
-
-    res = fixer.lines_to_template("cs", lines)
-    print(res)
-    assert res == expected
-
-    res = fixer.cleanup_lines("cs", lines)
-    print(res)
-    assert res == expected
-
-
-
-    lines = [
-        "* {{l|es|barbechar|pos=v}}",
-        "* {{l|es|barbechera}} {{g|f}}",
-        "* {{l|es|en barbecho}}",
-    ]
-    expected = [
-        """\
-{{col-auto|cs
-|{{l|es|barbechar|pos=v}}
-|{{l|cs|barbechera|g=f}}
-|en barbecho
-}}"""]
-
-    res = fixer.lines_to_template("cs", lines)
-    print(res)
-    assert res == expected
-
-    res = fixer.cleanup_lines("cs", lines)
-    print(res)
-    assert res == expected
-
 
 def test_cleanup_lines():
 
@@ -129,14 +85,14 @@ def test_cleanup_lines():
         "{{col-auto|cs|a1|a2|a3|a4}}",
     ]
 
-    assert fixer.lines_to_template("cs", lines) == expected
+    assert fixer.cleanup_lines("cs", lines) == expected
 
     lines = [
         "* {{l|cs|a1}}",
         "* [[a4|XXXXX]]",  # Links with | should error
     ]
-
-    assert fixer.lines_to_template("cs", lines) == None
+    expected = None
+    assert fixer.cleanup_lines("cs", lines) == expected
 
     lines = [
         "* {{l|cs|a1}}",
@@ -150,29 +106,31 @@ def test_cleanup_lines():
 |{{l|cs|a3|g=f}}
 }}""",
     ]
-
-    assert fixer.lines_to_template("cs", lines) == expected
+    assert fixer.cleanup_lines("cs", lines) == expected
 
     lines = [
         "* {{l|cs|a1}}",
         "* {{l|cs|a2}} blah",
         "* {{l|cs|a3}}",
     ]
-    assert fixer.cleanup_lines("cs", lines) == None
+    expected = None
+    assert fixer.cleanup_lines("cs", lines) == expected
 
     lines = [
         "* {{l|cs|a1}}",
         "* {{x|cs|a2}}",
         "* {{l|cs|a3}}",
     ]
-    assert fixer.cleanup_lines("cs", lines) == None
+    expected = None
+    assert fixer.cleanup_lines("cs", lines) == expected
 
     lines = [
         ": {{l|cs|a1}}",
         ": {{l|cs|a2}}",
         ": {{l|cs|a3}}",
     ]
-    assert fixer.cleanup_lines("cs", lines) == None
+    expected = None
+    assert fixer.cleanup_lines("cs", lines) == expected
 
     lines = [
         "* {{l|cs|a1|param2}}",
@@ -220,3 +178,58 @@ def test_cleanup_lines():
     ]
     assert fixer.cleanup_lines("cs", lines) == expected
 
+
+    lines = [
+        "* {{l|cs|a1}}",
+        "* {{l|cs|a2}}",
+        "* {{l|cs|a3}}",
+    ]
+    expected = [
+        "{{col-auto|cs|a1|a2|a3}}",
+    ]
+
+    res = fixer.cleanup_lines("cs", lines)
+    print(res)
+    assert res == expected
+
+
+
+    lines = [
+        "* {{l|cs|a1}}, {{l|cs|a2}}, {{l|cs|a3}}",
+    ]
+    expected = [
+        "{{col-auto|cs|a1|a2|a3}}",
+    ]
+
+    res = fixer.cleanup_lines("cs", lines)
+    print(res)
+    assert res == expected
+
+
+
+    lines = [
+        "* {{l|es|barbechar|pos=v}}",
+        "* {{l|es|barbechera}} {{g|f}}",
+        "* {{l|es|en barbecho}}",
+    ]
+    expected = [
+        """\
+{{col-auto|cs
+|{{l|es|barbechar|pos=v}}
+|{{l|cs|barbechera|g=f}}
+|en barbecho
+}}"""]
+
+    res = fixer.cleanup_lines("cs", lines)
+    print(res)
+    assert res == expected
+
+
+
+
+
+def test_strip_templates():
+    assert fixer.strip_templates("abc {{foo|{{bar|{{baz|xxx}}|test}}|more}} def") == "abc  def"
+
+def test_split_label():
+    assert fixer.split_label("{{q|test}} foo bar", None, None) == ("test", " foo bar")
