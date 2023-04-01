@@ -5,6 +5,7 @@ import mwparserfromhell
 import re
 
 from autodooz.sections import ALL_LANGS, ALL_LANG_IDS
+from enwiktionary_parser.utils import nest_aware_resplit
 
 """ Converts bulleted lists of {{l}} items into {{col-auto}} lists """
 
@@ -35,16 +36,16 @@ class ListToColFixer():
         page = list(section.lineage)[-1]
         self._log.append((code, page, details))
 
-    def cleanup_section(self, section, page):
+    def process_section(self, section, page):
         """ Returns True if the section was modified """
 
         lang_id = ALL_LANGS[list(section.lineage)[-2]]
-        new_lines = self.cleanup_lines(lang_id, section._lines, section, page)
+        new_lines = self.process_lines(lang_id, section._lines, section, page)
         if new_lines and new_lines != section._lines:
             section._lines = new_lines
             return True
 
-    def cleanup_lines(self, lang_id, lines, section=None, page=None):
+    def process_lines(self, lang_id, lines, section=None, page=None):
         if not lines:
             return
 
@@ -68,26 +69,26 @@ class ListToColFixer():
         # If there are existing list templates, convert them to {{col-auto}}
         new_lines = self.convert_list_templates(lang_id, lines, section, page)
         if new_lines:
-            return pre + new_lines
+            pass
 
         # Convert any exist {{top}}, {{rel-N}} or {{der-N}} lists
-        new_lines = self.convert_top_templates(lang_id, lines, section, page)
-        if new_lines:
-            return pre + new_lines
+        elif re.match(r"{{\s*(rel-|der-)?top[1-5]{0,1}\s*[|}][^{]*}$", lines[0]):
+            new_lines = self.convert_top_templates(lang_id, lines, section, page)
 
         # titled, single lines lists to templates
-        new_lines = self.convert_titled_lists_to_templates(lang_id, lines, section, page)
-        if new_lines:
-            return pre + new_lines
+        elif re.match(r"\*\s*{{(q|qualifier|i|qual|sense|s)\s*\|([^{]*?)}}", lines[0]):
+            new_lines = self.convert_titled_lists_to_templates(lang_id, lines, section, page)
 
         # Single line of comma separated items
-        if len(lines) == 1 and "}}, " in lines[0]:
+        elif len(lines) == 1 and "}}, " in lines[0]:
             new_line = self.line_to_template(lang_id, lines[0], section, page)
             if new_line:
-                return pre + [new_line]
+                new_lines = [new_line]
 
         # Convert a simple bulleted list of items
-        new_lines = self.convert_lines_to_template(lang_id, lines, section, page)
+        else:
+            new_lines = self.convert_lines_to_template(lang_id, lines, section, page)
+
         if new_lines:
             return pre + new_lines
 
@@ -137,12 +138,11 @@ class ListToColFixer():
 
         items = []
         for line in lines:
-            if not line.strip():
-                continue
-
             line = self.cleanup_line(lang_id, line, section, page)
-            if not line:
+            if line is None:
                 return
+            if not line:
+                continue
 
             item = self.get_item(lang_id, line, section, page)
             if not item:
@@ -186,9 +186,6 @@ class ListToColFixer():
         {{col-auto|pl|d1|d2|d3}}
         """
 
-        if not re.match(r"{{\s*(rel-|der-)?top[1-5]{0,1}\s*[|}][^{]*}$", lines[0]):
-            return
-
         new_lines = []
         items = []
         in_multi_line = False
@@ -197,30 +194,36 @@ class ListToColFixer():
             if not line.strip():
                 continue
 
-            if in_multi_line:
-                if re.match(r"{{\s*(rel-|der-)?bottom\s*}}$", line):
-                    in_multi_line = False
-                    if not items:
-                       self.warn("no_items", section, line)
-                       return
-                    new_lines.append(self.generate_template(lang_id, items))
-                    items = []
+            # Check for start of a multi-item list
+            if not in_multi_line:
+                if re.match(r"{{\s*(rel-|der-)?top[1-5]{0,1}\s*[|}][^{]*}$", line) and self.strip_templates(line) == "":
+                    in_multi_line = True
                 else:
-                    item = self.get_item(lang_id, line, section, page)
-                    if not item:
-                        return
-                    if item not in items:
-                        items.append(item)
-                continue
+                    self.warn("unexpected_line", section, line)
+                    return
 
-            # Line contains only a single rel-topX der-topX or top template
-            if re.match(r"{{\s*(rel-|der-)?top[1-5]{0,1}\s*[|}][^{]*}$", line) and self.strip_templates(line) == "":
-                in_multi_line = True
-                continue
+            # Check for end of list
+            elif re.match(r"{{\s*(rel-|der-)?bottom\s*}}$", line):
+                in_multi_line = False
+                if not items:
+                   self.warn("no_items", section, line)
+                   return
+                new_lines.append(self.generate_template(lang_id, items))
+                items = []
 
-            # Not a multi-item list
-            self.warn("unexpected_line", section, line)
-            return
+            # Handle list items
+            else:
+                clean_line = self.cleanup_line(lang_id, line, section, page)
+                if clean_line is None:
+                    return
+                if not clean_line:
+                    continue
+
+                item = self.get_item(lang_id, clean_line, section, page)
+                if not item:
+                    return
+                if item not in items:
+                    items.append(item)
 
         if in_multi_line:
             self.warn("unclosed_list", section, line)
@@ -239,9 +242,6 @@ class ListToColFixer():
         {{col-auto|pl|title=adjectives|a1|a2|a3}}
         {{col-auto|pl|title=nouns|n1|n2|n3}}
         """
-
-        if not re.match(r"\*\s*{{(q|qualifier|i|qual|sense|s)\s*\|([^{]*?)}}", lines[0]):
-            return
 
         new_lines = []
         for line in lines:
@@ -315,15 +315,13 @@ class ListToColFixer():
     def get_items(self, lang_id, line, section, page):
         """ Returns None if all items could not be parsed """
 
-        # TODO: only split on commas outside templates
-        split_text = line.split(", ")
         items = []
-        for text in split_text:
-             item = self.get_item(lang_id, text, section, page)
-             if not item:
-                 return
-             if item not in items:
-                 items.append(item)
+        for text, _ in nest_aware_resplit("[,;]", line, [("{{", "}}")]):
+            item = self.get_item(lang_id, text, section, page)
+            if not item:
+                return
+            if item not in items:
+                items.append(item)
 
         return items
 
@@ -415,7 +413,7 @@ class ListToColFixer():
 
         l2 = l2_entries[0]
         for section in l2.ifilter_sections(matches=lambda x: x.title in options["sections"]):
-            if self.cleanup_section(section, title):
+            if self.process_section(section, title):
                 self.fix("list_to_col", section, "converted to {{col-auto}}")
                 entry_changed = True
 

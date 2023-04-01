@@ -26,11 +26,11 @@ def test_line_to_template():
 def test_convert_titled_lists_to_templates():
 
     lines = [
-        "* {{q|adjectives}} {{l|cs|a1}}, {{l|cs|a2}}, {{l|cs|a3}}",
+        "* {{q|adjectives}} {{l|cs|a1}}, {{l|cs|a2, a2;2}}; {{l|cs|a3}}",
         "* {{q|nouns}} {{l|cs|n1}}, {{l|cs|n2}}, {{l|cs|n3}}",
     ]
     expected = [
-        "{{col-auto|cs|title=adjectives|a1|a2|a3}}",
+        "{{col-auto|cs|title=adjectives|a1|a2, a2;2|a3}}",
         "{{col-auto|cs|title=nouns|n1|n2|n3}}",
     ]
 
@@ -38,7 +38,7 @@ def test_convert_titled_lists_to_templates():
     print(res)
     assert res == expected
 
-    res = fixer.cleanup_lines("cs", lines)
+    res = fixer.process_lines("cs", lines)
     print(res)
     assert res == expected
 
@@ -69,11 +69,11 @@ def test_convert_top_templates():
     print(res)
     assert res == expected
 
-    res = fixer.cleanup_lines("cs", lines)
+    res = fixer.process_lines("cs", lines)
     print(res)
     assert res == expected
 
-def test_cleanup_lines():
+def test_process_lines():
 
     lines = [
         "* {{l|cs|a1}}",
@@ -85,14 +85,14 @@ def test_cleanup_lines():
         "{{col-auto|cs|a1|a2|a3|a4}}",
     ]
 
-    assert fixer.cleanup_lines("cs", lines) == expected
+    assert fixer.process_lines("cs", lines) == expected
 
     lines = [
         "* {{l|cs|a1}}",
         "* [[a4|XXXXX]]",  # Links with | should error
     ]
     expected = None
-    assert fixer.cleanup_lines("cs", lines) == expected
+    assert fixer.process_lines("cs", lines) == expected
 
     lines = [
         "* {{l|cs|a1}}",
@@ -106,7 +106,7 @@ def test_cleanup_lines():
 |{{l|cs|a3|g=f}}
 }}""",
     ]
-    assert fixer.cleanup_lines("cs", lines) == expected
+    assert fixer.process_lines("cs", lines) == expected
 
     lines = [
         "* {{l|cs|a1}}",
@@ -114,7 +114,7 @@ def test_cleanup_lines():
         "* {{l|cs|a3}}",
     ]
     expected = None
-    assert fixer.cleanup_lines("cs", lines) == expected
+    assert fixer.process_lines("cs", lines) == expected
 
     lines = [
         "* {{l|cs|a1}}",
@@ -122,7 +122,7 @@ def test_cleanup_lines():
         "* {{l|cs|a3}}",
     ]
     expected = None
-    assert fixer.cleanup_lines("cs", lines) == expected
+    assert fixer.process_lines("cs", lines) == expected
 
     lines = [
         ": {{l|cs|a1}}",
@@ -130,7 +130,7 @@ def test_cleanup_lines():
         ": {{l|cs|a3}}",
     ]
     expected = None
-    assert fixer.cleanup_lines("cs", lines) == expected
+    assert fixer.process_lines("cs", lines) == expected
 
     lines = [
         "* {{l|cs|a1|param2}}",
@@ -144,7 +144,7 @@ def test_cleanup_lines():
 |a3
 }}"""
     ]
-    assert fixer.cleanup_lines("cs", lines) == expected
+    assert fixer.process_lines("cs", lines) == expected
 
 
     # Convert existing templates
@@ -160,7 +160,7 @@ def test_cleanup_lines():
         "{{col-auto|cs|d1|d2|d3}}",
         "{{col-auto|cs|r1|r2|r3}}",
     ]
-    assert fixer.cleanup_lines("cs", lines) == expected
+    assert fixer.process_lines("cs", lines) == expected
 
 
     # Convert existing templates
@@ -176,7 +176,7 @@ def test_cleanup_lines():
         "|c2",
         "|c3}}",
     ]
-    assert fixer.cleanup_lines("cs", lines) == expected
+    assert fixer.process_lines("cs", lines) == expected
 
 
     lines = [
@@ -188,7 +188,7 @@ def test_cleanup_lines():
         "{{col-auto|cs|a1|a2|a3}}",
     ]
 
-    res = fixer.cleanup_lines("cs", lines)
+    res = fixer.process_lines("cs", lines)
     print(res)
     assert res == expected
 
@@ -201,7 +201,7 @@ def test_cleanup_lines():
         "{{col-auto|cs|a1|a2|a3}}",
     ]
 
-    res = fixer.cleanup_lines("cs", lines)
+    res = fixer.process_lines("cs", lines)
     print(res)
     assert res == expected
 
@@ -220,7 +220,7 @@ def test_cleanup_lines():
 |en barbecho
 }}"""]
 
-    res = fixer.cleanup_lines("cs", lines)
+    res = fixer.process_lines("cs", lines)
     print(res)
     assert res == expected
 
