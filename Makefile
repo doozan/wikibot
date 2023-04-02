@@ -226,7 +226,7 @@ $(LIST)fr_missing_tlfi: $(BUILDDIR)/fr-en.enwikt.txt.bz2 $(BUILDDIR)/fr-en.enwik
 >   DEST="User:JeffDoozan/lists/fr_missing_tlfi"
 >   SUMMARY="Entries missing a link to TLFI"
 
->   $(WIKIGREP) $< "{{R:TLFi" | cut -d ":" -f 1 | sort -u > $@.with_tlfi
+>   $(WIKIGREP) $< "{{R:fr:TLFi" | cut -d ":" -f 1 | sort -u > $@.with_tlfi
 >   comm -23 $(BUILDDIR)/fr-en.enwikt.lemmas $@.with_tlfi > $@.without_tlfi
 >   comm -12 $@.without_tlfi $(TLFI_LEMMAS) \
 >   | grep -v "^.$$" \
