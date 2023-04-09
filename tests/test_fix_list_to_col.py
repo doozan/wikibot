@@ -102,8 +102,8 @@ def test_process_lines():
     expected = [
         """{{col-auto|cs
 |a1
-|{{l|cs|a2|g=m}}
-|{{l|cs|a3|g=f}}
+|a2<g:m>
+|a3<g:f>
 }}""",
     ]
     assert fixer.process_lines("cs", lines) == expected
@@ -139,7 +139,7 @@ def test_process_lines():
     ]
     expected = [
         """{{col-auto|cs
-|{{l|cs|a1|param2}}
+|a1<alt:param2>
 |a2
 |a3
 }}"""
@@ -215,8 +215,8 @@ def test_process_lines():
     expected = [
         """\
 {{col-auto|cs
-|{{l|es|barbechar|pos=v}}
-|{{l|cs|barbechera|g=f}}
+|barbechar<pos:v>
+|barbechera<g:f>
 |en barbecho
 }}"""]
 

@@ -63,7 +63,7 @@ class ListToColFixer():
             return
 
         # Ignore sections that have already been converted
-        if lines[0].startswith("{{col-auto|"):
+        if lines[0].startswith("{{col-auto"):
             return
 
         # If there are existing list templates, convert them to {{col-auto}}
@@ -159,7 +159,10 @@ class ListToColFixer():
 
     @staticmethod
     def generate_template(lang_id, items, table_title=None):
-        use_expanded_template = len(items) > 4 or sum(len(i) for i in items) > 60 or any("{{" in item for item in items)
+        use_expanded_template = len(items) > 4 \
+                or sum(len(i) for i in items) > 60 \
+                or any("<" in item for item in items) \
+                or any("{{" in item for item in items)
         br = "\n" if use_expanded_template else ""
 
         title_param = f"|title={table_title}" if table_title else ""
@@ -328,35 +331,61 @@ class ListToColFixer():
     def get_item(self, lang_id, line, section, page):
         wikicode = mwparserfromhell.parse(line)
         item = None
-        item_gender = None
-        item_qualifier = ""
+        params = {}
         for template in wikicode.filter_templates():
 
-            if template.name.strip() == "l":
+            if template.name.strip() in ["l", "L"]:
                 if item:
                     self.warn("multiple_l_templates", section, line)
                     return
 
-                if len(template.params) != 2:
-                    item = template
-                else:
-                    item = template.get(2).strip()
+                for l_param in template.params:
+                    k = l_param.name.strip()
+                    v = l_param.value.strip()
+
+                    if k.isnumeric():
+                        if k == "1":
+                            continue
+                        elif k == "2":
+                            item = v
+                            continue
+                        elif k == "3":
+                            k = "alt"
+                        elif k == "4":
+                            k = "t"
+                        else:
+                            self.warn("l_has_params", section, line)
+                            return
+
+                    if k in [ 't', 'alt', 'tr', 'ts', 'pos', 'lit', 'id', 'sc', 'g' ]:
+                        params[k] = v
+
+                    else:
+                        self.warn("l_has_params", section, line)
+                        return
+
 
             elif template.name.strip() == "g":
                 if len(template.params) != 1:
                     self.warn("g_has_multiple_params", section, line)
                     return
                 gender = template.get(1).value.strip()
-                if item_gender and item_gender != gender:
+                if "g" in params and params["g"] != gender:
                     self.warn("item_has_multiple_genders", section, line)
                     return
-                item_gender = gender
+                params["g"] = gender
 
             elif template.name.strip() in ["q", "qualifier", "i", "qual"]:
-                if item_qualifier:
+                if len(template.params) != 1:
+                    self.warn("qualifier_has_multiple_params", section, line)
+                    return
+
+                q = "qq" if item else "q"
+                if q in params:
                     self.warn("item_has_multiple_qualifiers", section, line)
                     return
-                item_qualifier = f" {template}"
+
+                params[q] = template.get(2).value.strip()
 
             else:
                 self.warn("unexpected_template", section, line)
@@ -366,21 +395,14 @@ class ListToColFixer():
             self.warn("no_item", section, line)
             return
 
-        if isinstance(item, mwparserfromhell.nodes.template.Template):
-            if item_gender:
-                if item.has("g") and item.get("g") != item_gender:
-                    self.warn("item_has_multiple_genders", section, line)
-                    return
-                item["g"] = item_gender
-            return f"{item}{item_qualifier}"
+        res = [item]
+        for k,v in sorted(params.items()):
+            if "<" in v or ">" in v or "{" in v:
+                self.warn("bad_parameters", section, str(params))
+                return
+            res.append(f"<{k}:{v}>")
 
-        if item and item_gender:
-            return "{{l|" + lang_id + "|" + item + "|g=" + item_gender + "}}" + item_qualifier
-
-        if item_qualifier:
-            return "{{l|" + lang_id + "|" + item + "}}" + item_qualifier
-
-        return item
+        return "".join(res)
 
 
     def process(self, text, title, summary=None, options=None):
@@ -401,21 +423,18 @@ class ListToColFixer():
         if not entry:
             return [] if summary is None else text
 
-        # Skip prefixes, suffixes, and afixes
-        if title.startswith("-") or title.endswith("-"):
-            return [] if summary is None else text
-
         entry_changed = False
         lang_names = [ALL_LANG_IDS[lang_id] for lang_id in options["lang_ids"]]
-        l2_entries = entry.filter_sections(matches=lambda x: x.title in lang_names, recursive=False)
-        if not len(l2_entries) == 1:
-            return [] if summary is None else text
+        for l2 in entry.filter_sections(matches=lambda x: x.title in lang_names, recursive=False):
 
-        l2 = l2_entries[0]
-        for section in l2.ifilter_sections(matches=lambda x: x.title in options["sections"]):
-            if self.process_section(section, title):
-                self.fix("list_to_col", section, "converted to {{col-auto}}")
-                entry_changed = True
+            # Skip prefixes, suffixes, and afixes
+            if title.startswith("-") or title.endswith("-") and l2.title in ["Czech", "Polish"]:
+                 return [] if summary is None else text
+
+            for section in l2.ifilter_sections(matches=lambda x: x.title in options["sections"]):
+                if self.process_section(section, title):
+                    self.fix("list_to_col", section, "converted to {{col-auto}}")
+                    entry_changed = True
 
         if summary is None:
             return self._log
