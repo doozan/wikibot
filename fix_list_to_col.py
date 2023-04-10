@@ -62,14 +62,9 @@ class ListToColFixer():
         if not lines:
             return
 
-        # Ignore sections that have already been converted
-        if lines[0].startswith("{{col-auto"):
-            return
-
-        # If there are existing list templates, convert them to {{col-auto}}
-        new_lines = self.convert_list_templates(lang_id, lines, section, page)
-        if new_lines:
-            pass
+        # Convert existing column templates
+        if re.match(r"\{\{(\s*(col-auto|(rel|col|der)[2345])\s*($|\|))", lines[0]):
+            new_lines = self.convert_list_templates(lang_id, lines, section, page)
 
         # Convert any exist {{top}}, {{rel-N}} or {{der-N}} lists
         elif re.match(r"{{\s*(rel-|der-)?top[1-5]{0,1}\s*[|}][^{]*}$", lines[0]):
@@ -98,13 +93,55 @@ class ListToColFixer():
         returns None if no templates were converted
         """
 
-        # If the section is using an older template, just replace the template with {{col-auto}}
-        new_lines = []
-        for line in lines:
-            new_line = re.sub(r"\{\{(\s*(rel|col|der)[2345]\s*)", "{{col-auto", line)
-            new_lines.append(new_line)
-        if new_lines and new_lines != lines:
-            return new_lines
+        data = "\n".join(lines)
+        no_templates = self.strip_templates(data)
+        if no_templates.strip("\n ,;*#:"):
+            self.warn("text_outside_template", section, no_templates)
+            return
+
+        res = []
+        while True:
+            wikicode = mwparserfromhell.parse(data)
+            template = None
+            for template in wikicode.filter_templates():
+                if not re.match("col-auto|(rel|col|der)[2345]$", template.name.strip()):
+                    self.warn("XXXXX_unhandled_template", section, str(template))
+                    return
+
+                params = {}
+                items = []
+                for param in template.params:
+                    k = param.name.strip()
+                    v = param.value.strip()
+
+                    if k.isnumeric():
+                        if k == "1":
+                            continue
+
+                        if "{{" in v or "[[" in v:
+                            raw_item = v
+                        else:
+                            raw_item = "{{l|" + lang_id + "|" + v + "}}"
+
+                        item = self.get_item(lang_id, raw_item, section, page)
+                        if item and item not in items:
+                            items.append(item)
+                        else:
+                            print([raw_item, item])
+
+                    else:
+                        params[k] = v
+
+
+                res.append(self.generate_template(lang_id, items, params))
+                break
+
+            if template:
+                data = data.replace(str(template), "", 1)
+            else:
+                break
+
+        return res
 
     def cleanup_line(self, lang_id, line, section, page):
         """ Strips leading "* " and converts [[link]] to {{l|lang_id|link}} """
@@ -158,16 +195,16 @@ class ListToColFixer():
         return [self.generate_template(lang_id, items)]
 
     @staticmethod
-    def generate_template(lang_id, items, table_title=None):
+    def generate_template(lang_id, items, params={}):
         use_expanded_template = len(items) > 4 \
                 or sum(len(i) for i in items) > 60 \
                 or any("<" in item for item in items) \
                 or any("{{" in item for item in items)
         br = "\n" if use_expanded_template else ""
 
-        title_param = f"|title={table_title}" if table_title else ""
+        named_params = "|" + "|".join(f"{k}={v}" for k,v in params.items()) if params else ""
 
-        return "{{col-auto|" + lang_id + title_param + br + "|" + f"{br}|".join(items) + br + "}}"
+        return "{{col-auto|" + lang_id + named_params + br + "|" + f"{br}|".join(items) + br + "}}"
 
     def convert_top_templates(self, lang_id, lines, section, page):
         """
@@ -302,10 +339,13 @@ class ListToColFixer():
         if not line:
             return
 
+        params = {}
         label, text = self.split_label(line, section, page)
         if text is None:
             return
-        if not label and label_required:
+        if label:
+            params["title"] = label
+        elif label_required:
             self.warn("no_label", section, line)
             return
 
@@ -313,7 +353,7 @@ class ListToColFixer():
         if not items:
             return
 
-        return self.generate_template(lang_id, items, label)
+        return self.generate_template(lang_id, items, params)
 
     def get_items(self, lang_id, line, section, page):
         """ Returns None if all items could not be parsed """
@@ -363,7 +403,6 @@ class ListToColFixer():
                     else:
                         self.warn("l_has_params", section, line)
                         return
-
 
             elif template.name.strip() == "g":
                 if len(template.params) != 1:

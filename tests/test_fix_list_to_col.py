@@ -171,10 +171,7 @@ def test_process_lines():
         "|c3}}",
     ]
     expected = [
-        "{{col-auto",
-        "|cs|c1",
-        "|c2",
-        "|c3}}",
+        "{{col-auto|cs|c1|c2|c3}}",
     ]
     assert fixer.process_lines("cs", lines) == expected
 
