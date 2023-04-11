@@ -52,7 +52,7 @@ class ListToColFixer():
         # Allow "* See " lines to preceed lists
         pre = []
         x = 0
-        while len(lines)>x and (lines[x].startswith("* See ")):
+        while len(lines)>x and re.match("[* ]*(See |{{\s*(prefixsee|suffixsee|rootsee|es-possessive))", lines[x]):
             x+=1
         if x:
             pre = lines[:x]
@@ -76,6 +76,7 @@ class ListToColFixer():
 
         # Single line of comma separated items
         elif len(lines) == 1 and "}}, " in lines[0]:
+            new_lines = []
             new_line = self.line_to_template(lang_id, lines[0], section, page)
             if new_line:
                 new_lines = [new_line]
@@ -99,14 +100,18 @@ class ListToColFixer():
             self.warn("text_outside_template", section, no_templates)
             return
 
+        changed = False
         res = []
         while True:
             wikicode = mwparserfromhell.parse(data)
             template = None
             for template in wikicode.filter_templates():
                 if not re.match("col-auto|(rel|col|der)[2345]$", template.name.strip()):
-                    self.warn("XXXXX_unhandled_template", section, str(template))
+                    self.warn("unhandled_template_in_paramater", section, str(template))
                     return
+
+                if template.name.strip() != "col-auto":
+                    changed = True
 
                 params = {}
                 items = []
@@ -114,20 +119,25 @@ class ListToColFixer():
                     k = param.name.strip()
                     v = param.value.strip()
 
+                    if not v:
+                        continue
+
                     if k.isnumeric():
                         if k == "1":
                             continue
 
-                        if "{{" in v or "[[" in v:
-                            raw_item = v
-                        else:
-                            raw_item = "{{l|" + lang_id + "|" + v + "}}"
+                        old_item = v
+                        item = self.get_item(lang_id, old_item, section, page)
+                        if not item:
+                            return
 
-                        item = self.get_item(lang_id, raw_item, section, page)
-                        if item and item not in items:
+                        if item not in items:
                             items.append(item)
+                            if item != old_item:
+                                changed = True
+
                         else:
-                            print([raw_item, item])
+                            changed = True
 
                     else:
                         params[k] = v
@@ -141,13 +151,15 @@ class ListToColFixer():
             else:
                 break
 
+        if not changed:
+            return
+
         return res
 
     def cleanup_line(self, lang_id, line, section, page):
         """ Strips leading "* " and converts [[link]] to {{l|lang_id|link}} """
 
-        # Convert [[link]] to {{l|XX|link}}
-        line = re.sub(r"\[\[([^\[\]\|]*)\]\]", "{{l|" + lang_id + "|" + r"\1" + "}}", line)
+        line = self.brackets_to_links(lang_id, line)
 
         if not re.match(r"\*\s*{{", line):
             self.warn("unhandled_line", section, line)
@@ -175,6 +187,10 @@ class ListToColFixer():
 
         items = []
         for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
             line = self.cleanup_line(lang_id, line, section, page)
             if line is None:
                 return
@@ -319,7 +335,7 @@ class ListToColFixer():
         if match:
             label = match.group(2).strip()
             if "|" in label or "=" in label:
-                self.warn("label_has_extra_param", section, text)
+                self.warn("qualifier_has_multiple_params", section, text)
                 return None, None
             text = text[len(match.group(0)):]
 
@@ -368,13 +384,45 @@ class ListToColFixer():
 
         return items
 
+    def brackets_to_links(self, lang_id, text):
+
+#        # convert [[word]] ([[alt]])
+#        text = re.sub(r"\[\[([^\{\[\]\|]*)\]\]\s+\(\s*\[\[\s*([^[{\|]+)\s*\]\]\s*\)", "{{l|" + lang_id + "|" + r"\1" + "|alt=" + r"\2" + "}}", text)
+
+        prev_text = ""
+        while prev_text != text:
+            prev_text = text
+            #text = re.sub(r"\[\[([^]]*)\]\]", fr"{{{{l|{lang_id}|\1}}}}", text)
+
+            # Convert [[link]] to {{l|XX|link}}
+            text = re.sub(r"\[\[([^\{\[\]\|]*)\]\]", "{{l|" + lang_id + "|" + r"\1" + "}}", text)
+
+        return text
+
+    def bare_text_to_link(self, lang_id, text):
+        if "{{" in text or "[[" in text or "|" in text:
+            return text
+        return "{{l|" + lang_id + "|" + text + "}}"
+
     def get_item(self, lang_id, line, section, page):
-        wikicode = mwparserfromhell.parse(line)
+        """ Returns a string
+        returns None if the line can't be parsed, which the caller should check for
+        """
         item = None
         params = {}
+
+        text = self.bare_text_to_link(lang_id, line)
+        text = self.brackets_to_links(lang_id, text)
+
+        no_templates = self.strip_templates(text)
+        if no_templates.strip("\n ,;*#:"):
+            self.warn("text_outside_template", section, line)
+            return
+
+        wikicode = mwparserfromhell.parse(text)
         for template in wikicode.filter_templates():
 
-            if template.name.strip() in ["l", "L"]:
+            if template.name.strip() in ["l", "L", "link"]:
                 if item:
                     self.warn("multiple_l_templates", section, line)
                     return
@@ -382,6 +430,9 @@ class ListToColFixer():
                 for l_param in template.params:
                     k = l_param.name.strip()
                     v = l_param.value.strip()
+
+                    if not v:
+                        continue
 
                     if k.isnumeric():
                         if k == "1":
@@ -396,6 +447,9 @@ class ListToColFixer():
                         else:
                             self.warn("l_has_params", section, line)
                             return
+
+                    if k == "gloss":
+                        k = "t"
 
                     if k in [ 't', 'alt', 'tr', 'ts', 'pos', 'lit', 'id', 'sc', 'g' ]:
                         params[k] = v
@@ -424,7 +478,7 @@ class ListToColFixer():
                     self.warn("item_has_multiple_qualifiers", section, line)
                     return
 
-                params[q] = template.get(2).value.strip()
+                params[q] = template.get(1).value.strip()
 
             else:
                 self.warn("unexpected_template", section, line)
@@ -435,7 +489,7 @@ class ListToColFixer():
             return
 
         res = [item]
-        for k,v in sorted(params.items()):
+        for k,v in params.items():
             if "<" in v or ">" in v or "{" in v:
                 self.warn("bad_parameters", section, str(params))
                 return

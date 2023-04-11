@@ -223,6 +223,19 @@ def test_process_lines():
 
 
 
+    lines = [
+        "{{col-auto|es|{{l|es|Juanita}} {{q|diminutive}}}}"
+    ]
+    expected = [
+        """\
+{{col-auto|cs
+|Juanita<qq:diminutive>
+}}"""]
+
+    res = fixer.process_lines("cs", lines)
+    print(res)
+    assert res == expected
+
 
 
 def test_strip_templates():
@@ -230,3 +243,29 @@ def test_strip_templates():
 
 def test_split_label():
     assert fixer.split_label("{{q|test}} foo bar", None, None) == ("test", " foo bar")
+
+
+def test_brackets_to_links():
+    assert fixer.brackets_to_links("xx", "[[test]]") == "{{l|xx|test}}"
+    assert fixer.brackets_to_links("xx", "[[test]] [[bar]]") == "{{l|xx|test}} {{l|xx|bar}}"
+    assert fixer.brackets_to_links("xx", "[[test [[foo]] [[bar]]]]") == "[[test {{l|xx|foo}} {{l|xx|bar}}]]"
+
+
+def test_get_item():
+    tests = {
+        "[[test]]": "test",
+        "{{l|es|test}}": "test",
+        "{{l|es|test}} {{q|foo}}": "test<qq:foo>",
+        "{{q|foo}} {{l|es|test}}": "test<q:foo>",
+        "{{q|foo}} {{l|es|test}} {{q|bar}}": "test<q:foo><qq:bar>",
+        "{{q|foo}} {{l|es|test}} {{q|bar}} {{g|m}}": "test<q:foo><qq:bar><g:m>",
+
+        "{{l|es|test|foo}}": "test<alt:foo>",
+        "{{l|es|test|foo|bar}}": "test<alt:foo><t:bar>",
+        "{{l|es|test||bar}}": "test<t:bar>",
+    }
+
+    for item, expected in tests.items():
+        res = fixer.get_item("xx", item, None, None)
+        print([item, expected, res])
+        assert expected == res
