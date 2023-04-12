@@ -89,9 +89,13 @@ def test_process_lines():
 
     lines = [
         "* {{l|cs|a1}}",
-        "* [[a4|XXXXX]]",  # Links with | should error
+        "* [[a4|a4alt]]",  # Links with | should produce alt
     ]
-    expected = None
+    expected =  ["""\
+{{col-auto|cs
+|a1
+|a4<alt:a4alt>
+}}"""]
     assert fixer.process_lines("cs", lines) == expected
 
     lines = [
@@ -153,12 +157,23 @@ def test_process_lines():
         "{{col2|cs|c1|c2|c3}}",
         "{{der3|cs|d1|d2|d3}}",
         "{{rel4|cs|r1|r2|r3}}",
+        "* See {{l|xx|blah}}",
     ]
     expected = [
         "* See {{l|xx|blah}}",
         "{{col-auto|cs|c1|c2|c3}}",
         "{{col-auto|cs|d1|d2|d3}}",
         "{{col-auto|cs|r1|r2|r3}}",
+        "* See {{l|xx|blah}}",
+    ]
+    assert fixer.process_lines("cs", lines) == expected
+
+
+    lines = [
+        "* See {{l|xx|blah}}",
+    ]
+    expected = [
+        "* See {{l|xx|blah}}",
     ]
     assert fixer.process_lines("cs", lines) == expected
 
@@ -237,6 +252,17 @@ def test_process_lines():
     assert res == expected
 
 
+    lines = [
+        "* {{l|en|*}}",
+        "* {{l|en|V*}}",
+        "* {{l|en|Cl}}",
+        "* {{l|en|ClG}}",
+    ]
+    expected = [ "{{col-auto|en|*|V*|Cl|ClG}}" ]
+    res = fixer.process_lines("en", lines)
+    print(res)
+    assert res == expected
+
 
 def test_strip_templates():
     assert fixer.strip_templates("abc {{foo|{{bar|{{baz|xxx}}|test}}|more}} def") == "abc  def"
@@ -249,6 +275,9 @@ def test_brackets_to_links():
     assert fixer.brackets_to_links("xx", "[[test]]") == "{{l|xx|test}}"
     assert fixer.brackets_to_links("xx", "[[test]] [[bar]]") == "{{l|xx|test}} {{l|xx|bar}}"
     assert fixer.brackets_to_links("xx", "[[test [[foo]] [[bar]]]]") == "[[test {{l|xx|foo}} {{l|xx|bar}}]]"
+    assert fixer.brackets_to_links("xx", "[[test]]ing") == "{{l|xx|test|alt=testing}}"
+    assert fixer.brackets_to_links("xx", "[[test|testing]]abc") == "{{l|xx|test|alt=testingabc}}"
+    assert fixer.brackets_to_links("xx", "[[w:test]]") == "[[w:test]]"
 
 
 def test_get_item():
@@ -269,3 +298,9 @@ def test_get_item():
         res = fixer.get_item("xx", item, None, None)
         print([item, expected, res])
         assert expected == res
+
+
+    item = "[[test]] ([[alt1]], [[alt2]])"
+    assert fixer.get_item("xx", item, None, None) == None
+    assert fixer.get_item("xx", item, None, None, True) == item
+
