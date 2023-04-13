@@ -22,7 +22,9 @@ class ListToColFixer():
             return
 
         if self._summary is not None:
-            self._summary.append(f"/*{section.path}*/ {details}")
+            item = f"/*{section.path}*/ {details}"
+            if item not in self._summary:
+                self._summary.append(f"/*{section.path}*/ {details}")
 
         page = list(section.lineage)[-1]
         self._log.append(("autofix_" + code, page))
@@ -42,6 +44,9 @@ class ListToColFixer():
         lang_id = ALL_LANGS[list(section.lineage)[-2]]
         new_lines = self.process_lines(lang_id, section._lines, section, page)
         if new_lines and new_lines != section._lines:
+            if "\n".join(section._lines).count("col-auto") < "\n".join(new_lines).count("col-auto"):
+                self.fix("list_to_col", section, "converted to {{col-auto}}")
+
             section._lines = new_lines
             return True
 
@@ -146,8 +151,10 @@ class ListToColFixer():
                             items.append(item)
                             if item != old_item:
                                 changed = True
-
+                                if template.name.strip() == "col-auto":
+                                    self.fix("update_col_params", section, "{{col-auto}} adjusted item formatting")
                         else:
+                            self.fix("remove_duplicate", section, 'removed duplicate item "' + item + '"' )
                             changed = True
 
                     else:
