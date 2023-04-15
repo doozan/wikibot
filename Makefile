@@ -22,10 +22,12 @@ DATETAG := $(shell curl -s https://dumps.wikimedia.org/enwiktionary/ | grep '>[0
 DATETAG_PRETTY := $(shell date --date="$(DATETAG)" +%Y-%m-%d)
 
 SPANISH_DATA := ../spanish_data
-NGRAMDATA := ../ngram_data
 DRAEDATA := ../drae_data
 BUILDDIR := $(SPANISH_DATA)/$(DATETAG_PRETTY)
 PYPATH := PYTHONPATH=$(BUILDDIR)
+
+NGRAMDATA := ../ngram_data
+NGYEAR := 1950
 
 DUMP_LEMMAS := $(PYPATH) $(BUILDDIR)/enwiktionary_wordlist/scripts/dump_lemmas
 
@@ -274,7 +276,10 @@ $(LIST)es_drae_errors: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(SPANISH_DATA)/es-en.da
 
 $(LIST)es_drae_mismatched_genders: $(SPANISH_DATA)/es-en.data
 >   @echo "Running $@..."
->   $(LIST_DRAE_MISMATCHED_GENDERS) --wikt $< --drae $(DRAEDATA)/drae.data $(SAVE)
+>   $(LIST_ES_MISMATCHED_GENDERS) $(SAVE) \
+>       --wikt $< \
+>       --drae $(DRAEDATA)/drae.data \
+>       --ngramdb $(NGRAMDATA)/spa/ngram-1950.db
 >   touch $@
 
 $(LIST)es_untagged_demonyms: $(BUILDDIR)/es-en.enwikt.txt.bz2
