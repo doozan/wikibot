@@ -322,7 +322,7 @@ wikifix['list_to_col'] = {
     'mode': 'function',
     "pre-fixes": [(sectionparser_cleanup, None)],
     "fixes": [(fix_list_to_col, {
-        "lang_ids": ["cs"],
+        "lang_ids": ["cs", "es", "mt", "pl"],
         "sections": ["Derived terms", "Related terms"],
         })],
     "post-fixes": [(ele_cleanup, None)],

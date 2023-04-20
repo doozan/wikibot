@@ -59,6 +59,7 @@ LIST_MISSING_DRAE := $(PYPATH) ./list_missing_drae.py
 LIST_DRAE_MISMATCHED_GENDERS := $(PYPATH) ./list_drae_mismatched_genders.py
 LIST_ES_FORM_OVERRIDES := $(PYPATH) ./list_es_form_overrides.py
 LIST_BARE_QUOTES := $(PYPATH) ./list_bare_quotes.py
+LIST_CONVERT_LIST_TO_COL := $(PYPATH) ./list_convert_list_to_col.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
@@ -450,6 +451,17 @@ $(LIST)bare_quotes: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   $(LIST_BARE_QUOTES) $(SAVE) $^
 >   touch $@
 
+$(LIST)convert_list_to_col: $(BUILDDIR)/all-en.enwikt.txt.bz2
+>   @echo "Running $@..."
+
+>   $(LIST_CONVERT_LIST_TO_COL) $(SAVE) $^ --section "Related terms" --section "Derived terms" \
+>       --lang cs \
+>       --lang es \
+>       --lang mt \
+>       --lang pl
+
+>   touch $@
+
 # Fixes
 $(FIX)fr_missing_tlfi:
 >   @
@@ -640,10 +652,21 @@ $(FIX)bare_quotes:
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides mismatched_headlines bare_quotes section_header_errors section_level_errors section_order_errors t9n_problems fr_missing_lemmas fr_missing_tlfi pt_with_synonyms section_stats missing_forms) # missing_forms last because it's slow on low memory machine
+$(FIX)%_list_to_col:
+>   SRC="User:JeffDoozan/lists/$*/der_rel_terms/fixes"
+>   FIX="--fix list_to_col --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   MAX=20000
+
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(WIKIFIX) -links:$$SRC $$FIX
+>   echo $$LINKS > $@
+
+lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides mismatched_headlines bare_quotes convert_list_to_col section_header_errors section_level_errors section_order_errors t9n_problems fr_missing_lemmas fr_missing_tlfi pt_with_synonyms section_stats missing_forms) # missing_forms last because it's slow on low memory machine
 
 # Fixes that are safe to run automatically and without supervision
-autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides bare_quotes)
+autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides bare_quotes cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col)
 
 # Fixes that may make mistakes and need human supervision
 otherfixes: $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form)

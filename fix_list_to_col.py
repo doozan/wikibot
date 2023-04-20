@@ -26,8 +26,9 @@ class ListToColFixer():
             if item not in self._summary:
                 self._summary.append(f"/*{section.path}*/ {details}")
 
-        page = list(section.lineage)[-1]
-        self._log.append(("autofix_" + code, page))
+        lang, page = list(section.lineage)[-2:]
+        lang_id = ALL_LANGS[lang]
+        self._log.append(("autofix_" + code, page, lang_id))
 
     def warn(self, code, section, details=None):
         # When running tests, section will be empty
@@ -35,8 +36,9 @@ class ListToColFixer():
             print("WARN:", code, details)
             return
 
-        page = list(section.lineage)[-1]
-        self._log.append((code, page, details))
+        lang, page = list(section.lineage)[-2:]
+        lang_id = ALL_LANGS[lang]
+        self._log.append((code, page, lang_id, details))
 
     def process_section(self, section, page):
         """ Returns True if the section was modified """

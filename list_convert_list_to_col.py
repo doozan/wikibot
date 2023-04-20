@@ -15,23 +15,28 @@ class WikiSaver(BaseHandler):
     def sort_items(self, items):
         count = defaultdict(int)
         for item in items:
-            count[item.error] += 1
+            count[(item.lang_id, item.error)] += 1
 
         # sort autofix sections first so they can be split into other pages
         # everything else sorted by count of section entries (smallest to largest)
-        return sorted(items, key=lambda x: ("autofix" in x.error, count[x.error], x.error, x.page))
+        return sorted(items, key=lambda x: (x.lang_id, "autofix" in x.error, count[(x.lang_id, x.error)], x.error, x.page))
 
     def is_new_section(self, item, prev_item):
         return prev_item and prev_item.error != item.error
 
     def is_new_page(self, page_sections, section_entries):
+        # Page break between languages
+        if page_sections and (page_sections[-1][-1].lang_id != section_entries[0].lang_id):
+            return True
+        # Page break fixes/errors
         return page_sections and (page_sections[-1][-1].error.startswith("autofix") != section_entries[0].error.startswith("autofix"))
 
     def page_name(self, page_sections, prev):
-        if "autofix" in page_sections[0][0].error:
-            return "fixes"
+        item = page_sections[0][0]
+        if "autofix" in item.error:
+            return f"{item.lang_id}/der_rel_terms/fixes"
         else:
-            return "errors"
+            return f"{item.lang_id}/der_rel_terms/errors"
 
     def format_entry(self, entry, prev_entry):
         if entry.details:
@@ -62,11 +67,11 @@ class FileSaver(WikiSaver):
         super().save(*args, **nargs, commit_message=None)
 
 class Logger(WikiLogger):
-    _paramtype = namedtuple("params", [ "error", "page", "details" ])
+    _paramtype = namedtuple("params", [ "error", "page", "lang_id", "details" ])
 
 logger = Logger()
-def log(error, page, details=None):
-    logger.add(error, page, details)
+def log(error, page, lang_id, details=None):
+    logger.add(error, page, lang_id, details)
 
 def iter_wxt(datafile, options, limit=None, show_progress=False):
 
@@ -128,7 +133,7 @@ def main():
             log(*log_values)
 
     if args.save:
-        base_url = f"User:JeffDoozan/lists/cs/der_rel_terms"
+        base_url = f"User:JeffDoozan/lists"
         logger.save(base_url, WikiSaver, commit_message=args.save)
     else:
         dest = ""
