@@ -472,6 +472,14 @@ def test_parse_details():
     print(res)
     assert res == {'year': '2014', 'author': 'Larisa Kharakhinova', 'title': "Heart-to-heart letters: to MrRight from '''CCCP'''", 'page': '22', 'publisher': 'Litres', 'isbn': '9785457226449'}
 
+    # OCLC instad of ISBN
+    text = """'''1847''': Charles Sealsfield, ''Rambleton: A Romance of Fashionable Life in New-York during the Great Speculation of 1836'' {{OCLC|12337689}}, page 127"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1847', 'author': 'Charles Sealsfield', 'title': 'Rambleton: A Romance of Fashionable Life in New-York during the Great Speculation of 1836', 'page': '127', 'oclc': '12337689'}
+
+
+
     # Unhandled
     text = """'''1934''', {{w|George Herriman}}, ''{{w|Krazy Kat}}'', Tuesday, April 17 comic strip ({{ISBN|978-1-63140-408-5}}, p. 112):"""
     res = parse_details(text)

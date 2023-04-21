@@ -264,9 +264,9 @@ class QuoteFixer():
     @classmethod
     def get_publisher(cls, text):
 
-        # The publisher is all text after the title until the ISBN tag
+        # The publisher is all text after the title until the ISBN/OCLC tag
 
-        m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{ISBN.*)$", text)
+        m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{(?:ISBN|OCLC).*)$", text)
         if m and m.group(1):
 
             publisher = m.group(1).strip()
@@ -612,15 +612,16 @@ class QuoteFixer():
             for count, isbn in enumerate(isbn, 1):
                 key = f"isbn{count}" if count > 1 else "isbn"
                 details[key] = isbn
-        else:
-            print("NO ISBN FOUND")
-            print(details)
-            print(text)
-            return
 
         oclc, text = cls.get_oclc(text)
         if oclc:
             details["oclc"] = oclc
+
+        if not isbn and not oclc:
+            print("NO ISBN OR OCLC FOUND")
+            print(details)
+            print(text)
+            return
 
         text = re.sub(r"(\(novel\)|&nbsp|Google online preview|Google [Pp]review|Google snippet view|online|preview|Google search result|unknown page|unpaged|unnumbered page(s)?|online edition|unmarked page|no page number|page n/a|Google books view|Google [Bb]ooks)", "", text)
         text = text.strip('#*:;, ()".')
@@ -680,7 +681,8 @@ class QuoteFixer():
         if not lang_id:
             return
 
-        pattern = r"""([#:*]+)\s*(?P<details>'''\d{4}'''.*{{ISBN.*)$"""
+        # Book quotes start with four digit year and include {{ISBN}} or {{OCLC}} templates
+        pattern = r"""([#:*]+)\s*(?P<details>'''\d{4}'''.*{{(?:ISBN|OCLC).*)$"""
 
         changed = False
         to_remove = []
