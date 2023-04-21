@@ -277,7 +277,7 @@ $(LIST)es_drae_errors: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(SPANISH_DATA)/es-en.da
 
 $(LIST)es_drae_mismatched_genders: $(SPANISH_DATA)/es-en.data
 >   @echo "Running $@..."
->   $(LIST_ES_MISMATCHED_GENDERS) $(SAVE) \
+>   $(LIST_DRAE_MISMATCHED_GENDERS) $(SAVE) \
 >       --wikt $< \
 >       --drae $(DRAEDATA)/drae.data \
 >       --ngramdb $(NGRAMDATA)/spa/ngram-1950.db
