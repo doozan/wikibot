@@ -111,8 +111,13 @@ class QuoteFixer():
         if not m:
             return [], text
 
+        pub_names = cls.split_names(m.group(2))
+        if pub_names is None:
+            print("BAD PUBLISHER NAME", text)
+            return [], text
+
         names = []
-        for name in cls.split_names(m.group(2)):
+        for name in pub_names:
             if not cls.is_valid_name(name):
                 dprint("invalid editor:", name)
                 return [], text
@@ -162,6 +167,9 @@ class QuoteFixer():
                 continue
             if len(name) < 5:
                 if name in ["Jr.", "Jr", "MD", "PhD", "MSW", "JD", "II", "III", "IV", "jr", "MS", "PHD", "Sr."]:
+                    if not names:
+                        return None
+
                     names[-1] += f", {name}"
                     continue
             names.append(name)
@@ -173,7 +181,7 @@ class QuoteFixer():
         authors = []
 
         has_et_al = False
-        new_text = re.sub(r"(''|[;, ]+)et al((ii|\.)''|[.,])", "", text)
+        new_text = re.sub(r"(''|[;, ]+)et al((ii|\.)''(.)?|[.,])", "", text)
         if new_text != text:
             has_et_al = True
             text = new_text
@@ -185,7 +193,12 @@ class QuoteFixer():
         author_text = m.group(1).strip(":;, ").replace("&#91;", "").replace(" (author)", "")
 
         authors = []
-        for author in cls.split_names(author_text):
+        author_names = cls.split_names(author_text)
+        if author_names is None:
+            print("BAD AUTHOR NAME", text)
+            return [], text
+
+        for author in author_names:
             if not cls.is_valid_name(author):
                 dprint("invalid author:", author)
                 return [], text
@@ -255,7 +268,7 @@ class QuoteFixer():
         if text.startswith("{{w|") and text.endswith("}}"):
             return True
 
-        bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''",  r"\b(page|by|published|reprint|edition|ed\.|p\.)\b", r"\d{4}"]
+        bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''",  r"\b(quoting|citing|page|by|published|reprint|edition|ed\.|p\.)\b", r"\d{4}"]
         pattern = "(" +  "|".join(bad_items) + ")"
         if re.search(pattern, text):
             return False
@@ -264,9 +277,9 @@ class QuoteFixer():
     @classmethod
     def get_publisher(cls, text):
 
-        # The publisher is all text after the title until the ISBN/OCLC tag
+        # The publisher is all text after the title until the ISBN/OCLC/ISSN tag
 
-        m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{(?:ISBN|OCLC).*)$", text)
+        m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{(?:ISBN|OCLC|ISSN).*)$", text)
         if m and m.group(1):
 
             publisher = m.group(1).strip()
@@ -360,6 +373,24 @@ class QuoteFixer():
             ^[;:, ]*(?P<pre>.*?)\s*         # leading text
             \(?                             # option (
             {{OCLC\s*\|\s*                  # {{OCLC|
+            ([0-9-]+)                       # numbers
+            \s*}}                           # }}
+            \)?                             # optional )
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            return m.group(2), m.group('pre') + " " + m.group('post')
+        return "", text
+
+    @staticmethod
+    def get_issn(text):
+
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*         # leading text
+            \(?                             # option (
+            {{ISSN\s*\|\s*                  # {{ISSN|
             ([0-9-]+)                       # numbers
             \s*}}                           # }}
             \)?                             # optional )
@@ -543,6 +574,9 @@ class QuoteFixer():
 
         chapter_title, text = cls.get_chapter_title(text)
         if chapter_title:
+            if "://" in chapter_title:
+                print("CHAPTER IS LINK", orig_text)
+                return
             details["chapter"] = chapter_title
 
         title, text = cls.get_title(text)
@@ -617,11 +651,15 @@ class QuoteFixer():
         if oclc:
             details["oclc"] = oclc
 
-        if not isbn and not oclc:
-            print("NO ISBN OR OCLC FOUND")
-            print(details)
-            print(text)
-            return
+        issn, text = cls.get_issn(text)
+        if issn:
+            details["issn"] = issn
+
+#        if not isbn and not oclc and not issn:
+#            print("NO ISBN, OCLC, or ISSN FOUND")
+#            print(details)
+#            print(text)
+#            return
 
         text = re.sub(r"(\(novel\)|&nbsp|Google online preview|Google [Pp]review|Google snippet view|online|preview|Google search result|unknown page|unpaged|unnumbered page(s)?|online edition|unmarked page|no page number|page n/a|Google books view|Google [Bb]ooks)", "", text)
         text = text.strip('#*:;, ()".')
@@ -675,14 +713,28 @@ class QuoteFixer():
         return "<br>".join(l.lstrip("#*: ") for l in translation_lines)
 
 
-    def convert_book_quotes(self, section, title):
+    def get_template_name(self, section, params):
+        if any(x in params for x in ["isbn", "oclc", "page", "pages"]):
+            source = "book"
+        elif "books.google.com" in params.get("url", ""):
+            source = "book"
+        else:
+            source = "text"
+
+        if section.title in ["References", "Further reading", "Etymology"]:
+            return "cite-" + source
+
+        return "quote-" + source
+
+
+    def convert_quotes(self, section, title):
 
         lang_id = ALL_LANGS.get(section._topmost.title)
         if not lang_id:
             return
 
-        # Book quotes start with four digit year and include {{ISBN}} or {{OCLC}} templates
-        pattern = r"""([#:*]+)\s*(?P<details>'''\d{4}'''.*{{(?:ISBN|OCLC).*)$"""
+        # Non-Book quotes start with four digit year and don't include ISBN or OCLC
+        pattern = r"""([#:*]+)\s*(?P<details>'''\d{4}'''.*)$"""
 
         changed = False
         to_remove = []
@@ -690,12 +742,19 @@ class QuoteFixer():
             m = re.match(pattern, line)
             if not m:
                 continue
+
             start = m.group(1)
 
             params = self.parse_details(m.group('details'))
             if not params:
                 self.warn("unparsable_line", section, line)
                 continue
+            else:
+                template = self.get_template_name(section, params)
+
+                # Temporary: only handle quote-book right now
+#                if "isbn" not in params:
+#                    continue
 
             passage_lines = []
             translation_lines = []
@@ -730,38 +789,36 @@ class QuoteFixer():
 
             translation2 = self.get_translation(translation_lines)
             if translation1 and translation2:
-                self.warn("multi_translations", section, translation + " ----> " + translation2)
-            else:
-                translation = translation1 if translation1 else translation2
+                self.warn("multi_translations", section, translation1 + " ----> " + translation2)
+            translation = translation1 if translation1 else translation2
 
             if "|" in translation:
                 self.warn("pipe_in_translation", section, translation)
                 return
 
-
             if translation and not passage:
                 self.warn("translation_without_passage", section, section.path)
-                continue
-
-            if not passage:
-                # TODO: convert to cite-book instead of quote-book
-                self.warn("no_following_line", section, section.path)
                 continue
 
             if lang_id == "en" and translation:
                 self.warn("english_with_translation", section, translation)
                 continue
 
-            section._lines[idx] = start + " {{quote-book|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()])
+            new_lines = [ start + " {{" + template + "|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()]) ]
             if translation2:
-                section._lines[idx+1] = "|passage=" + passage
-                section._lines[idx+2] = "|translation=" + translation + "}}"
+                new_lines.append("|passage=" + passage)
+                new_lines.append("|translation=" + translation + "}}")
             elif translation1:
-                section._lines[idx+1] = "|passage=" + passage + "|t=" + translation + "}}"
+                new_lines.append("|passage=" + passage + "|t=" + translation + "}}")
+            elif passage:
+                new_lines.append("|passage=" + passage + "}}")
             else:
-                section._lines[idx+1] = "|passage=" + passage + "}}"
+                new_lines[0] += "}}"
 
-            used = 3 if translation2 else 2
+            for x, line in enumerate(new_lines):
+                section._lines[idx+x] = line
+
+            used = len(new_lines)
             for to_remove_idx in range(idx+used, idx+offset):
                 to_remove.append(to_remove_idx)
 
@@ -771,6 +828,7 @@ class QuoteFixer():
             del section._lines[idx]
 
         return changed
+
 
 
     def process(self, text, title, summary=None, options=None):
@@ -797,7 +855,7 @@ class QuoteFixer():
             return [] if summary is None else text
 
         for section in entry.ifilter_sections():
-            if self.convert_book_quotes(section, title):
-                self.fix("bare_quote", section, "converted bare quote to quote-book")
+            if self.convert_quotes(section, title):
+                self.fix("bare_quote", section, "converted bare quote to template")
 
         return self._log if summary is None else str(entry)
