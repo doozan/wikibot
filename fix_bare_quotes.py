@@ -418,14 +418,14 @@ class QuoteFixer():
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*         # leading text
             \[                              # [
-            (http[^ ]*)                     # url
+            (?P<link>http[^ ]*)             # url
             (?P<link_text> .*?)?            # link text
             \]                              # ]
             [;:, ]*(?P<post>.*)$            # trailing text
         """
         m = re.match(pattern, text)
         if m:
-            return m.group(2), m.group('pre') + m.group('link_text') + " " + m.group('post')
+            return m.group('link'), m.group('pre') + m.group('link_text') + " " + m.group('post')
 
         return "", text
 
@@ -584,24 +584,31 @@ class QuoteFixer():
 
         chapter_title, text = cls.get_chapter_title(text)
         if chapter_title:
-            if "//" in chapter_title:
-                #print("CHAPTER IS LINK", orig_text)
-                return
             details["chapter"] = chapter_title
+            chapter_url, chapter_title = cls.get_url(chapter_title)
+            if chapter_url:
+                details["chapterurl"] = chapter_url
+                details["chapter"] = chapter_title.strip()
 
         title, text = cls.get_title(text)
         if not title:
             dprint("no title", text)
             return
-        elif "//" in title:
-            #print("TITLE IS LINK", orig_text)
-            return
-
         details["title"] = title
+        title_url, title = cls.get_url(title)
+        if title_url:
+            details["titleurl"] = title_url
+            details["title"] = title.strip()
+
 
         # url may contain the text like 'page 123' or 'chapter 3', so it needs to be extracted first
         url, text = cls.get_url(text)
         gbooks, text = cls.get_gbooks(text)
+
+        if sum(x in details for x in ["url", "titleurl", "chapterurl"]) > 1:
+            print("multiple_urls", orig_text)
+            dprint("multiple_urls", text)
+            return
 
         # get pages before page because pp. and p. both match  pp. 12-14
         pages, text = cls.get_pages(text)

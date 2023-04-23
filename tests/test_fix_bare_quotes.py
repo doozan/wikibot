@@ -118,11 +118,11 @@ def test_parse_details():
     assert res == {'year': '1996', 'author': 'Sherman Alexie', 'title': 'Indian Killer', 'isbn': '0-87113-652-X', 'page': '102'}
 
 
-    # TODO: enable
-#    text="""'''2006''', Henrik Ibsen, trans. by Odd Tangerud, ''[http://www.gutenberg.org/files/20162/20162-h/20162-h.htm La kolonoj de la socio]'', {{ISBN|82-91707-52-9}}"""
-#    res = parse_details(text)
-#    print(res)
-#    assert res == {'year': '2006', 'translator': 'Odd Tangerud', 'author': 'Henrik Ibsen', 'url': 'http://www.gutenberg.org/files/20162/20162-h/20162-h.htm', 'title': 'La kolonoj de la socio', 'isbn': '82-91707-52-9'}
+    # Title URL
+    text="""'''2006''', Henrik Ibsen, trans. by Odd Tangerud, ''[http://www.gutenberg.org/files/20162/20162-h/20162-h.htm La kolonoj de la socio]'', {{ISBN|82-91707-52-9}}"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2006', 'translator': 'Odd Tangerud', 'author': 'Henrik Ibsen', 'titleurl': 'http://www.gutenberg.org/files/20162/20162-h/20162-h.htm', 'title': 'La kolonoj de la socio', 'isbn': '82-91707-52-9'}
 
     # Semicolon separator for authors
     text="""'''2013''', Judy Faust; Punch Faust, ''The MOTs File: Memories, Observations, and Thoughts'', AuthorHouse {{ISBN|9781491827123}}, page 88"""
@@ -321,11 +321,10 @@ def test_parse_details():
 
 
     # ''et al.''. and chapter is url
-    # TODO: enable
-#    text="""'''2018''', C Ustan ''et al.''. "[https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733 Core-binding factor acute myeloid leukemia with t(8;21): Risk  factors and a novel scoring system (I-CBFit)]", ''Cancer Medicine''."""
-#    res = parse_details(text)
-#    print(res)
-#    assert res == {'year': '2018', 'author': 'C Ustan', 'author2': 'et al', 'chapter': 'Core-binding factor acute myeloid leukemia with t(8;21): Risk  factors and a novel scoring system (I-CBFit)', 'title': 'Cancer Medicine', 'url': 'https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733'}
+    text="""'''2018''', C Ustan ''et al.''. "[https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733 Core-binding factor acute myeloid leukemia with t(8;21): Risk  factors and a novel scoring system (I-CBFit)]", ''Cancer Medicine''."""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2018', 'author': 'C Ustan', 'author2': 'et al', 'chapter': 'Core-binding factor acute myeloid leukemia with t(8;21): Risk  factors and a novel scoring system (I-CBFit)', 'chapterurl': 'https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733', 'title': 'Cancer Medicine'}
 
 
     # unnumbered page
