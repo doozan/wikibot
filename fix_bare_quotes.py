@@ -26,7 +26,7 @@ class QuoteFixer():
 
     @staticmethod
     def get_year(text):
-        m = re.match(r"^'''(\d{4})'''[;,:—\- ]*(.*)$", text)
+        m = re.match(r"^'''(\d{4})'''[\.;,:—\- ]*(.*)$", text)
         if not m:
             dprint(text)
             return
@@ -129,11 +129,17 @@ class QuoteFixer():
     @staticmethod
     def is_valid_name(text):
 
+        if not text:
+            return False
+
         if text.startswith("[") and text.endswith("]"):
             return True
 
         if text.startswith("{{w|") and text.endswith("}}"):
             return True
+
+        if text[0] in " .;:-" or text[-1] in " ;:-":
+            return False
 
         bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''",  r"\b(and|in|of|by|to|et al|Guides|Press|[Cc]hapter|Diverse)\b", r"\.com", r"\btrans" ]
         pattern = "(" +  "|".join(bad_items) + ")"
@@ -180,15 +186,16 @@ class QuoteFixer():
     def get_authors(cls, text):
         authors = []
 
+        orig_text = text
+
         has_et_al = False
-        new_text = re.sub(r"(''|[;, ]+)et al((ii|\.)''(.)?|[.,])", "", text)
-        if new_text != text:
+        text = re.sub(r"(''|[;, ]+)et al((ii|\.)''(.)?|[.,])", "", text)
+        if text != orig_text:
             has_et_al = True
-            text = new_text
 
         m = re.match("""(.+?) (("|'').*)$""", text)
         if not m:
-            return [], text
+            return [], orig_text
 
         author_text = m.group(1).strip(":;, ").replace("&#91;", "").replace(" (author)", "")
 
@@ -196,13 +203,16 @@ class QuoteFixer():
         author_names = cls.split_names(author_text)
         if author_names is None:
             print("BAD AUTHOR NAME", text)
-            return [], text
+            return [], orig_text
 
         for author in author_names:
             if not cls.is_valid_name(author):
                 dprint("invalid author:", author)
-                return [], text
+                return [], orig_text
             authors.append(author)
+
+        if not authors:
+            return [], orig_text
 
         if has_et_al:
             authors.append("et al")
@@ -574,8 +584,8 @@ class QuoteFixer():
 
         chapter_title, text = cls.get_chapter_title(text)
         if chapter_title:
-            if "://" in chapter_title:
-                print("CHAPTER IS LINK", orig_text)
+            if "//" in chapter_title:
+                #print("CHAPTER IS LINK", orig_text)
                 return
             details["chapter"] = chapter_title
 
@@ -583,6 +593,10 @@ class QuoteFixer():
         if not title:
             dprint("no title", text)
             return
+        elif "//" in title:
+            #print("TITLE IS LINK", orig_text)
+            return
+
         details["title"] = title
 
         # url may contain the text like 'page 123' or 'chapter 3', so it needs to be extracted first
@@ -661,10 +675,22 @@ class QuoteFixer():
 #            print(text)
 #            return
 
+
+        m = re.search(r"(unknown page|unpaged|unnumbered page(s)?|unmarked page|no page number|page n/a)", text)
+        no_page = m.group(1) if m else None
+
         text = re.sub(r"(\(novel\)|&nbsp|Google online preview|Google [Pp]review|Google snippet view|online|preview|Google search result|unknown page|unpaged|unnumbered page(s)?|online edition|unmarked page|no page number|page n/a|Google books view|Google [Bb]ooks)", "", text)
+        #text = re.sub(r"(\(novel\)|&nbsp|Google online preview|Google [Pp]review|Google snippet view|online|preview|Google search result|online edition|Google books view|Google [Bb]ooks)", "", text)
+
         text = text.strip('#*:;, ()".')
-        if page:
+        if page or pages:
             text = re.sub(r"([Pp]age(s)?|pp\.|p\.|pg\.)", "", text)
+        elif no_page:
+            details["page"] = no_page
+            #print("UNNUMBERED", cls.page)
+            #TODO: allow this?
+            return
+
         if text:
             dprint("unparsed text:", text)
             dprint(orig_text)
@@ -678,8 +704,10 @@ class QuoteFixer():
         lines = []
         converted_template = False
         for line in passage_lines:
+
             passage = line.lstrip("#*: ")
             if "|" in passage:
+
                 m = re.match(r"^{{(?:quote|ux)\|[^|]*\|(.*)}}\s*$", passage)
                 if m:
                     passage = m.group(1)
@@ -714,9 +742,9 @@ class QuoteFixer():
 
 
     def get_template_name(self, section, params):
-        if any(x in params for x in ["isbn", "oclc", "page", "pages"]):
+        if any(x in params for x in ["isbn", "oclc", "issn"]):
             source = "book"
-        elif "books.google.com" in params.get("url", ""):
+        elif "books.google.com" in params.get("url", params.get("pageurl", "")):
             source = "book"
         else:
             source = "text"
@@ -766,16 +794,21 @@ class QuoteFixer():
                 if re.match(re.escape(start) + ":[^:]", section._lines[idx+offset]):
                     if translation_lines and passage_lines:
                         self.warn("multi_passage", section, section._lines[idx+offset])
+                        failed = True
+                        break
                     passage_lines.append(section._lines[idx+offset])
 
                 elif re.match(re.escape(start) + "::[^:]", section._lines[idx+offset]):
                     if not passage_lines:
                         self.warn("translation_before_passage", section, section._lines[idx+offset])
+                        failed = True
+                        break
                     translation_lines.append(section._lines[idx+offset])
 
                 else:
                     self.warn("unhandled_following_line", section, section._lines[idx+offset])
                     failed = True
+                    break
 
                 offset += 1
 
