@@ -101,7 +101,7 @@ class QuoteFixer():
             # Search for (eds. 1, 2)
             pattern = r"""(?x)
                 ^[;:, ]*(?P<pre>.*?)\s*  # leading text
-                (?:\(eds.)\s+            # (eds.
+                (?:\(eds[.]{0,1})\s+     # (eds.
                 (.*?)                    # names
                 [)]\s*                   # )
                 (?P<post>.*)$            # trailing text
@@ -193,7 +193,7 @@ class QuoteFixer():
         if text != orig_text:
             has_et_al = True
 
-        m = re.match("""(.+?) (("|'').*)$""", text)
+        m = re.match("""(.+?) (("|''|“).*)$""", text)
         if not m:
             return [], orig_text
 
@@ -221,10 +221,10 @@ class QuoteFixer():
 
     @staticmethod
     def get_chapter_title(text):
-        # The chapter title is the first string closed in " " possibly followed by "in"
+        # The chapter title is the first string closed in " " or “” possibly followed by "in"
         pattern = r"""(?x)
             [;:, ]*                 # separator
-            "(.+?)"                 # title enclosed in quotes
+            [“"](.+?)["”]           # title enclosed in quotes
             [;:, ]*                 # separator
             (in)?                   # in (optional)
             [;:, ]*(?P<post>.*)$    # trailing text
@@ -238,8 +238,11 @@ class QuoteFixer():
         # The chapter title is sometimes enclosed in '' '' instead of " ". In this case it MUST be followed by ", in ''"
         pattern = r"""(?x)
             [;:, ]*                 # separator
-            ''(.+?)'',\s+in           # title enclosed in quotes
-            [;:, ]*(?P<post>''.*)$    # trailing text
+            ''(.+?)''               # title enclosed in quotes
+            [;:, ]+                 # separator
+            in                      # in
+            [;:, ]+                 # separator
+            (?P<post>.*)$           # trailing text
         """
 
         m = re.match(pattern, text)
@@ -268,9 +271,42 @@ class QuoteFixer():
 
         return title, m.group(2)
 
+    @staticmethod
+    def is_valid_title(title):
+
+        if not title:
+            return False
+
+        if title.startswith("{{") and title.endswith("}}"):
+            return True
+
+        if title.startswith("[") and title.endswith("]"):
+            return True
+
+        # Must start with uppercase letter
+        if title[0] not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+            return
+
+        return not re.search("([()]|thesis|published|submitted|printed)", title)
+
+    @classmethod
+    def get_journal_title(cls, text):
+        # The title is everything until the first ; or ,
+
+        m = re.match(r"[.;:, ]*(?P<title>[^.;,]*)[;:,. ]*(?P<post>.*)$", text)
+        if m and cls.is_valid_title(m.group("title")):
+            return m.group('title'), m.group('post')
+
+        return "", text
 
     @staticmethod
     def is_valid_publisher(text):
+
+        if text.lower() in ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+                "january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december",
+                "spring", "summer", "fall", "winter",
+                "magazine", "appendix"]:
+            return False
 
         if text.startswith("[") and text.endswith("]"):
             return True
@@ -289,7 +325,8 @@ class QuoteFixer():
 
         # The publisher is all text after the title until the ISBN/OCLC/ISSN tag
 
-        m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{(?:ISBN|OCLC|ISSN).*)$", text)
+        #m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{(?:ISBN|OCLC|ISSN).*)$", text)
+        m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{(?:ISBN|OCLC|ISSN).*)?$", text)
         if m and m.group(1):
 
             publisher = m.group(1).strip()
@@ -326,13 +363,272 @@ class QuoteFixer():
             publisher = re.sub(r"\s*\(publisher\)$", "", publisher)
             publisher = re.sub(r"^published by( the)?", "", publisher)
 
-            if not cls.is_valid_publisher(publisher):
+            if not publisher.strip("():;, "):
+                publisher = ""
+
+            if not cls.is_allowed_publisher(publisher) and not cls.is_valid_publisher(publisher):
                 dprint("bad publisher", publisher)
                 return None, None, None, text
 
-            return publisher, published_year, location, m.group(2)
+            # Group2 matches ISBN templates, which is a good sign the publisher data is valid
+            if m.group(2):
+                return publisher, published_year, location, m.group(2)
+
+            # If there was no ISBN template, the publisher text is less reliable,
+            # only pass if the publisher exactly matches an allowlist
+            elif not publisher or cls.is_allowed_publisher(publisher):
+                return publisher, published_year, location, ""
+
         return "", None, None, text
 
+    @classmethod
+    def is_allowed_publisher(cls, text):
+        return text in [
+"John Macock",
+"Pan Macmillan",
+"Pocket Books",
+"{{w|Ballantine Books}}",
+"[[w:Bauer Media Group|Bauer Media]]",
+"{{w|Bloomsbury Publishing}}",
+"{{w|Chuokoron-Shinsha",
+"{{w|Time Inc.}}",
+"{{w|University of Texas Press}}",
+"il Mulino",
+"Samlaget",
+"University of Michigan Press",
+"Bantam",
+"Indiana University Press",
+"Klim",
+"Modtryk",
+"University of Illinois Press",
+"University of Toronto Press",
+"{{w|Farrar, Straus and Giroux}}",
+"Ballantine Books",
+"Chatto & Windus",
+"Courier Corporation",
+"H. John Edwards",
+"[[w:Houghton Mifflin Harcourt|Houghton Mifflin Company]]",
+"{{w|Lulu.com}}",
+"{{w|National Institute of the Korean Language}}",
+"Rex Bookstore, Inc.",
+"SUNY Press",
+"{{w|John Benjamins Publishing Company}}",
+"Edizioni Scientifiche e Artistiche",
+"Farrar, Straus and Giroux",
+"Government Printing Office",
+"Grosset & Dunlap",
+"Johns Hopkins University Press",
+"University of Hawai‘i Press",
+"[[w:Farrar, Straus and Giroux|Farrar, Straus and Giroux]]",
+"{{w|Indiana University Press}}",
+"{{w|Rowman & Littlefield}}",
+"Cornell University Press",
+"SAGE",
+"Salavopoulos & Kinderlis",
+"U.S. Government Printing Office",
+"{{w|John Wiley & Sons}}",
+"Adams Media",
+"Cambridge Scholars Publishing",
+"Fleet",
+"Kyobunkan",
+"Printed by [[w:William Jaggard|Isaac Iaggard]], and [[w:Edward Blount|Ed[ward] Blount]]",
+"{{w|Elsevier}}",
+"Wiley",
+"NYU Press",
+"Puffin Books",
+"Oxford University Press",
+"University of Utah Press",
+"Lulu Press, Inc",
+"Picador",
+"Vintage Books",
+"{{w|Bantam Books}}",
+"World Health Organization}}",
+"Filipiniana Publications",
+"Hachette",
+"OUP Oxford",
+"Uchitel Publishing House",
+"W. W. Norton & Company",
+"[[w:Charles Scribner's Sons|Scribner]]",
+"[[w:Macmillan Publishers|Macmillan and Co.]]",
+"Xlibris",
+"Greenwood Press",
+"Grove Press",
+"McFarland & Company",
+"Packt Publishing Ltd",
+"[[w:St. Martin's Press|St. Martin’s Press]]",
+"Granta Books",
+"Greenwood Publishing Group",
+"Harper",
+"{{w|Ian Allan Publishing}}",
+"[[w:Springer Science+Business Media|Springer-Verlag]]",
+"Institut d'ethnologie",
+"Lexington Books",
+"{{w|Pocket Books}}",
+"De La Salle University Press",
+"Einaudi",
+"ราชบัณฑิตยสถาน",
+"Academic Press",
+"Faber & Faber",
+"Gummerus",
+"Otava",
+"Arnoldo Mondadori Editore",
+"BBC",
+"Langenscheidt Verlag",
+"Bamavarma & Bros",
+"Siglo Veintiuno Editores",
+"สำนักเลขาธิการคณะรัฐมนตรี",
+"Apress",
+"Black Swan (2020)",
+"A&C Black",
+"Bantam Books",
+"Editora regional da Extremadura",
+"Folio Society",
+"Open Road Media",
+"Tammi",
+"Psychology Press",
+"Orbit",
+"Société Internationale de Linguistique (SIL)",
+"Springer Nature",
+"{{w|Alfred A. Knopf}}",
+"Elsevier Health Sciences",
+"Penguin Books",
+"Scribner",
+"{{w|McFarland & Company}}",
+"Harper & Brothers",
+"John Benjamins Publishing Company",
+"Scripts",
+"BRILL",
+"Linguistic Data Consortium",
+"Trafford Publishing",
+"{{w|Little, Brown and Company}}",
+"[[w:Springer Science+Business Media|Springer]]",
+"มติชน",
+"Palgrave Macmillan",
+"Doubleday",
+"Viking",
+"Motilal Banarsidass Publishing House",
+"{{w|CRC Press}}",
+"{{w|Harvard University Press}}",
+"Foris}}",
+"Partridge Publishing Singapore",
+"University of Hawaii Press",
+"{{w|Princeton University Press}}",
+"Henry Holt and Company",
+"Houghton Mifflin Harcourt",
+"Springer-Verlag",
+"The Gutenberg Project",
+"O'Reilly Media",
+"ABC-CLIO",
+"MIT Press",
+"Penguin UK",
+"{{w|Academic Press}}",
+"WSOY",
+"Museum Tusculanum Press",
+"Rosinante & Co",
+"Harvard University Press",
+"James R. Osgood, McIlvaine and Co.",
+"Clarendon Press",
+"Eastern Horizon Press",
+"{{w|Random House}}",
+"Yale University Press",
+"University of Chicago Press",
+"McFarland",
+"Language Science Press",
+"[[w:United States Government Publishing Office|U.S. Government Printing Office]]",
+"{{w|iUniverse}}",
+"Fourth Estate",
+"LG Evergreen Foundation",
+"University of California Press",
+"Walter de Gruyter",
+"Elsevier",
+"[[w:United States Government Publishing Office|United States Government Printing Office]]",
+"{{w|University of Chicago Press}}",
+"Vintage",
+"[[w:ja:大学書林|Daigakushorin]]",
+"J. L. Cox & Son",
+"University of Michigan",
+"Hamish Hamilton",
+"Harlequin",
+"Politikens Forlag",
+"Simon & Schuster",
+"Gyldendal Uddannelse",
+"Bloomsbury Publishing",
+"Knopf",
+"Taylor & Francis",
+"{{w|AuthorHouse}}",
+"Editorial Porrúa",
+"Columbia University Press",
+"Siglo Veintiuno Editores",
+"{{w|Palgrave Macmillan}}",
+"Little, Brown and Company",
+"{{w|Simon & Schuster}}",
+"[[w:United States Government Publishing Office|Government Printing Office]]",
+"{{w|Penguin Books}}",
+"F. A. Davis Company",
+"Sdu Uitgevers",
+"{{w|University of California Press}}",
+"Allen and Unwin",
+"Princeton University Press",
+"{{w|The New York Times Company}}",
+"Le Monnier",
+"Atuakkiorfik",
+"St. Martin's Press",
+"Brill",
+"Instituto Lingüístico de Verano",
+"National African Language Resource Center",
+"Instituto Lingüístico de Verano, A.C.",
+"Rowman & Littlefield",
+"Kodansha",
+"American Mission Press",
+"Bloomsbury",
+"Art People",
+"{{lj|青空文庫}}",
+"สำนักงานคณะกรรมการกฤษฎีกา",
+"Mondadori",
+"William Heinemann",
+"Pusat Pembinaan dan Pengembangan Bahasa, Departemen Pendidikan dan Kebudayaan",
+"Mondial",
+"{{w|Xlibris}}",
+"CRC Press",
+"Hachette UK",
+"Profile Books",
+"Macmillan",
+"Xlibris Corporation",
+"University of Texas Press",
+"BoD – Books on Demand",
+"Garzanti Libri",
+"HarperCollins",
+"[[w:Guardian Media Group|Guardian News & Media]]",
+"Kyo-Hak Publishing",
+"University of Queensland Press",
+"Long",
+"AuthorHouse",
+"Pacific Linguistics, Research School of Pacific and Asian Studies, The Australian National University",
+"Shueisha",
+"Springer Science & Business Media",
+"Lulu.com",
+"Stanford University Press",
+"Random House",
+"Shogakukan",
+"SIL International",
+"{{w|Cambridge University Press}}",
+"iUniverse",
+"University of Oklahoma Press",
+"Rider/Hutchinson & Co.",
+"{{w|Routledge}}",
+"Springer",
+"{{w|Oxford University Press}}",
+"John Wiley & Sons",
+"Simon and Schuster",
+"Electronic Arts",
+"Penguin",
+"Lindhardt og Ringhof",
+"Gyldendal A/S",
+"Oxford University Press",
+"Cambridge University Press",
+"{{w|Columbia University Press}}",
+"Editorial Porrúa",
+"Routledge"]
 
     @staticmethod
     def get_isbn(text):
@@ -450,14 +746,14 @@ class QuoteFixer():
             \b                              # hard separator
             (?:[Pp]age|pg\.|p\.|p)          # page, pg, p., or p
             (?:&nbsp;|\s*)+                 # whitespace
-            ([0-9ivxcdmIVXCDM]+)            # numbers or roman numerals
+            (?P<num>[0-9ivxlcdmIVXLCDM]+)   # numbers or roman numerals
             [;:, ]*(?P<post>.*)$            # trailing text
         """
             #([0-9ivxcdmIVXCDM]+)            # numbers or roman numerals
 
         m = re.match(pattern, text)
         if m:
-            return m.group(2), m.group('pre') + " " + m.group('post')
+            return m.group('num'), m.group('pre') + " " + m.group('post')
         return "", text
 
 
@@ -466,7 +762,7 @@ class QuoteFixer():
 
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*             # leading text
-            (?:[Pp]age[s]*|pp\.)                   # Pages or pp.
+            (?:[Pp]age[s]*|pp\.)                # Pages or pp.
             (?:&nbsp;|\s*)*                     # optional whitespace
             (\d+                                # first number
             \s*(?:,|-|–|&|and|to|{{ndash}})+\s*   # mandatory separator(s)
@@ -513,15 +809,47 @@ class QuoteFixer():
     def get_volume(text):
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*         # leading text
-            (?:[Vv]olume|vol\.|vol )        # page, pg., or p. optionally followed by whitespace
-            (?:&nbsp;|\s*)+                 # whitespace
-            ([0-9ivxcdmIVXCDM]+)            # numbers or roman numerals
+            (?:[Vv]ol(.|ume)?)              # Volume, vol. vol
+            (?:&nbsp;|\s)+                  # whitespace
+            (?P<num>[0-9ivxlcdmIVXLCDM]+)   # numbers or roman numerals
             [;:, ]*(?P<post>.*)$            # trailing text
         """
 
         m = re.match(pattern, text)
         if m:
-            return m.group(2), m.group('pre') + " " + m.group('post')
+            return m.group('num'), m.group('pre') + " " + m.group('post')
+        return "", text
+
+
+    @staticmethod
+    def get_issue(text):
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*         # leading text
+            (?:[Ii]ssue)                    # issue
+            (?:&nbsp;|\s*)+                 # whitespace
+            (?P<num>[0-9ivxlcdmIVXLCDM]+)   # numbers or roman numerals
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            return m.group('num'), m.group('pre') + " " + m.group('post')
+        return "", text
+
+
+    @staticmethod
+    def get_number(text):
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*         # leading text
+            (?:[Nn](o|um(ber)?)\.?)         # Number, Num, "no."
+            (?:&nbsp;|\s)+                  # whitespace
+            (?P<num>[0-9ivxlcdmIVXLCDM]+)   # numbers or roman numerals
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            return m.group('num'), m.group('pre') + " " + m.group('post')
         return "", text
 
 
@@ -532,15 +860,127 @@ class QuoteFixer():
             ^[;:, ]*(?P<pre>.*?)\s*         # leading text
             (?:[Cc]hapter|ch\.)             # chapter or ch. followed by whitespace
             (?:&nbsp;|\s*)+                 # whitespace
-            ([0-9ivxcdmIVXCDM]+)            # numbers or roman numerals
+            (?P<num>[0-9ivxlcdmIVXLCDM]+)   # numbers or roman numerals
             [;:, ]*(?P<post>.*)$            # trailing text
         """
 
         m = re.match(pattern, text)
         if m:
-            return m.group(2), m.group('pre') + " " + m.group('post')
+            return m.group('num'), m.group('pre') + " " + m.group('post')
         return "", text
 
+    @staticmethod
+    def get_season_episode(text):
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*         # leading text
+            \b                              # hard separator
+            s(\d{1,3})e(\d{1,3})             # s000e000
+            \b                              # hard separator
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            print("MATCH", m.group(0))
+            return m.group(2), m.group(3), m.group('pre') + " " + m.group('post')
+        return "", "", text
+
+
+    @staticmethod
+    def get_month_day(text):
+        pattern = r"""(?x)
+            \s*
+            (?P<month>Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)
+            [.,]*                           # dot or comma
+            (\s+(?P<day>3[01]|[12][0-9]|0?[1-9]))   # 1-31
+            \b                              # hard separator
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            return m.group('month'), int(m.group('day')), m.group('post')
+        return "", "", text
+
+
+    @staticmethod
+    def get_season(text):
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*         # leading text
+            (?:[Ss]eason)                   # Season
+            (?:&nbsp;|\s*)+                 # whitespace
+            (?P<num>[0-9ivxlcdmIVXLCDM]+)   # numbers or roman numerals
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            return m.group('num'), m.group('pre') + " " + m.group('post')
+        return "", text
+
+
+    @staticmethod
+    def get_episode(text):
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*         # leading text
+            (?:[Ee]p(?:isode|\.))           # Ep. or Episode
+            (?:&nbsp;|\s*)+                 # whitespace
+            (?P<num>[0-9ivxlcdmIVXLCDM]+)   # numbers or roman numerals
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            return m.group('num'), m.group('pre') + " " + m.group('post')
+        return "", text
+
+
+    @staticmethod
+    def get_date(text):
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*             # leading text
+            ((?P<day1>3[01]|[12][0-9]|0?[1-9])\s+)?   # 1-31
+            (?P<month>Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)
+            [.,]*                           # dot or comma
+            (\s+(?P<day2>3[01]|[12][0-9]|0?[1-9]))?   # 1-31
+            ,*                              # comma
+            (?:&nbsp;|\s*)+                 # whitespace
+            ,*                              # comma
+            (?P<year>\d{4})                 # YYYY
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            if m.group('day1'):
+                day = int(m.group('day1'))*-1
+            elif m.group('day2'):
+                day = int(m.group('day2'))
+            else:
+                day = 0
+            return m.group('year'), m.group('month'), day, m.group('pre') + " " + m.group('post')
+
+
+        pattern = r"""(?x)
+            ^[;:,]*(?P<pre>.*?)\b            # leading text
+            (?P<year>\d{4})                  # Year
+            \-                               # -
+            (?P<month>0?[1-9]|1[012])        # Month
+            \-                               # -
+            (?P<day>3[01]|[12][0-9]|0?[1-9]) # Day
+            \b[;:, ]*(?P<post>.*)$           # trailing text
+        """
+        m = re.match(pattern, text)
+        if m:
+            month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][int(m.group('month'))-1]
+            day = int(m.group('day'))
+            if not (
+                    (month == "Feb" and day>29)
+                    or (month in ["Apr", "Jun", "Sep", "Nov"] and day>30)
+                    ):
+                return m.group('year'), month, day, m.group('pre') + " " + m.group('post')
+
+        return None, None, None, text
 
     @classmethod
     def parse_details(cls, text):
@@ -565,9 +1005,17 @@ class QuoteFixer():
         text = text.replace('<small>', "")
         text = text.replace('</small>', "")
         text = text.replace('{{,}}', ",")
+        text = text.replace('{{nbsp}}', " ")
+        text = text.replace('&nbsp;', " ")
 
         year, text = cls.get_year(text)
         details["year"] = year
+
+        # TODO: see if the text starts with something that looks like "Month Day"
+        month, day, text = cls.get_month_day(text)
+        if month and day:
+             del details["year"]
+             details["date"] = f"{month} {day} {year}"
 
         translator, text = cls.get_translator(text)
         if translator:
@@ -583,32 +1031,32 @@ class QuoteFixer():
             details[key] = author
 
         chapter_title, text = cls.get_chapter_title(text)
+        title, text = cls.get_title(text)
+
+        if not title:
+            if chapter_title and len(authors) == 1: # Multiple authors is a sign that the publisher or other details may be included in authors
+                title = chapter_title
+                chapter_title = None
+            else:
+                dprint("no title", text)
+                return
+
         if chapter_title:
-            details["chapter"] = chapter_title
+            details["chapter"] = chapter_title.rstrip(", ")
             chapter_url, chapter_title = cls.get_url(chapter_title)
             if chapter_url:
                 details["chapterurl"] = chapter_url
-                details["chapter"] = chapter_title.strip()
+                details["chapter"] = chapter_title.strip(", ")
 
-        title, text = cls.get_title(text)
-        if not title:
-            dprint("no title", text)
-            return
-        details["title"] = title
+        details["title"] = title.strip(", ")
         title_url, title = cls.get_url(title)
         if title_url:
-            details["titleurl"] = title_url
-            details["title"] = title.strip()
-
+            details["url"] = title_url
+            details["title"] = title.strip(", ")
 
         # url may contain the text like 'page 123' or 'chapter 3', so it needs to be extracted first
         url, text = cls.get_url(text)
         gbooks, text = cls.get_gbooks(text)
-
-        if sum(x in details for x in ["url", "titleurl", "chapterurl"]) > 1:
-            print("multiple_urls", orig_text)
-            dprint("multiple_urls", text)
-            return
 
         # get pages before page because pp. and p. both match  pp. 12-14
         pages, text = cls.get_pages(text)
@@ -617,6 +1065,26 @@ class QuoteFixer():
         volume, text = cls.get_volume(text)
         if volume:
             details["volume"] = volume
+
+        issue, text = cls.get_issue(text)
+        if issue:
+            details["issue"] = issue
+
+        number, text = cls.get_number(text)
+        if number:
+            details["number"] = number
+
+        season, text = cls.get_season(text)
+        episode, text = cls.get_episode(text)
+        if not season and not episode:
+            season, episode, text = cls.get_season_episode(text)
+
+        if season:
+            details["season"] = season
+
+        if episode:
+            details["episode"] = episode
+
         edition, text = cls.get_edition(text)
         if edition:
             if edition.isnumeric() and len(edition) == 4:
@@ -624,11 +1092,26 @@ class QuoteFixer():
             else:
                 details["edition"] = edition
 
+        _year, _month, _day, text = cls.get_date(text)
+        if _year:
+            if _year != details.get("year"):
+                dprint("mismatch year", text)
+                return
+
+            if _day:
+                del details["year"]
+                if _day < 0:
+                    details["date"] = f"{_day*-1} {_month} {_year}"
+                else:
+                    details["date"] = f"{_month} {_day} {_year}"
+            else:
+                details["month"] = _month
+
         if gbooks:
             page = gbooks
 
         if url:
-            if "books.google" in url:
+            if "books.google" in url or "google.com/books" in url:
                 if page or pages:
                     details["pageurl"] = url
                 elif chapter:
@@ -638,7 +1121,15 @@ class QuoteFixer():
             else:
                 details["url"] = url
 
+        if sum(x in details for x in ["url", "chapterurl", "pageurl"]) > 1:
+            #print("multiple_urls", orig_text)
+            dprint("multiple_urls", text)
+            return
+
         if chapter:
+            if "chapter" in details:
+                dprint("multiple chapter declarations", chapter, details)
+                return
             details["chapter"] = chapter
 
         if page:
@@ -748,18 +1239,62 @@ class QuoteFixer():
         return "<br>".join(l.lstrip("#*: ") for l in translation_lines)
 
 
-    def get_template_name(self, section, params):
+    def get_template_type(self, section):
+        return "cite" if section.title in ["References", "Further reading", "Etymology"] else "quote"
+
+    _journal_sites = ["telegraph.co.uk", "guardian.co.uk", "washingtonpost.com", "independent.co.uk", "nytimes.com", "time.com"]
+    _journal_url_regex = "[/.]" + "|".join(x.replace(".", r"\.") for x in _journal_sites) + "/"
+
+
+    def get_template_source(self, params):
+
+
         if any(x in params for x in ["isbn", "oclc", "issn"]):
-            source = "book"
-        elif "books.google.com" in params.get("url", params.get("pageurl", "")):
-            source = "book"
-        else:
-            source = "text"
+            return "book"
 
-        if section.title in ["References", "Further reading", "Etymology"]:
-            return "cite-" + source
+        if any(x in params for x in ["season", "episode"]):
+            return "av"
 
-        return "quote-" + source
+        # {'year': '1935', 'author': '{{w|Arthur Leo Zagat}}', 'chapter': 'IV', 'title': 'Dime Mystery Magazine', 'month': 'November', 'url': 'http://gutenberg.net.au/ebooks13/1304651h.html'}
+
+        if any(x in params for x in ["issue", "number", "date", "month"]):  # "month" is over aggressive
+            return "journal"
+
+        urls = []
+        for url_param in ["url", "chapterurl", "pageurl"]:
+            url = params.get(url_param)
+            if url:
+                urls.append(url)
+
+        if urls and any("books.google." in url for url in urls):
+            return "book"
+
+        if urls and any(re.search("google.[^/]*/books/", url) for url in urls):
+            return "book"
+
+        if urls and any(re.search(self._journal_url_regex, url) for url in urls):
+            return "journal"
+
+        return "text"
+
+    _param_adjustments = {
+        "journal": {
+            # Old : New
+            "title": "journal",
+            "chapter": "title",
+            "chapterurl": "titleurl",
+            "url": "titleurl",
+            "number": "issue",
+            }
+    }
+
+    def get_source_adjusted_params(self, source, params):
+        # Renames paramaters in params to match those used by "source" type templates
+        rename = self._param_adjustments.get(source)
+        if not rename:
+            return params
+
+        return {rename.get(k, k):v for k,v in params.items()}
 
 
     def convert_quotes(self, section, title):
@@ -784,12 +1319,6 @@ class QuoteFixer():
             if not params:
                 self.warn("unparsable_line", section, line)
                 continue
-            else:
-                template = self.get_template_name(section, params)
-
-                # Temporary: only handle quote-book right now
-#                if "isbn" not in params:
-#                    continue
 
             passage_lines = []
             translation_lines = []
@@ -822,38 +1351,9 @@ class QuoteFixer():
             if failed:
                 continue
 
-            res = self.get_passage(passage_lines, section)
-            if not res:
+            new_lines = self.get_new_lines(start, section, params, passage_lines, translation_lines)
+            if not new_lines:
                 continue
-            passage, translation1 = res
-
-            translation2 = self.get_translation(translation_lines)
-            if translation1 and translation2:
-                self.warn("multi_translations", section, translation1 + " ----> " + translation2)
-            translation = translation1 if translation1 else translation2
-
-            if "|" in translation:
-                self.warn("pipe_in_translation", section, translation)
-                return
-
-            if translation and not passage:
-                self.warn("translation_without_passage", section, section.path)
-                continue
-
-            if lang_id == "en" and translation:
-                self.warn("english_with_translation", section, translation)
-                continue
-
-            new_lines = [ start + " {{" + template + "|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()]) ]
-            if translation2:
-                new_lines.append("|passage=" + passage)
-                new_lines.append("|translation=" + translation + "}}")
-            elif translation1:
-                new_lines.append("|passage=" + passage + "|t=" + translation + "}}")
-            elif passage:
-                new_lines.append("|passage=" + passage + "}}")
-            else:
-                new_lines[0] += "}}"
 
             for x, line in enumerate(new_lines):
                 section._lines[idx+x] = line
@@ -869,6 +1369,55 @@ class QuoteFixer():
 
         return changed
 
+    def get_new_lines(self, start, section, params, passage_lines, translation_lines):
+
+        lang_id = ALL_LANGS.get(section._topmost.title)
+
+        res = self.get_passage(passage_lines, section)
+        if not res:
+            return
+        passage, translation1 = res
+
+        translation2 = self.get_translation(translation_lines)
+        if translation1 and translation2:
+            self.warn("multi_translations", section, translation1 + " ----> " + translation2)
+            return
+        translation = translation1 if translation1 else translation2
+
+        if "|" in translation:
+            self.warn("pipe_in_translation", section, translation)
+            return
+
+        if translation and not passage:
+            self.warn("translation_without_passage", section, section.path)
+            return
+
+        if lang_id == "en" and translation:
+            self.warn("english_with_translation", section, translation)
+            return
+
+        prefix = self.get_template_type(section)
+        source = self.get_template_source(params)
+        template = prefix + "-" + source
+
+        params = self.get_source_adjusted_params(source, params)
+
+        if source == "journal" and not all(x in params for x in ["journal", "title"]):
+            dprint("incomplete journal entry")
+            return
+
+        new_lines = [ start + " {{" + template + "|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()]) ]
+        if translation2:
+            new_lines.append("|passage=" + passage)
+            new_lines.append("|translation=" + translation + "}}")
+        elif translation1:
+            new_lines.append("|passage=" + passage + "|t=" + translation + "}}")
+        elif passage:
+            new_lines.append("|passage=" + passage + "}}")
+        else:
+            new_lines[0] += "}}"
+
+        return new_lines
 
 
     def process(self, text, title, summary=None, options=None):
@@ -897,5 +1446,6 @@ class QuoteFixer():
         for section in entry.ifilter_sections():
             if self.convert_quotes(section, title):
                 self.fix("bare_quote", section, "converted bare quote to template")
+
 
         return self._log if summary is None else str(entry)

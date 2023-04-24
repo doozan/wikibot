@@ -1,4 +1,5 @@
-from ..fix_bare_quotes import QuoteFixer
+from autodooz.fix_bare_quotes import QuoteFixer
+#from ..fix_bare_quotes import QuoteFixer
 fixer = QuoteFixer()
 parse_details = fixer.parse_details
 
@@ -122,7 +123,7 @@ def test_parse_details():
     text="""'''2006''', Henrik Ibsen, trans. by Odd Tangerud, ''[http://www.gutenberg.org/files/20162/20162-h/20162-h.htm La kolonoj de la socio]'', {{ISBN|82-91707-52-9}}"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '2006', 'translator': 'Odd Tangerud', 'author': 'Henrik Ibsen', 'titleurl': 'http://www.gutenberg.org/files/20162/20162-h/20162-h.htm', 'title': 'La kolonoj de la socio', 'isbn': '82-91707-52-9'}
+    assert res == {'year': '2006', 'translator': 'Odd Tangerud', 'author': 'Henrik Ibsen', 'url': 'http://www.gutenberg.org/files/20162/20162-h/20162-h.htm', 'title': 'La kolonoj de la socio', 'isbn': '82-91707-52-9'}
 
     # Semicolon separator for authors
     text="""'''2013''', Judy Faust; Punch Faust, ''The MOTs File: Memories, Observations, and Thoughts'', AuthorHouse {{ISBN|9781491827123}}, page 88"""
@@ -304,7 +305,7 @@ def test_parse_details():
     text="""'''1988''', Lewis B. Ware ''et al.'', ''Low-Intensity Conflict in the Third World,'' Air Univ. Press, {{ISBN|978-1585660223}}, p. 139:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '1988', 'author': 'Lewis B. Ware', 'author2': 'et al', 'title': 'Low-Intensity Conflict in the Third World,', 'page': '139', 'publisher': 'Air Univ. Press', 'isbn': '978-1585660223'}
+    assert res == {'year': '1988', 'author': 'Lewis B. Ware', 'author2': 'et al', 'title': 'Low-Intensity Conflict in the Third World', 'page': '139', 'publisher': 'Air Univ. Press', 'isbn': '978-1585660223'}
 
     # ''et al.'' multiple authors
     text="""'''2019''', Pierre Terjanian, Andrea Bayer, et al., ''The Last Knight: The Art, Armor, and Ambition of Maximilian I'', Metropolitan Museum of Art ({{ISBN|9781588396747}}), page 96:"""
@@ -498,6 +499,140 @@ def test_parse_details():
     assert res == {'year': '1847', 'author': 'Charles Sealsfield', 'title': 'Rambleton: A Romance of Fashionable Life in New-York during the Great Speculation of 1836', 'page': '127', 'oclc': '12337689'}
 
 
+    text="""'''1857''', William Chambers, Robert Chambers, "Something about bells", ''Chambers's Journal'', vol. 28, no. 207, [http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true page 398]."""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1857', 'author': 'William Chambers', 'author2': 'Robert Chambers', 'chapter': 'Something about bells', 'title': "Chambers's Journal", 'volume': '28', 'number': '207', 'pageurl': 'http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true', 'page': '398'}
+
+    text="""'''1918''', Paul Haupt, "English 'coop' == Assyrian 'Quppu'," ''Modern Language Notes'', vol. 33, no. 7, p. 434,"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1918', 'author': 'Paul Haupt', 'chapter': "English 'coop' == Assyrian 'Quppu'", 'title': 'Modern Language Notes', 'volume': '33', 'number': '7', 'page': '434'}
+
+    text="""'''2017''', Masaki Kohana ''et al.'', "A Topic Trend on P2P Based Social Media", in ''Advances in Network-Based Information Systems: The 20th International Conference on Network-Based Information Systems (NBiS-2017)'' (eds Leonard Barolli, Makoto Takizawa, & Tomoya Enokido), [https://www.google.com/books/edition/Advances_in_Network_Based_Information_Sy/W3syDwAAQBAJ?hl=en&gbpv=1&dq=%22instance%22+mastodon&pg=PA1140&printsec=frontcover page 1140]"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2017', 'editor': 'Leonard Barolli; Makoto Takizawa; Tomoya Enokido', 'author': 'Masaki Kohana', 'author2': 'et al', 'chapter': 'A Topic Trend on P2P Based Social Media', 'title': 'Advances in Network-Based Information Systems: The 20th International Conference on Network-Based Information Systems (NBiS-2017)', 'pageurl': 'https://www.google.com/books/edition/Advances_in_Network_Based_Information_Sy/W3syDwAAQBAJ?hl=en&gbpv=1&dq=%22instance%22+mastodon&pg=PA1140&printsec=frontcover', 'page': '1140'}
+
+    text="""'''1937''', [[w:Zora Neale Hurston|Zora Neale Hurston]], ''Their Eyes Were Watching God'', Harper (2000), page 107:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1937', 'author': '[[w:Zora Neale Hurston|Zora Neale Hurston]]', 'title': 'Their Eyes Were Watching God', 'page': '107', 'publisher': 'Harper', 'year_published': '2000'}
+
+#    text="""'''1910''', Patrick Weston Joyce, ''[[s:English as we speak it in Ireland|English as we speak it in Ireland]]'', [[s:English as we speak it in Ireland/IV|chapter 5]]"""
+#    res = parse_details(text)
+#    print(res)
+#    assert res == {'year': '1910', 'author': 'Patrick Weston Joyce', 'title': '[[s:English as we speak it in Ireland|English as we speak it in Ireland]]', 'chapter': '[[s:English as we speak it in Ireland/IV|chapter 5]]'}
+
+
+    # Publisher not in () with no ISBN
+    text="""'''2000''', Paul Wilkes, ''And They Shall Be My People: An American Rabbi and His Congregation'', Grove Press, p. 135:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2000', 'author': 'Paul Wilkes', 'title': 'And They Shall Be My People: An American Rabbi and His Congregation', 'page': '135', 'publisher': 'Grove Press'}
+
+
+    text="""'''1875''', Arthur Crump, ''The Theory of Stock Exchange Speculation'' (page 28)"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1875', 'author': 'Arthur Crump', 'title': 'The Theory of Stock Exchange Speculation', 'page': '28'}
+
+    # Trailing date
+    #'''2022''', Adela Suliman, "[https://www.washingtonpost.com/sports/2022/07/20/quidditch-quadball-name-change-jk-rowling/ Quidditch is now quadball, distancing game from J.K. Rowling, league says]", ''The Washington Post'', 20 July 2022:
+    #'''2023''', Munza Mushtaq, ''[https://www.csmonitor.com/World/Making-a-difference/2023/0106/In-Sri-Lanka-Pastor-Moses-shows-the-power-of-a-free-lunch In Sri Lanka, Pastor Moses shows the power of a free lunch]'', in: The Christian Science Monitor, January 6 2023
+
+
+
+    text="""'''1990''', {{w|Andrew Davies}}, {{w|Michael Dobbs}}, ''[[w:House of Cards (UK TV show)|House of Cards]]'', Season 1, Episode 4"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1990', 'author': '{{w|Andrew Davies}}', 'author2': '{{w|Michael Dobbs}}', 'title': '[[w:House of Cards (UK TV show)|House of Cards]]', 'season': '1', 'episode': '4'}
+
+
+    # Month Year
+#    text="""'''2012''', Adam Mathew, "Mass Effect 3", ''PlayStation Magazine'' (Australia), April 2012, [https://archive.org/details/Official_AUS_Playstation_Magazine_Issue_067_2012_04_Derwent_Howard_Publishing_AU/page/60/mode/2up?q=me3 page 60]:"""
+#    res = parse_details(text)
+#    print(res)
+#    assert res == {'year': '2012', 'author': 'Adam Mathew', 'chapter': 'Mass Effect 3', 'title': 'PlayStation Magazine', 'month': 'April', 'url': 'https://archive.org/details/Official_AUS_Playstation_Magazine_Issue_067_2012_04_Derwent_Howard_Publishing_AU/page/60/mode/2up?q=me3', 'page': '60'}
+
+
+    # Day Month Year
+    text="""'''2012''', Adam Gopnik, "Vive La France", ''The New Yorker'', 7 May 2012:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'author': 'Adam Gopnik', 'chapter': 'Vive La France', 'title': 'The New Yorker', 'date': '7 May 2012'}
+
+    # Month Day Year
+    text="""'''2012''', Adam Gopnik, "Vive La France", ''The New Yorker'', May 7 2012:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'author': 'Adam Gopnik', 'chapter': 'Vive La France', 'title': 'The New Yorker', 'date': 'May 7 2012'}
+
+    # Vol VI, no XXXII
+    text="""'''1864''' "The Adventures of a Lady in Search of a Horse", ''London Society'' Vol VI, no XXXII (July 1864) [http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false p. 5]"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1864', 'chapter': 'The Adventures of a Lady in Search of a Horse', 'title': 'London Society', 'volume': 'VI', 'number': 'XXXII', 'month': 'July', 'pageurl': 'http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false', 'page': '5'}
+
+    # Multi chapter, should be journal
+#    text="""'''1935''', {{w|Arthur Leo Zagat}}, ''Girl of the Goat God'', in ''Dime Mystery Magazine'', November 1935, Chapter IV, [http://gutenberg.net.au/ebooks13/1304651h.html]"""
+#    res = parse_details(text)
+#    print(res)
+#    assert res == {'year': '1935', 'author': '{{w|Arthur Leo Zagat}}', 'chapter': 'IV', 'title': 'Dime Mystery Magazine', 'month': 'November', 'url': 'http://gutenberg.net.au/ebooks13/1304651h.html'}
+
+#    text="""'''2022''', Matteo Wong, ''[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]'', in: The Atlantic, December 31 2022"""
+#    res = parse_details(text)
+#    print(res)
+#    assert res == {'author': 'Matteo Wong', 'chapter': 'Hollywood’s Love Affair With Fictional Languages', 'chapterurl': 'https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/', 'title': 'The Atlantic', 'date': 'December 31 2022'}
+
+    # "in" and fancy quotes
+#    text="""'''1633''', {{w|John Donne}}, “The Indifferent” in ''Poems'', London: John Marriot, p. 200,<sup>[http://name.umdl.umich.edu/A69225.0001.001]</sup>"""
+#    res = parse_details(text)
+#    print(res)
+#    assert res == "X"
+
+    # Simple
+    text = """'''2013''', {{w|Kacey Musgraves}}, "My House":"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2013', 'author': '{{w|Kacey Musgraves}}', 'title': 'My House'}
+
+
+    text = """'''2008''' July 31, [[w:Richard Zoglin|Richard Zoglin]], "[https://web.archive.org/web/20080807052344/http://www.time.com/time/magazine/article/0,9171,1828301,00.html A New Dawn for ''Hair'']," ''Time''"""
+    res = parse_details(text)
+    print(res)
+    assert res == "X"
+
+    text = """'''2022''', Shaakirrah Sanders, ''[https://www.scotusblog.com/2022/01/court-rejects-door-opening-as-a-sixth-amendment-confrontation-clause-exception/ Court rejects “door opening” as a Sixth Amendment confrontation-clause exception]'', in: SCOTUSblog, 2022-01-20"""
+
+?
+
+#    text="""'''2016''', "The Veracity Elasticity", season 10, episode 7 of ''{{w|The Big Bang Theory}}''"""
+#    res = parse_details(text)
+#    print(res)
+#    assert res == "X"
+
+
+
+
+
+    #
+    # '''2007''', Eli Maor, ''The Pythagorean Theorem: A 4,000-year History'', {{w|Princeton University Press}}, [https://books.google.com.au/books?id=Z5VoBGy3AoAC&pg=PA1&dq=%22Fermat%27s+Last+Theorem%22&hl=en&sa=X&ved=0ahUKEwiSltz2xMnWAhUMzLwKHcAiBiY4ZBDoAQhcMAk#v=onepage&q=%22Fermat's%20Last%20Theorem%22&f=false page 1],
+
+    #  '''1979''', ''New West'', volume 4, part 1, page 128:
+    #  '''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:
+    #  '''2003''', ''Cincinnati Magazine'' (volume 36, number 5, page 26)
+    #  '''2011''', Joyce Cho and Višnja Rogošic, "Burning the Rules", ''PAJ: Journal of Performance and Art'', Volume 33, Number 2, May 2011:
+    #  '''2016''', Sune Engel Rasmussen, ''The Guardian'', 22 August:
+    #
+    #  strip {{nowrap}} ?
+    #   '''1759''', George Sale et al., ''The Modern Part of an Universal History'', {{nowrap|volume XXIX}}: ''History of the German Empire'', [http://books.google.com/books?id=dFtjAAAAMAAJ&pg=PA2 page&nbsp;2]:
+    #
+    #   '''1992''', ''Black Enterprise'' (volume 23, number 5, December 1992, page 66)
+    #
+    #   '''1998''', Derel Leebaert, ''Present at the Creation'', Derek Leebaert (editor), ''The Future of the Electronic Marketplace'', [http://books.google.com.au/books?id=yo43oViNGMgC&pg=PA24&dq=%22more|most+rapt%22+-intitle:%22%22+-inauthor:%22%22&hl=en&sa=X&ei=XJX6T6bVH6-XiAeDodTaBg&redir_esc=y#v=onepage&q=%22more|most%20rapt%22%20-intitle%3A%22%22%20-inauthor%3A%22%22&f=false page 24],
+    #
+    #   '''2014''', [[w:Paul Doyle (journalist)|Paul Doyle]], "[http://www.theguardian.com/football/2014/oct/18/southampton-sunderland-premier-league-match-report Southampton hammer eight past hapless Sunderland in barmy encounter]", ''The Guardian'', 18 October 2014:
 
     # Unhandled
     text = """'''1934''', {{w|George Herriman}}, ''{{w|Krazy Kat}}'', Tuesday, April 17 comic strip ({{ISBN|978-1-63140-408-5}}, p. 112):"""
@@ -586,13 +721,71 @@ def test_get_passage_with_translation():
     assert res == expected
 
 
+def test_get_chapter_title():
+
+    assert fixer.get_chapter_title('"foo bar", blah') == ("foo bar", "blah")
+    assert fixer.get_chapter_title(" ''foo bar'' in blah") == ("foo bar", "blah")
+    assert fixer.get_chapter_title(" ''foo bar'', in: blah") == ("foo bar", "blah")
+    assert fixer.get_chapter_title(" ''foo bar'' blah") == ("", " ''foo bar'' blah")
+
+    text = """\
+''[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]'', in: The Atlantic, December 31 2022\
+"""
+    expected = ('[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]', 'The Atlantic, December 31 2022')
+
+    res = fixer.get_chapter_title(text)
+    print(res)
+    assert res == expected
+
+
+def test_season_episode():
+
+    assert fixer.get_season_episode('s01e12') == ("01", "12", " ")
+    assert fixer.get_season_episode('x s01e12 x') == ("01", "12", "x x")
+    assert fixer.get_season_episode('xs01e12') == ("", "", "xs01e12")
+    assert fixer.get_season_episode('s01e12x') == ("", "", "s01e12x")
+
+
+def test_get_date():
+
+    assert fixer.get_date('Test, 12 July, 2012 abcd') == ('2012', 'July', -12, 'Test, abcd')
+    assert fixer.get_date('Test, July 12, 2012 abcd') == ('2012', 'July', 12, 'Test, abcd')
+    assert fixer.get_date('Test, 12 Jul, 2012 abcd') == ('2012', 'Jul', -12, 'Test, abcd')
+    assert fixer.get_date('Test, Jul 12, 2012 abcd') == ('2012', 'Jul', 12, 'Test, abcd')
+
+    assert fixer.get_date('x2012-02-02x') == ('2012', 'Feb', 2, 'x x')
+    assert fixer.get_date('Test 2012-02-02') == ('2012', 'Feb', 2, 'Test ')
+    assert fixer.get_date('Test, 2012-2-2 abcd') == ('2012', 'Feb', 2, 'Test, abcd')
+    assert fixer.get_date('Test, 2012-12-02 abcd') == ('2012', 'Dec', 2, 'Test, abcd')
+    assert fixer.get_date('Test, 2012-12-31 abcd') == ('2012', 'Dec', 31, 'Test, abcd')
+    assert fixer.get_date('Test, 2012-02-31 abcd') == (None, None, None, 'Test, 2012-02-31 abcd')
+
+    text = """\
+''[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]'', in: The Atlantic, December 31 2022\
+"""
+    expected = ('[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]', 'The Atlantic, December 31 2022')
+
+    res = fixer.get_chapter_title(text)
+    print(res)
+    assert res == expected
+
+
 def notest_all():
 
-    with open("isbn.txt") as infile:
+    valid = 0
+    invalid = 0
+    with open("unparsable") as infile:
         for line in infile:
-            page, line = line.split("\t")
-            line = line.lstrip("#:* ").strip()
+            if not line:
+                continue
+#            page, line = line.split("\t")
+#            line = line.lstrip("#:* ").strip()
             res = parse_details(line)
+            if res:
+                print(line)
+                valid += 1
+            else:
+                invalid += 1
 #                if res and "publisher" in res:
 #                    print(res["publisher"])
 #                authors = [v for k,v in res.items() if k.startswith("author")]
@@ -605,4 +798,10 @@ def notest_all():
 #                    print("         ", authors)
 #                print("")
 
+    print("Valid", valid)
+    print("Invalid", invalid)
+
     assert 0
+
+if __name__ == "__main__":
+    notest_all()
