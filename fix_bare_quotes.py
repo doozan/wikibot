@@ -190,8 +190,22 @@ class QuoteFixer():
         buffer = []
         default = "author"
         for name in names:
-            m = re.match(r"(?P<name>[^(]*?)\s+(?P<label>\(?([Aa]ut(hor)?|[Ee]d(itor)?|[Tt]r(anslator)?)s?\.?\))", name)
+            m = re.match(r"(?P<name>[^(]*?)\s+(?P<label>\(?([Aa]ut(hor)?|[Ee]d(itor)?|[Tt]r(anslat(or|ing))?)s?\.?\))", name)
             if not m:
+
+                # Handle "John Doe, tranlating Jane Doe"
+                m = re.match(r"\s*translating\s*(?P<name>.*)", name)
+                if m:
+                    print("TRANSLATING", buffer, m.groups())
+                    if not buffer:
+                        self.dprint("no buffer before translating")
+                        return
+                    res["translator"] = buffer
+                    buffer = []
+                    name = m.group('name').strip()
+                    if not name:
+                        continue
+
                 buffer.append(name)
                 continue
 
@@ -1205,7 +1219,7 @@ class QuoteFixer():
             if len(names["translator"]) > 1:
                 details["translators"] = "; ".join(names["translator"])
             else:
-                editor = names["translator"][0]
+                translator = names["translator"][0]
         if translator:
             details["translator"] = translator
 

@@ -346,7 +346,7 @@ def test_parse_details():
     text="""'''1865''', [[w:Homer|Homer]] and [[w:Edward Smith-Stanley, 14th Earl of Derby|Edward Smith-Stanley, 14th Earl of Derby]] (translator), ''[[w:Iliad|Iliad]]'', volume 1, [http://books.google.co.uk/books?id=EEYbAAAAYAAJ&pg=PP14&dq=%22Heph%C3%A6stus%22&ei=PWSiSru7DYmGzATwjoCBCA#v=onepage&q=%22Heph%C3%A6stus%22&f=false page viii]:"""
     res = parse_details(text)
     print(res)
-    assert res == {'year': '1865', 'author': '[[w:Homer|Homer]]', 'title': '[[w:Iliad|Iliad]]', 'volume': '1', 'pageurl': 'http://books.google.co.uk/books?id=EEYbAAAAYAAJ&pg=PP14&dq=%22Heph%C3%A6stus%22&ei=PWSiSru7DYmGzATwjoCBCA#v=onepage&q=%22Heph%C3%A6stus%22&f=false', 'page': 'viii'}
+    assert res == {'year': '1865', 'author': '[[w:Homer|Homer]]', 'translator': '[[w:Edward Smith-Stanley, 14th Earl of Derby|Edward Smith-Stanley, 14th Earl of Derby]]', 'title': '[[w:Iliad|Iliad]]', 'volume': '1', 'pageurl': 'http://books.google.co.uk/books?id=EEYbAAAAYAAJ&pg=PP14&dq=%22Heph%C3%A6stus%22&ei=PWSiSru7DYmGzATwjoCBCA#v=onepage&q=%22Heph%C3%A6stus%22&f=false', 'page': 'viii'}
 
     # unnumbered page
     text = """'''2018''', Adrian Besley, ''BTS: Icons of K-Pop'', [https://books.google.com/books?id=QcxmDwAAQBAJ&pg=PT170&dq=%22army+are+clever%22 unnumbered page]:"""
@@ -648,6 +648,11 @@ def test_parse_details2():
     print(res)
     assert res == {'year': '1955', 'author': '{{w|W. H. Auden}}', 'chapter': 'Lakes', 'title': 'Selected Poetry of W. H. Auden', 'url': 'https://openlibrary.org/ia/selectedpoetry00whau', 'page': '149', 'publisher': 'Modern Library', 'year_published': '1959', 'location': 'New York'}
 
+
+    text = """'''2011''', Deepika Phukan, translating {{w|Arupa Patangia Kalita}}, ''The Story of Felanee'':"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2011', 'author': '{{w|Arupa Patangia Kalita}}', 'translator': 'Deepika Phukan', 'title': 'The Story of Felanee'}
 
     #  '''1979''', ''New West'', volume 4, part 1, page 128:
     #  '''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:
