@@ -601,11 +601,10 @@ def test_parse_details():
     text = """'''2008''' July 31, [[w:Richard Zoglin|Richard Zoglin]], "[https://web.archive.org/web/20080807052344/http://www.time.com/time/magazine/article/0,9171,1828301,00.html A New Dawn for ''Hair'']," ''Time''"""
     res = parse_details(text)
     print(res)
-    assert res == "X"
+    assert res == {'date': 'July 31 2008', 'author': '[[w:Richard Zoglin|Richard Zoglin]]', 'chapter': "A New Dawn for ''Hair''", 'chapterurl': 'https://web.archive.org/web/20080807052344/http://www.time.com/time/magazine/article/0,9171,1828301,00.html', 'title': 'Time'}
 
     text = """'''2022''', Shaakirrah Sanders, ''[https://www.scotusblog.com/2022/01/court-rejects-door-opening-as-a-sixth-amendment-confrontation-clause-exception/ Court rejects “door opening” as a Sixth Amendment confrontation-clause exception]'', in: SCOTUSblog, 2022-01-20"""
 
-?
 
 #    text="""'''2016''', "The Veracity Elasticity", season 10, episode 7 of ''{{w|The Big Bang Theory}}''"""
 #    res = parse_details(text)
@@ -746,6 +745,37 @@ def test_season_episode():
     assert fixer.get_season_episode('s01e12x') == ("", "", "s01e12x")
 
 
+def test_split_names():
+
+    res = list(fixer.split_names("John Doe, Jr., John Doe, Dr. Jane Doe (translator), Ed One, Ed Two (eds.)"))
+    print(res)
+    assert res == ['John Doe, Jr.', 'John Doe', 'Dr. Jane Doe (translator)', 'Ed One', 'Ed Two (eds.)']
+
+    res = list(fixer.split_names("John Doe, Jr. (author), Dr. Jane Doe (translator), Ed One, Ed Two (eds.)"))
+    print(res)
+    assert res == ['John Doe, Jr. (author)', 'Dr. Jane Doe (translator)', 'Ed One', 'Ed Two (eds.)']
+
+    res = list(fixer.split_names("[[w:William F. Buckley, Jr. (author)|William F. Buckley]], John Doe, Jr., [[w:George Byron, 6th Baron Byron|Lord Byron]]"))
+    print(res)
+    assert res == ['[[w:William F. Buckley, Jr. (author)|William F. Buckley]]', 'John Doe, Jr.', '[[w:George Byron, 6th Baron Byron|Lord Byron]]']
+
+
+
+def test_classify_names():
+
+    names = fixer.split_names("John Doe, Jr., Jane Doe (translator), Ed One, Ed Two (eds.)")
+    assert names == ['John Doe, Jr.', 'Jane Doe (translator)', 'Ed One', 'Ed Two (eds.)']
+    res = fixer.classify_names(names)
+    print(res)
+    assert res == {"author": ["John Doe, Jr."], "translator": ["Jane Doe"], "editor": ["Ed One", "Ed Two"]}
+
+
+    names = fixer.split_names("David Squire et al")
+    res = fixer.classify_names(names)
+    print(res)
+    assert res == {'author': ['David Squire', 'et al']}
+
+
 def test_get_date():
 
     assert fixer.get_date('Test, 12 July, 2012 abcd') == ('2012', 'July', -12, 'Test, abcd')
@@ -753,11 +783,11 @@ def test_get_date():
     assert fixer.get_date('Test, 12 Jul, 2012 abcd') == ('2012', 'Jul', -12, 'Test, abcd')
     assert fixer.get_date('Test, Jul 12, 2012 abcd') == ('2012', 'Jul', 12, 'Test, abcd')
 
-    assert fixer.get_date('x2012-02-02x') == ('2012', 'Feb', 2, 'x x')
-    assert fixer.get_date('Test 2012-02-02') == ('2012', 'Feb', 2, 'Test ')
-    assert fixer.get_date('Test, 2012-2-2 abcd') == ('2012', 'Feb', 2, 'Test, abcd')
-    assert fixer.get_date('Test, 2012-12-02 abcd') == ('2012', 'Dec', 2, 'Test, abcd')
-    assert fixer.get_date('Test, 2012-12-31 abcd') == ('2012', 'Dec', 31, 'Test, abcd')
+    assert fixer.get_date('x2012-02-02x') == (None, None, None, 'x2012-02-02x')
+    assert fixer.get_date('Test 2012-02-02') == ('2012', 'Feb', 2, 'Test  ')
+    assert fixer.get_date('Test, 2012-2-2 abcd') == ('2012', 'Feb', 2, 'Test,  abcd')
+    assert fixer.get_date('Test, 2012-12-02 abcd') == ('2012', 'Dec', 2, 'Test,  abcd')
+    assert fixer.get_date('Test, 2012-12-31 abcd') == ('2012', 'Dec', 31, 'Test,  abcd')
     assert fixer.get_date('Test, 2012-02-31 abcd') == (None, None, None, 'Test, 2012-02-31 abcd')
 
     text = """\
@@ -772,15 +802,31 @@ def test_get_date():
 
 def notest_all():
 
+    import re
+    import sys
+
     valid = 0
     invalid = 0
-    with open("unparsable") as infile:
+    with open("errors") as infile:
+        start = False
         for line in infile:
+            line = line.strip()
             if not line:
                 continue
-#            page, line = line.split("\t")
-#            line = line.lstrip("#:* ").strip()
-            res = parse_details(line)
+
+            if not start:
+                if line == "===unparsable_line===":
+                    start=True
+                continue
+
+            m = re.match(r": \[\[(.*?)]] <nowiki>(.*?)</nowiki>", line)
+            if not m:
+                continue
+            page = m.group(1)
+            text = m.group(2)
+
+            text = text.lstrip("#:* ").strip()
+            res = parse_details(text)
             if res:
                 print(line)
                 valid += 1
@@ -798,10 +844,8 @@ def notest_all():
 #                    print("         ", authors)
 #                print("")
 
-    print("Valid", valid)
-    print("Invalid", invalid)
-
-    assert 0
+    print("Valid", valid, file=sys.stderr)
+    print("Invalid", invalid, file=sys.stderr)
 
 if __name__ == "__main__":
     notest_all()

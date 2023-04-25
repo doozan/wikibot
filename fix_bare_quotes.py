@@ -2,9 +2,10 @@ import enwiktionary_sectionparser as sectionparser
 from autodooz.sections import ALL_LANGS
 import re
 import sys
+from enwiktionary_parser.utils import nest_aware_split
 
 def dprint(*args, **kwargs):
-    return
+#    return
     print(args, kwargs, file=sys.stderr)
 
 class QuoteFixer():
@@ -29,7 +30,7 @@ class QuoteFixer():
         m = re.match(r"^'''(\d{4})'''[\.;,:—\- ]*(.*)$", text)
         if not m:
             dprint(text)
-            return
+            return 
 
         return m.group(1), m.group(2)
 
@@ -113,7 +114,7 @@ class QuoteFixer():
 
         pub_names = cls.split_names(m.group(2))
         if pub_names is None:
-            print("BAD PUBLISHER NAME", text)
+            print("BAD EDITOR NAME", text)
             return [], text
 
         names = []
@@ -159,11 +160,12 @@ class QuoteFixer():
 
     @staticmethod
     def split_names(text):
-        s = re.search("( and| &|,|;) ", text)
+        s = re.search("(( and| &|,|;) )", text)
         separator = s.group(1) if s else ", "
 
         names = []
-        for name in text.split(separator):
+        #for name in text.split(separator):
+        for name in nest_aware_split(separator, text, [("{{","}}"), ("[[","]]")]):
             name = name.strip()
             if name.startswith("and "):
                 name = name[4:]
@@ -171,16 +173,92 @@ class QuoteFixer():
                 name = name[2:]
             if not name:
                 continue
-            if len(name) < 5:
-                if name in ["Jr.", "Jr", "MD", "PhD", "MSW", "JD", "II", "III", "IV", "jr", "MS", "PHD", "Sr."]:
-                    if not names:
-                        return None
 
-                    names[-1] += f", {name}"
-                    continue
+            if re.match(r"(Jr|MD|PhD|MSW|JD|II|III|IV|jr|MS|PHD|Sr)\.?\b", name, re.IGNORECASE):
+                if not names:
+                    return None
+
+                names[-1] += f", {name}"
+                continue
             names.append(name)
 
         return names
+
+    @classmethod
+    def classify_names(cls, names):
+        """
+        ["John Doe (author)", "Jane Doe (translator)", "Ed One", "Ed Two (eds.)"] => {"author": ["John Doe"], "translator": ["Jane Doe"], "editor": ["Ed One", "Ed Two"]}
+        """
+
+        res = {}
+        buffer = []
+        default = "author"
+        for name in names:
+            m = re.match(r"(?P<name>[^(]*?)\s+(?P<label>\(?([Aa]ut(hor)?|[Ee]d(itor)?|[Tt]r(anslator)?)s?\.?\))", name)
+            if not m:
+                buffer.append(name)
+                continue
+
+            label = m.group("label").lower().strip("().")
+
+            new_name = m.group("name").strip()
+            if new_name:
+                buffer.append(new_name)
+
+            # If the label isn't plural, it only applies to the last item in the buffer
+            # Anything else in the buffer should be labeled with the default
+            if not label.endswith("s"):
+                name = buffer.pop()
+                if buffer:
+                    if default in res:
+                        # Duplicate job label
+                        return
+                    res[default] = buffer
+                buffer = [name]
+
+            if label.startswith("au"):
+                job_type = "author"
+            elif label.startswith("ed"):
+                job_type = "editor"
+            elif label.startswith("tr"):
+                job_type = "translator"
+
+            # Stray label
+            if not buffer:
+                return
+
+            if job_type in res:
+                # Duplicate job label
+                return
+
+            res[job_type] = buffer
+            buffer = []
+
+
+        if buffer:
+            if default in res:
+                raise ValueError(res, default, buffer)
+            res[default] = buffer
+
+
+        for k, names in res.items():
+            valid_names = []
+            has_et_al = False
+            for name in names:
+                new_name = re.sub(r"(''|[;, ]+)et al((ii|\.)''(.)?|[.,]|$)", "", name)
+                if new_name != name:
+                    has_et_al=True
+                    valid_names.append(new_name.strip())
+                else:
+                    valid_names.append(name)
+
+            if has_et_al:
+                valid_names.append("et al")
+
+            res[k] = valid_names
+
+        return res
+
 
     @classmethod
     def get_authors(cls, text):
@@ -881,7 +959,6 @@ class QuoteFixer():
 
         m = re.match(pattern, text)
         if m:
-            print("MATCH", m.group(0))
             return m.group(2), m.group(3), m.group('pre') + " " + m.group('post')
         return "", "", text
 
@@ -901,6 +978,21 @@ class QuoteFixer():
         if m:
             return m.group('month'), int(m.group('day')), m.group('post')
         return "", "", text
+
+
+    @staticmethod
+    def get_month(text):
+        pattern = r"""(?x)
+            \s*
+            (?P<month>Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)
+            [.,]+                           # dot or comma
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            return m.group('month'), m.group('post')
+        return "", text
 
 
     @staticmethod
@@ -1007,15 +1099,22 @@ class QuoteFixer():
         text = text.replace('{{,}}', ",")
         text = text.replace('{{nbsp}}', " ")
         text = text.replace('&nbsp;', " ")
+#        text = text.replace("&#91;", "[")
 
         year, text = cls.get_year(text)
         details["year"] = year
 
-        # TODO: see if the text starts with something that looks like "Month Day"
         month, day, text = cls.get_month_day(text)
         if month and day:
              del details["year"]
              details["date"] = f"{month} {day} {year}"
+
+
+        month, text = cls.get_month(text)
+        if month:
+             details["month"] = month
+
+        # TODO: get_retrieved
 
         translator, text = cls.get_translator(text)
         if translator:
