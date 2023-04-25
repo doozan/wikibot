@@ -667,6 +667,18 @@ def test_parse_details2():
     print(res)
     assert res == {'date': '29 Oct 1974', 'chapter': 'Sports: Full-time Franco Busts A Couple, Rushes For 141', 'chapterurl': 'http://news.google.ca/newspapers?id=mWkqAAAAIBAJ&sjid=xVUEAAAAIBAJ&pg=4318,6028745&dq=did-a-number-on&hl=en', 'title': 'Pittsburgh Press', 'accessdate': '20 Aug. 2010', 'page': '26'}
 
+    text ="""'''1970''', "[https://web.archive.org/web/20130822174940/http://www.time.com/time/magazine/article/0,9171,909210,00.html Alive and Well]," ''Time'', 18 May:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'date': '18 May 1970', 'chapter': 'Alive and Well', 'chapterurl': 'https://web.archive.org/web/20130822174940/http://www.time.com/time/magazine/article/0,9171,909210,00.html', 'title': 'Time'}
+
+
+    text="""'''1999''', Buddy Seigal, "[https://web.archive.org/web/20140826030806/http://www.ocweekly.com/1999-08-26/music/even-old-englishmen-still-get-wood/ Even Old Englishmen Still Get Wood]," ''OC Weekly'', 26 Aug. (retrieved 16 June 2009):"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'date': '26 Aug 1999', 'author': 'Buddy Seigal', 'chapter': 'Even Old Englishmen Still Get Wood', 'chapterurl': 'https://web.archive.org/web/20140826030806/http://www.ocweekly.com/1999-08-26/music/even-old-englishmen-still-get-wood/', 'title': 'OC Weekly', 'accessdate': '16 June 2009'}
+
+
 
     #  '''1979''', ''New West'', volume 4, part 1, page 128:
     #  '''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:

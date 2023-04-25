@@ -308,7 +308,6 @@ class QuoteFixer():
 
     @staticmethod
     def get_chapter_title(text):
-        print("XXX", text)
         # The chapter title is the first string closed in " " or “” possibly followed by "in"
         pattern = r"""(?x)
             [;:, ]*                 # separator
@@ -335,7 +334,6 @@ class QuoteFixer():
 
         m = re.match(pattern, text)
         if m:
-            print("X###", m.groups())
             return m.group(1), m.group('post')
 
         return "", text
@@ -351,14 +349,10 @@ class QuoteFixer():
         if not m:
             return "", text
 
+        title = m.group(1)[2:-2]
+
         # strip (novel) from remaing text
         post_text = re.sub(r"^\s*\(novel\)\s*[;:,. ]*", "", m.group(2))
-
-        # If the title is followed by another title, the following is a subtitle
-        title = m.group(1)[2:-2]
-        subtitle, post_text = self.get_title(post_text)
-        if subtitle:
-            return f"{title}: {subtitle}", post_text
 
         return title, post_text
 
@@ -851,7 +845,8 @@ class QuoteFixer():
             (?P<num>[0-9ivxlcdmIVXLCDM]+)   # numbers or roman numerals
             [;:, ]*(?P<post>.*)$            # trailing text
         """
-            #([0-9ivxcdmIVXCDM]+)            # numbers or roman numerals
+
+        # TODO: Validate number as pure arabic or roman numerals
 
         m = re.match(pattern, text)
         if m:
@@ -877,6 +872,8 @@ class QuoteFixer():
             [;:, ]*                             # trailing separator or whitespace
             (?P<post>.*)                        # trailing text
         """
+
+        # TODO: Validate that pages before and pages after are both roman or non-roman
 
         m = re.match(pattern, text)
         if m:
@@ -1169,8 +1166,6 @@ class QuoteFixer():
         if month:
              details["month"] = month
 
-        # TODO: get_retrieved
-
 
         translator, text = self.get_translator(text)
         editor, text = self.get_editor(text)
@@ -1204,6 +1199,10 @@ class QuoteFixer():
 
         chapter_title, text = self.get_chapter_title(text)
         title, text = self.get_title(text)
+
+        subtitle, text = self.get_title(text)
+        if title and subtitle:
+            title = f"{title}: {subtitle}"
 
         if not title:
             if chapter_title and "author2" not in details: # Multiple authors is a sign that the publisher or other details may be included in authors
@@ -1431,17 +1430,15 @@ class QuoteFixer():
 
     def get_template_source(self, params):
 
-
         if any(x in params for x in ["isbn", "oclc", "issn"]):
             return "book"
 
         if any(x in params for x in ["season", "episode"]):
             return "av"
 
-        # {'year': '1935', 'author': '{{w|Arthur Leo Zagat}}', 'chapter': 'IV', 'title': 'Dime Mystery Magazine', 'month': 'November', 'url': 'http://gutenberg.net.au/ebooks13/1304651h.html'}
-
-        if any(x in params for x in ["issue", "number", "date", "month"]):  # "month" is over aggressive
+        if any(x in params for x in ["issue", "number", "date", "month"]):
             if "publisher" in params:
+                print("BAD JOURNAL PARAMS - has publisher", params)
                 return None
             return "journal"
 
