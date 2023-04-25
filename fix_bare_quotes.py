@@ -5,7 +5,7 @@ import sys
 from enwiktionary_parser.utils import nest_aware_split
 
 def dprint(*args, **kwargs):
-#    return
+    return
     print(args, kwargs, file=sys.stderr)
 
 class QuoteFixer():
@@ -164,7 +164,6 @@ class QuoteFixer():
         separator = s.group(1) if s else ", "
 
         names = []
-        #for name in text.split(separator):
         for name in nest_aware_split(separator, text, [("{{","}}"), ("[[","]]")]):
             name = name.strip()
             if name.startswith("and "):
@@ -280,10 +279,11 @@ class QuoteFixer():
         alt_m = re.match(r"\s*(''|[;, ]+)et al((ii|\.)''(.)?|[.,])\s*(?P<post>.*)$", m.group('post'))
         if alt_m:
             author_text = author_text.rstrip(", ") + ", et al."
-            print("ALT M", author_text, [alt_m.group('post')])
             m = alt_m
 
         names = cls.split_names(author_text)
+        if not names:
+            return {}, text
         classified_names = cls.classify_names(names)
 
         if classified_names:
@@ -461,14 +461,15 @@ class QuoteFixer():
 
             location = None
             if ":" in publisher:
-                location, _, l_publisher = publisher.partition(":")
-                location = location.strip()
+                locations = list(nest_aware_split(":", publisher, [("{{","}}"), ("[","]")]))
+                if len(locations) > 1:
+                    location = locations[0].strip()
 
-                if location in [ "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y." ]:
-                    publisher = l_publisher.strip()
-                else:
-                    dprint("unknown location:", location)
-                    location = None
+                    if location in [ "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y." ]:
+                        publisher = ":".join(locations[1:]).strip()
+                    else:
+                        dprint("unknown location:", location)
+                        location = None
 
             publisher = re.sub(r"\s*\(publisher\)$", "", publisher)
             publisher = re.sub(r"^published by( the)?", "", publisher)
@@ -1161,7 +1162,10 @@ class QuoteFixer():
             if editor:
                 dprint("multi editor")
                 return
-            editor = "; ".join(names["editor"])
+            if len(names["editor"]) > 1:
+                details["editors"] = "; ".join(names["editor"])
+            else:
+                editor = names["editor"][0]
         if editor:
             details["editor"] = editor
 
@@ -1169,7 +1173,10 @@ class QuoteFixer():
             if translator:
                 dprint("multi translator")
                 return
-            translator = "; ".join(names["translator"])
+            if len(names["translator"]) > 1:
+                details["translators"] = "; ".join(names["translator"])
+            else:
+                editor = names["translator"][0]
         if translator:
             details["translator"] = translator
 

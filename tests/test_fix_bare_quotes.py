@@ -328,6 +328,26 @@ def test_parse_details():
     assert res == {'year': '2018', 'author': 'C Ustan', 'author2': 'et al', 'chapter': 'Core-binding factor acute myeloid leukemia with t(8;21): Risk  factors and a novel scoring system (I-CBFit)', 'chapterurl': 'https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733', 'title': 'Cancer Medicine'}
 
 
+    # (editors)
+    text="""'''2005''', John Schaeffer, Doug Pratt (editors), ''Appendix'', ''Gaiam Real Goods Solar Living Sourcebook'', [http://books.google.com.au/books?id=im-No5TYyy8C&pg=PA517&dq=%22awg%22&hl=en&sa=X&ei=k5wEUbnbB8OhkQXZtoEY&redir_esc=y#v=onepage&q=%22awg%22&f=false page 517],"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2005', 'editors': 'John Schaeffer; Doug Pratt', 'title': 'Appendix: Gaiam Real Goods Solar Living Sourcebook', 'pageurl': 'http://books.google.com.au/books?id=im-No5TYyy8C&pg=PA517&dq=%22awg%22&hl=en&sa=X&ei=k5wEUbnbB8OhkQXZtoEY&redir_esc=y#v=onepage&q=%22awg%22&f=false', 'page': '517'}
+
+
+    # editors, author
+    text="""'''1995''', Solomon Feferman, John W. Dawson, Jr., Warren Goldfarb, Charlers Parsons, Robert N. Solovay (editors), {{w|Kurt Gödel}}, ''Kurt Gödel: Collected Works: Volume III'', {{w|Oxford University Press}}, [https://books.google.com.au/books?id=gDzbuUwma5MC&pg=PA419&dq=%22Hausdorff+gap%22%7C%22Hausdorff+gaps%22&hl=en&newbks=1&newbks_redir=0&sa=X&ved=2ahUKEwjo-o7D9OT7AhVQJUQIHaSlBIgQ6AF6BAhXEAI#v=onepage&q=%22Hausdorff%20gap%22%7C%22Hausdorff%20gaps%22&f=false page 419]"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1995', 'author': '{{w|Kurt Gödel}}', 'editors': 'Solomon Feferman; John W. Dawson, Jr.; Warren Goldfarb; Charlers Parsons; Robert N. Solovay', 'title': 'Kurt Gödel: Collected Works: Volume III', 'pageurl': 'https://books.google.com.au/books?id=gDzbuUwma5MC&pg=PA419&dq=%22Hausdorff+gap%22%7C%22Hausdorff+gaps%22&hl=en&newbks=1&newbks_redir=0&sa=X&ved=2ahUKEwjo-o7D9OT7AhVQJUQIHaSlBIgQ6AF6BAhXEAI#v=onepage&q=%22Hausdorff%20gap%22%7C%22Hausdorff%20gaps%22&f=false', 'page': '419', 'publisher': '{{w|Oxford University Press}}'}
+
+
+    # translator
+    text="""'''1865''', [[w:Homer|Homer]] and [[w:Edward Smith-Stanley, 14th Earl of Derby|Edward Smith-Stanley, 14th Earl of Derby]] (translator), ''[[w:Iliad|Iliad]]'', volume 1, [http://books.google.co.uk/books?id=EEYbAAAAYAAJ&pg=PP14&dq=%22Heph%C3%A6stus%22&ei=PWSiSru7DYmGzATwjoCBCA#v=onepage&q=%22Heph%C3%A6stus%22&f=false page viii]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1865', 'author': '[[w:Homer|Homer]]', 'title': '[[w:Iliad|Iliad]]', 'volume': '1', 'pageurl': 'http://books.google.co.uk/books?id=EEYbAAAAYAAJ&pg=PP14&dq=%22Heph%C3%A6stus%22&ei=PWSiSru7DYmGzATwjoCBCA#v=onepage&q=%22Heph%C3%A6stus%22&f=false', 'page': 'viii'}
+
     # unnumbered page
     text = """'''2018''', Adrian Besley, ''BTS: Icons of K-Pop'', [https://books.google.com/books?id=QcxmDwAAQBAJ&pg=PT170&dq=%22army+are+clever%22 unnumbered page]:"""
     res = parse_details(text)
