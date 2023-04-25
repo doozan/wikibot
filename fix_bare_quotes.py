@@ -4,15 +4,17 @@ import re
 import sys
 from enwiktionary_parser.utils import nest_aware_split
 
-def dprint(*args, **kwargs):
-    return
-    print(args, kwargs, file=sys.stderr)
 
 class QuoteFixer():
 
-    def __init__(self):
+    def dprint(self, *args, **kwargs):
+        if self.debug:
+            print(args, kwargs, file=sys.stderr)
+
+    def __init__(self, debug=False):
         self._summary = None
         self._log = []
+        self.debug=debug
 
     def fix(self, code, section, details):
         if self._summary is not None:
@@ -25,26 +27,23 @@ class QuoteFixer():
         page = list(section.lineage)[-1]
         self._log.append((code, page, details))
 
-    @staticmethod
-    def get_year(text):
+    def get_year(self, text):
         m = re.match(r"^'''(\d{4})'''[\.;,:—\- ]*(.*)$", text)
         if not m:
-            dprint(text)
+            self.dprint(text)
             return 
 
         return m.group(1), m.group(2)
 
 
-    @classmethod
-    def get_translator(cls, text):
-        translator, text = cls.get_prefixed_translator(text)
+    def get_translator(self, text):
+        translator, text = self.get_prefixed_translator(text)
         if translator:
             return translator, text
 
-        return cls.get_suffixed_translator(text)
+        return self.get_suffixed_translator(text)
 
-    @classmethod
-    def get_prefixed_translator(cls, text):
+    def get_prefixed_translator(self, text):
 
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*         # leading text
@@ -56,16 +55,15 @@ class QuoteFixer():
 
         m = re.match(pattern, text)
         if m:
-            if not cls.is_valid_name(m.group(2)):
-                dprint("invalid translator:", m.group(2))
+            if not self.is_valid_name(m.group(2)):
+                self.dprint("invalid translator:", m.group(2))
                 return "", text
 
             return m.group(2), m.group('pre') + " " + m.group('post')
         return "", text
 
 
-    @classmethod
-    def get_suffixed_translator(cls, text):
+    def get_suffixed_translator(self, text):
         pattern = r"""(?x)
             ^(?P<pre>.*?)\s*         # leading text
             (?:^|[;:,])\s*           # beginning of line or separator
@@ -76,16 +74,15 @@ class QuoteFixer():
 
         m = re.match(pattern, text)
         if m:
-            if not cls.is_valid_name(m.group(2)):
-                dprint("***************** invalid translator:", m.group(2))
+            if not self.is_valid_name(m.group(2)):
+                self.dprint("***************** invalid translator:", m.group(2))
                 return "", text
 
             return m.group(2), m.group('pre') + " " + m.group('post')
         return "", text
 
 
-    @classmethod
-    def get_editor(cls, text):
+    def get_editor(self, text):
 
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*  # leading text
@@ -112,15 +109,15 @@ class QuoteFixer():
         if not m:
             return [], text
 
-        pub_names = cls.split_names(m.group(2))
+        pub_names = self.split_names(m.group(2))
         if pub_names is None:
             print("BAD EDITOR NAME", text)
             return [], text
 
         names = []
         for name in pub_names:
-            if not cls.is_valid_name(name):
-                dprint("invalid editor:", name)
+            if not self.is_valid_name(name):
+                self.dprint("invalid editor:", name)
                 return [], text
             names.append(name)
 
@@ -179,12 +176,12 @@ class QuoteFixer():
 
                 names[-1] += f", {name}"
                 continue
+
             names.append(name)
 
         return names
 
-    @classmethod
-    def classify_names(cls, names):
+    def classify_names(self, names):
         """
         ["John Doe (author)", "Jane Doe (translator)", "Ed One", "Ed Two (eds.)"] => {"author": ["John Doe"], "translator": ["Jane Doe"], "editor": ["Ed One", "Ed Two"]}
         """
@@ -246,15 +243,15 @@ class QuoteFixer():
             valid_names = []
             has_et_al = False
             for name in names:
-                new_name = re.sub(r"(''|\b)et al((ii|\.)''(.)?|[.,]|$)", "", name)
+                new_name = re.sub(r"(''|\b)(et|&) al((ii|\.)''(.)?|[.,]|$)", "", name)
                 if new_name != name:
                     has_et_al=True
                     name = new_name.strip()
                     if not name:
                         continue
 
-                if not cls.is_valid_name(name):
-                    dprint(f"invalid {k} name:", name)
+                if not self.is_valid_name(name):
+                    self.dprint(f"invalid {k} name:", name)
                     return
 
                 valid_names.append(name)
@@ -267,8 +264,7 @@ class QuoteFixer():
         return res
 
 
-    @classmethod
-    def get_classified_names(cls, text):
+    def get_classified_names(self, text):
         m = re.match("""(.+?) (?P<post>("|''|“).*)$""", text)
         if not m:
             return {}, text
@@ -281,10 +277,10 @@ class QuoteFixer():
             author_text = author_text.rstrip(", ") + ", et al."
             m = alt_m
 
-        names = cls.split_names(author_text)
+        names = self.split_names(author_text)
         if not names:
             return {}, text
-        classified_names = cls.classify_names(names)
+        classified_names = self.classify_names(names)
 
         if classified_names:
             return classified_names, m.group('post')
@@ -292,8 +288,7 @@ class QuoteFixer():
         return {}, text
 
 
-    @classmethod
-    def get_authors(cls, text):
+    def get_authors(self, text):
         authors = []
 
         orig_text = text
@@ -310,14 +305,14 @@ class QuoteFixer():
         author_text = m.group(1).strip(":;, ").replace("&#91;", "").replace(" (author)", "")
 
         authors = []
-        author_names = cls.split_names(author_text)
+        author_names = self.split_names(author_text)
         if author_names is None:
             print("BAD AUTHOR NAME", text)
             return [], orig_text
 
         for author in author_names:
-            if not cls.is_valid_name(author):
-                dprint("invalid author:", author)
+            if not self.is_valid_name(author):
+                self.dprint("invalid author:", author)
                 return [], orig_text
             authors.append(author)
 
@@ -362,8 +357,7 @@ class QuoteFixer():
         return "", text
 
 
-    @classmethod
-    def get_title(cls, text):
+    def get_title(self, text):
         # The title is the first string closed in '' '' possibly followed by (novel)
 
         # match exactly 2 or 5 single quotes
@@ -375,7 +369,7 @@ class QuoteFixer():
 
         # If the title is followed by another title, the following is a subtitle
         title = m.group(1)[2:-2]
-        subtitle, post_text = cls.get_title(m.group(2))
+        subtitle, post_text = self.get_title(m.group(2))
         if subtitle:
             return f"{title}: {subtitle}", post_text
 
@@ -399,12 +393,11 @@ class QuoteFixer():
 
         return not re.search("([()]|thesis|published|submitted|printed)", title)
 
-    @classmethod
-    def get_journal_title(cls, text):
+    def get_journal_title(self, text):
         # The title is everything until the first ; or ,
 
         m = re.match(r"[.;:, ]*(?P<title>[^.;,]*)[;:,. ]*(?P<post>.*)$", text)
-        if m and cls.is_valid_title(m.group("title")):
+        if m and self.is_valid_title(m.group("title")):
             return m.group('title'), m.group('post')
 
         return "", text
@@ -430,8 +423,9 @@ class QuoteFixer():
             return False
         return True
 
-    @classmethod
-    def get_publisher(cls, text):
+    def get_publisher(self, text):
+
+#        print("get publisher", [text])
 
         # The publisher is all text after the title until the ISBN/OCLC/ISSN tag
 
@@ -439,7 +433,7 @@ class QuoteFixer():
         m = re.match(r"[(;:., ]*(.*?)[;:, ]*(\(?{{(?:ISBN|OCLC|ISSN).*)?$", text)
         if m and m.group(1):
 
-            publisher = m.group(1).strip()
+            publisher = m.group(1).strip(";:, ")
             publisher = re.sub(r"\s+([Pp]aperback\s*)?[Ee]d(ition|\.)$", "", publisher)
 
             pattern = r"""(?x)
@@ -460,25 +454,28 @@ class QuoteFixer():
                 publisher = publisher.replace(mp.group(0), "").strip()
 
             location = None
-            if ":" in publisher:
-                locations = list(nest_aware_split(":", publisher, [("{{","}}"), ("[","]")]))
+            locations = list(nest_aware_split(":", publisher, [("{{","}}"), ("[","]")]))
+            location = locations[0].strip("()")
+            if location in [ "Ourense", "A Coruña", "UK", "Canada", "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y.",
+                    "Santiago", "Santiago de Compostela", "Boston", "Vigo", "Madrid", "Philadelphia", "Ourense", "Edinburgh", "Garden City, NY", "Sada / A Coruña", "Coimbra", "Chicago", "Oxford", "Erich Mühsam", "Pontevedra", "San Francisco", "Oviedo", "Indianapolis", "Cambridge", "Valga", "New York and London", "Sydney", "Leipzig", "Bauzten" ]:
+                publisher = ":".join(locations[1:]).strip()
+            else:
                 if len(locations) > 1:
-                    location = locations[0].strip()
-
-                    if location in [ "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y." ]:
-                        publisher = ":".join(locations[1:]).strip()
-                    else:
-                        dprint("unknown location:", location)
-                        location = None
+                    self.dprint("unknown location:", location)
+                location = None
 
             publisher = re.sub(r"\s*\(publisher\)$", "", publisher)
             publisher = re.sub(r"^published by( the)?", "", publisher)
 
-            if not publisher.strip("():;, "):
-                publisher = ""
+            if not publisher.strip("/():;, "):
+                if location in ["Oxford"]:
+                    publisher = location
+                    location = None
+                else:
+                    publisher = ""
 
-            if not cls.is_allowed_publisher(publisher) and not cls.is_valid_publisher(publisher):
-                dprint("bad publisher", publisher)
+            if not self.is_allowed_publisher(publisher) and not self.is_valid_publisher(publisher):
+                self.dprint("bad publisher", publisher)
                 return None, None, None, text
 
             # Group2 matches ISBN templates, which is a good sign the publisher data is valid
@@ -487,14 +484,18 @@ class QuoteFixer():
 
             # If there was no ISBN template, the publisher text is less reliable,
             # only pass if the publisher exactly matches an allowlist
-            elif not publisher or cls.is_allowed_publisher(publisher):
+            elif not publisher or self.is_allowed_publisher(publisher):
                 return publisher, published_year, location, ""
 
         return "", None, None, text
 
-    @classmethod
-    def is_allowed_publisher(cls, text):
+    def is_allowed_publisher(self, text):
         return text in [
+"I.E.O.P.F.",
+"Fundación Barrié",
+"UK",
+"Modern Library",
+"Oxford",
 "John Macock",
 "Pan Macmillan",
 "Pocket Books",
@@ -820,7 +821,7 @@ class QuoteFixer():
         return "", text
 
     @staticmethod
-    def get_url(text):
+    def get_url(text, keep_text=False):
 
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*         # leading text
@@ -832,9 +833,12 @@ class QuoteFixer():
         """
         m = re.match(pattern, text)
         if m:
-            return m.group('link'), m.group('pre') + m.group('link_text') + " " + m.group('post')
+            if keep_text:
+                return m.group('link'), "", m.group('pre') + " " + m.group('link_text') + " " + m.group('post')
+            else:
+                return m.group('link'), m.group('link_text'), m.group('pre') + " " + m.group('post')
 
-        return "", text
+        return "", "", text
 
     @staticmethod
     def get_gbooks(text):
@@ -865,6 +869,11 @@ class QuoteFixer():
         m = re.match(pattern, text)
         if m:
             return m.group('num'), m.group('pre') + " " + m.group('post')
+
+        new_text = re.sub(r"\s*(unknown page|unpaged|unnumbered page(s)?|unmarked page|no page number|page n/a)\s*", " ", text)
+        if new_text != text:
+            return "unnumbered", new_text.strip()
+
         return "", text
 
 
@@ -1059,13 +1068,34 @@ class QuoteFixer():
             return m.group('num'), m.group('pre') + " " + m.group('post')
         return "", text
 
+    def get_date_retrieved(self, text):
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*         # leading text
+            \(retrieved
+            \s
+            (?P<date>.*?)
+            \)
+            [;:, ]*(?P<post>.*)$            # trailing text
+            """
+
+        m = re.match(pattern, text)
+        if m:
+            retrieved = m.group('date').strip()
+            year, month, day, trailing = self.get_date(retrieved)
+            if not trailing.strip():
+                return retrieved, m.group('pre') + " " + m.group('post')
+            else:
+                self.dprint("bad_retrieved", retrieved)
+
+        return "", text
+
 
     @staticmethod
     def get_date(text):
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*             # leading text
             ((?P<day1>3[01]|[12][0-9]|0?[1-9])\s+)?   # 1-31
-            (?P<month>Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)
+            (?P<month>Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(t)?(ember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)
             [.,]*                           # dot or comma
             (\s+(?P<day2>3[01]|[12][0-9]|0?[1-9]))?   # 1-31
             ,*                              # comma
@@ -1107,8 +1137,7 @@ class QuoteFixer():
 
         return None, None, None, text
 
-    @classmethod
-    def parse_details(cls, text):
+    def parse_details(self, text):
 
         # This assumes details are listed in the following order
         # '''YEAR''', Author 1, Author 2, ''Title of work'', Publisher (ISBN)
@@ -1134,33 +1163,33 @@ class QuoteFixer():
         text = text.replace('&nbsp;', " ")
 #        text = text.replace("&#91;", "[")
 
-        year, text = cls.get_year(text)
+        year, text = self.get_year(text)
         details["year"] = year
 
-        month, day, text = cls.get_month_day(text)
+        month, day, text = self.get_month_day(text)
         if month and day:
              del details["year"]
              details["date"] = f"{month} {day} {year}"
 
 
-        month, text = cls.get_month(text)
+        month, text = self.get_month(text)
         if month:
              details["month"] = month
 
         # TODO: get_retrieved
 
 
-        translator, text = cls.get_translator(text)
-        editor, text = cls.get_editor(text)
+        translator, text = self.get_translator(text)
+        editor, text = self.get_editor(text)
 
-        names, text = cls.get_classified_names(text)
+        names, text = self.get_classified_names(text)
         for count, author in enumerate(names.get("author",[]), 1):
             key = f"author{count}" if count > 1 else "author"
             details[key] = author
 
         if "editor" in names:
             if editor:
-                dprint("multi editor")
+                self.dprint("multi editor")
                 return
             if len(names["editor"]) > 1:
                 details["editors"] = "; ".join(names["editor"])
@@ -1171,7 +1200,7 @@ class QuoteFixer():
 
         if "translator" in names:
             if translator:
-                dprint("multi translator")
+                self.dprint("multi translator")
                 return
             if len(names["translator"]) > 1:
                 details["translators"] = "; ".join(names["translator"])
@@ -1180,54 +1209,61 @@ class QuoteFixer():
         if translator:
             details["translator"] = translator
 
-        chapter_title, text = cls.get_chapter_title(text)
-        title, text = cls.get_title(text)
+        chapter_title, text = self.get_chapter_title(text)
+        title, text = self.get_title(text)
 
         if not title:
             if chapter_title and "author2" not in details: # Multiple authors is a sign that the publisher or other details may be included in authors
                 title = chapter_title
                 chapter_title = None
             else:
-                dprint("no title", text)
+                self.dprint("no title", text)
                 return
 
         if chapter_title:
             details["chapter"] = chapter_title.rstrip(", ")
-            chapter_url, chapter_title = cls.get_url(chapter_title)
+            chapter_url, chapter_title, _ = self.get_url(chapter_title)
             if chapter_url:
+                if _.strip():
+                    self.dprint("chapter_url_posttext", _)
+                    return
                 details["chapterurl"] = chapter_url
                 details["chapter"] = chapter_title.strip(", ")
 
         details["title"] = title.strip(", ")
-        title_url, title = cls.get_url(title)
+        title_url, title, _ = self.get_url(title)
         if title_url:
+            if _.strip():
+                self.dprint("title_url_posttext", _)
+                return
             details["url"] = title_url
             details["title"] = title.strip(", ")
 
         # url may contain the text like 'page 123' or 'chapter 3', so it needs to be extracted first
-        url, text = cls.get_url(text)
-        gbooks, text = cls.get_gbooks(text)
+        url, _, text = self.get_url(text, True)
+
+        gbooks, text = self.get_gbooks(text)
 
         # get pages before page because pp. and p. both match  pp. 12-14
-        pages, text = cls.get_pages(text)
-        page, text = cls.get_page(text)
-        chapter, text = cls.get_chapter(text)
-        volume, text = cls.get_volume(text)
+        pages, text = self.get_pages(text)
+        page, text = self.get_page(text)
+        chapter, text = self.get_chapter(text)
+        volume, text = self.get_volume(text)
         if volume:
             details["volume"] = volume
 
-        issue, text = cls.get_issue(text)
+        issue, text = self.get_issue(text)
         if issue:
             details["issue"] = issue
 
-        number, text = cls.get_number(text)
+        number, text = self.get_number(text)
         if number:
             details["number"] = number
 
-        season, text = cls.get_season(text)
-        episode, text = cls.get_episode(text)
+        season, text = self.get_season(text)
+        episode, text = self.get_episode(text)
         if not season and not episode:
-            season, episode, text = cls.get_season_episode(text)
+            season, episode, text = self.get_season_episode(text)
 
         if season:
             details["season"] = season
@@ -1235,17 +1271,21 @@ class QuoteFixer():
         if episode:
             details["episode"] = episode
 
-        edition, text = cls.get_edition(text)
+        edition, text = self.get_edition(text)
         if edition:
             if edition.isnumeric() and len(edition) == 4:
                 details["year_published"] = edition
             else:
                 details["edition"] = edition
 
-        _year, _month, _day, text = cls.get_date(text)
+        retrieved, text = self.get_date_retrieved(text)
+        if retrieved:
+            details["accessdate"] = retrieved
+
+        _year, _month, _day, text = self.get_date(text)
         if _year:
             if _year != details.get("year"):
-                dprint("mismatch year", text)
+                self.dprint("mismatch year", text)
                 return
 
             if _day:
@@ -1273,12 +1313,12 @@ class QuoteFixer():
 
         if sum(x in details for x in ["url", "chapterurl", "pageurl"]) > 1:
             #print("multiple_urls", orig_text)
-            dprint("multiple_urls", text)
+            self.dprint("multiple_urls", text)
             return
 
         if chapter:
             if "chapter" in details:
-                dprint("multiple chapter declarations", chapter, details)
+                self.dprint("multiple chapter declarations", chapter, details)
                 return
             details["chapter"] = chapter
 
@@ -1290,30 +1330,32 @@ class QuoteFixer():
 
         # Parse publisher after removing page, chapter, and volume info
 
-        publisher, year_published, location, text = cls.get_publisher(text)
+        publisher, year_published, location, text = self.get_publisher(text)
         if publisher is None:
             return
+
+        if location:
+            details["location"] = location
+
         if publisher:
             details["publisher"] = publisher
 
         if year_published and year_published != year:
             details["year_published"] = year_published
 
-        if location:
-            details["location"] = location
 
 
-        isbn, text = cls.get_isbn(text)
+        isbn, text = self.get_isbn(text)
         if isbn:
             for count, isbn in enumerate(isbn, 1):
                 key = f"isbn{count}" if count > 1 else "isbn"
                 details[key] = isbn
 
-        oclc, text = cls.get_oclc(text)
+        oclc, text = self.get_oclc(text)
         if oclc:
             details["oclc"] = oclc
 
-        issn, text = cls.get_issn(text)
+        issn, text = self.get_issn(text)
         if issn:
             details["issn"] = issn
 
@@ -1324,25 +1366,15 @@ class QuoteFixer():
 #            return
 
 
-        m = re.search(r"(unknown page|unpaged|unnumbered page(s)?|unmarked page|no page number|page n/a)", text)
-        no_page = m.group(1) if m else None
-
-        text = re.sub(r"(\(novel\)|&nbsp|Google online preview|Google [Pp]review|Google snippet view|online|preview|Google search result|unknown page|unpaged|unnumbered page(s)?|online edition|unmarked page|no page number|page n/a|Google books view|Google [Bb]ooks)", "", text)
-        #text = re.sub(r"(\(novel\)|&nbsp|Google online preview|Google [Pp]review|Google snippet view|online|preview|Google search result|online edition|Google books view|Google [Bb]ooks)", "", text)
-
+        text = re.sub(r"(\(novel\)|&nbsp|Google online preview|Google [Pp]review|Google snippet view|online|preview|Google search result|unknown page|unpaged|unnumbered page(s)?|online edition|unmarked page|no page number|page n/a|Google books view|Google [Bb]ooks|Project Gutenberg transcription)", "", text)
         text = text.strip('#*:;, ()".')
         if page or pages:
             text = re.sub(r"([Pp]age(s)?|pp\.|p\.|pg\.)", "", text)
-        elif no_page:
-            details["page"] = no_page
-            #print("UNNUMBERED", cls.page)
-            #TODO: allow this?
-            return
 
         if text:
-            dprint("unparsed text:", text)
-            dprint(orig_text)
-            dprint("")
+            self.dprint("unparsed text:", text, details)
+            self.dprint(orig_text)
+            self.dprint("")
             return
 
         return details
@@ -1553,7 +1585,7 @@ class QuoteFixer():
         params = self.get_source_adjusted_params(source, params)
 
         if source == "journal" and not all(x in params for x in ["journal", "title"]):
-            dprint("incomplete journal entry")
+            self.dprint("incomplete journal entry")
             return
 
         new_lines = [ start + " {{" + template + "|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()]) ]

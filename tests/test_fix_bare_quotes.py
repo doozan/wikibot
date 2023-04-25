@@ -1,6 +1,6 @@
 from autodooz.fix_bare_quotes import QuoteFixer
 #from ..fix_bare_quotes import QuoteFixer
-fixer = QuoteFixer()
+fixer = QuoteFixer(debug=True)
 parse_details = fixer.parse_details
 
 def test_parse_details():
@@ -352,7 +352,7 @@ def test_parse_details():
     text = """'''2018''', Adrian Besley, ''BTS: Icons of K-Pop'', [https://books.google.com/books?id=QcxmDwAAQBAJ&pg=PT170&dq=%22army+are+clever%22 unnumbered page]:"""
     res = parse_details(text)
     print(res)
-    assert res == None #{'year': '2018', 'author': 'Adrian Besley', 'title': 'BTS: Icons of K-Pop', 'url': 'https://books.google.com/books?id=QcxmDwAAQBAJ&pg=PT170&dq=%22army+are+clever%22', 'page': 'unnumbered page'}
+    assert res == {'year': '2018', 'author': 'Adrian Besley', 'title': 'BTS: Icons of K-Pop', 'pageurl': 'https://books.google.com/books?id=QcxmDwAAQBAJ&pg=PT170&dq=%22army+are+clever%22', 'page': 'unnumbered'}
 
     # '''Year'''.
     text = """'''1931'''. George Saintsbury, ''A Consideration of Thackeray'', chapter V."""
@@ -623,7 +623,9 @@ def test_parse_details():
     print(res)
     assert res == {'date': 'July 31 2008', 'author': '[[w:Richard Zoglin|Richard Zoglin]]', 'chapter': "A New Dawn for ''Hair''", 'chapterurl': 'https://web.archive.org/web/20080807052344/http://www.time.com/time/magazine/article/0,9171,1828301,00.html', 'title': 'Time'}
 
-    text = """'''2022''', Shaakirrah Sanders, ''[https://www.scotusblog.com/2022/01/court-rejects-door-opening-as-a-sixth-amendment-confrontation-clause-exception/ Court rejects “door opening” as a Sixth Amendment confrontation-clause exception]'', in: SCOTUSblog, 2022-01-20"""
+
+
+def test_parse_details2():
 
 
 #    text="""'''2016''', "The Veracity Elasticity", season 10, episode 7 of ''{{w|The Big Bang Theory}}''"""
@@ -631,12 +633,21 @@ def test_parse_details():
 #    print(res)
 #    assert res == "X"
 
+    text="""'''2007''', Eli Maor, ''The Pythagorean Theorem: A 4,000-year History'', {{w|Princeton University Press}}, [https://books.google.com.au/books?id=Z5VoBGy3AoAC&pg=PA1&dq=%22Fermat%27s+Last+Theorem%22&hl=en&sa=X&ved=0ahUKEwiSltz2xMnWAhUMzLwKHcAiBiY4ZBDoAQhcMAk#v=onepage&q=%22Fermat's%20Last%20Theorem%22&f=false page 1],"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2007', 'author': 'Eli Maor', 'title': 'The Pythagorean Theorem: A 4,000-year History', 'pageurl': "https://books.google.com.au/books?id=Z5VoBGy3AoAC&pg=PA1&dq=%22Fermat%27s+Last+Theorem%22&hl=en&sa=X&ved=0ahUKEwiSltz2xMnWAhUMzLwKHcAiBiY4ZBDoAQhcMAk#v=onepage&q=%22Fermat's%20Last%20Theorem%22&f=false", 'page': '1', 'publisher': '{{w|Princeton University Press}}'}
 
+#    text = """'''2022''', Shaakirrah Sanders, ''[https://www.scotusblog.com/2022/01/court-rejects-door-opening-as-a-sixth-amendment-confrontation-clause-exception/ Court rejects “door opening” as a Sixth Amendment confrontation-clause exception]'', in: SCOTUSblog, 2022-01-20"""
+#    res = parse_details(text)
+#    print(res)
+#    assert res == "X"
 
+    text = """'''1955''', {{w|W. H. Auden}}, “Lakes” in ''Selected Poetry of W. H. Auden'', New York: Modern Library, 1959, p.{{nbsp}}149,<sup>[https://openlibrary.org/ia/selectedpoetry00whau]</sup>"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1955', 'author': '{{w|W. H. Auden}}', 'chapter': 'Lakes', 'title': 'Selected Poetry of W. H. Auden', 'url': 'https://openlibrary.org/ia/selectedpoetry00whau', 'page': '149', 'publisher': 'Modern Library', 'year_published': '1959', 'location': 'New York'}
 
-
-    #
-    # '''2007''', Eli Maor, ''The Pythagorean Theorem: A 4,000-year History'', {{w|Princeton University Press}}, [https://books.google.com.au/books?id=Z5VoBGy3AoAC&pg=PA1&dq=%22Fermat%27s+Last+Theorem%22&hl=en&sa=X&ved=0ahUKEwiSltz2xMnWAhUMzLwKHcAiBiY4ZBDoAQhcMAk#v=onepage&q=%22Fermat's%20Last%20Theorem%22&f=false page 1],
 
     #  '''1979''', ''New West'', volume 4, part 1, page 128:
     #  '''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:
@@ -813,6 +824,11 @@ def test_get_date():
     assert fixer.get_date('Test, 2012-12-02 abcd') == ('2012', 'Dec', 2, 'Test,  abcd')
     assert fixer.get_date('Test, 2012-12-31 abcd') == ('2012', 'Dec', 31, 'Test,  abcd')
     assert fixer.get_date('Test, 2012-02-31 abcd') == (None, None, None, 'Test, 2012-02-31 abcd')
+
+    assert fixer.get_date('16 Jan 2016') == ('2016', 'Jan', -16, ' ')
+    assert fixer.get_date('22 Sept 2017') == ('2017', 'Sept', -22, ' ')
+    assert fixer.get_date('8 Sept. 2009') == ('2009', 'Sept', -8, ' ')
+
 
     text = """\
 ''[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]'', in: The Atlantic, December 31 2022\
