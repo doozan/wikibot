@@ -196,7 +196,6 @@ class QuoteFixer():
                 # Handle "John Doe, tranlating Jane Doe"
                 m = re.match(r"\s*translating\s*(?P<name>.*)", name)
                 if m:
-                    print("TRANSLATING", buffer, m.groups())
                     if not buffer:
                         self.dprint("no buffer before translating")
                         return
@@ -263,6 +262,9 @@ class QuoteFixer():
                     name = new_name.strip()
                     if not name:
                         continue
+                elif name.strip() == "al.":
+                    has_et_al=True
+                    continue
 
                 if not self.is_valid_name(name):
                     self.dprint(f"invalid {k} name:", name)
@@ -298,48 +300,15 @@ class QuoteFixer():
 
         if classified_names:
             return classified_names, m.group('post')
+        elif "al." in text:
+            print("INVALID", text)
 
         return {}, text
 
 
-    def get_authors(self, text):
-        authors = []
-
-        orig_text = text
-
-        has_et_al = False
-        text = re.sub(r"(''|[;, ]+)et al((ii|\.)''(.)?|[.,])", "", text)
-        if text != orig_text:
-            has_et_al = True
-
-        m = re.match("""(.+?) (("|''|“).*)$""", text)
-        if not m:
-            return [], orig_text
-
-        author_text = m.group(1).strip(":;, ").replace("&#91;", "").replace(" (author)", "")
-
-        authors = []
-        author_names = self.split_names(author_text)
-        if author_names is None:
-            print("BAD AUTHOR NAME", text)
-            return [], orig_text
-
-        for author in author_names:
-            if not self.is_valid_name(author):
-                self.dprint("invalid author:", author)
-                return [], orig_text
-            authors.append(author)
-
-        if not authors:
-            return [], orig_text
-
-        if has_et_al:
-            authors.append("et al")
-
-        return authors, m.group(2)
-
     @staticmethod
     def get_chapter_title(text):
+        print("XXX", text)
         # The chapter title is the first string closed in " " or “” possibly followed by "in"
         pattern = r"""(?x)
             [;:, ]*                 # separator
@@ -357,7 +326,7 @@ class QuoteFixer():
         # The chapter title is sometimes enclosed in '' '' instead of " ". In this case it MUST be followed by ", in ''"
         pattern = r"""(?x)
             [;:, ]*                 # separator
-            ''(.+?)''               # title enclosed in quotes
+            ''([^']+?)''               # title enclosed in quotes
             [;:, ]+                 # separator
             in                      # in
             [;:, ]+                 # separator
@@ -366,6 +335,7 @@ class QuoteFixer():
 
         m = re.match(pattern, text)
         if m:
+            print("X###", m.groups())
             return m.group(1), m.group('post')
 
         return "", text
@@ -377,17 +347,20 @@ class QuoteFixer():
         # match exactly 2 or 5 single quotes
         q = "(?<!')(?:'{2}|'{5})(?!')"
 
-        m = re.match(fr"[;:, ]*({q}.+?{q})(?:\s*\(novel\)\s*)?[;:,. ]*(.*)$", text)
+        m = re.match(fr"[;:, ]*({q}.+?{q})(.*)$", text)
         if not m:
             return "", text
 
+        # strip (novel) from remaing text
+        post_text = re.sub(r"^\s*\(novel\)\s*[;:,. ]*", "", m.group(2))
+
         # If the title is followed by another title, the following is a subtitle
         title = m.group(1)[2:-2]
-        subtitle, post_text = self.get_title(m.group(2))
+        subtitle, post_text = self.get_title(post_text)
         if subtitle:
             return f"{title}: {subtitle}", post_text
 
-        return title, m.group(2)
+        return title, post_text
 
     @staticmethod
     def is_valid_title(title):
@@ -470,7 +443,7 @@ class QuoteFixer():
             location = None
             locations = list(nest_aware_split(":", publisher, [("{{","}}"), ("[","]")]))
             location = locations[0].strip("()")
-            if location in [ "Ourense", "A Coruña", "UK", "Canada", "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y.",
+            if location in [ "Ourense", "A Coruña", "USA", "UK", "Canada", "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y.",
                     "Santiago", "Santiago de Compostela", "Boston", "Vigo", "Madrid", "Philadelphia", "Ourense", "Edinburgh", "Garden City, NY", "Sada / A Coruña", "Coimbra", "Chicago", "Oxford", "Erich Mühsam", "Pontevedra", "San Francisco", "Oviedo", "Indianapolis", "Cambridge", "Valga", "New York and London", "Sydney", "Leipzig", "Bauzten" ]:
                 publisher = ":".join(locations[1:]).strip()
             else:
@@ -898,9 +871,9 @@ class QuoteFixer():
             ^[;:, ]*(?P<pre>.*?)\s*             # leading text
             (?:[Pp]age[s]*|pp\.)                # Pages or pp.
             (?:&nbsp;|\s*)*                     # optional whitespace
-            (\d+                                # first number
+            ([0-9ivxlcdmIVXLCDM]+               # numbers or roman numerals
             \s*(?:,|-|–|&|and|to|{{ndash}})+\s*   # mandatory separator(s)
-            \d+)                                # second number
+            [0-9ivxlcdmIVXLCDM]+)               # numbers or roman numerals
             [;:, ]*                             # trailing separator or whitespace
             (?P<post>.*)                        # trailing text
         """
@@ -1108,6 +1081,7 @@ class QuoteFixer():
     def get_date(text):
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*             # leading text
+            ((?P<dayname>(Sun|Mon|Tue(s)?|Thu(r?)(s)?|Fri)(day)?)[, ]+)?   # Day name
             ((?P<day1>3[01]|[12][0-9]|0?[1-9])\s+)?   # 1-31
             (?P<month>Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(t)?(ember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)
             [.,]*                           # dot or comma
@@ -1115,7 +1089,8 @@ class QuoteFixer():
             ,*                              # comma
             (?:&nbsp;|\s*)+                 # whitespace
             ,*                              # comma
-            (?P<year>\d{4})                 # YYYY
+            (?P<year>\d{4})?                # YYYY
+            \b
             [;:, ]*(?P<post>.*)$            # trailing text
         """
 
@@ -1127,7 +1102,10 @@ class QuoteFixer():
                 day = int(m.group('day2'))
             else:
                 day = 0
-            return m.group('year'), m.group('month'), day, m.group('pre') + " " + m.group('post')
+
+            year = m.group('year')
+            if day or year:
+                return year, m.group('month'), day, m.group('pre') + " " + m.group('post')
 
 
         pattern = r"""(?x)
@@ -1175,7 +1153,8 @@ class QuoteFixer():
         text = text.replace('{{,}}', ",")
         text = text.replace('{{nbsp}}', " ")
         text = text.replace('&nbsp;', " ")
-#        text = text.replace("&#91;", "[")
+
+        # TODO: remove templates from text like {{Nowrap|text}} and {{nobr|text}}
 
         year, text = self.get_year(text)
         details["year"] = year
@@ -1297,17 +1276,25 @@ class QuoteFixer():
             details["accessdate"] = retrieved
 
         _year, _month, _day, text = self.get_date(text)
-        if _year:
+        if _month:
             if _year != details.get("year"):
-                self.dprint("mismatch year", text)
-                return
+                if not _year:
+                    _year = details.get("year")
+                else:
+                    self.dprint("mismatch year", text)
+                    return
 
             if _day:
-                del details["year"]
                 if _day < 0:
-                    details["date"] = f"{_day*-1} {_month} {_year}"
+                    date = f"{_day*-1} {_month} {_year}"
                 else:
-                    details["date"] = f"{_month} {_day} {_year}"
+                    date = f"{_month} {_day} {_year}"
+
+                # rename year to date to preserve dictionary order
+                if "year" in details:
+                    details = {"date" if k == "year" else k:v for k,v in details.items()}
+                details["date"] = date
+
             else:
                 details["month"] = _month
 
@@ -1454,6 +1441,8 @@ class QuoteFixer():
         # {'year': '1935', 'author': '{{w|Arthur Leo Zagat}}', 'chapter': 'IV', 'title': 'Dime Mystery Magazine', 'month': 'November', 'url': 'http://gutenberg.net.au/ebooks13/1304651h.html'}
 
         if any(x in params for x in ["issue", "number", "date", "month"]):  # "month" is over aggressive
+            if "publisher" in params:
+                return None
             return "journal"
 
         urls = []
@@ -1594,6 +1583,9 @@ class QuoteFixer():
 
         prefix = self.get_template_type(section)
         source = self.get_template_source(params)
+        if not source:
+            return
+
         template = prefix + "-" + source
 
         params = self.get_source_adjusted_params(source, params)

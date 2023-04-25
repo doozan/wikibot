@@ -654,6 +654,20 @@ def test_parse_details2():
     print(res)
     assert res == {'year': '2011', 'author': '{{w|Arupa Patangia Kalita}}', 'translator': 'Deepika Phukan', 'title': 'The Story of Felanee'}
 
+
+    # author & al. pages roman-roman
+    text = """'''2006''', Barry A. Kosmin & al., ''Religion in a Free Market'', [http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16 pages xvi–xvii]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2006', 'author': 'Barry A. Kosmin', 'author2': 'et al', 'title': 'Religion in a Free Market', 'pageurl': 'http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16', 'pages': 'xvi–xvii'}
+
+
+    text = """'''1974''', "[http://news.google.ca/newspapers?id=mWkqAAAAIBAJ&sjid=xVUEAAAAIBAJ&pg=4318,6028745&dq=did-a-number-on&hl=en Sports: Full-time Franco Busts A Couple, Rushes For 141]," ''Pittsburgh Press'', 29 Oct., p. 26 (retrieved 20 Aug. 2010):"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'date': '29 Oct 1974', 'chapter': 'Sports: Full-time Franco Busts A Couple, Rushes For 141', 'chapterurl': 'http://news.google.ca/newspapers?id=mWkqAAAAIBAJ&sjid=xVUEAAAAIBAJ&pg=4318,6028745&dq=did-a-number-on&hl=en', 'title': 'Pittsburgh Press', 'accessdate': '20 Aug. 2010', 'page': '26'}
+
+
     #  '''1979''', ''New West'', volume 4, part 1, page 128:
     #  '''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:
     #  '''2003''', ''Cincinnati Magazine'' (volume 36, number 5, page 26)
@@ -672,16 +686,23 @@ def test_parse_details2():
     # Unhandled
     text = """'''1934''', {{w|George Herriman}}, ''{{w|Krazy Kat}}'', Tuesday, April 17 comic strip ({{ISBN|978-1-63140-408-5}}, p. 112):"""
     res = parse_details(text)
-    assert res == None
+    print(res)
+    assert res == {'date': 'April 17 1934', 'author': '{{w|George Herriman}}', 'title': '{{w|Krazy Kat}}', 'page': '112', 'publisher': 'comic strip', 'isbn': '978-1-63140-408-5'}
 
     text = """'''2010''', L. A. Banks, &quot;Dog Tired (of the Drama!)&quot;, in ''Blood Lite II: Overbite'' (ed. Kevin J. Anderson), Gallery Books (2010), {{ISBN|9781439187654}}, [http://books.google.com/books?id=5ckoF81np3sC&amp;pg=PA121&amp;dq=%22beta%22+%22alpha+males%22 page 121]:"""
     res = parse_details(text)
+    print(res)
     assert res == None
 
     text = """'''1756''', {{w|Thomas Thistlewood}}, diary, quoted in '''2001''', Glyne A. Griffith, ''Caribbean Cultural Identities'', Bucknell University Press ({{ISBN|9780838754757}}), page 38:"""
     res = parse_details(text)
+    print(res)
     assert res == None
 
+    text = """'''1986''', Anthony Burgess, ''Homage to Qwert Yuiop'' (published as ''But Do Blondes Prefer Gentlemen?'' in USA)"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
 
 def test_entry():
 
@@ -762,6 +783,7 @@ def test_get_chapter_title():
     assert fixer.get_chapter_title(" ''foo bar'' in blah") == ("foo bar", "blah")
     assert fixer.get_chapter_title(" ''foo bar'', in: blah") == ("foo bar", "blah")
     assert fixer.get_chapter_title(" ''foo bar'' blah") == ("", " ''foo bar'' blah")
+    assert fixer.get_chapter_title("''Homage to Qwert Yuiop'' (published as ''But Do Blondes Prefer Gentlemen?'' in USA)") == ("", "''Homage to Qwert Yuiop'' (published as ''But Do Blondes Prefer Gentlemen?'' in USA)")
 
     text = """\
 ''[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]'', in: The Atlantic, December 31 2022\
@@ -833,6 +855,10 @@ def test_get_date():
     assert fixer.get_date('16 Jan 2016') == ('2016', 'Jan', -16, ' ')
     assert fixer.get_date('22 Sept 2017') == ('2017', 'Sept', -22, ' ')
     assert fixer.get_date('8 Sept. 2009') == ('2009', 'Sept', -8, ' ')
+
+    assert fixer.get_date('Sun 8 Sept. 2009') == ('2009', 'Sept', -8, ' ')
+    assert fixer.get_date('Sunday, 8 Sept. 2009') == ('2009', 'Sept', -8, ' ')
+    assert fixer.get_date('Tues 8 Sept. 2009') == ('2009', 'Sept', -8, ' ')
 
 
     text = """\
