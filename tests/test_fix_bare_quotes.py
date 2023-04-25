@@ -775,6 +775,10 @@ def test_classify_names():
     print(res)
     assert res == {'author': ['David Squire', 'et al']}
 
+    names = fixer.split_names("Lewis B. Ware ''et al.''")
+    res = fixer.classify_names(names)
+    print(res)
+    assert res == {'author': ['Lewis B. Ware', 'et al']}
 
 def test_get_date():
 

@@ -237,6 +237,8 @@ class QuoteFixer():
 
         if buffer:
             if default in res:
+                return
+                # Duplicate job label
                 raise ValueError(res, default, buffer)
             res[default] = buffer
 
@@ -245,12 +247,18 @@ class QuoteFixer():
             valid_names = []
             has_et_al = False
             for name in names:
-                new_name = re.sub(r"(''|[;, ]+)et al((ii|\.)''(.)?|[.,]|$)", "", name)
+                new_name = re.sub(r"(''|\b)et al((ii|\.)''(.)?|[.,]|$)", "", name)
                 if new_name != name:
                     has_et_al=True
-                    valid_names.append(new_name.strip())
-                else:
-                    valid_names.append(name)
+                    name = new_name.strip()
+                    if not name:
+                        continue
+
+                if not cls.is_valid_name(name):
+                    dprint(f"invalid {k} name:", name)
+                    return
+
+                valid_names.append(name)
 
             if has_et_al:
                 valid_names.append("et al")
@@ -258,6 +266,30 @@ class QuoteFixer():
             res[k] = valid_names
 
         return res
+
+
+    @classmethod
+    def get_classified_names(cls, text):
+        m = re.match("""(.+?) (?P<post>("|''|“).*)$""", text)
+        if not m:
+            return {}, text
+
+        author_text = m.group(1).strip(":;, ").replace("&#91;", "")
+
+        # Check if the remaining text starts with ''et al''
+        alt_m = re.match(r"\s*(''|[;, ]+)et al((ii|\.)''(.)?|[.,])\s*(?P<post>.*)$", m.group('post'))
+        if alt_m:
+            author_text = author_text.rstrip(", ") + ", et al."
+            print("ALT M", author_text, [alt_m.group('post')])
+            m = alt_m
+
+        names = cls.split_names(author_text)
+        classified_names = cls.classify_names(names)
+
+        if classified_names:
+            return classified_names, m.group('post')
+
+        return {}, text
 
 
     @classmethod
@@ -1116,24 +1148,36 @@ class QuoteFixer():
 
         # TODO: get_retrieved
 
-        translator, text = cls.get_translator(text)
-        if translator:
-            details["translator"] = translator
 
+        translator, text = cls.get_translator(text)
         editor, text = cls.get_editor(text)
+
+        names, text = cls.get_classified_names(text)
+        for count, author in enumerate(names.get("author",[]), 1):
+            key = f"author{count}" if count > 1 else "author"
+            details[key] = author
+
+        if "editor" in names:
+            if editor:
+                dprint("multi editor")
+                return
+            editor = "; ".join(names["editor"])
         if editor:
             details["editor"] = editor
 
-        authors, text = cls.get_authors(text)
-        for count, author in enumerate(authors, 1):
-            key = f"author{count}" if count > 1 else "author"
-            details[key] = author
+        if "translator" in names:
+            if translator:
+                dprint("multi translator")
+                return
+            translator = "; ".join(names["translator"])
+        if translator:
+            details["translator"] = translator
 
         chapter_title, text = cls.get_chapter_title(text)
         title, text = cls.get_title(text)
 
         if not title:
-            if chapter_title and len(authors) == 1: # Multiple authors is a sign that the publisher or other details may be included in authors
+            if chapter_title and "author2" not in details: # Multiple authors is a sign that the publisher or other details may be included in authors
                 title = chapter_title
                 chapter_title = None
             else:
