@@ -679,6 +679,11 @@ def test_parse_details2():
     assert res == {'date': '26 Aug 1999', 'author': 'Buddy Seigal', 'chapter': 'Even Old Englishmen Still Get Wood', 'chapterurl': 'https://web.archive.org/web/20140826030806/http://www.ocweekly.com/1999-08-26/music/even-old-englishmen-still-get-wood/', 'title': 'OC Weekly', 'accessdate': '16 June 2009'}
 
 
+    text="""'''2009''', John Metzler, "[http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp High stakes for democracy (and terrorism) as Afghans prepare to vote ]," ''World Tribune'' (US), 7 August (retrieved 15 Sep 2010):"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'date': '7 August 2009', 'author': 'John Metzler', 'chapter': 'High stakes for democracy (and terrorism) as Afghans prepare to vote', 'chapterurl': 'http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp', 'title': 'World Tribune', 'accessdate': '15 Sep 2010', 'location': 'US'}
+
 
     #  '''1979''', ''New West'', volume 4, part 1, page 128:
     #  '''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:

@@ -437,7 +437,7 @@ class QuoteFixer():
             location = None
             locations = list(nest_aware_split(":", publisher, [("{{","}}"), ("[","]")]))
             location = locations[0].strip("()")
-            if location in [ "Ourense", "A Coruña", "USA", "UK", "Canada", "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y.",
+            if location in [ "Ourense", "A Coruña", "US", "USA", "UK", "Canada", "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y.",
                     "Santiago", "Santiago de Compostela", "Boston", "Vigo", "Madrid", "Philadelphia", "Ourense", "Edinburgh", "Garden City, NY", "Sada / A Coruña", "Coimbra", "Chicago", "Oxford", "Erich Mühsam", "Pontevedra", "San Francisco", "Oviedo", "Indianapolis", "Cambridge", "Valga", "New York and London", "Sydney", "Leipzig", "Bauzten" ]:
                 publisher = ":".join(locations[1:]).strip()
             else:
