@@ -628,20 +628,10 @@ def test_parse_details():
 def test_parse_details2():
 
 
-#    text="""'''2016''', "The Veracity Elasticity", season 10, episode 7 of ''{{w|The Big Bang Theory}}''"""
-#    res = parse_details(text)
-#    print(res)
-#    assert res == "X"
-
     text="""'''2007''', Eli Maor, ''The Pythagorean Theorem: A 4,000-year History'', {{w|Princeton University Press}}, [https://books.google.com.au/books?id=Z5VoBGy3AoAC&pg=PA1&dq=%22Fermat%27s+Last+Theorem%22&hl=en&sa=X&ved=0ahUKEwiSltz2xMnWAhUMzLwKHcAiBiY4ZBDoAQhcMAk#v=onepage&q=%22Fermat's%20Last%20Theorem%22&f=false page 1],"""
     res = parse_details(text)
     print(res)
     assert res == {'year': '2007', 'author': 'Eli Maor', 'title': 'The Pythagorean Theorem: A 4,000-year History', 'pageurl': "https://books.google.com.au/books?id=Z5VoBGy3AoAC&pg=PA1&dq=%22Fermat%27s+Last+Theorem%22&hl=en&sa=X&ved=0ahUKEwiSltz2xMnWAhUMzLwKHcAiBiY4ZBDoAQhcMAk#v=onepage&q=%22Fermat's%20Last%20Theorem%22&f=false", 'page': '1', 'publisher': '{{w|Princeton University Press}}'}
-
-#    text = """'''2022''', Shaakirrah Sanders, ''[https://www.scotusblog.com/2022/01/court-rejects-door-opening-as-a-sixth-amendment-confrontation-clause-exception/ Court rejects “door opening” as a Sixth Amendment confrontation-clause exception]'', in: SCOTUSblog, 2022-01-20"""
-#    res = parse_details(text)
-#    print(res)
-#    assert res == "X"
 
     text = """'''1955''', {{w|W. H. Auden}}, “Lakes” in ''Selected Poetry of W. H. Auden'', New York: Modern Library, 1959, p.{{nbsp}}149,<sup>[https://openlibrary.org/ia/selectedpoetry00whau]</sup>"""
     res = parse_details(text)
@@ -697,17 +687,62 @@ def test_parse_details2():
     assert res == None # {'year': '1772', 'author': '{{w|Frances Burney}}', 'title': 'Journals & Letters', 'year_published': '2001', 'date_published': '30 May 2001', 'publisher': 'Penguin'}
 
 
-
-    text="""'''1979''', ''New West'', volume 4, part 1, page 128:"""
-    res = parse_details(text)
-    print(res)
-#    assert res == "X"
-
-
+    # Start-End for issue number
     text="""'''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:"""
     res = parse_details(text)
     print(res)
     assert res == {'year': '2004', 'issue': 'September-October', 'title': 'American Cowboy', 'volume': '11', 'number': '2', 'page': '53'}
+
+
+    # no author, strip {{nowrap}}
+    text="""'''2009''', "Is the era of free news over?", ''The Observer'', {{nowrap|10 May:}}"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'date': '10 May 2009', 'chapter': 'Is the era of free news over?', 'title': 'The Observer'}
+
+
+    # {{C.E.}} after year, page=1,392
+    text="""'''1704''' {{C.E.}}, ''Philoſophical tranſactions, Giving ſome Account of the Preſent Undertakings, Studies and Labours of the Ingenious, In many Conſiderable Parts of the World'', volume XXIII, [http://books.google.co.uk/books?id=j2LH2ErAT34C&pg=RA3-PA1392&dq=%22are%C3%A6%22&lr=&num=100&as_brr=0&ei=42YtS4PKDJzyzQSk3dCtBA&cd=41#v=onepage&q=%22are%C3%A6%22&f=false page 1,392]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1704', 'title': 'Philoſophical tranſactions, Giving ſome Account of the Preſent Undertakings, Studies and Labours of the Ingenious, In many Conſiderable Parts of the World', 'volume': 'XXIII', 'pageurl': 'http://books.google.co.uk/books?id=j2LH2ErAT34C&pg=RA3-PA1392&dq=%22are%C3%A6%22&lr=&num=100&as_brr=0&ei=42YtS4PKDJzyzQSk3dCtBA&cd=41#v=onepage&q=%22are%C3%A6%22&f=false', 'page': '1,392'}
+
+
+    # Lines
+    text="""'''1850''' [[w:Dante Gabriel Rossetti|Dante Gabriel Rossetti]], ''The Blessed Damozel'', lines 103-108"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1850', 'author': '[[w:Dante Gabriel Rossetti|Dante Gabriel Rossetti]]', 'title': 'The Blessed Damozel', 'lines': '103-108'}
+
+    # Line
+    text="""'''1798''', [[w:William Cowper|William Cowper]], ''On Receipt of My Mother's Picture'', [https://web.archive.org/web/20090228072946/http://rpo.library.utoronto.ca/poem/564.html line 60]"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1798', 'author': '[[w:William Cowper|William Cowper]]', 'title': "On Receipt of My Mother's Picture", 'line': '60', 'url': 'https://web.archive.org/web/20090228072946/http://rpo.library.utoronto.ca/poem/564.html'}
+
+
+    # tranlating Author & al.
+    text="""'''1898''', Hobart Charles Porter translating Eduard Strasburger & al. ''A Text-book of Botany'', 109:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+
+    # publisher comic strip not idea
+    text = """'''1934''', {{w|George Herriman}}, ''{{w|Krazy Kat}}'', Tuesday, April 17 comic strip ({{ISBN|978-1-63140-408-5}}, p. 112):"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'date': 'April 17 1934', 'author': '{{w|George Herriman}}', 'title': '{{w|Krazy Kat}}', 'page': '112', 'publisher': 'comic strip', 'isbn': '978-1-63140-408-5'}
+
+
+    # and
+    text="""'''2015''', Simon Carnell and Erica Segre, translating {{w|Carlo Rovelli}}, ''Seven Brief Lessons on Physics'', Penguin 2016, p. 44:"""
+
+    text="""'''1962''', Hans Sperber, Travis Trittschuh & Hans Sperber, ''American Political Terms''"""
+
+    text="""'''1977''', Olga Kuthanová, translating Jan Hanzák & Jiří Formánek, ''The Illustrated Encyclopedia of Birds'', London 1992, p. 177:"""
+
+
 
     #  '''2011''', Joyce Cho and Višnja Rogošic, "Burning the Rules", ''PAJ: Journal of Performance and Art'', Volume 33, Number 2, May 2011:
     #  '''2016''', Sune Engel Rasmussen, ''The Guardian'', 22 August:
@@ -721,11 +756,10 @@ def test_parse_details2():
     #
     #   '''2014''', [[w:Paul Doyle (journalist)|Paul Doyle]], "[http://www.theguardian.com/football/2014/oct/18/southampton-sunderland-premier-league-match-report Southampton hammer eight past hapless Sunderland in barmy encounter]", ''The Guardian'', 18 October 2014:
 
-    # Unhandled
-    text = """'''1934''', {{w|George Herriman}}, ''{{w|Krazy Kat}}'', Tuesday, April 17 comic strip ({{ISBN|978-1-63140-408-5}}, p. 112):"""
-    res = parse_details(text)
-    print(res)
-    assert res == {'date': 'April 17 1934', 'author': '{{w|George Herriman}}', 'title': '{{w|Krazy Kat}}', 'page': '112', 'publisher': 'comic strip', 'isbn': '978-1-63140-408-5'}
+
+def test_parse_details_unhandled():
+
+
 
     text = """'''2010''', L. A. Banks, &quot;Dog Tired (of the Drama!)&quot;, in ''Blood Lite II: Overbite'' (ed. Kevin J. Anderson), Gallery Books (2010), {{ISBN|9781439187654}}, [http://books.google.com/books?id=5ckoF81np3sC&amp;pg=PA121&amp;dq=%22beta%22+%22alpha+males%22 page 121]:"""
     res = parse_details(text)
@@ -738,6 +772,34 @@ def test_parse_details2():
     assert res == None
 
     text = """'''1986''', Anthony Burgess, ''Homage to Qwert Yuiop'' (published as ''But Do Blondes Prefer Gentlemen?'' in USA)"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    text="""'''1979''', ''New West'', volume 4, part 1, page 128:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    text="""'''2016''', "The Veracity Elasticity", season 10, episode 7 of ''{{w|The Big Bang Theory}}''"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # TODO: in: should signal that the following is a journal title
+    text = """'''2022''', Shaakirrah Sanders, ''[https://www.scotusblog.com/2022/01/court-rejects-door-opening-as-a-sixth-amendment-confrontation-clause-exception/ Court rejects “door opening” as a Sixth Amendment confrontation-clause exception]'', in: SCOTUSblog, 2022-01-20"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # Fail on bad name
+    text="""'''1885''', Joseph Parker,T''he people's Bible: discourses upon Holy Scripture'', volume 16, page 83"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # Fail on mismatched dates
+    text = """'''2011''' Feb 21, "[http://www.dailymail.co.uk/news/article-1359019/Bankers-revive-strip-club-Spearmint-Rhino-bumper-bonuses.html Bankers revive strip club Spearmint Rhino with bumper bonuses]," ''Daily Mail'' (UK) <small>(24 July 2011)</small>:"""
     res = parse_details(text)
     print(res)
     assert res == None
@@ -901,11 +963,19 @@ def test_get_date():
     assert fixer.get_date("Penguin 2001, May 30") == ('2001', 'May', 30, 'Penguin  ')
     assert fixer.get_date("Penguin 2001, 30 May") == ('2001', 'May', -30, 'Penguin  ')
 
+    assert fixer.get_date("Penguin 20 Jan 08") == ('2008', 'Jan', -20, 'Penguin ')
 
 def test_get_leading_issue():
     assert fixer.get_leading_issue("Spring-Fall. Blah") == ('Spring-Fall', 'Blah')
     assert fixer.get_leading_issue("Oct-Nov. Blah") == ('Oct-Nov', 'Blah')
     assert fixer.get_leading_issue("Winter. Blah") == ('Winter', 'Blah')
+
+def test_strip_wrapper_templates():
+    assert fixer.strip_wrapper_templates("ABC", ["temp1", "temp2"]) == "ABC"
+    assert fixer.strip_wrapper_templates("{{temp1|ABC}}", ["temp1"]) == "ABC"
+    assert fixer.strip_wrapper_templates("{{temp1|ABC}}", ["ABC", "temp1"]) == "ABC"
+    assert fixer.strip_wrapper_templates("AB{{temp1|blah}}CD {{temp2|X}} X{{temp1| x }}X {{temp1|{{temp2|ABC}}}}", ["temp1", "temp2"]) == \
+            "ABblahCD X X x X ABC"
 
 
 def notest_all():
@@ -957,3 +1027,6 @@ def notest_all():
 
 if __name__ == "__main__":
     notest_all()
+
+
+

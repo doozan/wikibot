@@ -2,7 +2,8 @@ import enwiktionary_sectionparser as sectionparser
 from autodooz.sections import ALL_LANGS
 import re
 import sys
-from enwiktionary_parser.utils import nest_aware_split
+from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit
+
 
 
 class QuoteFixer():
@@ -27,13 +28,27 @@ class QuoteFixer():
         page = list(section.lineage)[-1]
         self._log.append((code, page, details))
 
-    def get_year(self, text):
-        m = re.match(r"^'''(\d{4})'''[\.;,:—\- ]*(.*)$", text)
-        if not m:
-            self.dprint(text)
-            return 
+    @staticmethod
+    def strip_wrapper_templates(text, templates):
+        old = ""
+        while old != text:
+            old = text
+            # Strips simple wrappers, doesn't handle nested templates
+            text = re.sub(r"{{\s*(" + "|".join(templates) + r")\s*\|([^|{{]*)}}", r"\2", text)
 
-        return m.group(1), m.group(2)
+        return text
+
+    def get_year(self, text):
+        m = re.match(r"^\s*'''(\d{4})'''[\.;,:—\- ]*(.*)$", text)
+        if not m:
+            self.dprint("NO YEAR", text)
+            return None, None
+
+        # Strip {{CE}} after year
+        post_text = m.group(2)
+        post_text = re.sub(r"^{{(CE|C\.E\.)[^}]*}}\s*", "", post_text)
+
+        return m.group(1), post_text
 
 
     def get_translator(self, text):
@@ -157,16 +172,9 @@ class QuoteFixer():
 
     @staticmethod
     def split_names(text):
-        s = re.search("(( and| &|,|;) )", text)
-        separator = s.group(1) if s else ", "
-
         names = []
-        for name in nest_aware_split(separator, text, [("{{","}}"), ("[[","]]")]):
+        for name, _ in nest_aware_resplit(r"(\band\b|[&,;])", text, [("{{","}}"), ("[[","]]")]):
             name = name.strip()
-            if name.startswith("and "):
-                name = name[4:]
-            if name.startswith("& "):
-                name = name[2:]
             if not name:
                 continue
 
@@ -181,6 +189,7 @@ class QuoteFixer():
 
         return names
 
+
     def classify_names(self, names):
         """
         ["John Doe (author)", "Jane Doe (translator)", "Ed One", "Ed Two (eds.)"] => {"author": ["John Doe"], "translator": ["Jane Doe"], "editor": ["Ed One", "Ed Two"]}
@@ -190,7 +199,132 @@ class QuoteFixer():
         buffer = []
         default = "author"
         for name in names:
+
+            labels = []
+            name_parts = []
+            for text, label in nest_aware_resplit(r"\(.*?\)", name, [("{{","}}"), ("[[","]]")]):
+                if label.strip():
+                    labels.append(label.strip())
+                if text.strip():
+                    name_parts.append(text)
+
+            if len(labels) > 1:
+                self.dprint("multi labels")
+                return
+
+            if len(name_parts) > 1:
+                # Label in the middle = unhandled (or split each name part into separate name?)
+                self.dprint("multi name parts")
+                return
+
+            label = labels[0].lower().strip("(). ") if labels else ""
+            new_name = name_parts[0].rstrip() if name_parts else ""
+
+            if label.endswith("s"):
+                plural = True
+                label = label[:-1]
+            else:
+                plural = False
+
+            if label in ["auth", "author"]:
+                job_type = "author"
+            elif label in ["ed", "editor"]:
+                job_type = "editor"
+            elif label in ["tr", "translating", "translator"]:
+                job_type = "translator"
+
+            # No valid label
+            else:
+                # Handle "John Doe, tranlating Jane Doe"
+                m = re.match(r"\s*translating\s*(?P<name>.*)", name)
+                if m:
+                    if not buffer:
+                        self.dprint("no buffer before translating")
+                        return
+                    res["translator"] = buffer
+                    buffer = []
+                    name = m.group('name').strip()
+                    if not name:
+                        continue
+
+                buffer.append(name)
+                continue
+
+            if new_name:
+                buffer.append(new_name)
+
+            # If the label isn't plural, it only applies to the last item in the buffer
+            # Anything else in the buffer should be labeled with the default
+            if not plural:
+                name = buffer.pop()
+                if buffer:
+                    if default in res:
+                        # Duplicate job label
+                        return
+                    res[default] = buffer
+                buffer = [name]
+
+            # Stray label
+            if not buffer:
+                return
+
+            if job_type in res:
+                # Duplicate job label
+                return
+
+            res[job_type] = buffer
+            buffer = []
+
+
+        if buffer:
+            if default in res:
+                return
+                # Duplicate job label
+                raise ValueError(res, default, buffer)
+            res[default] = buffer
+
+
+        for k, names in res.items():
+            valid_names = []
+            has_et_al = False
+            for name in names:
+                new_name = re.sub(r"(''|\b)(et|&) al((ii|\.)''(.)?|[.,]|$)", "", name)
+                if new_name != name:
+                    has_et_al=True
+                    name = new_name.strip()
+                    if not name:
+                        continue
+                elif name.strip() == "al.":
+                    has_et_al=True
+                    continue
+
+                if not self.is_valid_name(name):
+                    self.dprint(f"invalid {k} name:", name)
+                    return
+
+                valid_names.append(name)
+
+            if has_et_al:
+                valid_names.append("et al")
+
+            res[k] = valid_names
+
+        return res
+
+
+
+
+    def old_classify_names(self, names):
+        """
+        ["John Doe (author)", "Jane Doe (translator)", "Ed One", "Ed Two (eds.)"] => {"author": ["John Doe"], "translator": ["Jane Doe"], "editor": ["Ed One", "Ed Two"]}
+        """
+
+        res = {}
+        buffer = []
+        default = "author"
+        for name in names:
             m = re.match(r"(?P<name>[^(]*?)\s+(?P<label>\(?([Aa]ut(hor)?|[Ee]d(itor)?|[Tt]r(anslat(or|ing))?)s?\.?\))", name)
+
             if not m:
 
                 # Handle "John Doe, tranlating Jane Doe"
@@ -281,8 +415,16 @@ class QuoteFixer():
 
 
     def get_classified_names(self, text):
-        m = re.match("""(.+?) (?P<post>("|''|“).*)$""", text)
-        if not m:
+
+        # Names can't start with a quote mark
+        orig_text = text
+
+        text = text.lstrip(";:, ")
+        if not text or text[0] in ['"', '"', '“', '”']:
+            return {}, text
+
+        m = re.match(r"""^(.*?)[:;, ](?P<post>("|''|“).*)$""", text)
+        if not m or not m.group(1).strip():
             return {}, text
 
         author_text = m.group(1).strip(":;, ").replace("&#91;", "")
@@ -436,7 +578,7 @@ class QuoteFixer():
 
             location = None
             locations = list(nest_aware_split(":", publisher, [("{{","}}"), ("[","]")]))
-            location = locations[0].strip("()")
+            location = locations[0].strip(":,() ")
             if location in [ "Ourense", "A Coruña", "US", "USA", "UK", "Canada", "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y.",
                     "Santiago", "Santiago de Compostela", "Boston", "Vigo", "Madrid", "Philadelphia", "Ourense", "Edinburgh", "Garden City, NY", "Sada / A Coruña", "Coimbra", "Chicago", "Oxford", "Erich Mühsam", "Pontevedra", "San Francisco", "Oviedo", "Indianapolis", "Cambridge", "Valga", "New York and London", "Sydney", "Leipzig", "Bauzten" ]:
                 publisher = ":".join(locations[1:]).strip()
@@ -835,12 +977,13 @@ class QuoteFixer():
 
         return "", text
 
+
     @staticmethod
-    def get_page(text):
+    def get_line(text):
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*         # leading text
             \b                              # hard separator
-            (?:[Pp]age|pg\.|p\.|p)          # page, pg, p., or p
+            (?:[Ll]ine)                     # page, pg, p., or p
             (?:&nbsp;|\s*)+                 # whitespace
             (?P<num>[0-9ivxlcdmIVXLCDM]+)   # numbers or roman numerals
             [;:, ]*(?P<post>.*)$            # trailing text
@@ -850,7 +993,49 @@ class QuoteFixer():
 
         m = re.match(pattern, text)
         if m:
-            return m.group('num'), m.group('pre') + " " + m.group('post')
+            page = m.group('num').strip(",")
+            return page, m.group('pre') + " " + m.group('post')
+
+        return "", text
+
+
+    @staticmethod
+    def get_lines(text):
+
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*             # leading text
+            [Ll]ines                            # Lines
+            (?:&nbsp;|\s*)*                     # optional whitespace
+            ([0-9ivxlcdmIVXLCDM]+               # numbers or roman numerals
+            \s*(?:,|-|–|&|and|to|{{ndash}})+\s*   # mandatory separator(s)
+            [0-9ivxlcdmIVXLCDM]+)               # numbers or roman numerals
+            [;:, ]*                             # trailing separator or whitespace
+            (?P<post>.*)                        # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            return m.group(2), m.group('pre') + " " + m.group('post')
+        return "", text
+
+
+    @staticmethod
+    def get_page(text):
+        pattern = r"""(?x)
+            ^[;:, ]*(?P<pre>.*?)\s*         # leading text
+            \b                              # hard separator
+            (?:[Pp]age|pg\.|p\.|p)          # page, pg, p., or p
+            (?:&nbsp;|\s*)+                 # whitespace
+            (?P<num>[0-9ivxlcdmIVXLCDM,]+)  # numbers or roman numerals, comma separators
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        # TODO: Validate number as pure arabic or roman numerals
+
+        m = re.match(pattern, text)
+        if m:
+            page = m.group('num').strip(",")
+            return page, m.group('pre') + " " + m.group('post')
 
         new_text = re.sub(r"\s*(unknown page|unpaged|unnumbered page(s)?|unmarked page|no page number|page n/a)\s*", " ", text)
         if new_text != text:
@@ -877,6 +1062,14 @@ class QuoteFixer():
 
         m = re.match(pattern, text)
         if m:
+            pages = m.group(2)
+            # Sanity check "1,234" should be "page 1234" and not "pages 1,234"
+            if "," in pages:
+                s = pages.split(",")
+                if len(s) == 2 and len(s[0])==1 and len(s[1]) == 3:
+                    return "", text
+
+
             return m.group(2), m.group('pre') + " " + m.group('post')
         return "", text
 
@@ -1166,17 +1359,25 @@ class QuoteFixer():
         m = re.match(pattern, text)
         if m:
             if m.group('day1') and m.group('day2'):
-                print("bad date")
-                return None, None, None, text
-
-            if m.group('day1'):
                 day = int(m.group('day1'))*-1
-            elif m.group('day2'):
-                day = int(m.group('day2'))
-            else:
-                day = 0
+                year = m.group('day2')
+                if len(year) != 2: # Don't match single digits
+                    print("bad date", text)
+                    return None, None, None, text
 
-            year = m.group('year')
+                # Convert to four digit year, with some future proofing
+                year = "20" + year if int(year)<25 else "19" + year
+
+            else:
+                if m.group('day1'):
+                    day = int(m.group('day1'))*-1
+                elif m.group('day2'):
+                    day = int(m.group('day2'))
+                else:
+                    day = 0
+
+                year = m.group('year')
+
             if day or year:
                 return year, m.group('month'), day, m.group('pre') + " " + m.group('post')
 
@@ -1213,8 +1414,8 @@ class QuoteFixer():
         text = text.replace('{{,}}', ",")
         text = text.replace('{{nbsp}}', " ")
         text = text.replace('&nbsp;', " ")
+        text = self.strip_wrapper_templates(text, ["nowrap", "nobr"])
 
-        # TODO: remove templates from text like {{Nowrap|text}} and {{nobr|text}}
 
         year, text = self.get_year(text)
         if not year:
@@ -1226,45 +1427,39 @@ class QuoteFixer():
         if month and day:
             del details["year"]
             save("date",f"{month} {day} {year}")
-
-        month, text = self.get_month(text)
-        if month:
-            save("month", month)
+        else:
+            month, text = self.get_month(text)
+            if month:
+                save("month", month)
 
         issue, text = self.get_leading_issue(text)
         if issue:
             save("issue", issue)
 
-
-        translator, text = self.get_translator(text)
         editor, text = self.get_editor(text)
+        translator, text = self.get_translator(text)
 
         names, text = self.get_classified_names(text)
-        for count, author in enumerate(names.get("author",[]), 1):
-            key = f"author{count}" if count > 1 else "author"
-            save(key, author)
-
-        if "editor" in names:
-            if editor:
-                self.dprint("multi editor")
-                return
-            if len(names["editor"]) > 1:
-                save("editors", "; ".join(names["editor"]))
+        for k, names in names.items():
+            if k == "author":
+                for count, author in enumerate(names, 1):
+                    key = f"author{count}" if count > 1 else "author"
+                    save(key, author)
+            elif k in ["translator", "editor"]:
+                if len(names) > 1:
+                    save(k + "s", "; ".join(names))
+                else:
+                    save(k, names[0])
             else:
-                editor = names["editor"][0]
+                self.dprint(f"unhandled key {k}")
+                return
+
+        if translator:
+            save("translator", translator)
+
         if editor:
             save("editor", editor)
 
-        if "translator" in names:
-            if translator:
-                self.dprint("multi translator")
-                return
-            if len(names["translator"]) > 1:
-                save("translators", "; ".join(names["translator"]))
-            else:
-                translator = names["translator"][0]
-        if translator:
-            save("translator", translator)
 
         chapter_title, text = self.get_chapter_title(text)
         title, text = self.get_title(text)
@@ -1309,6 +1504,15 @@ class QuoteFixer():
         pages, text = self.get_pages(text)
         page, text = self.get_page(text)
         chapter, text = self.get_chapter(text)
+
+        lines, text = self.get_lines(text)
+        if lines:
+            save("lines", lines)
+
+        line, text = self.get_line(text)
+        if line:
+            save("line", line)
+
         volume, text = self.get_volume(text)
         if volume:
             save("volume", volume)
@@ -1343,30 +1547,24 @@ class QuoteFixer():
         if retrieved:
             save("accessdate", retrieved)
 
-        _year, _month, _day, text = self.get_date(text)
+        if month:
+            _year, _month, _day = None, None, None
+        else:
+            _year, _month, _day, text = self.get_date(text)
         if _month: # Month will always be valid if get_date() returns anything
-            if _year and _year != year: # int(_year) > int(year):
-                # If the detected year is more recent than the citation year
-                # it's the published year/date
-
-                self.dprint("published year doesn't match citation year")
+            if _year and int(_year) < int(year):
+                self.dprint("ERROR: published year before citation year")
                 return
-
-#                save("year_published", _year)
-#                if _day:
-#                    if _day < 0:
-#                        date = f"{_day*-1} {_month} {_year}"
-#                    else:
-#                        date = f"{_month} {_day} {_year}"
-#                    save("date_published", date)
-#                else:
-#                    save("month_published", _month)
 
             else:
                 if not _year:
                     _year = year
-#                elif int(_year) < int(year):
-#                    print("published date before citation date, using published date")
+                elif int(_year) != int(year):
+                    # TODO: currently a secondary date with a month is used to indicate
+                    # that it's a journal, but there's no way to included published_date in journals
+                    # This only happens in a handful of cases
+                    print("FAILED: published year doesn't match citation year")
+                    return
 
                 if _day:
                     if _day < 0:
