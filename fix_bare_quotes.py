@@ -151,6 +151,18 @@ class QuoteFixer():
         if text.startswith("{{w|") and text.endswith("}}"):
             return True
 
+        if text in ["María Francisca Isla y Losada",
+                'Donatien Alphonse François de Sade',
+'Diego Antonio Cernadas y Castro',
+'United States. Congress. House. Committee on Appropriations',
+'United States. Congress. House. Committee on Ways',
+'Homer',
+'Edward Bulwer Lytton Baron Lytton',
+'Canada. Parliament. House of Commons',
+'Shakespeare',
+]:
+            return True
+
         if text[0] in " .;:-" or text[-1] in " ;:-":
             return False
 
@@ -173,7 +185,7 @@ class QuoteFixer():
     @staticmethod
     def split_names(text):
         names = []
-        for name, _ in nest_aware_resplit(r"(\band\b|[&,;])", text, [("{{","}}"), ("[[","]]")]):
+        for name, _ in nest_aware_resplit(r"(\bwith\b|\band\b|[&,;])", text, [("{{","}}"), ("[[","]]")]):
             name = name.strip()
             if not name:
                 continue
@@ -189,102 +201,108 @@ class QuoteFixer():
 
         return names
 
+    _classify_commands = {
+        "(authors)": "*AUTH",
+        "(author)": "AUTH",
+        "(auth)": "AUTH",
+        "(auth.)": "AUTH",
+        "(translator)": "TR",
+        "(tr)": "TR",
+        "(tr.)": "TR",
+        "(transl)": "TR",
+        "(transl.)": "TR",
+        "(trs)": "*TR",
+        "(trs.)": "*TR",
+        "translating": "*TR",
+        "(editors)": "*ED",
+        "(eds)": "*ED",
+        "(eds.)": "*ED",
+        "(editor)": "ED",
+        "(ed)": "ED",
+        "(ed.)": "ED",
+    }
+    _classify_regex = "(" + "|".join(map(re.escape, _classify_commands)) + ")"
 
     def classify_names(self, names):
         """
         ["John Doe (author)", "Jane Doe (translator)", "Ed One", "Ed Two (eds.)"] => {"author": ["John Doe"], "translator": ["Jane Doe"], "editor": ["Ed One", "Ed Two"]}
+
+        each "Name" gets pushed to a stack
+        (label) acts as a command, the () are optional
+        NOTE: "translating" is an alias for "translators"
+        if label is singular, apply the label to last item on the stack and then apply "author" to all stack items
+        if label is plural, apply the label to all items on the stack
         """
 
-        res = {}
-        buffer = []
-        default = "author"
+        state = {}
+        stack = []
+        def run_command(command, stack, state):
+            if not stack:
+                self.dprint("label with no stack", names)
+                return
+
+            consume_full_stack=False
+            if command.startswith("*"):
+                consume_full_stack=True
+                command = command[1:]
+
+            if command == "AUTH":
+                label = "author"
+            elif command == "ED":
+                label = "editor"
+            elif command == "TR":
+                label = "translator"
+            else:
+                self.dprint("unhandled label", command)
+                return
+
+            items = []
+            if consume_full_stack:
+                items = stack.copy()
+
+            # Command applies only to the last item
+            # Other items will be labeled "author"
+            else:
+                items = [stack.pop()]
+                if stack:
+                    state["author"] = stack.copy()
+
+            if label in state:
+                self.dprint("duplicate label", command, items, state)
+                return
+            state[label] = items
+
+            del stack[:]
+
+            return True
+
         for name in names:
 
-            labels = []
+            actions = []
             name_parts = []
-            for text, label in nest_aware_resplit(r"\(.*?\)", name, [("{{","}}"), ("[[","]]")]):
-                if label.strip():
-                    labels.append(label.strip())
-                if text.strip():
-                    name_parts.append(text)
+            for text, command in nest_aware_resplit(self._classify_regex, name, [("{{","}}"), ("[[","]]")]):
+                if text:
+                    text = text.strip()
+                    if text:
+                        stack.append(text)
 
-            if len(labels) > 1:
-                self.dprint("multi labels")
+                if command:
+                    command = self._classify_commands.get(command)
+                    if command:
+                        if not run_command(command, stack, state):
+                            return
+
+        if stack:
+            if not run_command("*AUTH", stack, state):
                 return
 
-            if len(name_parts) > 1:
-                # Label in the middle = unhandled (or split each name part into separate name?)
-                self.dprint("multi name parts")
-                return
 
-            label = labels[0].lower().strip("(). ") if labels else ""
-            new_name = name_parts[0].rstrip() if name_parts else ""
-
-            if label.endswith("s"):
-                plural = True
-                label = label[:-1]
-            else:
-                plural = False
-
-            if label in ["auth", "author"]:
-                job_type = "author"
-            elif label in ["ed", "editor"]:
-                job_type = "editor"
-            elif label in ["tr", "translating", "translator"]:
-                job_type = "translator"
-
-            # No valid label
-            else:
-                # Handle "John Doe, tranlating Jane Doe"
-                m = re.match(r"\s*translating\s*(?P<name>.*)", name)
-                if m:
-                    if not buffer:
-                        self.dprint("no buffer before translating")
-                        return
-                    res["translator"] = buffer
-                    buffer = []
-                    name = m.group('name').strip()
-                    if not name:
-                        continue
-
-                buffer.append(name)
-                continue
-
-            if new_name:
-                buffer.append(new_name)
-
-            # If the label isn't plural, it only applies to the last item in the buffer
-            # Anything else in the buffer should be labeled with the default
-            if not plural:
-                name = buffer.pop()
-                if buffer:
-                    if default in res:
-                        # Duplicate job label
-                        return
-                    res[default] = buffer
-                buffer = [name]
-
-            # Stray label
-            if not buffer:
-                return
-
-            if job_type in res:
-                # Duplicate job label
-                return
-
-            res[job_type] = buffer
-            buffer = []
+        # Fixes for "translating"
+        if "translator" in state and "author" in state:
+            state["author"] = [a.removesuffix("'s").removesuffix(" as") for a in state["author"]]
 
 
-        if buffer:
-            if default in res:
-                return
-                # Duplicate job label
-                raise ValueError(res, default, buffer)
-            res[default] = buffer
-
-
-        for k, names in res.items():
+        for k, names in state.items():
             valid_names = []
             has_et_al = False
             for name in names:
@@ -307,111 +325,13 @@ class QuoteFixer():
             if has_et_al:
                 valid_names.append("et al")
 
-            res[k] = valid_names
-
-        return res
+            state[k] = valid_names
 
 
 
-
-    def old_classify_names(self, names):
-        """
-        ["John Doe (author)", "Jane Doe (translator)", "Ed One", "Ed Two (eds.)"] => {"author": ["John Doe"], "translator": ["Jane Doe"], "editor": ["Ed One", "Ed Two"]}
-        """
-
-        res = {}
-        buffer = []
-        default = "author"
-        for name in names:
-            m = re.match(r"(?P<name>[^(]*?)\s+(?P<label>\(?([Aa]ut(hor)?|[Ee]d(itor)?|[Tt]r(anslat(or|ing))?)s?\.?\))", name)
-
-            if not m:
-
-                # Handle "John Doe, tranlating Jane Doe"
-                m = re.match(r"\s*translating\s*(?P<name>.*)", name)
-                if m:
-                    if not buffer:
-                        self.dprint("no buffer before translating")
-                        return
-                    res["translator"] = buffer
-                    buffer = []
-                    name = m.group('name').strip()
-                    if not name:
-                        continue
-
-                buffer.append(name)
-                continue
-
-            label = m.group("label").lower().strip("().")
-
-            new_name = m.group("name").strip()
-            if new_name:
-                buffer.append(new_name)
-
-            # If the label isn't plural, it only applies to the last item in the buffer
-            # Anything else in the buffer should be labeled with the default
-            if not label.endswith("s"):
-                name = buffer.pop()
-                if buffer:
-                    if default in res:
-                        # Duplicate job label
-                        return
-                    res[default] = buffer
-                buffer = [name]
-
-            if label.startswith("au"):
-                job_type = "author"
-            elif label.startswith("ed"):
-                job_type = "editor"
-            elif label.startswith("tr"):
-                job_type = "translator"
-
-            # Stray label
-            if not buffer:
-                return
-
-            if job_type in res:
-                # Duplicate job label
-                return
-
-            res[job_type] = buffer
-            buffer = []
+        return state
 
 
-        if buffer:
-            if default in res:
-                return
-                # Duplicate job label
-                raise ValueError(res, default, buffer)
-            res[default] = buffer
-
-
-        for k, names in res.items():
-            valid_names = []
-            has_et_al = False
-            for name in names:
-                new_name = re.sub(r"(''|\b)(et|&) al((ii|\.)''(.)?|[.,]|$)", "", name)
-                if new_name != name:
-                    has_et_al=True
-                    name = new_name.strip()
-                    if not name:
-                        continue
-                elif name.strip() == "al.":
-                    has_et_al=True
-                    continue
-
-                if not self.is_valid_name(name):
-                    self.dprint(f"invalid {k} name:", name)
-                    return
-
-                valid_names.append(name)
-
-            if has_et_al:
-                valid_names.append("et al")
-
-            res[k] = valid_names
-
-        return res
 
 
     def get_classified_names(self, text):
@@ -614,6 +534,7 @@ class QuoteFixer():
 
     def is_allowed_publisher(self, text):
         return text in [
+"Polygon",
 "I.E.O.P.F.",
 "Fundación Barrié",
 "UK",
@@ -1415,7 +1336,6 @@ class QuoteFixer():
         text = text.replace('{{nbsp}}', " ")
         text = text.replace('&nbsp;', " ")
         text = self.strip_wrapper_templates(text, ["nowrap", "nobr"])
-
 
         year, text = self.get_year(text)
         if not year:

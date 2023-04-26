@@ -139,17 +139,6 @@ def test_parse_details():
     assert res == {'year': '2012', 'translator': 'Judit Szántó', 'author': '{{w|Kathy Reichs}}', 'title': 'Csont és bőr', 'publisher': 'Ulpius-ház', 'isbn': '9789632545981', 'chapter': '11', 'page': '169'}
 
 
-    # Translator, extra junk
-    text="""'''1974''': [[w:Plato|Plato]] (author) and Desmond Lee (translator), ''[[w:The Republic (Plato)|The Republic]]'' (2nd edition, revised; Penguin Classics; {{ISBN|0140440488}}, Translator’s Introduction, pages 51 and 53:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
-
-    # Volume info, no publisher
-    text="""'''2006''', Renaat Declerck, Susan Reed, Bert Cappelle, ''The Grammar of the English Verb Phrase'', vol. 1, ''The Grammar of the English Tense System'', {{ISBN|9783110185898}}, page 6:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
 
     # Publisher after page
     text="""'''1992''', {{w|Samuel Beckett}}, ''{{w|Dream of Fair to Middling Women}}'', p. 71. John Calder {{ISBN|978-0714542133}}:"""
@@ -188,45 +177,11 @@ def test_parse_details():
     print(res)
     assert res == {'year': '2006', 'author': 'Kelly Pyrek', 'title': 'Forensic Nursing', 'page': '514', 'isbn': '084933540X'}
 
-    # ISBN before title
-    text="""'''2008''', Yolanda McVey, {{ISBN|9781585715787}}, ''Love's Secrets'':"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
-
     # Volume
     text="""'''2008''', John L. Capinera, ''Encyclopedia of Entomology'' {{ISBN|1402062427}}, volume 4, page 3326:"""
     res = parse_details(text)
     print(res)
     assert res == {'year': '2008', 'author': 'John L. Capinera', 'title': 'Encyclopedia of Entomology', 'volume': '4', 'page': '3326', 'isbn': '1402062427'}
-
-    # bad publisher
-    text="""'''1964''', {{w|J. D. Salinger}} (author), Judit Gyepes (translator), ''Zabhegyező'' [''{{w|The Catcher in the Rye}}''], Budapest: Európa Könyvkiadó (1998), {{ISBN|9630764024}}, chapter 11, page 95:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
-
-    # crap after author
-    text="""'''2004''', John P. Frayne and Madeleine Marchaterre, “Notes” to ''The Collected Works of W. B. Yeats, Volume IX: Early Articles and Reviews'', Scribner, {{ISBN|0-684-80730-0}}, [http://books.google.com/books?id=61IX00wwuYYC&pg=PA553&dq=in-memoriam page 553]:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
-
-    text="""'''2013''', [[w:Tom Hanks|Tom Hanks]], introduction to ''Two Sides of the Moon: Our Story of the Cold War Space Race'' by Alexei Leonov and David Scott, Open Road Media {{ISBN|9781480448742}}"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
-
-    # crap after author
-    text="""'''2004''', John P. Frayne and Madeleine Marchaterre, “Notes” to ''The Collected Works of W. B. Yeats, Volume IX: Early Articles and Reviews'', Scribner, {{ISBN|0-684-80730-0}}, [http://books.google.com/books?id=61IX00wwuYYC&pg=PA553&dq=in-memoriam page 553]:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
-
-    text == """#* '''2006''', Irvine Welsh, Federico Corriente Basús transl., ''Porno'', Anagrama ({{ISBN|9788433938565}})"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
 
     text ="""'''2003''', Paz Verdades M. Santos, ''Hagkus: Twentieth-Century Bikol Women Writers'' ({{ISBN |9789715554428}})"""
     res = parse_details(text)
@@ -258,12 +213,6 @@ def test_parse_details():
     print(res)
     assert res == {'year': '1971', 'author': 'Peter Brown', 'title': 'The World of Late Antiquity: AD 150—750', 'page': '54', 'publisher': 'Thames & Hudson LTD', 'year_published': '2013', 'isbn': '0393958035'}
 
-    # Publisher in parenthesis, not handled - other items can be in parethensis
-    text="""'''2010''' Frank Buchmann-Moller ''Someone to Watch Over Me: The Life and Music of Ben Webster'' (University of Michigan Press) {{ISBN|0472025988}} p.57"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
-
     # No publisher, date
     text="""'''1958''', [[w:John Kenneth Galbraith|John Kenneth Galbraith]], ''The Affluent Society'' (1998 edition), {{ISBN|9780395925003}}, [http://books.google.ca/books?id=IfH010hvIqcC&printsec=frontcover&source=gbs_ge_summary_r&cad=0#v=onepage&q=niggardly&f=false p. 186]:"""
     res = parse_details(text)
@@ -281,12 +230,6 @@ def test_parse_details():
     res = parse_details(text)
     print(res)
     assert res == {'year': '2008', 'title': 'Household Economy Approach', 'page': '3', 'isbn': '9781841871196'}
-
-    # Multiple URLS
-    text="""'''2009''', Roger Ebert, ''Roger Ebert's Movie Yearbook 2010'',<sup >[http://books.google.com/books?id=-1aM7D_ymdAC ][http://www.amazon.com/Roger-Eberts-Movie-Yearbook-2010/dp/B003STCR2E ]</sup> Andrews McMeel Publishing, {{ISBN|978-0-7407-8536-8}}, page 363:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
 
     # Publisher location
     text="""'''1978''', Marguerite V. Burke, ''The Ukrainian Canadians'', Toronto: Van Nostrand Reinhold, {{ISBN|0442298633}}, p 48:"""
@@ -364,13 +307,6 @@ def test_parse_details():
     res = parse_details(text)
     print(res)
     assert res == {'year': '1940', 'author': '[[w:Carson McCullers|Carson McCullers]]', 'title': '[[w:The Heart Is a Lonely Hunter|The Heart Is a Lonely Hunter]]', 'page': '306', 'publisher': 'Houghton Mifflin', 'year_published': '2004', 'isbn': '0618526412'}
-
-
-    # ''et al.'' in editor
-    text = """'''1842''', [[w:Solomon Ludwig Steinheim|Solomon Ludwig Steinheim]], "On the Perennial and the Ephemeral in Judaism" in ''The Jewish Philosophy Reader'' (2000), edited by Daniel H. Frank ''et al.'', {{ISBN|9780415168601}}, [http://books.google.ca/books?id=_UbNP_Y0edQC&dq=platitudinize+OR+platitudinizes+OR+platitudinized&q=%22platitudinized%2C%3A#v=snippet&q=%22platitudinized%2C%3A&f=false p. 402]:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
 
     # Numbered edition
     text = """'''2007''', John Howells, Don Merwin, ''Choose Mexico for Retirement'', 10th edition {{ISBN|0762753544}}, page 49:"""
@@ -475,18 +411,6 @@ def test_parse_details():
     res = parse_details(text)
     print(res)
     assert res == {'year': '2009', 'author': 'Steve Scott', 'title': 'Insiders - Outsiders', 'pageurl': 'http://books.google.ca/books?id=LKaOUC90pKUC&pg=PA37&dq=%22ashamed+me%22&hl=en&sa=X&ei=uPlIUqWICfPb4AOc34CACQ&ved=0CDoQ6AEwAjgK#v=snippet&q=%22ashamed%20me%22&f=false', 'pages': '36-37', 'isbn': '9781907172205'}
-
-    # Extra title, unhandled
-    text="""'''2010''', S. Suzanne Nielsen, ed, ''Food Analysis, fourth edition'', {{ISBN|978-1-4419-1477-4}}, Chapter 12, "Traditional Methods for Mineral Analysis", page 213"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
-
-    # Part, not yet handled
-    text="""'''2002''', John Maynard, ''Aborigines and the ‘Sport of Kings’: Aboriginal Jockeys in Australian Racing History'', Aboriginal Studies Press (2013), {{ISBN|9781922059543}}, part II, {{gbooks|4erLAgAAQBAJ|96|streeted}}:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
 
     # multi ISBN
     text = """'''2008''': Martin Walters, ''Chinese Wildlife: A Visitor’s Guide'', [http://books.google.co.uk/books?id=yIqTV8t_ElAC&pg=PA25&dq=%22Chinese+grapefruit%22&ei=nJNLSv60J42mM7HXzK4K page 25] ([https://web.archive.org/web/20090917020647/http://www.bradt-travelguides.com/details.asp?prodid=177 Bradt Travel Guides]; {{ISBN|1841622206}}, 9781841622200)"""
@@ -594,23 +518,6 @@ def test_parse_details():
     print(res)
     assert res == {'year': '1864', 'chapter': 'The Adventures of a Lady in Search of a Horse', 'title': 'London Society', 'volume': 'VI', 'number': 'XXXII', 'month': 'July', 'pageurl': 'http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false', 'page': '5'}
 
-    # Multi chapter, should be journal
-#    text="""'''1935''', {{w|Arthur Leo Zagat}}, ''Girl of the Goat God'', in ''Dime Mystery Magazine'', November 1935, Chapter IV, [http://gutenberg.net.au/ebooks13/1304651h.html]"""
-#    res = parse_details(text)
-#    print(res)
-#    assert res == {'year': '1935', 'author': '{{w|Arthur Leo Zagat}}', 'chapter': 'IV', 'title': 'Dime Mystery Magazine', 'month': 'November', 'url': 'http://gutenberg.net.au/ebooks13/1304651h.html'}
-
-#    text="""'''2022''', Matteo Wong, ''[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]'', in: The Atlantic, December 31 2022"""
-#    res = parse_details(text)
-#    print(res)
-#    assert res == {'author': 'Matteo Wong', 'chapter': 'Hollywood’s Love Affair With Fictional Languages', 'chapterurl': 'https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/', 'title': 'The Atlantic', 'date': 'December 31 2022'}
-
-    # "in" and fancy quotes
-#    text="""'''1633''', {{w|John Donne}}, “The Indifferent” in ''Poems'', London: John Marriot, p. 200,<sup>[http://name.umdl.umich.edu/A69225.0001.001]</sup>"""
-#    res = parse_details(text)
-#    print(res)
-#    assert res == "X"
-
     # Simple
     text = """'''2013''', {{w|Kacey Musgraves}}, "My House":"""
     res = parse_details(text)
@@ -680,13 +587,6 @@ def test_parse_details2():
     assert res == {'year': '2003', 'title': 'Cincinnati Magazine', 'volume': '36', 'number': '5', 'page': '26'}
 
 
-    # Fail if published date newer than citation date (usually used in journals, not needed here in a book citation)
-    text="""'''1772''', {{w|Frances Burney}}, ''Journals & Letters'', Penguin 2001, 30 May:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None # {'year': '1772', 'author': '{{w|Frances Burney}}', 'title': 'Journals & Letters', 'year_published': '2001', 'date_published': '30 May 2001', 'publisher': 'Penguin'}
-
-
     # Start-End for issue number
     text="""'''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:"""
     res = parse_details(text)
@@ -721,11 +621,7 @@ def test_parse_details2():
     assert res == {'year': '1798', 'author': '[[w:William Cowper|William Cowper]]', 'title': "On Receipt of My Mother's Picture", 'line': '60', 'url': 'https://web.archive.org/web/20090228072946/http://rpo.library.utoronto.ca/poem/564.html'}
 
 
-    # tranlating Author & al.
-    text="""'''1898''', Hobart Charles Porter translating Eduard Strasburger & al. ''A Text-book of Botany'', 109:"""
-    res = parse_details(text)
-    print(res)
-    assert res == None
+
 
 
     # publisher comic strip not idea
@@ -735,12 +631,55 @@ def test_parse_details2():
     assert res == {'date': 'April 17 1934', 'author': '{{w|George Herriman}}', 'title': '{{w|Krazy Kat}}', 'page': '112', 'publisher': 'comic strip', 'isbn': '978-1-63140-408-5'}
 
 
+    text="""'''2006''', Michael R. Waters with Mark Long and William Dickens, ''Lone Star Stalag: German Prisoners of War at Camp Hearne''"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2006', 'author': 'Michael R. Waters', 'author2': 'Mark Long', 'author3': 'William Dickens', 'title': 'Lone Star Stalag: German Prisoners of War at Camp Hearne'}
+
+
     # and
     text="""'''2015''', Simon Carnell and Erica Segre, translating {{w|Carlo Rovelli}}, ''Seven Brief Lessons on Physics'', Penguin 2016, p. 44:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2015', 'translators': 'Simon Carnell; Erica Segre', 'author': '{{w|Carlo Rovelli}}', 'title': 'Seven Brief Lessons on Physics', 'page': '44', 'publisher': 'Penguin', 'year_published': '2016'}
 
     text="""'''1962''', Hans Sperber, Travis Trittschuh & Hans Sperber, ''American Political Terms''"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1962', 'author': 'Hans Sperber', 'author2': 'Travis Trittschuh', 'author3': 'Hans Sperber', 'title': 'American Political Terms'}
+
 
     text="""'''1977''', Olga Kuthanová, translating Jan Hanzák & Jiří Formánek, ''The Illustrated Encyclopedia of Birds'', London 1992, p. 177:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1977', 'translator': 'Olga Kuthanová', 'author': 'Jan Hanzák', 'author2': 'Jiří Formánek', 'title': 'The Illustrated Encyclopedia of Birds', 'page': '177', 'location': 'London', 'year_published': '1992'}
+
+    text="""'''1775''', María Francisca Isla y Losada, ''Romance''"""
+    res = parse_details(text)
+    print(res)
+    assert res ==  {'author': 'María Francisca Isla y Losada', 'title': 'Romance', 'year': '1775'}
+
+def test_parse_details3():
+
+    text="""'''1925''', {{w|Ford Madox Ford}}, ''No More Parades'', Penguin 2012 (''Parade's End''), p. 294:"""
+    res = parse_details(text)
+    print(res)
+    assert res ==  None
+
+    text="""'''1892''', Carl Deite translating William Theodore Brannt as ''A Practical Treatise on the Manufacture of Perfumery'', p. 230"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '1892', 'translator': 'Carl Deite', 'author': 'William Theodore Brannt', 'title': 'A Practical Treatise on the Manufacture of Perfumery', 'page': '230'}
+
+    text="""'''1727''', John Gaspar Scheuchzer translating Engelbert Kaempfer's ''History of Japan'', Vol. I, p. 287:"""
+    res = parse_details(text)
+    print(res)
+    assert res ==  {'year': '1727', 'translator': 'John Gaspar Scheuchzer', 'author': 'Engelbert Kaempfer', 'title': 'History of Japan', 'volume': 'I', 'page': '287'}
+
+    text="""'''1989''', Richard Winston & al. translating [[w:Carl Jung|Carl Jung]] & al. as ''Memories, Dreams, Reflections'', p. 108:"""
+    res = parse_details(text)
+    print(res)
+    assert res ==  {'year': '1989', 'translators': 'Richard Winston; et al', 'author': '[[w:Carl Jung|Carl Jung]]', 'author2': 'et al', 'title': 'Memories, Dreams, Reflections', 'page': '108'}
 
 
 
@@ -759,6 +698,102 @@ def test_parse_details2():
 
 def test_parse_details_unhandled():
 
+
+    # tranlating Author & al.
+    text="""'''1898''', Hobart Charles Porter translating Eduard Strasburger & al. ''A Text-book of Botany'', 109:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # Fail if published date newer than citation date (usually used in journals, not needed here in a book citation)
+    text="""'''1772''', {{w|Frances Burney}}, ''Journals & Letters'', Penguin 2001, 30 May:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None # {'year': '1772', 'author': '{{w|Frances Burney}}', 'title': 'Journals & Letters', 'year_published': '2001', 'date_published': '30 May 2001', 'publisher': 'Penguin'}
+
+
+
+    # Extra title, unhandled
+    text="""'''2010''', S. Suzanne Nielsen, ed, ''Food Analysis, fourth edition'', {{ISBN|978-1-4419-1477-4}}, Chapter 12, "Traditional Methods for Mineral Analysis", page 213"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # Part, not yet handled
+    text="""'''2002''', John Maynard, ''Aborigines and the ‘Sport of Kings’: Aboriginal Jockeys in Australian Racing History'', Aboriginal Studies Press (2013), {{ISBN|9781922059543}}, part II, {{gbooks|4erLAgAAQBAJ|96|streeted}}:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+
+    # Publisher in parenthesis, not handled - other items can be in parethensis
+    text="""'''2010''' Frank Buchmann-Moller ''Someone to Watch Over Me: The Life and Music of Ben Webster'' (University of Michigan Press) {{ISBN|0472025988}} p.57"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # Multiple URLS
+    text="""'''2009''', Roger Ebert, ''Roger Ebert's Movie Yearbook 2010'',<sup >[http://books.google.com/books?id=-1aM7D_ymdAC ][http://www.amazon.com/Roger-Eberts-Movie-Yearbook-2010/dp/B003STCR2E ]</sup> Andrews McMeel Publishing, {{ISBN|978-0-7407-8536-8}}, page 363:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # ''et al.'' in editor
+    text = """'''1842''', [[w:Solomon Ludwig Steinheim|Solomon Ludwig Steinheim]], "On the Perennial and the Ephemeral in Judaism" in ''The Jewish Philosophy Reader'' (2000), edited by Daniel H. Frank ''et al.'', {{ISBN|9780415168601}}, [http://books.google.ca/books?id=_UbNP_Y0edQC&dq=platitudinize+OR+platitudinizes+OR+platitudinized&q=%22platitudinized%2C%3A#v=snippet&q=%22platitudinized%2C%3A&f=false p. 402]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+
+    # bad publisher
+    text="""'''1964''', {{w|J. D. Salinger}} (author), Judit Gyepes (translator), ''Zabhegyező'' [''{{w|The Catcher in the Rye}}''], Budapest: Európa Könyvkiadó (1998), {{ISBN|9630764024}}, chapter 11, page 95:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # ISBN before title
+    text="""'''2008''', Yolanda McVey, {{ISBN|9781585715787}}, ''Love's Secrets'':"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+
+    # crap after author
+    text="""'''2004''', John P. Frayne and Madeleine Marchaterre, “Notes” to ''The Collected Works of W. B. Yeats, Volume IX: Early Articles and Reviews'', Scribner, {{ISBN|0-684-80730-0}}, [http://books.google.com/books?id=61IX00wwuYYC&pg=PA553&dq=in-memoriam page 553]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    text="""'''2013''', [[w:Tom Hanks|Tom Hanks]], introduction to ''Two Sides of the Moon: Our Story of the Cold War Space Race'' by Alexei Leonov and David Scott, Open Road Media {{ISBN|9781480448742}}"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # crap after author
+    text="""'''2004''', John P. Frayne and Madeleine Marchaterre, “Notes” to ''The Collected Works of W. B. Yeats, Volume IX: Early Articles and Reviews'', Scribner, {{ISBN|0-684-80730-0}}, [http://books.google.com/books?id=61IX00wwuYYC&pg=PA553&dq=in-memoriam page 553]:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    text == """#* '''2006''', Irvine Welsh, Federico Corriente Basús transl., ''Porno'', Anagrama ({{ISBN|9788433938565}})"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+
+
+
+    # Translator, extra junk
+    text="""'''1974''': [[w:Plato|Plato]] (author) and Desmond Lee (translator), ''[[w:The Republic (Plato)|The Republic]]'' (2nd edition, revised; Penguin Classics; {{ISBN|0140440488}}, Translator’s Introduction, pages 51 and 53:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # Volume info, no publisher
+    text="""'''2006''', Renaat Declerck, Susan Reed, Bert Cappelle, ''The Grammar of the English Verb Phrase'', vol. 1, ''The Grammar of the English Tense System'', {{ISBN|9783110185898}}, page 6:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
 
 
     text = """'''2010''', L. A. Banks, &quot;Dog Tired (of the Drama!)&quot;, in ''Blood Lite II: Overbite'' (ed. Kevin J. Anderson), Gallery Books (2010), {{ISBN|9781439187654}}, [http://books.google.com/books?id=5ckoF81np3sC&amp;pg=PA121&amp;dq=%22beta%22+%22alpha+males%22 page 121]:"""
@@ -803,6 +838,28 @@ def test_parse_details_unhandled():
     res = parse_details(text)
     print(res)
     assert res == None
+
+
+
+    # Multi chapter, should be journal
+    text="""'''1935''', {{w|Arthur Leo Zagat}}, ''Girl of the Goat God'', in ''Dime Mystery Magazine'', November 1935, Chapter IV, [http://gutenberg.net.au/ebooks13/1304651h.html]"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    text="""'''2022''', Matteo Wong, ''[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]'', in: The Atlantic, December 31 2022"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    # "in" and fancy quotes
+    text="""'''1633''', {{w|John Donne}}, “The Indifferent” in ''Poems'', London: John Marriot, p. 200,<sup>[http://name.umdl.umich.edu/A69225.0001.001]</sup>"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
+
+    
+
 
 def test_entry():
 
@@ -937,6 +994,7 @@ def test_classify_names():
     res = fixer.classify_names(names)
     print(res)
     assert res == {'author': ['Lewis B. Ware', 'et al']}
+
 
 def test_get_date():
 
