@@ -684,10 +684,31 @@ def test_parse_details2():
     print(res)
     assert res == {'date': '7 August 2009', 'author': 'John Metzler', 'chapter': 'High stakes for democracy (and terrorism) as Afghans prepare to vote', 'chapterurl': 'http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp', 'title': 'World Tribune', 'accessdate': '15 Sep 2010', 'location': 'US'}
 
+    text="""'''2003''', ''Cincinnati Magazine'' (volume 36, number 5, page 26)"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2003', 'title': 'Cincinnati Magazine', 'volume': '36', 'number': '5', 'page': '26'}
 
-    #  '''1979''', ''New West'', volume 4, part 1, page 128:
-    #  '''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:
-    #  '''2003''', ''Cincinnati Magazine'' (volume 36, number 5, page 26)
+
+    # Fail if published date newer than citation date (usually used in journals, not needed here in a book citation)
+    text="""'''1772''', {{w|Frances Burney}}, ''Journals & Letters'', Penguin 2001, 30 May:"""
+    res = parse_details(text)
+    print(res)
+    assert res == None # {'year': '1772', 'author': '{{w|Frances Burney}}', 'title': 'Journals & Letters', 'year_published': '2001', 'date_published': '30 May 2001', 'publisher': 'Penguin'}
+
+
+
+    text="""'''1979''', ''New West'', volume 4, part 1, page 128:"""
+    res = parse_details(text)
+    print(res)
+#    assert res == "X"
+
+
+    text="""'''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:"""
+    res = parse_details(text)
+    print(res)
+    assert res == {'year': '2004', 'issue': 'September-October', 'title': 'American Cowboy', 'volume': '11', 'number': '2', 'page': '53'}
+
     #  '''2011''', Joyce Cho and Višnja Rogošic, "Burning the Rules", ''PAJ: Journal of Performance and Art'', Volume 33, Number 2, May 2011:
     #  '''2016''', Sune Engel Rasmussen, ''The Guardian'', 22 August:
     #
@@ -877,15 +898,14 @@ def test_get_date():
     assert fixer.get_date('Sunday, 8 Sept. 2009') == ('2009', 'Sept', -8, ' ')
     assert fixer.get_date('Tues 8 Sept. 2009') == ('2009', 'Sept', -8, ' ')
 
+    assert fixer.get_date("Penguin 2001, May 30") == ('2001', 'May', 30, 'Penguin  ')
+    assert fixer.get_date("Penguin 2001, 30 May") == ('2001', 'May', -30, 'Penguin  ')
 
-    text = """\
-''[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]'', in: The Atlantic, December 31 2022\
-"""
-    expected = ('[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]', 'The Atlantic, December 31 2022')
 
-    res = fixer.get_chapter_title(text)
-    print(res)
-    assert res == expected
+def test_get_leading_issue():
+    assert fixer.get_leading_issue("Spring-Fall. Blah") == ('Spring-Fall', 'Blah')
+    assert fixer.get_leading_issue("Oct-Nov. Blah") == ('Oct-Nov', 'Blah')
+    assert fixer.get_leading_issue("Winter. Blah") == ('Winter', 'Blah')
 
 
 def notest_all():

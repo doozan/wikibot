@@ -1020,6 +1020,21 @@ class QuoteFixer():
             return m.group('month'), m.group('post')
         return "", text
 
+    @staticmethod
+    def get_leading_issue(text):
+        pattern = r"""(?x)
+            \s*
+            (?P<season>((Spring|Summer|Fall|Winter|Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)[- ]*)+)
+            [.,]+                           # dot or comma
+            [;:, ]*(?P<post>.*)$            # trailing text
+        """
+
+        m = re.match(pattern, text)
+        if m:
+            return m.group('season').strip(" -"), m.group('post')
+
+        return "", text
+
 
     @staticmethod
     def get_season(text):
@@ -1076,6 +1091,63 @@ class QuoteFixer():
 
     @staticmethod
     def get_date(text):
+
+        # YYYY-MM-DD
+        # YYYY, Month DD
+        pattern = r"""(?x)
+            ^[;:,]*(?P<pre>.*?)              # leading text
+            \b                               # Hard break
+            (?P<year>\d{4})                  # Year
+            [-, ]+                           # separator
+            (?P<month>(0?[1-9]|1[012]|Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(t)?(ember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?))
+            [-, ]+                           # separator
+            (?P<day>3[01]|[12][0-9]|0?[1-9]) # Day
+            \b                               # Hard break
+            [;:, ]*(?P<post>.*)$             # trailing text
+        """
+        m = re.match(pattern, text)
+        if m:
+            month = m.group('month')
+            if month.isnumeric():
+                month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][int(m.group('month'))-1]
+
+            day = int(m.group('day'))  # Always Mon DD
+            if not (
+                    (month == "Feb" and day>29)
+                    or (month in ["Apr", "Jun", "Sep", "Nov"] and day>30)
+                    ):
+                return m.group('year'), month, day, m.group('pre') + " " + m.group('post')
+
+
+
+        # YYYY DD Mon
+        pattern = r"""(?x)
+            ^[;:,]*(?P<pre>.*?)              # leading text
+            \b                               # Hard break
+            (?P<year>\d{4})                  # Year
+            [-, ]+                           # separator
+            (?P<day>3[01]|[12][0-9]|0?[1-9]) # Day
+            [-, ]+                           # separator
+            (?P<month>(Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(t)?(ember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?))
+            \b                               # Hard break
+            [;:, ]*(?P<post>.*)$             # trailing text
+        """
+        m = re.match(pattern, text)
+        if m:
+            month = m.group('month')
+
+            day = int(m.group('day'))*-1  # always DD Month
+            if not (
+                    (month == "Feb" and day>29)
+                    or (month in ["Apr", "Jun", "Sep", "Nov"] and day>30)
+                    ):
+                return m.group('year'), month, day, m.group('pre') + " " + m.group('post')
+
+
+
+        # DD Mon, YYYY
+        # Mon DD, YYYY
+        # Mon, YYYY
         pattern = r"""(?x)
             ^[;:, ]*(?P<pre>.*?)\s*             # leading text
             ((?P<dayname>(Sun|Mon|Tue(s)?|Thu(r?)(s)?|Fri)(day)?)[, ]+)?   # Day name
@@ -1093,6 +1165,10 @@ class QuoteFixer():
 
         m = re.match(pattern, text)
         if m:
+            if m.group('day1') and m.group('day2'):
+                print("bad date")
+                return None, None, None, text
+
             if m.group('day1'):
                 day = int(m.group('day1'))*-1
             elif m.group('day2'):
@@ -1103,26 +1179,6 @@ class QuoteFixer():
             year = m.group('year')
             if day or year:
                 return year, m.group('month'), day, m.group('pre') + " " + m.group('post')
-
-
-        pattern = r"""(?x)
-            ^[;:,]*(?P<pre>.*?)\b            # leading text
-            (?P<year>\d{4})                  # Year
-            \-                               # -
-            (?P<month>0?[1-9]|1[012])        # Month
-            \-                               # -
-            (?P<day>3[01]|[12][0-9]|0?[1-9]) # Day
-            \b[;:, ]*(?P<post>.*)$           # trailing text
-        """
-        m = re.match(pattern, text)
-        if m:
-            month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][int(m.group('month'))-1]
-            day = int(m.group('day'))
-            if not (
-                    (month == "Feb" and day>29)
-                    or (month in ["Apr", "Jun", "Sep", "Nov"] and day>30)
-                    ):
-                return m.group('year'), month, day, m.group('pre') + " " + m.group('post')
 
         return None, None, None, text
 
@@ -1142,6 +1198,13 @@ class QuoteFixer():
         orig_text = text
         details = {}
 
+        def save(k, v, allow_override=False):
+            if not allow_override and k in details:
+                if not "_error" in details:
+                    details["_error"] = []
+                details["_error"].append(f"duplicate key '{k}' OLD:'{details[k]}' NEW:'{orig_text}'")
+            details[k] = v
+
         text = re.sub(r"<\s*/?\s*sup\s*>", "", text)
         text = text.replace('<span class="plainlinks">', "")
         text = text.replace('</span>', "")
@@ -1154,17 +1217,23 @@ class QuoteFixer():
         # TODO: remove templates from text like {{Nowrap|text}} and {{nobr|text}}
 
         year, text = self.get_year(text)
-        details["year"] = year
+        if not year:
+            self.dprint("no year")
+            return
+        save("year", year)
 
         month, day, text = self.get_month_day(text)
         if month and day:
-             del details["year"]
-             details["date"] = f"{month} {day} {year}"
-
+            del details["year"]
+            save("date",f"{month} {day} {year}")
 
         month, text = self.get_month(text)
         if month:
-             details["month"] = month
+            save("month", month)
+
+        issue, text = self.get_leading_issue(text)
+        if issue:
+            save("issue", issue)
 
 
         translator, text = self.get_translator(text)
@@ -1173,29 +1242,29 @@ class QuoteFixer():
         names, text = self.get_classified_names(text)
         for count, author in enumerate(names.get("author",[]), 1):
             key = f"author{count}" if count > 1 else "author"
-            details[key] = author
+            save(key, author)
 
         if "editor" in names:
             if editor:
                 self.dprint("multi editor")
                 return
             if len(names["editor"]) > 1:
-                details["editors"] = "; ".join(names["editor"])
+                save("editors", "; ".join(names["editor"]))
             else:
                 editor = names["editor"][0]
         if editor:
-            details["editor"] = editor
+            save("editor", editor)
 
         if "translator" in names:
             if translator:
                 self.dprint("multi translator")
                 return
             if len(names["translator"]) > 1:
-                details["translators"] = "; ".join(names["translator"])
+                save("translators", "; ".join(names["translator"]))
             else:
                 translator = names["translator"][0]
         if translator:
-            details["translator"] = translator
+            save("translator", translator)
 
         chapter_title, text = self.get_chapter_title(text)
         title, text = self.get_title(text)
@@ -1213,23 +1282,23 @@ class QuoteFixer():
                 return
 
         if chapter_title:
-            details["chapter"] = chapter_title.rstrip(", ")
+            save("chapter", chapter_title.rstrip(", "))
             chapter_url, chapter_title, _ = self.get_url(chapter_title)
             if chapter_url:
                 if _.strip():
                     self.dprint("chapter_url_posttext", _)
                     return
-                details["chapterurl"] = chapter_url
-                details["chapter"] = chapter_title.strip(", ")
+                save("chapterurl", chapter_url)
+                save("chapter", chapter_title.strip(", "), True)
 
-        details["title"] = title.strip(", ")
+        save("title", title.strip(", "))
         title_url, title, _ = self.get_url(title)
         if title_url:
             if _.strip():
                 self.dprint("title_url_posttext", _)
                 return
-            details["url"] = title_url
-            details["title"] = title.strip(", ")
+            save("url", title_url)
+            save("title", title.strip(", "), True)
 
         # url may contain the text like 'page 123' or 'chapter 3', so it needs to be extracted first
         url, _, text = self.get_url(text, True)
@@ -1242,15 +1311,15 @@ class QuoteFixer():
         chapter, text = self.get_chapter(text)
         volume, text = self.get_volume(text)
         if volume:
-            details["volume"] = volume
+            save("volume", volume)
 
         issue, text = self.get_issue(text)
         if issue:
-            details["issue"] = issue
+            save("issue", issue)
 
         number, text = self.get_number(text)
         if number:
-            details["number"] = number
+            save("number", number)
 
         season, text = self.get_season(text)
         episode, text = self.get_episode(text)
@@ -1258,44 +1327,60 @@ class QuoteFixer():
             season, episode, text = self.get_season_episode(text)
 
         if season:
-            details["season"] = season
+            save("season", season)
 
         if episode:
-            details["episode"] = episode
+            save("episode", episode)
 
         edition, text = self.get_edition(text)
         if edition:
             if edition.isnumeric() and len(edition) == 4:
-                details["year_published"] = edition
+                save("year_published", edition)
             else:
-                details["edition"] = edition
+                save("edition", edition)
 
         retrieved, text = self.get_date_retrieved(text)
         if retrieved:
-            details["accessdate"] = retrieved
+            save("accessdate", retrieved)
 
         _year, _month, _day, text = self.get_date(text)
-        if _month:
-            if _year != details.get("year"):
-                if not _year:
-                    _year = details.get("year")
-                else:
-                    self.dprint("mismatch year", text)
-                    return
+        if _month: # Month will always be valid if get_date() returns anything
+            if _year and _year != year: # int(_year) > int(year):
+                # If the detected year is more recent than the citation year
+                # it's the published year/date
 
-            if _day:
-                if _day < 0:
-                    date = f"{_day*-1} {_month} {_year}"
-                else:
-                    date = f"{_month} {_day} {_year}"
+                self.dprint("published year doesn't match citation year")
+                return
 
-                # rename year to date to preserve dictionary order
-                if "year" in details:
-                    details = {"date" if k == "year" else k:v for k,v in details.items()}
-                details["date"] = date
+#                save("year_published", _year)
+#                if _day:
+#                    if _day < 0:
+#                        date = f"{_day*-1} {_month} {_year}"
+#                    else:
+#                        date = f"{_month} {_day} {_year}"
+#                    save("date_published", date)
+#                else:
+#                    save("month_published", _month)
 
             else:
-                details["month"] = _month
+                if not _year:
+                    _year = year
+#                elif int(_year) < int(year):
+#                    print("published date before citation date, using published date")
+
+                if _day:
+                    if _day < 0:
+                        date = f"{_day*-1} {_month} {_year}"
+                    else:
+                        date = f"{_month} {_day} {_year}"
+
+                    # rename year to date to preserve dictionary order
+                    if "year" in details:
+                        details = {"date" if k == "year" else k:v for k,v in details.items()}
+                    save("date", date, True)
+
+                else:
+                    save("month", _month)
 
         if gbooks:
             page = gbooks
@@ -1303,13 +1388,13 @@ class QuoteFixer():
         if url:
             if "books.google" in url or "google.com/books" in url:
                 if page or pages:
-                    details["pageurl"] = url
+                    save("pageurl", url)
                 elif chapter:
-                    details["chapterurl"] = url
+                    save("chapterurl", url)
                 else:
-                    details["url"] = url
+                    save("url", url)
             else:
-                details["url"] = url
+                save("url", url)
 
         if sum(x in details for x in ["url", "chapterurl", "pageurl"]) > 1:
             #print("multiple_urls", orig_text)
@@ -1320,13 +1405,13 @@ class QuoteFixer():
             if "chapter" in details:
                 self.dprint("multiple chapter declarations", chapter, details)
                 return
-            details["chapter"] = chapter
+            save("chapter", chapter)
 
         if page:
-            details["page"] = page
+            save("page", page)
 
         if pages:
-            details["pages"] = pages
+            save("pages", pages)
 
         # Parse publisher after removing page, chapter, and volume info
 
@@ -1335,13 +1420,13 @@ class QuoteFixer():
             return
 
         if location:
-            details["location"] = location
+            save("location", location)
 
         if publisher:
-            details["publisher"] = publisher
+            save("publisher", publisher)
 
         if year_published and year_published != year:
-            details["year_published"] = year_published
+            save("year_published", year_published)
 
 
 
@@ -1349,15 +1434,15 @@ class QuoteFixer():
         if isbn:
             for count, isbn in enumerate(isbn, 1):
                 key = f"isbn{count}" if count > 1 else "isbn"
-                details[key] = isbn
+                save(key, isbn)
 
         oclc, text = self.get_oclc(text)
         if oclc:
-            details["oclc"] = oclc
+            save("oclc", oclc)
 
         issn, text = self.get_issn(text)
         if issn:
-            details["issn"] = issn
+            save("issn", issn)
 
 #        if not isbn and not oclc and not issn:
 #            print("NO ISBN, OCLC, or ISSN FOUND")
@@ -1370,6 +1455,13 @@ class QuoteFixer():
         text = text.strip('#*:;, ()".')
         if page or pages:
             text = re.sub(r"([Pp]age(s)?|pp\.|p\.|pg\.)", "", text)
+
+
+        if "_error" in details:
+            for err in details["_error"]:
+                self.dprint(err)
+            return
+
 
         if text:
             self.dprint("unparsed text:", text, details)
@@ -1460,23 +1552,37 @@ class QuoteFixer():
         return "text"
 
     _param_adjustments = {
-        "journal": {
+        "journal": [
             # Old : New
+            {
             "title": "journal",
+#            "issue": "start_date",
+            },
+            {
             "chapter": "title",
             "chapterurl": "titleurl",
             "url": "titleurl",
             "number": "issue",
             }
+        ]
     }
 
     def get_source_adjusted_params(self, source, params):
         # Renames paramaters in params to match those used by "source" type templates
-        rename = self._param_adjustments.get(source)
-        if not rename:
+        rename_stages = self._param_adjustments.get(source)
+        if not rename_stages:
             return params
 
-        return {rename.get(k, k):v for k,v in params.items()}
+        res = params
+        for x, rename in enumerate(rename_stages):
+            for k in rename.values():
+                if k in res:
+                    self.dprint(f"conflicting param during rename {k}")
+                    return
+
+            res = {rename.get(k, k):v for k,v in res.items()}
+
+        return res
 
 
     def convert_quotes(self, section, title):
@@ -1533,7 +1639,7 @@ class QuoteFixer():
             if failed:
                 continue
 
-            new_lines = self.get_new_lines(start, section, params, passage_lines, translation_lines)
+            new_lines = self.get_new_lines(start, section, params, passage_lines, translation_lines, idx)
             if not new_lines:
                 continue
 
@@ -1551,7 +1657,7 @@ class QuoteFixer():
 
         return changed
 
-    def get_new_lines(self, start, section, params, passage_lines, translation_lines):
+    def get_new_lines(self, start, section, params, passage_lines, translation_lines, idx):
 
         lang_id = ALL_LANGS.get(section._topmost.title)
 
@@ -1581,11 +1687,15 @@ class QuoteFixer():
         prefix = self.get_template_type(section)
         source = self.get_template_source(params)
         if not source:
+            print("FAILED", section._lines[idx])
+            #exit()
             return
 
         template = prefix + "-" + source
 
         params = self.get_source_adjusted_params(source, params)
+        if not params:
+            return
 
         if source == "journal" and not all(x in params for x in ["journal", "title"]):
             self.dprint("incomplete journal entry")
