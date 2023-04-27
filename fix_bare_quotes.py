@@ -139,49 +139,118 @@ class QuoteFixer():
         return "; ".join(names), m.group('pre') + " " + m.group('post')
 
 
-    @staticmethod
-    def is_valid_name(text):
+    _allowed_names = {
+        "María Francisca Isla y Losada",
+        'Donatien Alphonse François de Sade',
+        'Diego Antonio Cernadas y Castro',
+        'United States. Congress. House. Committee on Appropriations',
+        'United States. Congress. House. Committee on Ways',
+        'Great Britain. Parliament. House of Commons',
+        'Edward Bulwer Lytton Baron Lytton',
+        'Canada. Parliament. House of Commons',
+        'Shakespeare',
+        'Homer',
+        'Various',
+        'Anonymous',
+        'Unknown'
+    }
+    _allowed_names = {k.lower() for k in _allowed_names}
+
+    # Valid names, unless listed in _allowed_names above can never contain these words
+    _disallowed_name_parts = ["and", "in", "of", "by", "to", "et", "press", "guides", "guide", "chapter", "diverse", "journal", "new" ]
+
+    _allowed_short_name_parts = ["jr", "md", "phd", "msw", "jd", "ii", "iii", "iv", "ms", "phd" "sr", "mr", "mrs", "dr"] + \
+            [ "one", "two" ] + \
+            [ "doe", "ed", "eli", "jan", "san", "rob", "odd", "van", "paz"]
+
+    def is_valid_name(self, text):
 
         if not text:
             return False
 
-        if text.startswith("[") and text.endswith("]"):
+        if text.lower() in self._allowed_names:
+            self.dprint("allowed name", text)
             return True
-
-        if text.startswith("{{w|") and text.endswith("}}"):
-            return True
-
-        if text in ["María Francisca Isla y Losada",
-                'Donatien Alphonse François de Sade',
-'Diego Antonio Cernadas y Castro',
-'United States. Congress. House. Committee on Appropriations',
-'United States. Congress. House. Committee on Ways',
-'Great Britain. Parliament. House of Commons',
-'Homer',
-'Edward Bulwer Lytton Baron Lytton',
-'Canada. Parliament. House of Commons',
-'Shakespeare',
-]:
-            return True
-
-        if text[0] in " .;:-" or text[-1] in " ;:-":
-            return False
-
-        bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''",  r"\b(and|in|of|by|to|et al|Guides|Press|[Cc]hapter|Diverse)\b", r"\.com", r"\btrans" ]
-        pattern = "(" +  "|".join(bad_items) + ")"
-        if re.search(pattern, text):
-            return False
 
         if len(text) < 5:
+            self.dprint("disallowed name, too short", text)
             return False
 
-        if text.count(" ") > 3:
+        if text[0] in " .;:-" or text[-1] in " ;:-":
+            self.dprint("disallowed name, starts or ends with delimiter", text)
             return False
 
-        if " " in text and "unknown" in text.lower():
+        if text.count('"') != text.count('"'):
+            self.dprint("disallowed name, unbalanced quote", text)
             return False
 
-        if " " not in text and text not in ["Various", "Anonymous", "anonymous", "Unknown", "unknown"]:
+        if text.count("(") != text.count(")"):
+            self.dprint("disallowed name, unbalanced paren", text)
+            return False
+
+        if text.count("{{") != text.count("}}"):
+            self.dprint("disallowed name, unbalanced curly brackets", text)
+            return False
+
+        if text.count("[") != text.count("]"):
+            self.dprint("disallowed name, unbalanced square brackets", text)
+            return False
+
+        if text.count("[[") != text.count("]]"):
+            self.dprint("disallowed name, unbalanced double square brackets", text)
+            return False
+
+        # TODO: Ensure opening {{ matches closing }}
+        if text.startswith("{{w|") and text.endswith("}}"):
+            self.dprint("allowed name, curly wikilink", text)
+            return True
+
+        if text.startswith("[[w:") and text.endswith("]]"):
+            self.dprint("allowed name, square bracket wikilink", text)
+            return True
+
+        # Single word names must match allowlist
+        words = [w for w in re.split(r"[.\s]+", text) if w]
+        print(words)
+        if len(words) == 1:
+            self.dprint("disallowed name, single word", text)
+            return False
+
+        if any(len(word) in [2] and word.lower() not in self._allowed_short_name_parts for word in words):
+            self.dprint("disallowed name, short word not in allowlist", text)
+            return False
+
+        # Three or more long names fails
+        if len(list(word for word in words if len(word) > 3)) > 3:
+            self.dprint("disallowed name, many words", text)
+            return False
+
+        # First word in name must be uppercase
+        if not words[0][0].isupper():
+            self.dprint("disallowed name, first name not uppercase", text)
+            return False
+
+        # Last word in name must be uppercase
+        if not words[-1][0].isupper():
+            self.dprint("disallowed name, final name not uppercase", text)
+            return False
+
+        if any(word.lower() in self._disallowed_name_parts for word in words):
+            self.dprint("disallowed name, disallowed name part", text)
+            return False
+
+        # All non-uppercase words must match allowlist
+        for word in words:
+            if word[0].islower() and word.lower not in ["de"]:
+                self.dprint("disallowed name, lowercase name part", text)
+                print("LOWERCASE NAME", word)
+                return False
+
+
+        bad_items = [r'''[:ə"“”\-()<>\[\]\d]''', "''", r"\.com"]
+        pattern = "(" +  "|".join(bad_items) + ")"
+        if re.search(pattern, text):
+            self.dprint("disallowed name, disallowed characters", text)
             return False
 
         return True
@@ -271,7 +340,7 @@ class QuoteFixer():
             return True
 
         if not stack:
-            self.dprint("command with no stack", command, stack, state)
+            self.dprint("command with no stack", command_line, stack, state)
             return
 
         if cmd == "<":
@@ -289,12 +358,12 @@ class QuoteFixer():
             state["_next"] = value
 
         else:
-            self.dprint("unhandled label command", command)
+            self.dprint("unhandled label command", command_line)
             return
 
         if consume_items:
             if value in state:
-                self.dprint("duplicate value", command, consume_items, state)
+                self.dprint("duplicate value", command_line, consume_items, state)
                 return
             state[value] = consume_items
 
@@ -322,8 +391,10 @@ class QuoteFixer():
             actions = []
             name_parts = []
             for text, command in nest_aware_resplit(self._classify_regex, name, [("{{","}}"), ("[[","]]")]):
+                print("XX", [text, command])
                 if text:
-                    text = text.strip()
+                    # TODO: only strip () if there is a command
+                    text = text.rstrip(" ()")
                     if text:
                         self.run_command("+" + text, stack, state)
 
@@ -338,9 +409,13 @@ class QuoteFixer():
                 return
 
 
-        # Fixes for "translating"
+        # Fixes for "Carl Deite translating William Theodore Brannt as"
         if "translator" in state and "author" in state:
             state["author"] = [a.removesuffix("'s").removesuffix(" as") for a in state["author"]]
+
+        # Normalize whitespace
+        for k, vals in state.items():
+            state[k] = [re.sub("\s+", " ", v) for v in vals]
 
         for k, names in state.items():
             valid_names = []
@@ -446,7 +521,7 @@ class QuoteFixer():
         return "", text
 
 
-    def get_title(self, text):
+    def get_leading_title(self, text):
         # The title is the first string closed in '' '' possibly followed by (novel)
 
         # match exactly 2 or 5 single quotes
@@ -1352,9 +1427,6 @@ class QuoteFixer():
 
     def parse_details(self, text):
 
-        print("_____")
-        print(text)
-
         # This assumes details are listed in the following order
         # '''YEAR''', Author 1, Author 2, ''Title of work'', Publisher (ISBN)
         # Authors and Publish are optional
@@ -1408,34 +1480,45 @@ class QuoteFixer():
             save("issue", issue)
 
         names, text = self.get_leading_classified_names(text)
-        for k, names in names.items():
-            if k == "author":
-                for count, author in enumerate(names, 1):
-                    key = f"author{count}" if count > 1 else "author"
-                    save(key, author)
-            elif k in ["translator", "editor"]:
-                if len(names) > 1:
-                    save(k + "s", "; ".join(names))
+
+        def add_names(names):
+            for k, names in names.items():
+                if k == "author":
+                    for count, author in enumerate(names, 1):
+                        key = f"author{count}" if count > 1 else "author"
+                        save(key, author)
+                elif k in ["translator", "editor"]:
+                    if len(names) > 1:
+                        save(k + "s", "; ".join(names))
+                    else:
+                        save(k, names[0])
                 else:
-                    save(k, names[0])
-            else:
-                self.dprint(f"unhandled key {k}")
-                return
+                    self.dprint(f"unhandled key {k}")
+                    return
 
-        translator, text = self.get_translator(text)
-        if translator:
-            save("translator", translator)
-
-        editor, text = self.get_editor(text)
-        if editor:
-            save("editor", editor)
+        add_names(names)
 
         chapter_title, text = self.get_leading_chapter_title(text)
-        title, text = self.get_title(text)
+        title, text = self.get_leading_title(text)
 
-        subtitle, text = self.get_title(text)
+        subtitle, text = self.get_leading_title(text)
         if title and subtitle:
             title = f"{title}: {subtitle}"
+
+        # TODO: If title, strip any leading "in:" from the text
+        if chapter_title:
+            text = re.sub("^[-.,:; ]+in[-.,:; ]+", "", text)
+
+
+        # Maybe not chapter?
+        if not chapter_title:
+            chapter_title, text = self.get_leading_chapter_title(text)
+            if chapter_title:
+                save("chapter", chapter_title.rstrip(", "))
+
+        # TODO: read next item repeatedly, trying title, chapter_title, names until no more changes
+        # then look at formats and guess values
+
 
         if not title:
             if chapter_title and "author2" not in details: # Multiple authors is a sign that the publisher or other details may be included in authors
@@ -1463,6 +1546,23 @@ class QuoteFixer():
                 return
             save("url", title_url)
             save("title", title.strip(", "), True)
+
+
+        names, text = self.get_leading_classified_names(text)
+        add_names(names)
+
+
+
+
+        translator, text = self.get_translator(text)
+        if translator:
+            save("translator", translator)
+
+        editor, text = self.get_editor(text)
+        if editor:
+            save("editor", editor)
+
+
 
         # url may contain the text like 'page 123' or 'chapter 3', so it needs to be extracted first
         url, _, text = self.get_url(text, True)

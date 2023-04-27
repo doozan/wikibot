@@ -103,7 +103,7 @@ def test_parse_details():
     text = """'''2013''', Charles Dickens (tr. by Hans Jørgen Birkmose), ''Oliver Twist'', Klim ({{ISBN|9788771292855}})#"""
     res = parse_details(text)
     print(res)
-#    assert res == {'year': '2013', 'translator': 'Hans Jørgen Birkmose', 'author': 'Charles Dickens', 'title': 'Oliver Twist', 'publisher': 'Klim', 'isbn': '9788771292855'}
+    assert res == {'year': '2013', 'translator': 'Hans Jørgen Birkmose', 'author': 'Charles Dickens', 'title': 'Oliver Twist', 'publisher': 'Klim', 'isbn': '9788771292855'}
 
 
     # no publisher, period after title, colon after author
@@ -687,10 +687,19 @@ def test_parse_details3():
     #
     # [“"']*(URL)[”"']*
 
+
+
+    text="""'''1874''', G. M. Towle (translating {{w|Jules Verne}}), ''{{w|Around the World in 80 Days}}''"""
+    res = parse_details(text)
+    print(res)
+    assert res ==  {'year': '1874', 'translator': 'G. M. Towle', 'author': '{{w|Jules Verne}}', 'title': '{{w|Around the World in 80 Days}}'}
+
+
     text="""'''2007''', Tim Pooley, “The Uneasy Interface”, in Yuji Kawaguchi et al. (editors), ''Corpus-Based Perspectives in Linguistics'', John Benjamins Publishing Company, {{ISBN|978-90-272-3318-9}}, [http://books.google.com/books?id=0qrZwAZSQq4C&pg=PA175&dq=Torontarians page 175]:"""
     res = parse_details(text)
     print(res)
-#    assert res ==  "X"
+    assert res ==  None
+    # TODO:
 
     #  '''2011''', Joyce Cho and Višnja Rogošic, "Burning the Rules", ''PAJ: Journal of Performance and Art'', Volume 33, Number 2, May 2011:
     #  '''2016''', Sune Engel Rasmussen, ''The Guardian'', 22 August:
@@ -706,6 +715,11 @@ def test_parse_details3():
 
 
 def test_parse_details_unhandled():
+
+    text="""'''2005''', {{w|Chamillionaire}} (featuring {{w|Krayzie Bone}}), "{{w|Ridin'}}", ''{{w|The Sound of Revenge}}'':"""
+    res = parse_details(text)
+    print(res)
+    assert res == None
 
 
     # tranlating Author & al.
