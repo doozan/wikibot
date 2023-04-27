@@ -159,11 +159,24 @@ class QuoteFixer():
     # Valid names, unless listed in _allowed_names above can never contain these words
     _disallowed_name_parts = ["and", "in", "of", "by", "to", "et", "press", "guides", "guide", "chapter", "diverse", "journal", "new" ]
 
-    _allowed_short_name_parts = ["jr", "md", "phd", "msw", "jd", "ii", "iii", "iv", "ms", "phd" "sr", "mr", "mrs", "dr"] + \
-            [ "one", "two" ] + \
-            [ "doe", "ed", "eli", "jan", "san", "rob", "odd", "van", "paz"]
+    _allowed_short_name_parts = ["ed", "jr", "md", "jd", "ii", "iv", "vi", "ms", "sr", "mr", "dr"]
+#            [ "phd", "msw", "iii", "mrs" ] +
+#            [ "one", "two" ] + \
+#            [ "doe", "ed", "eli", "jan", "san", "rob", "odd", "van", "paz"]
 
-    _allowed_lowercase_names = ["de", "von", "van", "del", "vom", "vander"]
+    _allowed_lowercase_names = ["y", "de", "von", "van", "del", "vom", "vander", "bin"]
+    _allowed_lowercase_prefix = ["d'", "d’", "al-", "de", "da"]
+    _allowed_lowercase_regex = r"^(" + "|".join(map(re.escape, _allowed_lowercase_prefix)) + ")[A-Z]"
+
+    def allowed_lowercase_name(self, word):
+        if word.lower() in self._allowed_lowercase_names:
+            return True
+
+        if re.match(self._allowed_lowercase_regex, word):
+            return True
+
+        return False
+
 
     def is_valid_name(self, text):
 
@@ -236,7 +249,7 @@ class QuoteFixer():
             return False
 
         # Last word in name must be uppercase
-        if not words[-1][0].isupper():
+        if not words[-1][0].isupper() and not self.allowed_lowercase_name(words[-1]):
             self.dprint("disallowed name, final name not uppercase", text)
             return False
 
@@ -246,9 +259,9 @@ class QuoteFixer():
 
         # All non-uppercase words must match allowlist
         for word in words:
-            if word[0].islower() and word.lower not in self._allowed_lowercase_names:
+            if word[0].islower() and not self.allowed_lowercase_name(word):
                 self.dprint("disallowed name, lowercase name part", text)
-                print("LOWERCASE NAME", word)
+                print("LOWERCASE NAME", [word])
                 return False
 
 
@@ -427,7 +440,7 @@ class QuoteFixer():
 
         # Normalize whitespace
         for k, vals in state.items():
-            state[k] = [re.sub("\s+", " ", v) for v in vals]
+            state[k] = [re.sub(r"\s+", " ", v) for v in vals]
 
         for k, names in state.items():
             valid_names = []
@@ -1243,6 +1256,7 @@ class QuoteFixer():
             (?P<month>Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)
             [.,]*                           # dot or comma
             (\s+(?P<day>3[01]|[12][0-9]|0?[1-9]))   # 1-31
+            (st|nd|rd|th)?
             \b                              # hard separator
             [;:, ]*(?P<post>.*)$            # trailing text
         """
