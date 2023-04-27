@@ -38,7 +38,7 @@ class QuoteFixer():
 
         return text
 
-    def get_year(self, text):
+    def get_leading_year(self, text):
         m = re.match(r"^\s*'''(\d{4})'''[\.;,:—\- ]*(.*)$", text)
         if not m:
             self.dprint("NO YEAR", text)
@@ -156,6 +156,7 @@ class QuoteFixer():
 'Diego Antonio Cernadas y Castro',
 'United States. Congress. House. Committee on Appropriations',
 'United States. Congress. House. Committee on Ways',
+'Great Britain. Parliament. House of Commons',
 'Homer',
 'Edward Bulwer Lytton Baron Lytton',
 'Canada. Parliament. House of Commons',
@@ -175,6 +176,9 @@ class QuoteFixer():
             return False
 
         if text.count(" ") > 3:
+            return False
+
+        if " " in text and "unknown" in text.lower():
             return False
 
         if " " not in text and text not in ["Various", "Anonymous", "anonymous", "Unknown", "unknown"]:
@@ -202,28 +206,104 @@ class QuoteFixer():
         return names
 
     _classify_commands = {
-        "(authors)": "*AUTH",
-        "(author)": "AUTH",
-        "(auth)": "AUTH",
-        "(auth.)": "AUTH",
-        "(translator)": "TR",
-        "(tr)": "TR",
-        "(tr.)": "TR",
-        "(transl)": "TR",
-        "(transl.)": "TR",
-        "(trs)": "*TR",
-        "(trs.)": "*TR",
-        "translating": "*TR",
-        "(editors)": "*ED",
-        "(eds)": "*ED",
-        "(eds.)": "*ED",
-        "(editor)": "ED",
-        "(ed)": "ED",
-        "(ed.)": "ED",
+        "(authors)": "<author",
+        "(English author)": "!author",
+        "(original author)": "!author",
+#        "(writer)": "author",
+#        "(lyrics)": "author",
+        "(author)": "!author",
+        "(aut.)": "!author",
+        "(auth)": "!author",
+        "(auth.)": "!author",
+        "(translator)": "!translator",
+        "(attributed translator)": "!translator",
+        "(tr)": "!translator",
+        "(tr.)": "!translator",
+        "(trans.)": "!translator",
+        "(translation)": "!translator",
+        "(transl)": "!translator",
+        "(transl.)": "!translator",
+        "(translators)": "<translator",
+        "(trs)": "<translator",
+        "(trs.)": "<translator",
+        "(editors)": "<editor",
+        "(eds)": "<editor",
+        "(eds.)": "<editor",
+        "(editor)": "!editor",
+        "(ed)": "!editor",
+        "(Ed.)": "!editor",
+        "(ed.)": "!editor",
+        "(compiler)": "!editor",
+
+        "translator": "!translator",
+        "translating": "<translator",
+        "translated by": ">translator",
+        "tr. by": ">translator",
+        "trans. by": ">translator",
+
     }
     _classify_regex = "(" + "|".join(map(re.escape, _classify_commands)) + ")"
 
-    def classify_names(self, names):
+
+    def run_command(self, command_line, stack, state):
+
+        """
+        <CMD><VALUE>
+
+        CMD can be:
+          + (push value to stack)
+          < (apply value to all stack items)
+          ! (apply value to top stack item and apply default to all remaining stack items
+          > (apply value to next item pushed to stack)
+        """
+
+        cmd = command_line[0]
+        value = command_line[1:]
+
+        if cmd == "+":
+            item = value.strip()
+            label = state.get("_next")
+            if label:
+                state[label] = [item]
+                del state["_next"]
+            else:
+                stack.append(item)
+            return True
+
+        if not stack:
+            self.dprint("command with no stack", command, stack, state)
+            return
+
+        if cmd == "<":
+            consume_items = stack.copy()
+
+        elif cmd == "!":
+            consume_items = [stack.pop()]
+            if stack:
+                state["author"] = stack.copy()
+
+        elif cmd == ">":
+            consume_items = None
+            if stack:
+                state["author"] = stack.copy()
+            state["_next"] = value
+
+        else:
+            self.dprint("unhandled label command", command)
+            return
+
+        if consume_items:
+            if value in state:
+                self.dprint("duplicate value", command, consume_items, state)
+                return
+            state[value] = consume_items
+
+        del stack[:]
+
+        return True
+
+
+    def classify_names(self, names, _debug_text=""):
         """
         ["John Doe (author)", "Jane Doe (translator)", "Ed One", "Ed Two (eds.)"] => {"author": ["John Doe"], "translator": ["Jane Doe"], "editor": ["Ed One", "Ed Two"]}
 
@@ -236,45 +316,6 @@ class QuoteFixer():
 
         state = {}
         stack = []
-        def run_command(command, stack, state):
-            if not stack:
-                self.dprint("label with no stack", names)
-                return
-
-            consume_full_stack=False
-            if command.startswith("*"):
-                consume_full_stack=True
-                command = command[1:]
-
-            if command == "AUTH":
-                label = "author"
-            elif command == "ED":
-                label = "editor"
-            elif command == "TR":
-                label = "translator"
-            else:
-                self.dprint("unhandled label", command)
-                return
-
-            items = []
-            if consume_full_stack:
-                items = stack.copy()
-
-            # Command applies only to the last item
-            # Other items will be labeled "author"
-            else:
-                items = [stack.pop()]
-                if stack:
-                    state["author"] = stack.copy()
-
-            if label in state:
-                self.dprint("duplicate label", command, items, state)
-                return
-            state[label] = items
-
-            del stack[:]
-
-            return True
 
         for name in names:
 
@@ -284,23 +325,22 @@ class QuoteFixer():
                 if text:
                     text = text.strip()
                     if text:
-                        stack.append(text)
+                        self.run_command("+" + text, stack, state)
 
                 if command:
-                    command = self._classify_commands.get(command)
-                    if command:
-                        if not run_command(command, stack, state):
+                    cmd = self._classify_commands.get(command)
+                    if cmd:
+                        if not self.run_command(cmd, stack, state):
                             return
 
         if stack:
-            if not run_command("*AUTH", stack, state):
+            if not self.run_command("<author", stack, state):
                 return
 
 
         # Fixes for "translating"
         if "translator" in state and "author" in state:
             state["author"] = [a.removesuffix("'s").removesuffix(" as") for a in state["author"]]
-
 
         for k, names in state.items():
             valid_names = []
@@ -317,7 +357,10 @@ class QuoteFixer():
                     continue
 
                 if not self.is_valid_name(name):
-                    self.dprint(f"invalid {k} name:", name)
+                    m = re.search(r"\(.*?\)", name)
+                    if m:
+                        self.dprint("unhandled paren in name", m.group(0))
+                    self.dprint(f"invalid {k} name:", name, ":::", _debug_text)
                     return
 
                 valid_names.append(name)
@@ -327,14 +370,16 @@ class QuoteFixer():
 
             state[k] = valid_names
 
-
+        if any(k.startswith("_") for k in state.keys()):
+            self.dprint(f"LIST VM BAD RETURN STATE", state)
+            raise ValueError(f"LIST VM BAD RETURN STATE", state)
 
         return state
 
 
 
 
-    def get_classified_names(self, text):
+    def get_leading_classified_names(self, text):
 
         # Names can't start with a quote mark
         orig_text = text
@@ -358,7 +403,7 @@ class QuoteFixer():
         names = self.split_names(author_text)
         if not names:
             return {}, text
-        classified_names = self.classify_names(names)
+        classified_names = self.classify_names(names, author_text)
 
         if classified_names:
             return classified_names, m.group('post')
@@ -369,7 +414,7 @@ class QuoteFixer():
 
 
     @staticmethod
-    def get_chapter_title(text):
+    def get_leading_chapter_title(text):
         # The chapter title is the first string closed in " " or “” possibly followed by "in"
         pattern = r"""(?x)
             [;:, ]*                 # separator
@@ -498,7 +543,7 @@ class QuoteFixer():
 
             location = None
             locations = list(nest_aware_split(":", publisher, [("{{","}}"), ("[","]")]))
-            location = locations[0].strip(":,() ")
+            location = locations[0].strip(":,(). ")
             if location in [ "Ourense", "A Coruña", "US", "USA", "UK", "Canada", "Baltimore", "London", "Toronto", "New York", "Dublin", "Washington, DC", "Nashville", "Montréal", "[[Paris]]", "[[Lausanne]]", "New York, N.Y.",
                     "Santiago", "Santiago de Compostela", "Boston", "Vigo", "Madrid", "Philadelphia", "Ourense", "Edinburgh", "Garden City, NY", "Sada / A Coruña", "Coimbra", "Chicago", "Oxford", "Erich Mühsam", "Pontevedra", "San Francisco", "Oviedo", "Indianapolis", "Cambridge", "Valga", "New York and London", "Sydney", "Leipzig", "Bauzten" ]:
                 publisher = ":".join(locations[1:]).strip()
@@ -952,6 +997,7 @@ class QuoteFixer():
         """
 
         # TODO: Validate number as pure arabic or roman numerals
+        # allow values like E4 and 4A (but not after a single p without a space)?
 
         m = re.match(pattern, text)
         if m:
@@ -1104,7 +1150,7 @@ class QuoteFixer():
 
 
     @staticmethod
-    def get_month_day(text):
+    def get_leading_month_day(text):
         pattern = r"""(?x)
             \s*
             (?P<month>Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|Jun(e)?|Jul(y)?|Aug(ust)?|Sep(tember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)
@@ -1306,6 +1352,9 @@ class QuoteFixer():
 
     def parse_details(self, text):
 
+        print("_____")
+        print(text)
+
         # This assumes details are listed in the following order
         # '''YEAR''', Author 1, Author 2, ''Title of work'', Publisher (ISBN)
         # Authors and Publish are optional
@@ -1335,15 +1384,17 @@ class QuoteFixer():
         text = text.replace('{{,}}', ",")
         text = text.replace('{{nbsp}}', " ")
         text = text.replace('&nbsp;', " ")
+#        text = text.replace('&mdash;', " ")
+
         text = self.strip_wrapper_templates(text, ["nowrap", "nobr"])
 
-        year, text = self.get_year(text)
+        year, text = self.get_leading_year(text)
         if not year:
             self.dprint("no year")
             return
         save("year", year)
 
-        month, day, text = self.get_month_day(text)
+        month, day, text = self.get_leading_month_day(text)
         if month and day:
             del details["year"]
             save("date",f"{month} {day} {year}")
@@ -1356,10 +1407,7 @@ class QuoteFixer():
         if issue:
             save("issue", issue)
 
-        editor, text = self.get_editor(text)
-        translator, text = self.get_translator(text)
-
-        names, text = self.get_classified_names(text)
+        names, text = self.get_leading_classified_names(text)
         for k, names in names.items():
             if k == "author":
                 for count, author in enumerate(names, 1):
@@ -1374,14 +1422,15 @@ class QuoteFixer():
                 self.dprint(f"unhandled key {k}")
                 return
 
+        translator, text = self.get_translator(text)
         if translator:
             save("translator", translator)
 
+        editor, text = self.get_editor(text)
         if editor:
             save("editor", editor)
 
-
-        chapter_title, text = self.get_chapter_title(text)
+        chapter_title, text = self.get_leading_chapter_title(text)
         title, text = self.get_title(text)
 
         subtitle, text = self.get_title(text)
@@ -1393,7 +1442,7 @@ class QuoteFixer():
                 title = chapter_title
                 chapter_title = None
             else:
-                self.dprint("no title", text)
+                self.dprint("no title", orig_text)
                 return
 
         if chapter_title:
