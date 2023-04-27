@@ -46,7 +46,7 @@ class QuoteFixer():
 
         # Strip {{CE}} after year
         post_text = m.group(2)
-        post_text = re.sub(r"^{{(CE|C\.E\.)[^}]*}}\s*", "", post_text)
+        post_text = re.sub(r"^({{(CE|C\.E\.)[^}]*}}|CE:)\s*", "", post_text)
 
         return m.group(1), post_text
 
@@ -163,6 +163,8 @@ class QuoteFixer():
             [ "one", "two" ] + \
             [ "doe", "ed", "eli", "jan", "san", "rob", "odd", "van", "paz"]
 
+    _allowed_lowercase_names = ["de", "von", "van", "del", "vom", "vander"]
+
     def is_valid_name(self, text):
 
         if not text:
@@ -178,6 +180,10 @@ class QuoteFixer():
 
         if text[0] in " .;:-" or text[-1] in " ;:-":
             self.dprint("disallowed name, starts or ends with delimiter", text)
+            return False
+
+        if text.count("-") > 1:
+            self.dprint("disallowed name, multiple hyphens", text)
             return False
 
         if text.count('"') != text.count('"'):
@@ -211,7 +217,6 @@ class QuoteFixer():
 
         # Single word names must match allowlist
         words = [w for w in re.split(r"[.\s]+", text) if w]
-        print(words)
         if len(words) == 1:
             self.dprint("disallowed name, single word", text)
             return False
@@ -241,13 +246,13 @@ class QuoteFixer():
 
         # All non-uppercase words must match allowlist
         for word in words:
-            if word[0].islower() and word.lower not in ["de"]:
+            if word[0].islower() and word.lower not in self._allowed_lowercase_names:
                 self.dprint("disallowed name, lowercase name part", text)
                 print("LOWERCASE NAME", word)
                 return False
 
 
-        bad_items = [r'''[:ə"“”\-()<>\[\]\d]''', "''", r"\.com"]
+        bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''", r"\.com"]
         pattern = "(" +  "|".join(bad_items) + ")"
         if re.search(pattern, text):
             self.dprint("disallowed name, disallowed characters", text)
@@ -288,6 +293,8 @@ class QuoteFixer():
         "(attributed translator)": "!translator",
         "(tr)": "!translator",
         "(tr.)": "!translator",
+        "(tr)": "!translator",
+        "(tr.)": "!translator",
         "(trans.)": "!translator",
         "(translation)": "!translator",
         "(transl)": "!translator",
@@ -304,13 +311,19 @@ class QuoteFixer():
         "(ed.)": "!editor",
         "(compiler)": "!editor",
 
+        "edited by": ">editor",
+        "ed.": "!editor",
+        "eds.": "<editor",
+
         "translator": "!translator",
         "translating": "<translator",
         "translated by": ">translator",
         "tr. by": ">translator",
         "trans. by": ">translator",
-
+#        "trans.": ">translator",
     }
+    # allow () and []
+    _classify_commands |= { k.replace("(", "[").replace(")","]"):v for k,v in _classify_commands.items() }
     _classify_regex = "(" + "|".join(map(re.escape, _classify_commands)) + ")"
 
 
@@ -390,8 +403,7 @@ class QuoteFixer():
 
             actions = []
             name_parts = []
-            for text, command in nest_aware_resplit(self._classify_regex, name, [("{{","}}"), ("[[","]]")]):
-                print("XX", [text, command])
+            for text, command in nest_aware_resplit(self._classify_regex, name, [("{{","}}"), ("[[","]]")], re.IGNORECASE):
                 if text:
                     # TODO: only strip () if there is a command
                     text = text.rstrip(" ()")
@@ -1456,6 +1468,16 @@ class QuoteFixer():
         text = text.replace('{{,}}', ",")
         text = text.replace('{{nbsp}}', " ")
         text = text.replace('&nbsp;', " ")
+#        text = text.replace("–", "-")
+#        text = text.replace('[[et alios]]', "et al.")
+#        text = text.replace('[[et al]]', "et al.")
+#        text = text.replace('[[et alia]]', "et al.")
+#        text = text.replace('[[et alii]]', "et al.")
+#        text = text.replace('[[et al]]', "et al.")
+#        text = text.replace("''et al.''", "et al.")
+#        text = text.replace("et alii", "et al.")
+#        text = text.replace(' et. al.', "et al.")
+
 #        text = text.replace('&mdash;', " ")
 
         text = self.strip_wrapper_templates(text, ["nowrap", "nobr"])
