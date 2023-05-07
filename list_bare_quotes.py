@@ -116,7 +116,7 @@ def main():
 
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)
-        iter_items = pool.imap_unordered(process, iter_entries, 10)
+        iter_items = pool.imap_unordered(process, iter_entries, 1000)
     else:
         iter_items = map(process, iter_entries)
 
