@@ -930,22 +930,35 @@ class QuoteFixer():
         clean_text = self.cleanup_text(text)
         parsed = self.parse_text(clean_text)
 
+        return self.convert_parsed_to_params(parsed)
+
+
+    def get_transformer(self, fingerprint):
+        return self._fingerprints.get(fingerprint, {})
+#        return self._fingerprints.get(fingerprint, [None,None])[1]
+
+    def convert_parsed_to_params(self, parsed):
+
         fingerprint = self.get_fingerprint(parsed)
 
-#        self.dprint(parsed)
-
-        transformer, handler = self._fingerprints.get(fingerprint, (None,None))
-        if not handler:
-            fingerprint = self.get_fingerprint(parsed, condense_unhandled=True)
-            transformer, handler = self._fingerprints.get(fingerprint, (None,None))
-
-        if not handler:
+        transformer = self.get_transformer(fingerprint)
+        if not transformer:
             print("UNHANDLED:", fingerprint)
             return
 
+        handler = transformer["_handler"]
+
+#        transformer, handler = self._fingerprints.get(fingerprint, (None,None))
+#        if not handler:
+#            fingerprint = self.get_fingerprint(parsed, condense_unhandled=True)
+#            transformer, handler = self._fingerprints.get(fingerprint, (None,None))
+
+#        if not handler:
+#            print("UNHANDLED:", fingerprint)
+#            return
+
         print("FINGERPRINT:", fingerprint)
-        if transformer:
-            self.apply_transformation(parsed, transformer)
+        self.apply_transformation(parsed, transformer)
 
         params = handler(self, parsed)
         if params:
@@ -1001,6 +1014,15 @@ class QuoteFixer():
         allowed_params = {"year", "journal", "author", "volume", "issue", "page", "url", "title", "titleurl", "month", "publisher", "pageurl"}
         for item_type, values in parsed:
             if item_type.endswith("separator"):
+                continue
+
+            if item_type == "url::page":
+                assert len(values) == 1
+                page = values[0]
+                details["page"] = page
+
+                # rename url to pageurl
+                details = {"pageurl" if k == "url" else k:v for k,v in details.items()}
                 continue
 
             elif item_type == "author":
@@ -1133,6 +1155,15 @@ class QuoteFixer():
         allowed_params = {"page", "pages", "title", "year", "location", "publisher", "chapter", "pageurl", "year_published", "series", "url", "volume"}
         for item_type, values in parsed:
 
+            if item_type == "url::page":
+                assert len(values) == 1
+                page = values[0]
+                details["page"] = page
+
+                # rename url to pageurl
+                details = {"pageurl" if k == "url" else k:v for k,v in details.items()}
+                continue
+
             if item_type == "separator":
                 continue
 
@@ -1213,15 +1244,16 @@ class QuoteFixer():
                 parsed[idx] = (new_label, values)
 
 #    _book = {"*page": "page"}
-    _book = {"italics": "title", "volumes": "volume"}
+    _book = {"_handler": book_handler, "italics": "title", "volumes": "volume"}
     _year2_published = {"year2": "year_published" }
-    _urlpage = {"url": "pageurl", "url::page": "page"}
+    _url_page_page = {} #{ "url::page": "page", "_page_is_urlpage" }
+    #_urlpage = {"url": "pageurl", "url::page": "page"}
     _paren_italics_series = {"paren::italics": "series"}
     _chapter_title = {"italics": "chapter", "italics2": "title"}
     _year2_year_published = {"year2": "year_published"}
     _fancy_dq_chapter = {"fancy_double_quotes": "chapter"}
 
-    _newsgroup = {}
+    _newsgroup = {"_handler": newsgroup_handler, }
     _paren_newsgroup_newsgroup = {"paren::newsgroup": "newsgroup"}
 
     _dq2_title = {"double_quotes2": "title"}
@@ -1238,11 +1270,11 @@ class QuoteFixer():
     _skip_paren_unhandled = { "paren::unhandled": "separator" }
     _skip_unhandled = { "unhandled": "separator" }
 
-    _web = {}
+    _web = {"_handler": web_handler, }
     _url_unhandled_publisher = { "url::unhandled": "publisher" }
     _unhandled_publisher = { "unhandled": "_maybe_publisher" }
 
-    _journal = { "italics": "journal", "volumes": "volume"}
+    _journal = {"_handler": journal_handler, "italics": "journal", "volumes": "volume"}
     _paren_volumes = { "paren::volumes": "volume" }
     _paren_volume = { "paren::volume": "volume" }
     _paren_issue = { "paren::issue": "issue" }
@@ -1255,12 +1287,12 @@ class QuoteFixer():
     _url_is_titleurl = { "url": "titleurl" }
     _paren_publisher = {"paren": "_maybe_publisher"}
 
-    _text = {}
+    _text = {"_handler": text_handler, }
     _url_text_title = {"url::text": "title"}
     _fq_title = {"fancy_quote": "title"}
 
     _paren_pub2 = {"paren": "publisher2"}
-    _url_page_page = {"url::page": "page"}
+    #_url_page_page = {"url::page": "page"}
     _url_italics_title = {"url::italics": "title"}
 
     _italics_link_title = {"italics::link": "title"}
@@ -1281,8 +1313,8 @@ class QuoteFixer():
 
 
      ###HANDLERS
-    _all_handlers = {
-        text_handler: [
+    _all_handlers = [
+        # text_handler: [
             (('year', 'author'), _text),
             (('year', 'author', 'url', 'url::text'), _text|_url_text_title),
             (('year', 'author', 'double_quotes'), _text|_dq_title),
@@ -1293,12 +1325,12 @@ class QuoteFixer():
             (('year', 'url', 'url::text'), _text|_url_text_title),
             (('year', 'italics', 'author'), _text|_italics_title),
             (('year', 'author', 'url', 'url::italics'), _text|_url_italics_title),
-        ],
+        #],
 
-        book_handler: [
+        #book_handler: [
 
             (('year', 'author', 'italics', 'page'), _book),
-            (('year', 'author', 'italics', 'url', 'url::page'), _book|_urlpage),
+            (('year', 'author', 'italics', 'url', 'url::page'), _book|_url_page_page),
             (('year', 'author', 'italics', 'url', 'url::text'), _book| {"url::text": "_maybe_bare_page_link"}),
 
 #            (('year', 'author', 'fancy_quote', 'italics'), _book|_fq_chapter|_book_optionals)
@@ -1308,20 +1340,20 @@ class QuoteFixer():
 #            (('year', 'author', 'fancy_quote', 'italics', '?location', '?editor', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_fq_chapter|_year2_published|_urlpage),
 
 
-            (('year', 'author', 'fancy_quote', 'italics', '?location', '?editor', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_fq_chapter|_year2_published|_urlpage),
-            (('year', 'author', 'fancy_double_quotes', 'italics', '?location', '?editor', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_fancy_dq_chapter|_year2_published|_urlpage),
+            (('year', 'author', 'fancy_quote', 'italics', '?location', '?editor', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_fq_chapter|_year2_published|_url_page_page),
+            (('year', 'author', 'fancy_double_quotes', 'italics', '?location', '?editor', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_fancy_dq_chapter|_year2_published|_url_page_page),
 
 #            ({"publisher"}, "year,author,italics", _book_optional, _transformers, _book|_book_optional_tr),
-            (('year', '?translator', 'author', 'italics', '?location', '?editor', 'publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_urlpage|_year2_published),
+            (('year', '?translator', 'author', 'italics', '?location', '?editor', 'publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_url_page_page|_year2_published),
 #            ({"chapter"}, "year,author,italics", _book_optional, _transformers, _book|_book_optional_tr),
-            (('year', 'author', 'italics', '?location', '?editor', '?publisher', '?year2', 'chapter', '?page', '?pages', '?url', '?url::page'), _book|_urlpage|_year2_published),
+            (('year', 'author', 'italics', '?location', '?editor', '?publisher', '?year2', 'chapter', '?page', '?pages', '?url', '?url::page'), _book|_url_page_page|_year2_published),
 
             # Not necessarily a book/chapter
             #(('year', 'author', 'italics', '?location', '?editor', 'fancy_double_quotes', '?publisher', '?year2', '?chapter', '?page', '?url', '?url::page'), _book|_fancy_dq_chapter|_urlpage|_year2_published),
-            (('year', 'author', 'italics', '?location', '?editor', 'double_quotes', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_dq_chapter|_urlpage|_year2_published),
-            (('year', 'author', 'italics', '?location', '?editor', 'italics2', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_chapter_title|_urlpage|_year2_published),
+            (('year', 'author', 'italics', '?location', '?editor', 'double_quotes', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_dq_chapter|_url_page_page|_year2_published),
+            (('year', 'author', 'italics', '?location', '?editor', 'italics2', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_chapter_title|_url_page_page|_year2_published),
 
-            (('year', 'author', 'italics::link', '?location', '?editor', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_italics_link_title|_urlpage|_year2_published),
+            (('year', 'author', 'italics::link', '?location', '?editor', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_italics_link_title|_url_page_page|_year2_published),
 
             (('year', 'editor', 'italics', 'location', 'publisher', 'page'), _book),
 
@@ -1388,9 +1420,9 @@ class QuoteFixer():
             (('year', 'editor', 'italics', 'location', 'unhandled<*>', 'page'), _book|_unhandled_publisher),
 
 
-        ],
+        #],
 
-        newsgroup_handler: [
+        #newsgroup_handler: [
             (('?year', '?date', 'author', 'italics', 'newsgroup', '?url'), _newsgroup|_italics_title),
             (('?year', '?date', 'author', 'double_quotes', 'newsgroup', '?url'), _newsgroup|_dq_title),
             (('?year', '?date', 'author', 'double_quotes::url', 'double_quotes::url::text', 'newsgroup'), _newsgroup|_dq_url_url|_dq_url_text_title),
@@ -1399,14 +1431,14 @@ class QuoteFixer():
             (('?year', '?date', 'double_quotes', 'italics', 'paren::newsgroup', '?url'), _newsgroup|_dq_author|_italics_title|_paren_newsgroup_newsgroup),
             (('?year', '?date', 'author', 'fancy_double_quotes', 'newsgroup', '?url'), _newsgroup|_fancy_dq_title),
             (('?year', '?date', 'double_quotes', 'paren::unhandled<username>', 'double_quotes2', 'newsgroup', '?url'), _newsgroup|_dq_author|_skip_paren_unhandled|_dq2_title),
-            (('?year', '?date', 'double_quotes', 'paren::unhandled<username>', 'italics', 'newsgroup', '?url'), _newsgroup|_dq_author|_skip_paren_unhandled|_italics_title)
-        ],
+            (('?year', '?date', 'double_quotes', 'paren::unhandled<username>', 'italics', 'newsgroup', '?url'), _newsgroup|_dq_author|_skip_paren_unhandled|_italics_title),
+        #],
 
-        web_handler: [
-            (('year', 'url', 'url::unhandled<VOA Learning English>', 'paren::unhandled<public domain>'), _web|_url_unhandled_publisher|_skip_paren_unhandled)
-        ],
+        #web_handler: [
+            (('year', 'url', 'url::unhandled<VOA Learning English>', 'paren::unhandled<public domain>'), _web|_url_unhandled_publisher|_skip_paren_unhandled),
+        #],
 
-        journal_handler: [
+        #journal_handler: [
             (('date', 'author', 'italics'), _journal|_italics_journal),
 
             (('date', 'author', 'url', 'url::double_quotes', 'italics'), _journal|_url_is_titleurl|_url_dq_title|_italics_journal),
@@ -1424,16 +1456,16 @@ class QuoteFixer():
             (('year', 'italics', 'date'), _journal),
 
             (('year', 'italics', 'volumes', 'page'), _journal),
-            (('year', 'italics', 'volumes', 'url', 'url::page'), _journal|_urlpage),
+            (('year', 'italics', 'volumes', 'url', 'url::page'), _journal|_url_page_page),
             (('year', 'italics', 'volume', 'page'), _journal),
 
             (('year', 'link', 'volume', 'page'), _journal|_link_journal),
 
             (('year', 'month', 'italics', 'page'), _journal),
-        ],
+#        ],
 
 
-    }
+    ]
 
 
     @classmethod
@@ -1465,16 +1497,18 @@ class QuoteFixer():
     def _init_fingerprints(self):
         self._fingerprints = {}
 
-        for handler, values in self._all_handlers.items():
-            for fingerprint_pattern, transformer in values:
-                t_h = (transformer, handler)
-                for fingerprint in self.get_all_combinations(list(fingerprint_pattern)):
-                    fingerprint = tuple(fingerprint)
-                    if fingerprint in self._fingerprints:
-                        print("duplicated fingeprint", fingerprint)
-                        if self._fingerprints[fingerprint] != t_h:
-                            raise ValueError("Fingerprint has multiple handlers", fingerprint, fingerprint_pattern)
-                    self._fingerprints[fingerprint] = t_h
+        for fingerprint_pattern, transformer in self._all_handlers:
+            if "_handler" not in transformer:
+                print("ERROR", fingerprint_pattern)
+#            handler = transformer["_handler"]
+#            t_h = (transformer, handler)
+            for fingerprint in self.get_all_combinations(list(fingerprint_pattern)):
+                fingerprint = tuple(fingerprint)
+                if fingerprint in self._fingerprints:
+                    print("duplicated fingeprint", fingerprint)
+                    if self._fingerprints[fingerprint] != transformer:
+                        raise ValueError("Fingerprint has multiple handlers", fingerprint, fingerprint_pattern)
+                self._fingerprints[fingerprint] = transformer
 
     def add_parsed(self, parsed, key, values):
 

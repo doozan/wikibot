@@ -496,17 +496,8 @@ def test_get_params_old():
             {'year': '1864', 'chapter': 'The Adventures of a Lady in Search of a Horse', 'title': 'London Society', 'volume': 'VI', 'number': 'XXXII', 'month': 'July', 'pageurl': 'http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false', 'page': '5'}
         ),
         (
-            # Simple
-             """'''2013''', {{w|Kacey Musgraves}}, "My House":""",
-            {'year': '2013', 'author': '{{w|Kacey Musgraves}}', 'title': 'My House'}
-        ),
-        (
              """'''2008''' July 31, [[w:Richard Zoglin|Richard Zoglin]], "[https://web.archive.org/web/20080807052344/http://www.time.com/time/magazine/article/0,9171,1828301,00.html A New Dawn for ''Hair'']," ''Time''""",
             {'date': 'July 31 2008', 'author': '[[w:Richard Zoglin|Richard Zoglin]]', 'chapter': "A New Dawn for ''Hair''", 'chapterurl': 'https://web.archive.org/web/20080807052344/http://www.time.com/time/magazine/article/0,9171,1828301,00.html', 'title': 'Time'}
-        ),
-        (
-             """'''1955''', {{w|W. H. Auden}}, “Lakes” in ''Selected Poetry of W. H. Auden'', New York: Modern Library, 1959, p.{{nbsp}}149,<sup>[https://openlibrary.org/ia/selectedpoetry00whau]</sup>""",
-            {'year': '1955', 'author': '{{w|W. H. Auden}}', 'chapter': 'Lakes', 'title': 'Selected Poetry of W. H. Auden', 'url': 'https://openlibrary.org/ia/selectedpoetry00whau', 'page': '149', 'publisher': 'Modern Library', 'year_published': '1959', 'location': 'New York'}
         ),
         (
              """'''2011''', Deepika Phukan, translating {{w|Arupa Patangia Kalita}}, ''The Story of Felanee'':""",
@@ -566,11 +557,6 @@ def test_get_params_old():
             # publisher comic strip not idea
             """'''1934''', {{w|George Herriman}}, ''{{w|Krazy Kat}}'', Tuesday, April 17 comic strip ({{ISBN|978-1-63140-408-5}}, p. 112):""",
             {'date': 'April 17 1934', 'author': '{{w|George Herriman}}', 'title': '{{w|Krazy Kat}}', 'page': '112', 'publisher': 'comic strip', 'isbn': '978-1-63140-408-5'}
-        ),
-        (
-            # and
-            """'''2015''', Simon Carnell and Erica Segre, translating {{w|Carlo Rovelli}}, ''Seven Brief Lessons on Physics'', Penguin 2016, p. 44:""",
-            {'year': '2015', 'translators': 'Simon Carnell; Erica Segre', 'author': '{{w|Carlo Rovelli}}', 'title': 'Seven Brief Lessons on Physics', 'page': '44', 'publisher': 'Penguin', 'year_published': '2016'}
         ),
         (
             """'''1977''', Olga Kuthanová, translating Jan Hanzák & Jiří Formánek, ''The Illustrated Encyclopedia of Birds'', London 1992, p. 177:""",
@@ -706,6 +692,26 @@ def test_get_params_rewrite():
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
         (
+            # and
+            """'''2015''', Simon Carnell and Erica Segre, translating {{w|Carlo Rovelli}}, ''Seven Brief Lessons on Physics'', Penguin 2016, p. 44:""",
+            ('year', 'translator', 'author', 'italics', 'publisher', 'year2', 'page'),
+            {'_source': 'book', 'year': '2015', 'translators': 'Simon Carnell; Erica Segre', 'author': '{{w|Carlo Rovelli}}', 'title': 'Seven Brief Lessons on Physics', 'page': '44', 'publisher': 'Penguin', 'year_published': '2016'}
+        ),
+
+        (
+             """'''1955''', {{w|W. H. Auden}}, “Lakes” in ''Selected Poetry of W. H. Auden'', New York: Modern Library, 1959, p.{{nbsp}}149,<sup>[https://openlibrary.org/ia/selectedpoetry00whau]</sup>""",
+             ('year', 'author', 'fancy_double_quotes', 'italics', 'location', 'publisher', 'year2', 'page', 'url'),
+             {'_source': 'book', 'year': '1955', 'author': '{{w|W. H. Auden}}', 'chapter': 'Lakes', 'title': 'Selected Poetry of W. H. Auden', 'url': 'https://openlibrary.org/ia/selectedpoetry00whau', 'page': '149', 'publisher': 'Modern Library', 'year_published': '1959', 'location': 'New York'}
+        ),
+
+        (
+            # Simple
+             """'''2013''', {{w|Kacey Musgraves}}, "My House":""",
+             ('year', 'author', 'double_quotes'),
+             {'_source': 'text', 'year': '2013', 'author': '{{w|Kacey Musgraves}}', 'title': 'My House'}
+        ),
+
+        (
             # No closing "
             """'''1942''', IH Wagman, JE Gullberg, "The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements. ''American Journal of Physiology'', 137: 769-778""",
              ('year', 'author', 'unhandled<"The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements>', 'italics', 'unhandled<137: 769-778>'),
@@ -829,8 +835,7 @@ def test_get_params_rewrite():
         (
             """'''2001''', Lex Roth, [http://www.actioun-letzebuergesch.lu/files/klack/076.pdf Eng Klack for eis Sprooch]:""",
             ('year', 'author', 'url', 'url::text'),
-            None
-#            {'_source': 'text', 'year': '2001', 'author': 'Lex Roth', 'url': 'http://www.actioun-letzebuergesch.lu/files/klack/076.pdf', 'title': 'Eng Klack for eis Sprooch'}
+            {'_source': 'text', 'year': '2001', 'author': 'Lex Roth', 'url': 'http://www.actioun-letzebuergesch.lu/files/klack/076.pdf', 'title': 'Eng Klack for eis Sprooch'}
         ),
         (
             # BAD DATE, messes everything else up
