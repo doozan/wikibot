@@ -140,7 +140,17 @@ class QuoteFixer():
 
     def get_leading_unhandled(self, text):
 
-        # TODO: if starts with { or [, slurp  matching brace
+        # TODO: if starts with { or [, slurp until matching brace
+        if text.startswith("{{"):
+            end = text.find("}}")
+            if end:
+                return text[:end+2], text[end+2:]
+
+        if text.startswith("]"):
+            end = text.find("]")
+            if end:
+                return text[:end+1], text[end+1:]
+
 
         pattern = r"""(?x)
             (
@@ -164,8 +174,6 @@ class QuoteFixer():
 
             if text.startswith('"'):
                 username, new_text = self.get_leading_start_stop('"', '"', text)
-            elif text.startswith('"'):
-                username, new_text = self.get_leading_start_stop('"', '"', text)
 
             else:
                 m = re.match("^([^,'“]+)(.*)", text)
@@ -177,7 +185,6 @@ class QuoteFixer():
             username = re.sub(r"([,. ]*\(?username\)?)", "", username)
             new_text = re.sub(r"^([,. ]*\(?username\)?)", "", new_text)
 
-            print("USER", username, new_text)
             return username, new_text
 
             # Split link into title?
@@ -203,7 +210,6 @@ class QuoteFixer():
 
         new_text = re.sub(r"^(ed\.|eds\.|edited by)\s*", "", text, flags=re.IGNORECASE)
         if new_text != text:
-            print("LEADING EDITOR", text, [new_text])
             return self._get_leading_classified_names(new_text, ">editor")
 
         new_text = re.sub(r"^(translation by|translated by|trans|tr\. by)\s+", "", text, flags=re.IGNORECASE)
@@ -321,13 +327,11 @@ class QuoteFixer():
         return m.group(1)[3:-3], m.group(2)
 
     def get_leading_newsgroup(self, text):
-        pattern = r"(?:discussion )?(?:on |in )?(?:Internet )?(?:newsgroup ''|{{monospace\|)\s*([\d\w_\-.]+)\s*(?:}}|'')(?:[ :,-;]*'*Usenet'*)?(.*)"
-        m = re.match(pattern, text, re.IGNORECASE)
+        m = re.match(self._allowed_newsgroups_regex, text, re.IGNORECASE)
         if not m:
             return
 
-        print(m.groups())
-        return m.group(1), m.group(2)
+        return m.group('usenet'), m.group('post')
 
     def get_leading_double_quotes(self, text):
         return self.get_leading_start_stop('"', '"', text)
@@ -398,6 +402,9 @@ class QuoteFixer():
 
     def get_leading_location(self, text):
         return self.get_leading_regex(self._locations_regex, text)
+
+    def get_leading_journal(self, text):
+        return self.get_leading_regex(self._journals_regex, text)
 
     def get_leading_publisher(self, text):
         text = re.sub(r"^(printed|published|publ\.|republished|in )(| by)?[-;:,.\s]*", "", text)
@@ -511,7 +518,7 @@ class QuoteFixer():
     @staticmethod
     def get_leading_link(text):
         pattern = r"""(?x)
-            (?P<link>\[\[:?[SWsw]:.*?\]\])      # [[w:.*]] or [[s:.*]]
+            (?P<link>\[\[:?(s|S|w|W|Special):.*?\]\])      # [[w:.*]] or [[s:.*]]
             (?P<post>.*)$            # trailing text
         """
 
@@ -869,6 +876,11 @@ class QuoteFixer():
 
             month = m.group('month')
             if month.isnumeric():
+
+                # Don't match 7 15 as July 15, but do match 7 15 2002
+                if not year:
+                    return
+
                 # Don't handle ambiguous dates likes 02-05, 03-14 is good, 14-03, too
                 if not day or abs(day) < 13:
                     print("AMBIG DAY", day, month)
@@ -925,6 +937,7 @@ class QuoteFixer():
 
         # Fail if comments
         if "<!--" in text or "-->" in text:
+            #self.warn("html_comment")
             return
 
         clean_text = self.cleanup_text(text)
@@ -934,8 +947,43 @@ class QuoteFixer():
 
 
     def get_transformer(self, fingerprint):
-        return self._fingerprints.get(fingerprint, {})
-#        return self._fingerprints.get(fingerprint, [None,None])[1]
+        fp_keys = {k for k in fingerprint}
+        transformers = [ h[4] for h in self._all_handlers if self.can_handle(h, fingerprint, fp_keys) ]
+        if not transformers:
+            return
+
+        if not all(t == transformers[0] for t in transformers):
+            raise ValueError("Multi matches", fingerprint, transformers)
+        return transformers[0]
+
+    def can_handle(self, handler, fingerprint, fingerprint_keys):
+        must_contain, match_list, may_contain, cannot_contain, transformer = handler
+
+        # If must_contain is a list of sets, use the first set
+        # that the fingerprint passes
+        if must_contain and isinstance(must_contain, list):
+            found = None
+            for k in must_contain:
+                if not k-fingerprint_keys:
+                    found = k
+                    break
+            if not found:
+                return False
+            must_contain = found
+
+        if must_contain and must_contain-fingerprint_keys:
+            return False
+
+        fp_list = []
+        for f in fingerprint:
+            if f in match_list:
+                fp_list.append(f)
+            elif f not in may_contain and f not in must_contain:
+                return False
+            elif f in cannot_contain:
+                return False
+
+        return match_list == fp_list
 
     def convert_parsed_to_params(self, parsed):
 
@@ -972,9 +1020,12 @@ class QuoteFixer():
         if not params:
             return
 
-        for k in ["title", "chapter"]:
+        for k in ["title", "chapter", "journal", "publisher"]:
             if k in params:
                 params[k] = params[k].strip(", ")
+
+        if params.get('year_published', -1) == params.get('year', 0):
+            del params['year_published']
 
     def add_date(self, details, date):
         year, month, day = date
@@ -1010,44 +1061,8 @@ class QuoteFixer():
 
 
     def journal_handler(self, parsed):
-        details = { "_source": "journal" }
-        allowed_params = {"year", "journal", "author", "volume", "issue", "page", "url", "title", "titleurl", "month", "publisher", "pageurl"}
-        for item_type, values in parsed:
-            if item_type.endswith("separator"):
-                continue
-
-            if item_type == "url::page":
-                assert len(values) == 1
-                page = values[0]
-                details["page"] = page
-
-                # rename url to pageurl
-                details = {"pageurl" if k == "url" else k:v for k,v in details.items()}
-                continue
-
-            elif item_type == "author":
-                assert len(values) >= 1
-                for idx, value in enumerate(values, 1):
-                    key = f"author{idx}" if idx>1 else "author"
-                    details[key] = value
-
-            elif item_type == "date":
-                details = self.add_date(details, values)
-                if not details:
-                    return
-
-            else:
-                if item_type not in allowed_params:
-                    raise ValueError("unhandled type", item_type, values)
-
-                if len(values) != 1:
-                    print("unhandled multi-values", item_type, values)
-                    return
-                    raise ValueError("unhandled multi-values", item_type, values)
-                details[item_type] = values[0]
-        return details
-
-
+        allowed_params = {"year", "journal", "author", "volume", "issue", "page", "pages", "url", "title", "titleurl", "month", "publisher", "pageurl", "year_published", "issues", "location"}
+        return self.generic_handler(parsed, "journal", allowed_params)
 
     def web_handler(self, parsed):
         details = { "_source": "web" }
@@ -1149,61 +1164,94 @@ class QuoteFixer():
         return details
 
 
-    def book_handler(self, parsed):
-        details = { "_source": "book" }
+    def generic_handler(self, parsed, source, allowed_params):
+        details = { "_source": source }
 
-        allowed_params = {"page", "pages", "title", "year", "location", "publisher", "chapter", "pageurl", "year_published", "series", "url", "volume"}
+        def save(k,v):
+            if k in details:
+                print("dup value", k, v, parsed)
+                details["__failed_dup_value"] = True
+            details[k] = v
+
         for item_type, values in parsed:
+
+            if item_type == "date":
+                details = self.add_date(details, values)
+                if not details:
+                    return
+                continue
+
+            if item_type == "accessdate":
+                year, month, day = values
+                save("accessdate", f"{abs(day)} {month} {year}")
+                continue
 
             if item_type == "url::page":
                 assert len(values) == 1
-                page = values[0]
-                details["page"] = page
+                save("page", values[0])
 
                 # rename url to pageurl
-                details = {"pageurl" if k == "url" else k:v for k,v in details.items()}
+                details = {"pageurl" if k in ["url", "chapterurl"] else k:v for k,v in details.items()}
                 continue
 
-            if item_type == "separator":
-                continue
-
-            elif item_type == "_maybe_publisher":
+            if item_type == "url::chapter":
                 assert len(values) == 1
-                if "publisher" in details:
-                    return
+                save("chapter", values[0])
 
-                text = values[0]
-                if "location" not in details:
-                    res = self.get_leading_location(text)
-                    if res:
-                        location, post_text = res
-                        if location and not post_text:
-                            details["location"] = location
-                            continue
+                # rename url to chapter
+                details = {"chapterurl" if k == "url" else k:v for k,v in details.items()}
+                continue
 
-                text = re.sub(r"^\s*in\s+", "", text)
-                print("MAYBE_PUB:", text)
-                details["publisher"] = text
+            if item_type.endswith("separator"):
+                continue
+
+            elif item_type in ["isbn"]:
+                save(item_type, "; ".join(values[0]))
+
+            elif item_type.startswith("maybe_"):
+                print(f"{item_type}: {values}")
                 return
 
+#            elif item_type == "_maybe_publisher":
+#                assert len(values) == 1
+#                if "publisher" in details:
+#                    return
+#
+#                text = values[0]
+#                if "location" not in details:
+#                    res = self.get_leading_location(text)
+#                    if res:
+#                        location, post_text = res
+#                        if location and not post_text:
+#                            save("location", location)
+#                            continue
+#
+#                text = re.sub(r"^\s*in\s+", "", text)
+#                print("MAYBE_PUB:", text)
+#                save("publisher", text)
+#                return
 
-            elif item_type == "_maybe_bare_page_link":
-                assert len(values) == 1
-                if "url" in details and "page" not in details and values[0].isnumeric():
-                    details = {"pageurl" if k == "url" else k:v for k,v in details.items()}
-                    details["page"] = values[0]
-                else:
-                    return
+
+#            elif item_type == "_maybe_bare_page_link":
+#                assert len(values) == 1
+#                if "url" in details and "page" not in details and values[0].isnumeric():
+#                    details = {"pageurl" if k == "url" else k:v for k,v in details.items()}
+#                    save("page", values[0])
+#                else:
+#                    return
 
             elif item_type == "author":
                 assert len(values)
                 for idx, value in enumerate(values, 1):
                     key = f"author{idx}" if idx>1 else "author"
-                    details[key] = value
+                    if value.endswith("'s"):
+                        value = value[:-2]
+                    save(key, value)
 
-            elif item_type == "publisher2":
-                assert len(values) == 1
-                details["publisher"] += f" ({values[0]})"
+#            elif item_type == "publisher2":
+#                assert len(values) == 1
+#                # assign directly to modify existing value
+#                details["publisher"] += f" ({values[0]})"
 
             #elif item_type == "_maybe_publisher":
             #    assert len(values) == 1
@@ -1219,9 +1267,9 @@ class QuoteFixer():
             elif item_type in ["editor", "translator"]:
                 assert len(values)
                 if len(values) == 1:
-                    details[item_type] = values[0]
+                    save(item_type, values[0])
                 else:
-                    details[item_type + "s"] = "; ".join(values)
+                    save(item_type + "s", "; ".join(values))
 
             else:
                 if item_type not in allowed_params:
@@ -1231,9 +1279,19 @@ class QuoteFixer():
                     print("unhandled multi-values", item_type, values)
                     return
                     raise ValueError("unhandled multi-values", item_type, values)
-                details[item_type] = values[0]
+
+                save(item_type, values[0])
+
+
+        if "__failed_dup_value" in details:
+            return
 
         return details
+
+
+    def book_handler(self, parsed):
+        allowed_params = {"page", "pages", "title", "year", "location", "publisher", "chapter", "pageurl", "year_published", "series", "url", "volume", "issn", "oclc", "month"}
+        return self.generic_handler(parsed, "book", allowed_params)
 
 
     def apply_transformation(self, parsed, transformer):
@@ -1244,7 +1302,6 @@ class QuoteFixer():
                 parsed[idx] = (new_label, values)
 
 #    _book = {"*page": "page"}
-    _book = {"_handler": book_handler, "italics": "title", "volumes": "volume"}
     _year2_published = {"year2": "year_published" }
     _url_page_page = {} #{ "url::page": "page", "_page_is_urlpage" }
     #_urlpage = {"url": "pageurl", "url::page": "page"}
@@ -1253,7 +1310,6 @@ class QuoteFixer():
     _year2_year_published = {"year2": "year_published"}
     _fancy_dq_chapter = {"fancy_double_quotes": "chapter"}
 
-    _newsgroup = {"_handler": newsgroup_handler, }
     _paren_newsgroup_newsgroup = {"paren::newsgroup": "newsgroup"}
 
     _dq2_title = {"double_quotes2": "title"}
@@ -1265,6 +1321,7 @@ class QuoteFixer():
     _fancy_dq_title = {"fancy_double_quotes": "title"}
 
     _dq_url_url = {"double_quotes::url": "url"}
+    _dq_url_titleurl = {"double_quotes::url": "titleurl"}
     _dq_url_text_title = {"double_quotes::url::text": "title"}
 
     _skip_paren_unhandled = { "paren::unhandled": "separator" }
@@ -1274,18 +1331,19 @@ class QuoteFixer():
     _url_unhandled_publisher = { "url::unhandled": "publisher" }
     _unhandled_publisher = { "unhandled": "_maybe_publisher" }
 
-    _journal = {"_handler": journal_handler, "italics": "journal", "volumes": "volume"}
     _paren_volumes = { "paren::volumes": "volume" }
     _paren_volume = { "paren::volume": "volume" }
     _paren_issue = { "paren::issue": "issue" }
     _paren_issues = { "paren::issues": "issue" }
     _paren_page = { "paren::page": "page" }
-    _paren_italics_journal = { "paren::italics": "journal" }
     _paren_date = { "paren::date": "date" }
     _url_dq_title = { "url::double_quotes": "title"}
-    _italics_journal = { "italics": "journal" }
     _url_is_titleurl = { "url": "titleurl" }
     _paren_publisher = {"paren": "_maybe_publisher"}
+
+    _paren_italics_maybe_journal = { "paren::italics": "maybe_journal" }
+    _italics_maybe_journal = { "italics": "maybe_journal" }
+
 
     _text = {"_handler": text_handler, }
     _url_text_title = {"url::text": "title"}
@@ -1304,16 +1362,237 @@ class QuoteFixer():
     _link_title = {"link": "title"}
     _link_journal = {"link": "journal"}
     _link_publisher = {"link": "publisher"}
+    _italics_chapter = {"italics": "chapter"}
+
+    _url_titleurl = {"url": "titleurl"}
+
+    _paren_volumes_volume = {"paren::volumes": "volume"}
 
 #    _italics_chapter = {"italics": "chapter"}
 #    _unhandled_location_or_publisher = {"unhandled": "_location_or_publisher"}
 
 
+
+    @staticmethod
+    def make_anywhere(normal, plurals, alt_keys):
+        _anywhere = set()
+        _anywhere_tr = {}
+        for x in normal:
+            _anywhere.add(x)
+            _anywhere.add(f"url::{x}")
+            _anywhere.add(f"paren::{x}")
+
+            _anywhere_tr[f"url::{x}"] = x
+            _anywhere_tr[f"paren::{x}"] = x
+
+        # plurals
+        for v in plurals:
+            for k in [v, v+"s"]:
+                _anywhere.add(k)
+                _anywhere.add(f"url::{k}")
+                _anywhere.add(f"paren::{k}")
+
+                _anywhere_tr[k] = v
+                _anywhere_tr[f"url::{k}"] = v
+                _anywhere_tr[f"paren::{k}"] = v
+
+
+        for k,v in alt_keys.items():
+            _anywhere.add(k)
+            _anywhere.add(f"url::{k}")
+            _anywhere.add(f"paren::{k}")
+
+            _anywhere_tr[k] = v
+            _anywhere_tr[f"url::{k}"] = v
+            _anywhere_tr[f"paren::{k}"] = v
+
+        return _anywhere, _anywhere_tr
+
+
+
+
 #    _book_optionals = { "_match_anywhere_optional": ('translator', 'translators', 'location', 'editor', 'publisher', 'year2', 'chapter', 'page', 'pages', 'url', 'url::page') } | _year2_published | _urlpage
 
+    _book = {"_handler": book_handler, "italics": "title"}
+    _book_anywhere, _book_anywhere_tr = make_anywhere(
+        [ 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc'],
+        [ "volume", "chapter", "page" ],
+        # alternate keys
+        {
+#            "issues": "issues",
+            "pages": "pages",
+            "year2": "year_published",
+            "date_retrieved": "accessdate"
+        }
+    )
+    _book_anywhere |= {'url'}
+    _book_anywhere_tr |= {
+        "url::page": "url::page", # instead of just 'page', to trigger 'url' -> 'urlpage'
+        "url::chapter": "url::chapter",
+    }
 
-     ###HANDLERS
+
+
+    #_book_anywhere = { 'translator', 'location', 'editor', 'publisher', 'year2', 'chapter', 'chapters', 'page', 'pages', 'url', 'url::chapter', 'url::page', 'isbn', 'issn', 'oclc', 'paren::isbn', 'paren::issn', 'paren::oclc', "date_retrieved", "paren::date_retrieved"}
+    #_book_anywhere_tr = {'year2': "year_published", 'paren::isbn': 'isbn', 'paren::issn': 'issn', 'paren::oclc': 'oclc', "date_retrieved": "accessdate", "paren::date_retrieved": "accessdate", "volumes": "volume"}
+    _book_exclude = { 'newsgroup', 'paren::newsgroup', 'journal', 'italics::journal' }
+
+    book_must_include = [
+        {"author", "chapter"},
+        {"author", "url::chapter"},
+        {"author", "page"},
+        {"author", "url::page"},
+
+        {"editor", "chapter"},
+        {"editor", "url::chapter"},
+        {"editor", "page"},
+        {"editor", "url::page"},
+    ]
+
+    maybe_journal_must_include = [
+        {'date'},
+        {'url::date'},
+        {'paren::date'},
+
+        {'year', 'month'},
+        {'year', 'url::month'},
+        {'year', 'paren::month'},
+
+        {'issue'},
+        {'paren::issue'},
+
+        {'issues'},
+        {'paren::issues'},
+    ]
+    journal_must_include = [
+        { 'journal' },
+        { 'italics::journal' },
+        { 'paren::italics::journal' },
+    ]
+    _journal = {"_handler": journal_handler, "italics::journal": "journal", "paren::italics::journal": "journal", "volumes": "volume"}
+        #(journal_must_include, ['italics', 'paren::volumes', 'paren::page']
+
+
+    _journal_anywhere, _journal_anywhere_tr = make_anywhere(
+        ['date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc'],
+        [ "issue", "page", "volume" ], # not chapter
+        # alternate keys
+        {
+            #"issues": "issues",
+            "pages": "pages",
+            "year2": "year_published",
+            "date_retrieved": "accessdate"
+        }
+    )
+    _journal_anywhere |= {'url'}
+    _journal_anywhere_tr |= {
+        "url::page": "url::page", # instead of just 'page', to trigger 'url' -> 'urlpage'
+    }
+
+#    print(_journal_anywhere_tr)
+#    _orig = { 'date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'year2', 'issue', 'issues', 'volumes', 'page', 'pages', 'url', 'url::chapter', 'url::page', 'isbn', 'issn', 'oclc', 'url::date', 'paren::volume', 'paren::volumes', 'paren::page', 'paren::issues', 'paren::issue', 'paren::date', 'date_retrieved', 'paren::date_retrieved'}
+#    print(_journal_anywhere)
+#    print(_orig-_journal_anywhere)
+#    raise ValueError()
+
+    # Alternate terms
+#`    _journal_anywhere_tr = {'year2': "year_published", 'issues': 'issue', 'volumes': 'volume', 'url::date': 'date', 'paren::date': 'date', 'paren::month': 'month', 'url::month': 'month', 'paren::volumes': 'volume', 'paren::volume': 'volume', 'paren::page': 'page', 'paren::issues': 'issue', 'paren::issue': 'issue', "date_retrieved": "accessdate", "paren::date_retrieved": "accessdate"}
+
+
+    #_journal_anywhere = { 'date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'year2', 'issue', 'issues', 'volumes', 'page', 'pages', 'url', 'url::chapter', 'url::page', 'isbn', 'issn', 'oclc', 'url::date', 'paren::volume', 'paren::volumes', 'paren::page', 'paren::issues', 'paren::issue', 'paren::date', 'date_retrieved', 'paren::date_retrieved'}
+    #_journal_anywhere_tr = {'year2': "year_published", 'issues': 'issue', 'volumes': 'volume', 'url::date': 'date', 'paren::date': 'date', 'paren::month': 'month', 'url::month': 'month', 'paren::volumes': 'volume', 'paren::volume': 'volume', 'paren::page': 'page', 'paren::issues': 'issue', 'paren::issue': 'issue', "date_retrieved": "accessdate", "paren::date_retrieved": "accessdate"}
+    _journal_exclude = { 'newsgroup', 'paren::newsgroup' }
+
+    newsgroup_must_contain = [
+        {'newsgroup', 'date'},
+        {'newsgroup', 'year'},
+        {'paren::newsgroup', 'date'},
+        {'paren::newsgroup', 'year'},
+    ]
+    _newsgroup = {"_handler": newsgroup_handler, 'paren::newsgroup': 'newsgroup'}
+    _newsgroup_anywhere = {"date_retrieved", "paren::date_retrieved"}
+    _newsgroup_anywhere_tr = {"date_retrieved": "accessdate", "paren::date_retrieved": "accessdate"}
+    _newsgroup_exclude = {}
+
+    ###HANDLERS
     _all_handlers = [
+        # Text handlers
+        ({}, ['year', 'author'], {}, {}, _text),
+        ({}, ['year', 'author', 'url', 'url::text'], {}, {}, _text|_url_text_title),
+        ({}, ['year', 'author', 'double_quotes'], {}, {}, _text|_dq_title),
+        ({}, ['year', 'author', 'italics'], {}, {}, _text|_italics_title),
+        ({}, ['year', 'author', 'fancy_quote'], {}, {}, _text|_fq_title),
+        ({}, ['year', 'url', 'url::italics', 'author'], {}, {}, _text|_url_italics_title),
+        ({}, ['year', 'url', 'url::text', 'page'], {}, {}, _text|_url_text_title),
+        ({}, ['year', 'url', 'url::text'], {}, {}, _text|_url_text_title),
+        ({}, ['year', 'italics', 'author'], {}, {}, _text|_italics_title),
+        ({}, ['year', 'author', 'url', 'url::italics'], {}, {}, _text|_url_italics_title),
+#        ({}, ['year', 'italics', 'paren::volumes', 'paren::page'], {}, {}, _text|_paren_volumes_volume|_paren_page),
+
+        # Web handlers
+        ({}, ['year', 'url', 'url::unhandled<VOA Learning English>', 'paren::unhandled<public domain>'], {}, {},
+            _web|_url_unhandled_publisher|_skip_paren_unhandled),
+
+        # Book handlers
+        (book_must_include, ['year', 'italics'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr),
+        (book_must_include, ['year', 'italics::link'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_italics_link_title),
+        (book_must_include, ['year', 'fancy_quote', 'italics'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_fq_chapter),
+        (book_must_include, ['year', 'fancy_double_quotes', 'italics'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_fancy_dq_chapter),
+        (book_must_include, ['year', 'italics', 'double_quotes'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_dq_chapter),
+        (book_must_include, ['year', 'italics', 'italics2'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_chapter_title),
+
+        (book_must_include, ['year', 'italics', 'fancy_double_quotes'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_fancy_dq_chapter),
+
+        # text is not title
+        #(book_must_include, ['year', 'italics', 'url', 'url::text'], {}, {}, _book|_italics_chapter|_url_text_title),
+
+
+        #(book_must_include, ['year', 'italics', 'unhandled:], _book_anywhere, _book_exclude, _book|_book_anywhere_tr),
+            # TODO: Check for unhandled<"page"> followed by url, url::unhandled<number>
+
+# Mostly translated titles
+#        ({'author', 'page'}, 'year, italics, paren::italics', _book_anywhere, _book|_book_anywhere_tr|_paren_italics_series),
+#            (('year', 'author', 'italics', 'url', 'url::text'), _book| {"url::text": "_maybe_bare_page_link"}),
+
+
+        # Journal handlers
+            #('year', 'journal', 'month', 'year2'),
+        (journal_must_include, [], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr),
+        (journal_must_include, ['italics'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_italics_title),
+        (journal_must_include, ['url::double_quotes'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_url_dq_title|_url_titleurl),
+
+        (journal_must_include, ['double_quotes::url', 'double_quotes::url::text'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_dq_url_text_title|_dq_url_titleurl),
+
+
+
+# Enable this, grep "maybe_journal" in the output, then add valid journals to the allow list
+# grep maybe_journal fixes.all | sort | uniq >> allowed_journals
+#        ({}, ['year', 'italics', 'volumes', 'page'], {}, {}, _journal|_italics_maybe_journal),
+#        ({}, ['year', 'italics', 'paren::volumes', 'paren::page'], {}, {}, _journal|_paren_volumes_volume|_paren_page|_italics_maybe_journal),
+#        (maybe_journal_must_include, ['italics'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_italics_maybe_journal),
+#        (maybe_journal_must_include, ['url::double_quotes', 'italics'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_url_dq_title|_italics_maybe_journal),
+#        (maybe_journal_must_include, ['italics', 'paren::italics'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_paren_italics_maybe_journal),
+        #({},  'italics', 'url', 'url::date'), _journal_exclude, _journal|_italics_journal|_url_date_date),
+
+
+#        ('date', 'author', 'double_quotes::url', 'double_quotes::url::text', 'newsgroup')
+
+
+#('date', 'author', 'double_quotes::url', 'double_quotes::url::text', 'newsgroup')
+
+        #newsgroup_handler
+        (newsgroup_must_contain, ['author', 'italics'], {'url'}, _newsgroup_exclude, _newsgroup|_italics_title),
+        (newsgroup_must_contain, ['author', 'double_quotes'], {'url'}, _newsgroup_exclude, _newsgroup|_dq_title),
+        (newsgroup_must_contain, ['author', 'double_quotes::url', 'double_quotes::url::text'], [], _newsgroup_exclude, _newsgroup|_dq_url_url|_dq_url_text_title),
+        (newsgroup_must_contain, ['author', 'fancy_double_quotes'], {'url'}, _newsgroup_exclude, _newsgroup|_fancy_dq_title),
+
+        (newsgroup_must_contain, ['double_quotes', 'italics'], {'url'}, _newsgroup_exclude, _newsgroup|_dq_author|_italics_title),
+
+#('year', 'double_quotes', 'italics', 'paren::newsgroup')
+
+
+    ]
+    _old_handlers = [
         # text_handler: [
             (('year', 'author'), _text),
             (('year', 'author', 'url', 'url::text'), _text|_url_text_title),
@@ -1439,30 +1718,30 @@ class QuoteFixer():
         #],
 
         #journal_handler: [
-            (('date', 'author', 'italics'), _journal|_italics_journal),
-
-            (('date', 'author', 'url', 'url::double_quotes', 'italics'), _journal|_url_is_titleurl|_url_dq_title|_italics_journal),
-            (('date', 'italics', 'page'), _journal),
-
-            #(('year', 'author', 'double_quotes', 'italics', 'paren', 'date', 'url', 'url::page'), _journal|_dq_title|_italics_journal|_paren_publisher|_urlpage),
-            (('year', 'author', 'italics', 'date'), _journal|_italics_journal),
-            (('year', 'author', 'italics', 'paren::italics', 'paren::date', 'url'), _journal|_skip_paren_unhandled|_paren_italics_journal|_paren_date),
-            (('year', 'author', 'italics', 'url', 'url::date'), _journal|_italics_journal|_url_date_date),
-
-            (('year', 'italics', 'paren::volumes', 'paren::page'), _journal|_paren_volumes|_paren_page),
-            (('year', 'italics', 'paren::volume', 'paren::issues', 'paren::page'), _journal|_paren_volume|_paren_issues|_paren_page),
-            (('year', 'italics', 'paren::issues', 'paren::page'), _journal|_paren_issues|_paren_page),
-
-            (('year', 'italics', 'date'), _journal),
-
-            (('year', 'italics', 'volumes', 'page'), _journal),
-            (('year', 'italics', 'volumes', 'url', 'url::page'), _journal|_url_page_page),
-            (('year', 'italics', 'volume', 'page'), _journal),
-
-            (('year', 'link', 'volume', 'page'), _journal|_link_journal),
-
-            (('year', 'month', 'italics', 'page'), _journal),
-#        ],
+#            (('date', 'author', 'italics'), _journal|_italics_journal),
+#
+#            (('date', 'author', 'url', 'url::double_quotes', 'italics'), _journal|_url_is_titleurl|_url_dq_title|_italics_journal),
+#            (('date', 'italics', 'page'), _journal),
+#
+#            #(('year', 'author', 'double_quotes', 'italics', 'paren', 'date', 'url', 'url::page'), _journal|_dq_title|_italics_journal|_paren_publisher|_urlpage),
+#            (('year', 'author', 'italics', 'date'), _journal|_italics_journal),
+#            (('year', 'author', 'italics', 'paren::italics', 'paren::date', 'url'), _journal|_skip_paren_unhandled|_paren_italics_journal|_paren_date),
+#            (('year', 'author', 'italics', 'url', 'url::date'), _journal|_italics_journal|_url_date_date),
+#
+#            (('year', 'italics', 'paren::volumes', 'paren::page'), _journal|_paren_volumes|_paren_page),
+#            (('year', 'italics', 'paren::volume', 'paren::issues', 'paren::page'), _journal|_paren_volume|_paren_issues|_paren_page),
+#            (('year', 'italics', 'paren::issues', 'paren::page'), _journal|_paren_issues|_paren_page),
+#
+#            (('year', 'italics', 'date'), _journal),
+#
+#            (('year', 'italics', 'volumes', 'page'), _journal),
+#            (('year', 'italics', 'volumes', 'url', 'url::page'), _journal|_url_page_page),
+#            (('year', 'italics', 'volume', 'page'), _journal),
+#
+#            (('year', 'link', 'volume', 'page'), _journal|_link_journal),
+#
+#            (('year', 'month', 'italics', 'page'), _journal),
+##        ],
 
 
     ]
@@ -1495,6 +1774,7 @@ class QuoteFixer():
             yield header + tail
 
     def _init_fingerprints(self):
+        return
         self._fingerprints = {}
 
         for fingerprint_pattern, transformer in self._all_handlers:
@@ -1603,7 +1883,7 @@ class QuoteFixer():
         #if re.search(r"\[(//|http)", sub_text) \
 
         all_types = { k for k, *vs in sub_items if k != "separator" }
-        if all_types == {"unhandled"} or \
+        if all_types == {"unhandled"} or all_types == {"unhandled", "journal"} or \
             (len(all_types)>1 and not all_types-{"brackets", "unhandled", "separator", "italics", "parenthesis", "bold", "year", "paren"}):
             print("CONSOLIDATING", label, all_types, sub_text)
             if label == "url":
@@ -1619,7 +1899,7 @@ class QuoteFixer():
         return new_text
 
 
-    def do_cleanup(self, parsed, text):
+    def do_cleanup(self, parsed, text, no_recursion=False):
         if not parsed:
             return text
 
@@ -1654,19 +1934,29 @@ class QuoteFixer():
 
         # Final cleanup
         if text == "":
+            replacements = []
 
-            # convert unhandled<'in'> to separator
             for idx, kv in enumerate(parsed):
                 label, values = kv
-                if label == "unhandled" and values[0].lower() in ["in", "as", "in the", "on"]:
-                    parsed[idx] = ("separator", values)
+                if label == "unhandled":
+                    # convert unhandled<'in'> to separator
+                    if values[0].lower() in ["in", "as", "in the", "on", "by", "for", "and", "of"]:
+                        parsed[idx] = ("separator", values)
+                    elif not no_recursion:
+                        # Check if the "unhandled" text matches an allow-listed journal, publisher, etc
+                        new_items = self.parse_text(values[0], parse_names=True, parse_unlabeled_names=False, _recursive=True)
+                        new_good_items = [ (k,vs) for k, vs in new_items if k != "separator" ]
+                        if len(new_good_items) == 1 and new_good_items[0][0] != "unhandled":
+                            replacements.append((idx, new_items))
+
+            for idx, new_values in reversed(replacements):
+                parsed[idx:idx+1] = new_values
+
 
         return new_text
 
 
-    def parse_text(self, text, parse_names=True, parse_unlabeled_names=True):
-
-        print("PARSE TEXT", text, parse_names, parse_unlabeled_names)
+    def parse_text(self, text, parse_names=True, parse_unlabeled_names=True, _recursive=False):
 
         orig_text = text
 
@@ -1681,6 +1971,24 @@ class QuoteFixer():
             for label, function in [
                 ("date", self.get_leading_date),
                 ("year", self.get_leading_year),   # process "year" before "bold"
+            ]:
+                text = self.parse(parsed, label, function, text)
+                if text != prev_text:
+                    break
+            if text != prev_text:
+                continue
+
+            # Get names before months so that May Davies Martenet doesn't match as "May", "Davies Martenet"
+
+            # TODO: get_author, similar to get_publisher that reads allow-listed author names that would otherwise be unparsable
+            if parse_names and parse_unlabeled_names:
+                text = self.parse_names(parsed, self.get_leading_names, text)
+                if text != prev_text:
+                    parse_unlabeled_names=False
+                    continue
+
+
+            for label, function in [
                 ("month_day", self.get_leading_month_day),
                 ("month", self.get_leading_month),
 #                ("season", self.get_leading_season),
@@ -1691,14 +1999,6 @@ class QuoteFixer():
                     break
             if text != prev_text:
                 continue
-
-
-            # TODO: get_author, similar to get_publisher that reads allow-listed author names that would otherwise be unparsable
-            if parse_names and parse_unlabeled_names:
-                text = self.parse_names(parsed, self.get_leading_names, text)
-                if text != prev_text:
-                    parse_unlabeled_names=False
-                    continue
 
             for label, function in [
                 ("italics", self.get_leading_italics),
@@ -1732,6 +2032,7 @@ class QuoteFixer():
                     continue
 
             for label, function in [
+                ("journal", self.get_leading_journal),
                 ("link", self.get_leading_link),
                 ("date_retrieved", self.get_leading_date_retrieved),
                 ("isbn", self.get_leading_isbn),
@@ -1759,7 +2060,7 @@ class QuoteFixer():
             text = self.parse(parsed, "unhandled", self.get_leading_unhandled, text)
 
         # Run a final cleanup after everything parsed
-        text = self.do_cleanup(parsed, text)
+        text = self.do_cleanup(parsed, text, _recursive)
 
         # TODO: "unhandled" between "location" and "date" is very likely a publisher
         # TODO: "unhandled" after "location" may be publisher
@@ -2052,14 +2353,16 @@ class QuoteFixer():
 
     def is_valid_template(self, template, params):
 
-        for k in ["url", "title", "author"]:
-            v = params.get(k, "")
-            if v and ("=" in v or "|" in v):
-                self.dprint("= or | in value", k, v, params)
+        nests = (("[[", "]]"), ("{{", "}}"), ("[http", "]")) #, (start, stop))
+
+        for k in ["url", "pageurl", "titleurl", "chapterurl", "title", "author"]:
+            v = params.get(k, "").strip()
+
+            if v.startswith("|") or v.endswith("|") \
+                    or len(list(nest_aware_resplit("[|]", v, nests))) > 1:
+                # TODO: self.warn()
+                self.dprint("pipe_in_value", k, v, params)
                 return False
-
-
-        # TODO: Make sure there are no "|" characters outside of templates
 
         if template in ["quote-newsgroup", "cite-newsgroup"]:
             if all(x in params for x in ["author", "newsgroup"]):
@@ -2100,7 +2403,7 @@ class QuoteFixer():
                 return True
             self.dprint("incomplete web entry")
 
-        raise ValueError("invalid template", template, params)
+        #raise ValueError("invalid template", template, params)
         return False
 
 
@@ -2407,11 +2710,44 @@ class QuoteFixer():
         _allowed_publishers = {line.strip() for line in infile if line.strip()}
 
     _allowed_publishers = sorted(_allowed_publishers, key=lambda x: (len(x)*-1, x))
-    _allowed_publishers_regex = "(" + "|".join(map(re.escape, _allowed_publishers)) + r")(?=\b|$|[ .,;:])"
+    _allowed_publishers_regex = "(" + "|".join(map(re.escape, _allowed_publishers)) + r")(?=\b|$|[-.,;:])"
 
     with open("allowed_locations") as infile:
         _allowed_locations = {line.strip() for line in infile if line.strip()}
 
-    # Order locations longest to shortest in order to match "New York, NY" before "New York"
+    # Order longest to shortest in order to match "New York, NY" before "New York"
     _allowed_locations = sorted(_allowed_locations, key=lambda x: (len(x)*-1, x))
-    _locations_regex = "(" + "|".join(map(re.escape, _allowed_locations)) + r")(?=$|\s*[.;:])"
+    _locations_regex = "(" + "|".join(map(re.escape, _allowed_locations)) + r")(?=$|\s*[-.;:])"
+
+
+    with open("allowed_journals") as infile:
+        _allowed_journals = {line.strip() for line in infile if line.strip()}
+
+    # Order longest to shortest in order to match "New York, NY" before "New York"
+    _allowed_journals = sorted(_allowed_journals, key=lambda x: (len(x)*-1, x))
+    _journals_regex = "(" + "|".join(map(re.escape, _allowed_journals)) + r""")(?=$|\s*[-.,;:'"(])"""
+
+    # curl ftp://ftp.isc.org/pub/usenet/CONFIG/active | cut -d '.' -f 1 | uniq > allowed_newsgroups
+    with open("allowed_newsgroups") as infile:
+        _allowed_newsgroups = {line.strip() for line in infile if line.strip()}
+
+    # Order longest to shortest in order to match "New York, NY" before "New York"
+    _allowed_newsgroups = sorted(_allowed_newsgroups, key=lambda x: (len(x)*-1, x))
+
+    _allowed_newsgroups_regex = r"""(?x)
+            (discussion[ ])?
+            (on[ ]|in[ ])?
+            (Internet[ ])?
+            (newsgroup[ ])?
+            (''|{{monospace\|)?
+            \s*
+            (?P<usenet>(""" \
+                + "|".join(_allowed_newsgroups) + \
+            r""")\.
+                ([\d\w_\-.]+)
+            )
+            \s*
+            (}}|'')?
+            ([ :,-;]*'*Usenet'*)?
+            (?P<post>.*)
+        """
