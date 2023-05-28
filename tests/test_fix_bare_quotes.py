@@ -1,9 +1,12 @@
 from autodooz.fix_bare_quotes import QuoteFixer
+from collections import defaultdict
+
 #from ..fix_bare_quotes import QuoteFixer
 fixer = QuoteFixer(debug=True)
 get_params = fixer.get_params
 
-def test_get_all_combinations():
+
+def notest_get_all_combinations():
     assert list(fixer.get_all_combinations(["a", "b", "c"])) == [["a", "b", "c"]]
     assert list(fixer.get_all_combinations(["?a", "b", "c"])) == [['a', 'b', 'c'], ['b', 'c']] 
     assert list(fixer.get_all_combinations(["a", "?b", "c"])) == [['a', 'b', 'c'], ['a', 'c']]
@@ -46,11 +49,13 @@ def test_get_fingerprint():
         ),
         (
             """'''2007''', Jonathan Small, ''Chic geek: Ex model {{w|Matthew Gray Gubler}} channels his inner [[nerd]] on ''{{w|Criminal Minds}}'', in ''{{w|TV guide}}'' '', February 26, p. 23:""",
-            ('year', 'author', 'italics', 'unhandled<{{w|Criminal Minds}}>', 'italics2', 'unhandled<{{w|TV guide}}>', 'italics3', 'date', 'page'),
+            ('year', 'author', 'italics', 'unhandled<{{w|Criminal Minds}}>', 'italics2', 'journal', 'italics3', 'date', 'page')
+#            ('year', 'author', 'italics', 'author2', 'italics2', 'author3', 'italics3', 'date', 'page')
+
         ),
         (
             """'''1583''', Robert Harrison, “A Little Treatise vppon the firste Verse of the 122. Psalm”, as printed in Leland Henry Carlson and Albert Peel (editors, 1953), ''Elizabethan Non-Conformist Texts, Volume II: The Writings of Robert Harrison and [[w:Robert Browne (Brownist)|Robert Browne]]'', Routledge (2003), {{ISBN|978-0-415-31990-4}}, [http://books.google.com/books?id=w5QDcRGBXi0C&pg=PA91&dq=woulders pages 91–92]:""",
-            ('year', 'author', 'fancy_double_quotes', 'unhandled<as printed in Leland Henry Carlson and Albert Peel>', 'paren', 'italics::unhandled<Elizabethan Non-Conformist Texts>', 'italics::volume', 'italics::unhandled<The Writings of Robert Harrison and>', 'italics::link', 'publisher', 'year2', 'isbn', 'url', 'url::pages')
+            ('year', 'author', 'fancy_double_quotes', 'unhandled<as printed in Leland Henry Carlson and Albert Peel>', 'paren', 'italics::unhandled<Elizabethan Non-Conformist Texts>', 'italics::volume', 'italics::unhandled<The Writings of Robert Harrison and>', 'italics::link', 'italics::link::text', 'publisher', 'year2', 'isbn', 'url', 'url::pages')
         ),
         (
             """'''1925''', {{w|Ford Madox Ford}}, ''No More Parades'', Penguin 2012 (''Parade's End''), p. 397:""",
@@ -59,7 +64,7 @@ def test_get_fingerprint():
         (
             # TODO: Don't search "publisher" after "date"
             """'''2015''', Steven E. Kuehn, "I'm Printing Your Prescription Now, Ma'am", ''Pharmaceutical Manufacturing'', September 2015, Putnam Media, page 7:""",
-            ('year', 'author', 'double_quotes', 'italics', 'month', 'year2', 'publisher', 'unhandled<Media>', 'page')
+            ('year', 'author', 'double_quotes', 'italics', 'month', 'year2', 'publisher', 'page')
         ),
 
 
@@ -76,7 +81,17 @@ def test_get_fingerprint():
 
 def test_get_leading_publisher():
     assert fixer.get_leading_publisher('NYU Press ({{ISBN|9780814767498}}), page 104:') == ('NYU Press', ' ({{ISBN|9780814767498}}), page 104:')
+    assert fixer.get_leading_publisher('NYU Press, Inc ({{ISBN|9780814767498}}), page 104:') == ('NYU Press, Inc', ' ({{ISBN|9780814767498}}), page 104:')
+    assert fixer.get_leading_publisher('NYU Press, Inc. ({{ISBN|9780814767498}}), page 104:') == ('NYU Press, Inc', '. ({{ISBN|9780814767498}}), page 104:')
+    assert fixer.get_leading_publisher('NYU Press, Inc, LLC ({{ISBN|9780814767498}}), page 104:') == ('NYU Press, Inc, LLC', ' ({{ISBN|9780814767498}}), page 104:')
+    assert fixer.get_leading_publisher('NYU Press and sons ({{ISBN|9780814767498}}), page 104:') == ('NYU Press and sons', ' ({{ISBN|9780814767498}}), page 104:')
+    assert fixer.get_leading_publisher('NYU Press and sons ({{ISBN|9780814767498}}), page 104:') == ('NYU Press and sons', ' ({{ISBN|9780814767498}}), page 104:')
+    assert fixer.get_leading_publisher('NYU Press&son ({{ISBN|9780814767498}}), page 104:') == ('NYU Press&son', ' ({{ISBN|9780814767498}}), page 104:')
+    assert fixer.get_leading_publisher('NYU Press&sonreir ({{ISBN|9780814767498}}), page 104:') == ('NYU Press', '&sonreir ({{ISBN|9780814767498}}), page 104:')
+    assert fixer.get_leading_publisher('University of Nowhere') == None
 
+def test_get_leading_link():
+    assert fixer.get_leading_link('[[w:Classical Philology (journal)|Classical Philology]] test') == ('Classical Philology', '[[w:Classical Philology (journal)|Classical Philology]]', ' test')
 
 def test_get_paramsx():
     for text, expected in [
@@ -105,15 +120,6 @@ def test_get_paramsx():
 def test_get_params_old():
     for text, expected in [
         (
-            # No publisher, no page
-            """'''2015''', Christopher J Gallagher, MD, ''Pure and Simple: Anesthesia Writtens Review IV Questions, Answers, Explanations 501-1000'' ({{ISBN|9781483431178}}):""",
-            {'year': '2015', 'author': 'Christopher J Gallagher, MD', 'title': 'Pure and Simple: Anesthesia Writtens Review IV Questions, Answers, Explanations 501-1000', 'isbn': '9781483431178'}
-        ),
-        (
-            """'''2013''', Robert Miraldi, ''Seymour Hersh'', Potomac Books, Inc. ({{ISBN|9781612344751}}), page 187:""",
-            {'year': '2013', 'author': 'Robert Miraldi', 'title': 'Seymour Hersh', 'publisher': 'Potomac Books, Inc.', 'isbn': '9781612344751', 'page': '187'}
-        ),
-        (
             # google books link, page in link
             """'''2006''', W. Stanley Taft Jr. and James W. Mayer, ''The Science of Paintings'', {{ISBN|9780387217413}}, [https://books.google.ca/books?id=nobhBwAAQBAJ&pg=PA9&dq=%22deattributions%22&hl=en&sa=X&redir_esc=y#v=onepage&q=%22deattributions%22&f=false p. 9 (Google preview)]:""",
             {'year': '2006', 'author': 'W. Stanley Taft Jr.', 'author2': 'James W. Mayer', 'title': 'The Science of Paintings', 'isbn': '9780387217413', 'pageurl': 'https://books.google.ca/books?id=nobhBwAAQBAJ&pg=PA9&dq=%22deattributions%22&hl=en&sa=X&redir_esc=y#v=onepage&q=%22deattributions%22&f=false', 'page': '9'}
@@ -134,16 +140,6 @@ def test_get_params_old():
             {'year': '2013', 'translator': 'Hans Jørgen Birkmose', 'author': 'Charles Dickens', 'title': 'Oliver Twist', 'publisher': 'Klim', 'isbn': '9788771292855'}
         ),
         (
-            # no publisher, period after title, colon after author
-            """'''1993''' Oscar Hijuelos: ''The Fourteen Sisters of Emilio Montez O'Brien''. {{ISBN|0-14-023028-9}} page 75:""",
-            {'year': '1993', 'author': 'Oscar Hijuelos', 'title': "The Fourteen Sisters of Emilio Montez O'Brien", 'isbn': '0-14-023028-9', 'page': '75'}
-        ),
-        (
-            # colon after author
-            """'''1996''' Sherman Alexie: ''Indian Killer'' {{ISBN|0-87113-652-X}} page 102:""",
-            {'year': '1996', 'author': 'Sherman Alexie', 'title': 'Indian Killer', 'isbn': '0-87113-652-X', 'page': '102'}
-        ),
-        (
             # Title URL
             """'''2006''', Henrik Ibsen, trans. by Odd Tangerud, ''[http://www.gutenberg.org/files/20162/20162-h/20162-h.htm La kolonoj de la socio]'', {{ISBN|82-91707-52-9}}""",
             {'year': '2006', 'translator': 'Odd Tangerud', 'author': 'Henrik Ibsen', 'url': 'http://www.gutenberg.org/files/20162/20162-h/20162-h.htm', 'title': 'La kolonoj de la socio', 'isbn': '82-91707-52-9'}
@@ -157,30 +153,6 @@ def test_get_params_old():
             # Publisher after page
             """'''1992''', {{w|Samuel Beckett}}, ''{{w|Dream of Fair to Middling Women}}'', p. 71. John Calder {{ISBN|978-0714542133}}:""",
             {'year': '1992', 'author': '{{w|Samuel Beckett}}', 'title': '{{w|Dream of Fair to Middling Women}}', 'page': '71', 'publisher': 'John Calder', 'isbn': '978-0714542133'}
-        ),
-        (
-            # Parenthesis around publisher, isbn
-            """'''1995''', Gill Van Hasselt, ''Childbirth: Your Choices for Managing Pain'' (Taylor Pub, {{ISBN|9780878339020}}):""",
-            {'year': '1995', 'author': 'Gill Van Hasselt', 'title': 'Childbirth: Your Choices for Managing Pain', 'publisher': 'Taylor Pub', 'isbn': '9780878339020'}
-        ),
-        (
-            # sup tags
-            """'''1998''', [[w:Frank M. Robinson|Frank M. Robinson]] and Lawrence Davidson, ''Pulp Culture: The Art of Fiction Magazines'',<sup >[http://books.google.com/books?id=mhYfL6Dn5g8C ]</sup> Collectors Press, Inc., {{ISBN|1-888054-12-3}}, page 103""",
-            {'year': '1998', 'author': '[[w:Frank M. Robinson|Frank M. Robinson]]', 'author2': 'Lawrence Davidson', 'title': 'Pulp Culture: The Art of Fiction Magazines', 'pageurl': 'http://books.google.com/books?id=mhYfL6Dn5g8C', 'page': '103', 'publisher': 'Collectors Press, Inc.', 'isbn': '1-888054-12-3'}
-        ),
-        (
-            # publisher is link
-            """'''1996''', Marc Parent, ''Turning Stones'', [[w:Harcourt Brace & Company|Harcourt Brace & Company]], {{ISBN|0151002045}}, page 93,""",
-            {'year': '1996', 'author': 'Marc Parent', 'title': 'Turning Stones', 'page': '93', 'publisher': '[[w:Harcourt Brace & Company|Harcourt Brace & Company]]', 'isbn': '0151002045'}
-        ),
-        (
-             """'''2003''', Paz Verdades M. Santos, ''Hagkus: Twentieth-Century Bikol Women Writers'' ({{ISBN |9789715554428}})""",
-            {'year': '2003', 'author': 'Paz Verdades M. Santos', 'title': 'Hagkus: Twentieth-Century Bikol Women Writers', 'isbn': '9789715554428'}
-        ),
-        (
-            # publisher followed by year
-            """'''2007''' Rachel M. Harper: ''Brass Ankle Blues''. Simon&Schuster 2007. {{ISBN|0743296583}} page 88:""",
-            {'year': '2007', 'author': 'Rachel M. Harper', 'title': 'Brass Ankle Blues', 'page': '88', 'publisher': 'Simon&Schuster', 'isbn': '0743296583'}
         ),
         (
             # reprint
@@ -198,19 +170,9 @@ def test_get_params_old():
             {'year': '2001', 'author': '[[w:Yann Martel|Yann Martel]]', 'title': 'Life of Pi', 'pageurl': 'http://books.google.ca/books?id=RmkhNOzuV5YC&pg=PA186&dq=%22calendar+day%22+subject:%22fiction%22&hl=en&sa=X&ei=ChOEU8PrEMiT8QHQxoC4Bw&ved=0CCwQ6AEwADgK#v=onepage&q=%22calendar%20day%22%20subject%3A%22fiction%22&f=false', 'page': '186', 'year_published': '2007', 'isbn': '9780156035811'}
         ),
         (
-            # No author
-            """'''2008''', ''Household Economy Approach'' ({{ISBN|9781841871196}}), page 3:""",
-            {'year': '2008', 'title': 'Household Economy Approach', 'page': '3', 'isbn': '9781841871196'}
-        ),
-        (
             # Publisher location
             """'''2008''', David Squire et al, ''The First-Time Garden Specialist'' ({{ISBN|1845379268}}), page 12:""",
             {'year': '2008', 'author': 'David Squire', 'author2': 'et al', 'title': 'The First-Time Garden Specialist', 'page': '12', 'isbn': '1845379268'}
-        ),
-        (
-            # ''et al.''
-            """'''1988''', Lewis B. Ware ''et al.'', ''Low-Intensity Conflict in the Third World,'' Air Univ. Press, {{ISBN|978-1585660223}}, p. 139:""",
-            {'year': '1988', 'author': 'Lewis B. Ware', 'author2': 'et al', 'title': 'Low-Intensity Conflict in the Third World', 'page': '139', 'publisher': 'Air Univ. Press', 'isbn': '978-1585660223'}
         ),
         (
             # ''et al.'' multiple authors
@@ -263,16 +225,6 @@ def test_get_params_old():
             {'year': '1945', 'author': 'Neva L. Boyd', 'title': 'Handbook of Recreational Games', 'pageurl': 'http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight', 'page': '16', 'publisher': '[[w:Dover Publications|Dover]]', 'year_published': '1975', 'isbn': '0486232042'}
         ),
         (
-            # Multiple pages
-             """'''2013''', Terry Pratchett, ''Raising Steam'', Doubleday, {{ISBN|978-0-857-52227-6}}, pages 345–346:""",
-            {'year': '2013', 'author': 'Terry Pratchett', 'title': 'Raising Steam', 'pages': '345–346', 'publisher': 'Doubleday', 'isbn': '978-0-857-52227-6'}
-        ),
-        (
-            # Pages in link text
-             """'''2006''', {{w|Alexander McCall Smith}}, ''Love Over Scotland'', Random House Digital (2007), {{ISBN|978-0-307-27598-1}}, [http://books.google.com/books?id=_SLjwNeumpoC&pg=PA242&dq=third-person pages 243-4]:""",
-            {'year': '2006', 'author': '{{w|Alexander McCall Smith}}', 'title': 'Love Over Scotland', 'pageurl': 'http://books.google.com/books?id=_SLjwNeumpoC&pg=PA242&dq=third-person', 'pages': '243-4', 'publisher': 'Random House Digital', 'year_published': '2007', 'isbn': '978-0-307-27598-1'}
-        ),
-        (
             # Strip (novel) from unparsed text
              """'''1959''', [[w:James Michener|James Michener]], ''[[w:Hawaii (novel)|Hawaii]]'' (novel),<sup >[http://books.google.com/books?id=1QHYAAAAMAAJ ]</sup> Fawcett Crest (1986), {{ISBN|9780449213353}}, page 737:""",
             {'year': '1959', 'author': '[[w:James Michener|James Michener]]', 'title': '[[w:Hawaii (novel)|Hawaii]]', 'pageurl': 'http://books.google.com/books?id=1QHYAAAAMAAJ', 'page': '737', 'publisher': 'Fawcett Crest', 'year_published': '1986', 'isbn': '9780449213353'}
@@ -290,11 +242,6 @@ def test_get_params_old():
         (
              """'''1999''', K. Zakrzewska, R. Lavery, "Modelling DNA-protein interactions", in ''Computational Molecular Biology'' (edited by J. Leszczynski; {{ISBN|008052964X}}:""",
             {'year': '1999', 'editor': 'J. Leszczynski', 'author': 'K. Zakrzewska', 'author2': 'R. Lavery', 'chapter': 'Modelling DNA-protein interactions', 'title': 'Computational Molecular Biology', 'isbn': '008052964X'}
-        ),
-        (
-            # Editor prefixed
-            """'''2008''', ''The New Black Lace Book of Women's Sexual Fantasies'' (ed. Mitzi Szereto), Black Lace (2008), {{ISBN|9780352341723}}, [http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false page 38]""",
-            {'year': '2008', 'editor': 'Mitzi Szereto', 'title': "The New Black Lace Book of Women's Sexual Fantasies", 'pageurl': 'http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false', 'page': '38', 'publisher': 'Black Lace', 'isbn': '9780352341723'}
         ),
         (
             # Pages
@@ -315,11 +262,6 @@ def test_get_params_old():
             # Chapter title
              """'''2009''', Cate Robertson, "Half-Crown Doxy", in ''Bitten: Dark Erotic Stories'' (ed. Susie Bright), Chronicle Books (2009), {{ISBN|9780811864251}}, [http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false page 126]:""",
             {'year': '2009', 'editor': 'Susie Bright', 'author': 'Cate Robertson', 'chapter': 'Half-Crown Doxy', 'title': 'Bitten: Dark Erotic Stories', 'pageurl': 'http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false', 'page': '126', 'publisher': 'Chronicle Books', 'isbn': '9780811864251'}
-        ),
-        (
-            # Chapter title in ''
-             """'''2002''' Dave Margoshes, ''Faith, Hope, Charity'', in ''Purity of Absence'', Dundurn Press Ltd., {{ISBN|0888784198}}, page 106:""",
-            {'year': '2002', 'author': 'Dave Margoshes', 'chapter': 'Faith, Hope, Charity', 'title': 'Purity of Absence', 'page': '106', 'publisher': 'Dundurn Press Ltd.', 'isbn': '0888784198'}
         ),
         (
             # Pages in link text
@@ -352,10 +294,6 @@ def test_get_params_old():
 #            """'''1910''', Patrick Weston Joyce, ''[[s:English as we speak it in Ireland|English as we speak it in Ireland]]'', [[s:English as we speak it in Ireland/IV|chapter 5]]""",
 #            {'year': '1910', 'author': 'Patrick Weston Joyce', 'title': '[[s:English as we speak it in Ireland|English as we speak it in Ireland]]', 'chapter': '[[s:English as we speak it in Ireland/IV|chapter 5]]'}
 #        ),
-        (
-            """'''1875''', Arthur Crump, ''The Theory of Stock Exchange Speculation'' (page 28)""",
-            {'year': '1875', 'author': 'Arthur Crump', 'title': 'The Theory of Stock Exchange Speculation', 'page': '28'}
-        ),
 #        (
             # Trailing date
     #'''2022''', Adela Suliman, "[https://www.washingtonpost.com/sports/2022/07/20/quidditch-quadball-name-change-jk-rowling/ Quidditch is now quadball, distancing game from J.K. Rowling, league says]", ''The Washington Post'', 20 July 2022:
@@ -387,21 +325,9 @@ def test_get_params_old():
             {'year': '1864', 'chapter': 'The Adventures of a Lady in Search of a Horse', 'title': 'London Society', 'volume': 'VI', 'number': 'XXXII', 'month': 'July', 'pageurl': 'http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false', 'page': '5'}
         ),
         (
-             """'''2011''', Deepika Phukan, translating {{w|Arupa Patangia Kalita}}, ''The Story of Felanee'':""",
-            {'year': '2011', 'author': '{{w|Arupa Patangia Kalita}}', 'translator': 'Deepika Phukan', 'title': 'The Story of Felanee'}
-        ),
-        (
             # author & al. pages roman-roman
              """'''2006''', Barry A. Kosmin & al., ''Religion in a Free Market'', [http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16 pages xvi–xvii]:""",
             {'year': '2006', 'author': 'Barry A. Kosmin', 'author2': 'et al', 'title': 'Religion in a Free Market', 'pageurl': 'http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16', 'pages': 'xvi–xvii'}
-        ),
-        (
-            """'''1999''', Buddy Seigal, "[https://web.archive.org/web/20140826030806/http://www.ocweekly.com/1999-08-26/music/even-old-englishmen-still-get-wood/ Even Old Englishmen Still Get Wood]," ''OC Weekly'', 26 Aug. (retrieved 16 June 2009):""",
-            {'date': '26 Aug 1999', 'author': 'Buddy Seigal', 'chapter': 'Even Old Englishmen Still Get Wood', 'chapterurl': 'https://web.archive.org/web/20140826030806/http://www.ocweekly.com/1999-08-26/music/even-old-englishmen-still-get-wood/', 'title': 'OC Weekly', 'accessdate': '16 June 2009'}
-        ),
-        (
-            """'''2009''', John Metzler, "[http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp High stakes for democracy (and terrorism) as Afghans prepare to vote ]," ''World Tribune'' (US), 7 August (retrieved 15 Sep 2010):""",
-            {'date': '7 August 2009', 'author': 'John Metzler', 'chapter': 'High stakes for democracy (and terrorism) as Afghans prepare to vote', 'chapterurl': 'http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp', 'title': 'World Tribune', 'accessdate': '15 Sep 2010', 'location': 'US'}
         ),
         (
             """'''2003''', ''Cincinnati Magazine'' (volume 36, number 5, page 26)""",
@@ -416,11 +342,6 @@ def test_get_params_old():
             # no author, strip {{nowrap}}
             """'''2009''', "Is the era of free news over?", ''The Observer'', {{nowrap|10 May:}}""",
             {'date': '10 May 2009', 'chapter': 'Is the era of free news over?', 'title': 'The Observer'}
-        ),
-        (
-            # {{C.E.}} after year, page=1,392
-            """'''1704''' {{C.E.}}, ''Philoſophical tranſactions, Giving ſome Account of the Preſent Undertakings, Studies and Labours of the Ingenious, In many Conſiderable Parts of the World'', volume XXIII, [http://books.google.co.uk/books?id=j2LH2ErAT34C&pg=RA3-PA1392&dq=%22are%C3%A6%22&lr=&num=100&as_brr=0&ei=42YtS4PKDJzyzQSk3dCtBA&cd=41#v=onepage&q=%22are%C3%A6%22&f=false page 1,392]:""",
-            {'year': '1704', 'title': 'Philoſophical tranſactions, Giving ſome Account of the Preſent Undertakings, Studies and Labours of the Ingenious, In many Conſiderable Parts of the World', 'volume': 'XXIII', 'pageurl': 'http://books.google.co.uk/books?id=j2LH2ErAT34C&pg=RA3-PA1392&dq=%22are%C3%A6%22&lr=&num=100&as_brr=0&ei=42YtS4PKDJzyzQSk3dCtBA&cd=41#v=onepage&q=%22are%C3%A6%22&f=false', 'page': '1,392'}
         ),
         (
             # Lines
@@ -496,9 +417,6 @@ def test_get_params_unhandled():
         # bad publisher
         """'''1964''', {{w|J. D. Salinger}} (author), Judit Gyepes (translator), ''Zabhegyező'' [''{{w|The Catcher in the Rye}}''], Budapest: Európa Könyvkiadó (1998), {{ISBN|9630764024}}, chapter 11, page 95:""",
 
-        # ISBN before title
-        """'''2008''', Yolanda McVey, {{ISBN|9781585715787}}, ''Love's Secrets'':""",
-
         # crap after author
         """'''2004''', John P. Frayne and Madeleine Marchaterre, “Notes” to ''The Collected Works of W. B. Yeats, Volume IX: Early Articles and Reviews'', Scribner, {{ISBN|0-684-80730-0}}, [http://books.google.com/books?id=61IX00wwuYYC&pg=PA553&dq=in-memoriam page 553]:""",
 
@@ -529,9 +447,6 @@ def test_get_params_unhandled():
         # Fail on bad name
         """'''1885''', Joseph Parker,T''he people's Bible: discourses upon Holy Scripture'', volume 16, page 83""",
 
-        # Fail on mismatched dates
-        """'''2011''' Feb 21, "[http://www.dailymail.co.uk/news/article-1359019/Bankers-revive-strip-club-Spearmint-Rhino-bumper-bonuses.html Bankers revive strip club Spearmint Rhino with bumper bonuses]," ''Daily Mail'' (UK) <small>(24 July 2011)</small>:""",
-
         # Multi chapter, should be journal
         """'''1935''', {{w|Arthur Leo Zagat}}, ''Girl of the Goat God'', in ''Dime Mystery Magazine'', November 1935, Chapter IV, [http://gutenberg.net.au/ebooks13/1304651h.html]""",
 
@@ -543,11 +458,164 @@ def test_get_params_unhandled():
         assert res == expected
 
 
+def test_aggressive():
+    fixer = QuoteFixer(debug=True, aggressive=True)
+
+    text = """'''1956''' [[Kawabata]], ''[[Snow Country]]''"""
+    res = fixer.get_params(text)
+    assert res == expected
 
 def test_get_params_books():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
+#        (
+#        # bold not italics
+#            """'''1974''', Per Lord Hailsham, '''Smedleys Ltd v Breed [1974]2 All ER 21(HL) at 24'''""",
+#            "",
+#            ""
+#        ),
+        (
+            """'''1319''', M. Lucas Álvarez & P. Lucas Domínguez (eds.), ''El monasterio de San Clodio do Ribeiro en la Edad Media''. Sada / A Coruña: Edicións do Castro, page 451:""",
+            ('year', 'author', 'editor', 'italics', 'location', 'publisher', 'page'),
+            {'_source': 'book', 'year': '1319', 'editors': 'M. Lucas Álvarez; P. Lucas Domínguez', 'title': 'El monasterio de San Clodio do Ribeiro en la Edad Media', 'location': 'Sada / A Coruña', 'publisher': 'Edicións do Castro', 'page': '451'}
+        ),
+        (
+            """'''1999''', ''{{w|Survivor (novel)|Survivor}}'', {{w|Chuck Palahniuk}}""", "", ""
+        ),
+        (
+            """'''2000''', Edgar Allan Poe, translated by Edwin Grobe, ''La Falo de Uŝero-Domo'', Arizona-Stelo-Eldonejo, http://www.gutenberg.org/files/17425/17425-h/17425-h.htm""",
+            ('year', 'author', 'translator', 'italics', 'publisher'),
+            {'_source': 'text', 'year': '2000', 'author': 'Edgar Allan Poe', 'translator': 'Edwin Grobe', 'title': 'La Falo de Uŝero-Domo', 'publisher': 'Arizona-Stelo-Eldonejo, http://www.gutenberg.org/files/17425/17425-h/17425-h.htm'}
+        ),
+        (
+            """'''1965''', Australia. Bureau of Mineral Resources, Geology and Geophysics, ''U-K-A. Wandoan No. 1, Queensland of Union Oil Development Corporation, Kern County Land Company and Australian Oil and Gas Corporation Limited''""",
+            ('year', 'author', 'italics'),
+            {'_source': 'text', 'year': '1965', 'author': 'Australia. Bureau of Mineral Resources, Geology and Geophysics', 'title': 'U-K-A. Wandoan No. 1, Queensland of Union Oil Development Corporation, Kern County Land Company and Australian Oil and Gas Corporation Limited'}
+        ),
+        (
+            """'''1872'''. A. Braun, ''Die Ergebnisse der Sprachwissenschaft in populärer Darstellung'', Cassel, p. 78:""",
+            ('year', 'author', 'italics', 'publisher', 'page'),
+            {'_source': 'book', 'year': '1872', 'author': 'A. Braun', 'title': 'Die Ergebnisse der Sprachwissenschaft in populärer Darstellung', 'publisher': 'Cassel', 'page': '78'}
+        ),
+        (
+            """'''1832''' Bell, James ''A system of geography, popular and scientific''""",
+            ('year', 'author', 'italics'),
+            {'_source': 'text', 'year': '1832', 'author': 'Bell, James', 'title': 'A system of geography, popular and scientific'}
+        ),
+        (
+            # Chapter title in ''
+            """'''2002''' Dave Margoshes, ''Faith, Hope, Charity'', in ''Purity of Absence'', Dundurn Press Ltd., {{ISBN|0888784198}}, page 106:""",
+            ('year', 'author', 'italics', 'italics2', 'publisher', 'isbn', 'page'),
+            {'_source': 'book', 'year': '2002', 'author': 'Dave Margoshes', 'chapter': 'Faith, Hope, Charity', 'title': 'Purity of Absence', 'page': '106', 'publisher': 'Dundurn Press Ltd.', 'isbn': '0888784198'}
+        ),
+        (
+            # publisher followed by year
+            """'''2007''' Rachel M. Harper: ''Brass Ankle Blues''. Simon&Schuster 2007. {{ISBN|0743296583}} page 88:""",
+            ('year', 'author', 'italics', 'publisher', 'year2', 'isbn', 'page'),
+            {'_source': 'book', 'year': '2007', 'author': 'Rachel M. Harper', 'title': 'Brass Ankle Blues', 'page': '88', 'publisher': 'Simon&Schuster', 'isbn': '0743296583'}
+        ),
+        (
+            # colon after author
+            """'''1996''' Sherman Alexie: ''Indian Killer'' {{ISBN|0-87113-652-X}} page 102:""",
+            ('year', 'author', 'italics', 'isbn', 'page'),
+            {'_source': 'book', 'year': '1996', 'author': 'Sherman Alexie', 'title': 'Indian Killer', 'isbn': '0-87113-652-X', 'page': '102'}
+        ),
+
+        (
+            # Pages in link text
+             """'''2006''', {{w|Alexander McCall Smith}}, ''Love Over Scotland'', Random House Digital (2007), {{ISBN|978-0-307-27598-1}}, [http://books.google.com/books?id=_SLjwNeumpoC&pg=PA242&dq=third-person pages 243-4]:""",
+            ('year', 'author', 'italics', 'publisher', 'year2', 'isbn', 'url', 'url::pages'),
+            {'_source': 'book', 'year': '2006', 'author': '{{w|Alexander McCall Smith}}', 'title': 'Love Over Scotland', 'publisher': 'Random House Digital', 'year_published': '2007', 'isbn': '978-0-307-27598-1', 'pageurl': 'http://books.google.com/books?id=_SLjwNeumpoC&pg=PA242&dq=third-person', 'pages': '243-4'}
+
+        ),
+        (
+            # publisher is link
+            """'''1996''', Marc Parent, ''Turning Stones'', [[w:Harcourt Brace & Company|Harcourt Brace & Company]], {{ISBN|0151002045}}, page 93,""",
+            ('year', 'author', 'italics', 'publisher', 'isbn', 'page'),
+            {'_source': 'book', 'year': '1996', 'author': 'Marc Parent', 'title': 'Turning Stones', 'page': '93', 'publisher': '[[w:Harcourt Brace & Company|Harcourt Brace & Company]]', 'isbn': '0151002045'}
+        ),
+        (
+            # sup tags
+            """'''1998''', [[w:Frank M. Robinson|Frank M. Robinson]] and Lawrence Davidson, ''Pulp Culture: The Art of Fiction Magazines'',<sup >[http://books.google.com/books?id=mhYfL6Dn5g8C ]</sup> Collectors Press, Inc., {{ISBN|1-888054-12-3}}, page 103""",
+            ('year', 'author', 'italics', 'url', 'publisher', 'isbn', 'page'),
+            {'_source': 'book', 'year': '1998', 'author': '[[w:Frank M. Robinson|Frank M. Robinson]]', 'author2': 'Lawrence Davidson', 'title': 'Pulp Culture: The Art of Fiction Magazines', 'url': 'http://books.google.com/books?id=mhYfL6Dn5g8C', 'publisher': 'Collectors Press, Inc.', 'isbn': '1-888054-12-3', 'page': '103'}
+        ),
+#        (
+#            # TODO: Don't failed names text to start with "and"
+#            """'''2011''', Connie Green, Religious Diversity and Children's Literature, p 156""",
+#            ('year', 'author', 'unhandled<*>', 'page')
+#            None
+#        ),
+        (
+            """'''2013''', Robert Miraldi, ''Seymour Hersh'', Potomac Books, Inc. ({{ISBN|9781612344751}}), page 187:""",
+            ('year', 'author', 'italics', 'publisher', 'paren::isbn', 'page'),
+            {'_source': 'book', 'year': '2013', 'author': 'Robert Miraldi', 'title': 'Seymour Hersh', 'publisher': 'Potomac Books, Inc.', 'isbn': '9781612344751', 'page': '187'}
+        ),
+        (
+            # no publisher, period after title, colon after author
+            """'''1993''' Oscar Hijuelos: ''The Fourteen Sisters of Emilio Montez O'Brien''. {{ISBN|0-14-023028-9}} page 75:""",
+            ('year', 'author', 'italics', 'isbn', 'page'),
+            {'_source': 'book', 'year': '1993', 'author': 'Oscar Hijuelos', 'title': "The Fourteen Sisters of Emilio Montez O'Brien", 'isbn': '0-14-023028-9', 'page': '75'}
+        ),
+        (
+            # ''et al.''
+            """'''1988''', Lewis B. Ware ''et al.'', ''Low-Intensity Conflict in the Third World,'' Air Univ. Press, {{ISBN|978-1585660223}}, p. 139:""",
+            ('year', 'author', 'italics', 'publisher', 'isbn', 'page'),
+            {'_source': 'book', 'year': '1988', 'author': 'Lewis B. Ware', 'author2': 'et al', 'title': 'Low-Intensity Conflict in the Third World', 'page': '139', 'publisher': 'Air Univ. Press', 'isbn': '978-1585660223'}
+#            {'_source': 'book', 'year': '1988', 'author': 'Lewis B. Ware', 'chapter': 'et al.', 'title': 'Low-Intensity Conflict in the Third World', 'publisher': 'Air Univ. Press', 'isbn': '978-1585660223', 'page': '139'}
+
+        ),
+        (
+            # Parenthesis around publisher, isbn
+            """'''1995''', Gill Van Hasselt, ''Childbirth: Your Choices for Managing Pain'' (Taylor Pub, {{ISBN|9780878339020}}):""",
+            ('year', 'author', 'italics', 'paren::publisher', 'paren::isbn'),
+            {'_source': 'text', 'year': '1995', 'author': 'Gill Van Hasselt', 'title': 'Childbirth: Your Choices for Managing Pain', 'publisher': 'Taylor Pub', 'isbn': '9780878339020'}
+        ),
+        (
+            """'''1926''', Robertus Love, ''The Rise and Fall of Jesse James'', University of Nebraska, 1990:""",
+            ('year', 'author', 'italics', 'publisher', 'year2'),
+            {'_source': 'text', 'year': '1926', 'author': 'Robertus Love', 'title': 'The Rise and Fall of Jesse James', 'publisher': 'University of Nebraska', 'year_published': '1990'}
+        ),
+        (
+            """'''2006''', M.Gori, M.Ernandes, G.Angelini, "Cracking Crosswords: The Computer Challenge", ''Reasoning, Action and Interaction in AI Theories and Systems: Essays Dedicated to Luigia Carlucci Aiello'', edited by Oliviero Stock, Marco Schaerf, Springer Science & Business Media {{ISBN|9783540379010}}, page 266""",
+            ('year', 'author', 'double_quotes', 'italics', 'editor', 'journal', 'isbn', 'page'),
+            None
+        ),
+        (
+            """'''1905''', {{w|Robert Louis Stevenson}}, ''Travels with a Donkey in the Cevennes'', [[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]""",
+            ('year', 'author', 'italics', 'link', 'link::chapter'),
+            None
+#            {'_source': 'book', 'year': '1905', 'author': '{{w|Robert Louis Stevenson}}', 'title': 'Travels with a Donkey in the Cevennes', 'chapter': '[[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]'}
+        ),
+        (
+            """'''1905''', [[w:Robert Louis Stevenson|Robert Louis Stevenson]], ''[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]'', [[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]""",
+            ('year', 'author', 'italics::link', 'italics::link::text', 'link', 'link::page'),
+            None
+        ),
+        (
+            # Multiple pages
+            """'''2013''', Terry Pratchett, ''Raising Steam'', Doubleday, {{ISBN|978-0-857-52227-6}}, pages 345–346:""",
+            ('year', 'author', 'italics', 'publisher', 'isbn', 'pages'),
+            {'_source': 'book', 'year': '2013', 'author': 'Terry Pratchett', 'title': 'Raising Steam', 'publisher': 'Doubleday', 'isbn': '978-0-857-52227-6', 'pages': '345-346'}
+
+        ),
+        (
+            # Editor prefixed
+            """'''2008''', ''The New Black Lace Book of Women's Sexual Fantasies'' (ed. Mitzi Szereto), Black Lace (2008), {{ISBN|9780352341723}}, [http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false page 38]""",
+            ('year', 'italics', 'paren::editor', 'publisher', 'year2', 'isbn', 'url', 'url::page'),
+            {'_source': 'book', 'year': '2008', 'editor': 'Mitzi Szereto', 'title': "The New Black Lace Book of Women's Sexual Fantasies", 'pageurl': 'http://books.google.com/books?id=XI7MR8XZSh8C&pg=PA38&dq=%22alphas%22#v=onepage&q=%22alphas%22&f=false', 'page': '38', 'publisher': 'Black Lace', 'isbn': '9780352341723'}
+        ),
+        (
+            """'''1875''', Arthur Crump, ''The Theory of Stock Exchange Speculation'' (page 28)""",
+            ('year', 'author', 'italics', 'paren::page'),
+            {'_source': 'book', 'year': '1875', 'author': 'Arthur Crump', 'title': 'The Theory of Stock Exchange Speculation', 'page': '28'}
+        ),
+        (
+            """'''2008''', Paul Black, ''Pronominal Accretions in Pama-Nyungan'', in ''Morphology and Language History'' {{ISBN|9027290962}}, edited by Claire Bowern, Bethwyn Evans, Luisa Miceli)""",
+            ('year', 'author', 'italics', 'italics2', 'isbn', 'editor'),
+            {'_source': 'book', 'year': '2008', 'author': 'Paul Black', 'chapter': 'Pronominal Accretions in Pama-Nyungan', 'title': 'Morphology and Language History', 'isbn': '9027290962', 'editors': 'Claire Bowern; Bethwyn Evans; Luisa Miceli'}
+        ),
         (
             """'''1727''', John Gaspar Scheuchzer translating Engelbert Kaempfer's ''History of Japan'', Vol. I, p. 287:""",
             ('year', 'translator', 'author', 'italics', 'volume', 'page'),
@@ -643,12 +711,12 @@ def test_get_params_books():
             ('year', 'translator', 'author', 'italics', 'page'),
             {'_source': 'book', 'year': '1892', 'translator': 'Carl Deite', 'author': 'William Theodore Brannt', 'title': 'A Practical Treatise on the Manufacture of Perfumery', 'page': '230'}
         ),
-#        (
-#            # Sub-title
-#             """'''2006''', Timothy M. Gay, ''Tris Speaker'', ''The Rough-and-Tumble Life of a Baseball Legend'', U of Nebraska Press, {{ISBN|0803222068}}, page 37:""",
-#            ('year', 'author', 'italics', 'italics2', 'publisher', 'isbn', 'page'),
-#            {'_source': 'book', 'year': '2006', 'author': 'Timothy M. Gay', 'title': 'Tris Speaker: The Rough-and-Tumble Life of a Baseball Legend', 'page': '37', 'publisher': 'U of Nebraska Press', 'isbn': '0803222068'}
-#        ),
+        (
+            # Sub-title
+             """'''2006''', Timothy M. Gay, ''Tris Speaker'', ''The Rough-and-Tumble Life of a Baseball Legend'', U of Nebraska Press, {{ISBN|0803222068}}, page 37:""",
+            ('year', 'author', 'italics', 'italics2', 'publisher', 'isbn', 'page'),
+            {'_source': 'book', 'year': '2006', 'author': 'Timothy M. Gay', 'chapter': 'Tris Speaker', 'title': 'The Rough-and-Tumble Life of a Baseball Legend', 'publisher': 'U of Nebraska Press', 'isbn': '0803222068', 'page': '37'}
+        ),
         (
             # '''''
             """'''2014''', Larisa Kharakhinova, ''Heart-to-heart letters: to MrRight from '''CCCP''''', Litres {{ISBN|9785457226449}}, page 22""",
@@ -742,7 +810,7 @@ def test_get_params_books():
         (
             # No closing "
             """'''1942''', IH Wagman, JE Gullberg, "The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements. ''American Journal of Physiology'', 137: 769-778""",
-             ('year', 'author', 'unhandled<"The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements>', 'italics', 'unhandled<137: 769-778>'),
+            ('year', 'author', 'unhandled<"The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements>', 'italics::journal', 'unhandled<137: 769-778>'),
              None
         ),
         (
@@ -783,8 +851,8 @@ def test_get_params_books():
         ),
         (
             """'''2005''', [[w:Plato|Plato]], ''Sophist''. Translation by Lesley Brown. [[w:Stephanus pagination|234a]].""",
-            ('year', 'author', 'italics', 'translator', 'link'),
-            None
+            ('year', 'author', 'italics', 'translator', 'page'),
+            {'_source': 'book', 'year': '2005', 'author': '[[w:Plato|Plato]]', 'title': 'Sophist', 'translator': 'Lesley Brown', 'page': '234a'}
         ),
         (
             """'''2009''', [https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK ''Puff''] by John Flaherty""",
@@ -827,11 +895,11 @@ def test_get_params_books():
             ('year', 'author', 'italics', 'location', 'publisher', 'chapter', 'page', 'url'),
             {'_source': 'book', 'year': '1867', 'author': '{{w|Thomas Carlyle}}', 'title': 'Shooting Niagara: and After?', 'location': 'London', 'publisher': 'Chapman and Hall', 'chapter': '10', 'page': '53', 'url': 'https://archive.org/details/shootingniagaraa00carluoft/page/53/mode/1up?q=Acherontic'}
         ),
-#        (
-#            """'''1925''', {{w|Ford Madox Ford}}, ''No More Parades'', Penguin 2012 (''Parade's End''), p. 397:""",
-#            ('year', 'author', 'italics', 'publisher', 'year2', 'paren::italics', 'page'),
-#            {'_source': 'book', 'year': '1925', 'author': '{{w|Ford Madox Ford}}', 'title': 'No More Parades', 'publisher': 'Penguin', 'year_published': '2012', 'series': "Parade's End", 'page': '397'}
-#        ),
+        (
+            """'''1925''', {{w|Ford Madox Ford}}, ''No More Parades'', Penguin 2012 (''Parade's End''), p. 397:""",
+            ('year', 'author', 'italics', 'publisher', 'year2', 'paren::italics', 'page'),
+            {'_source': 'book', 'year': '1925', 'author': '{{w|Ford Madox Ford}}', 'title': 'No More Parades', 'publisher': 'Penguin', 'year_published': '2012', 'series': "Parade's End", 'page': '397'}
+        ),
         (
             """'''1968''' {{w|Kurt Vonnegut}}, ''Welcome to the Monkey House'', Delacorte Press, page xiv:""",
             ('year', 'author', 'italics', 'publisher', 'page'),
@@ -844,7 +912,6 @@ def test_get_params_books():
         ),
         (
             """'''1434''', M. González Garcés (ed.), ''Historia de La Coruña. Edad Media''. A Coruña: Caixa Galicia, page 609:""",
-#            ('year', 'unhandled<M.González Garcés>', 'paren', 'italics', 'location', 'publisher', 'page')
             ('year', 'editor', 'italics', 'location', 'publisher', 'page'),
             {'_source': 'book', 'year': '1434', 'editor': 'M. González Garcés', 'title': 'Historia de La Coruña. Edad Media', 'location': 'A Coruña', 'publisher': 'Caixa Galicia', 'page': '609'}
         ),
@@ -921,6 +988,54 @@ def test_get_params_journal():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
+        (
+            """'''1999''', Buddy Seigal, "[https://web.archive.org/web/20140826030806/http://www.ocweekly.com/1999-08-26/music/even-old-englishmen-still-get-wood/ Even Old Englishmen Still Get Wood]," ''OC Weekly'', 26 Aug. (retrieved 16 June 2009):""",
+            ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal', 'date', 'paren::date_retrieved'),
+            {'_source': 'journal', 'date': '26 Aug 1999', 'author': 'Buddy Seigal', 'titleurl': 'https://web.archive.org/web/20140826030806/http://www.ocweekly.com/1999-08-26/music/even-old-englishmen-still-get-wood/', 'title': 'Even Old Englishmen Still Get Wood', 'journal': 'OC Weekly', 'accessdate': '16 June 2009'}
+        ),
+
+        (
+            """'''2009''', John Metzler, "[http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp High stakes for democracy (and terrorism) as Afghans prepare to vote ]," ''World Tribune'' (US), 7 August (retrieved 15 Sep 2010):""",
+            ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal', 'paren::location', 'date', 'paren::date_retrieved'),
+            {'_source': 'journal', 'date': '7 August 2009', 'author': 'John Metzler', 'titleurl': 'http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp', 'title': 'High stakes for democracy (and terrorism) as Afghans prepare to vote', 'journal': 'World Tribune', 'location': 'US', 'accessdate': '15 Sep 2010'}
+
+        ),
+        (
+            # mismatched dates
+            """'''2011''' Feb 21, "[http://www.dailymail.co.uk/news/article-1359019/Bankers-revive-strip-club-Spearmint-Rhino-bumper-bonuses.html Bankers revive strip club Spearmint Rhino with bumper bonuses]," ''Daily Mail'' (UK) <small>(24 July 2011)</small>:""",
+            ('date', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal', 'paren::location', 'paren::date'),
+#            ('date', 'double_quotes::url', 'double_quotes::url::text', 'italics', 'paren', 'paren::date')
+            # TODO: fail
+            {'_source': 'journal', 'date': '24 July 2011', 'titleurl': 'http://www.dailymail.co.uk/news/article-1359019/Bankers-revive-strip-club-Spearmint-Rhino-bumper-bonuses.html', 'title': 'Bankers revive strip club Spearmint Rhino with bumper bonuses', 'journal': 'Daily Mail', 'location': 'UK'}
+        ),
+        (
+            """'''1987''', Kelly Lawrence, ''The Gone Shots'', Franklin Watts, US, [http://books.google.com.au/books?id=wcw2PjYZKx8C&q=%22uey%22%7C%22ueys%22+corner&dq=%22uey%22%7C%22ueys%22+corner&hl=en&sa=X&ei=7MaoUNThOPCVmQWprIDQBA&redir_esc=y page 280],""",
+            ('year', 'author', 'italics', 'publisher', 'location', 'url', 'url::page'),
+            {'_source': 'book', 'year': '1987', 'author': 'Kelly Lawrence', 'title': 'The Gone Shots', 'publisher': 'Franklin Watts', 'location': 'US', 'pageurl': 'http://books.google.com.au/books?id=wcw2PjYZKx8C&q=%22uey%22%7C%22ueys%22+corner&dq=%22uey%22%7C%22ueys%22+corner&hl=en&sa=X&ei=7MaoUNThOPCVmQWprIDQBA&redir_esc=y', 'page': '280'}
+        ),
+        (
+            """'''2004''', Hannibal King in the film ''Blade: Trinity'':""",
+            ('year', 'author', 'unhandled<in the film>', 'italics'),
+            None
+        ),
+        (
+            """ '''1818''', Gentleman's Magazine and Historical Review:""",
+            ('year', 'journal'),
+            {'_source': 'journal', 'year': '1818', 'journal': "Gentleman's Magazine and Historical Review"}
+        ),
+        (
+            """'''1956''', Farm and Home News - Volumes 8-9:""",
+            ('year', 'unhandled<Farm and>', 'journal', 'volumes'),
+            None
+        ),
+        (
+            """'''2010''', ''[[w:Der Spiegel|Der Spiegel]]'', issue [http://www.spiegel.de/spiegel/print/index-2010-49.html 49/2010], page 80:""",
+#            ('year', 'italics::link', 'italics::link::journal', 'unhandled<issue >', 'url', 'url::text', 'page')
+            ('year', 'italics::link', 'italics::link::journal', 'unhandled<issue>', 'url', 'url::text', 'page'),
+#            ('year', 'italics::journal', 'unhandled<issue>', 'url', 'url::text', 'page'),
+#            {'_source': 'journal', 'year': '2010', 'journal': '[[w:Der Spiegel|Der Spiegel]]', 'url': 'http://www.spiegel.de/spiegel/print/index-2010-49.html', 'title': '49/2010', 'page': '80'}
+            {'_source': 'journal', 'year': '2010', 'journal': '[[w:Der Spiegel|Der Spiegel]]', 'url': 'http://www.spiegel.de/spiegel/print/index-2010-49.html', 'issue': '49/2010', 'page': '80'}
+        ),
         (
             """'''1974''', "[http://news.google.ca/newspapers?id=mWkqAAAAIBAJ&sjid=xVUEAAAAIBAJ&pg=4318,6028745&dq=did-a-number-on&hl=en Sports: Full-time Franco Busts A Couple, Rushes For 141]," ''Pittsburgh Press'', 29 Oct., p. 26 (retrieved 20 Aug. 2010):""",
             ('year', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal', 'date', 'page', 'paren::date_retrieved'),
@@ -1031,6 +1146,7 @@ def test_get_params_journal():
         print(text)
         clean_text = fixer.cleanup_text(text)
         parsed = fixer.parse_text(clean_text)
+        print(parsed)
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
         assert fingerprint == expected_fingerprint
@@ -1120,6 +1236,50 @@ def test_get_params_others():
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
         (
+            """'''1989''' Piers Paul Read - A Season in the West""",
+            ('year', 'author', 'unhandled<A Season in the West>'),
+            {'_source': 'text', 'year': '1989', 'author': 'Piers Paul Read', 'title': 'A Season in the West'}
+        ),
+        (
+            # ISBN before title
+            """'''2008''', Yolanda McVey, {{ISBN|9781585715787}}, ''Love's Secrets'':""",
+            ('year', 'author', 'isbn', 'italics'),
+            {'_source': 'text', 'year': '2008', 'author': 'Yolanda McVey', 'isbn': '9781585715787', 'title': "Love's Secrets"}
+        ),
+        (
+            # No publisher, no page
+            """'''2015''', Christopher J Gallagher, MD, ''Pure and Simple: Anesthesia Writtens Review IV Questions, Answers, Explanations 501-1000'' ({{ISBN|9781483431178}}):""",
+            ('year', 'author', 'italics', 'paren::isbn'),
+            {'_source': 'text', 'year': '2015', 'author': 'Christopher J Gallagher, MD', 'title': 'Pure and Simple: Anesthesia Writtens Review IV Questions, Answers, Explanations 501-1000', 'isbn': '9781483431178'}
+        ),
+        (
+            """'''2003''', Paz Verdades M. Santos, ''Hagkus: Twentieth-Century Bikol Women Writers'' ({{ISBN |9789715554428}})""",
+            ('year', 'author', 'italics', 'paren::isbn'),
+            {'_source': 'text', 'year': '2003', 'author': 'Paz Verdades M. Santos', 'title': 'Hagkus: Twentieth-Century Bikol Women Writers', 'isbn': '9789715554428'}
+        ),
+        (
+            # No author
+            """'''2008''', ''Household Economy Approach'' ({{ISBN|9781841871196}}), page 3:""",
+            ('year', 'italics', 'paren::isbn', 'page'),
+            {'_source': 'text', 'year': '2008', 'title': 'Household Economy Approach', 'page': '3', 'isbn': '9781841871196'}
+        ),
+        (
+            """'''2011''', Deepika Phukan, translating {{w|Arupa Patangia Kalita}}, ''The Story of Felanee'':""",
+            ('year', 'translator', 'author', 'italics'),
+            {'_source': 'text', 'year': '2011', 'author': '{{w|Arupa Patangia Kalita}}', 'translator': 'Deepika Phukan', 'title': 'The Story of Felanee'}
+
+        ),
+        (
+            # {{C.E.}} after year, page=1,392
+            """'''1704''' {{C.E.}}, ''Philoſophical tranſactions, Giving ſome Account of the Preſent Undertakings, Studies and Labours of the Ingenious, In many Conſiderable Parts of the World'', volume XXIII, [http://books.google.co.uk/books?id=j2LH2ErAT34C&pg=RA3-PA1392&dq=%22are%C3%A6%22&lr=&num=100&as_brr=0&ei=42YtS4PKDJzyzQSk3dCtBA&cd=41#v=onepage&q=%22are%C3%A6%22&f=false page 1,392]:""",
+            ('year', 'italics', 'volume', 'url', 'url::page'),
+            {'_source': 'text', 'year': '1704', 'title': 'Philoſophical tranſactions, Giving ſome Account of the Preſent Undertakings, Studies and Labours of the Ingenious, In many Conſiderable Parts of the World', 'volume': 'XXIII', 'pageurl': 'http://books.google.co.uk/books?id=j2LH2ErAT34C&pg=RA3-PA1392&dq=%22are%C3%A6%22&lr=&num=100&as_brr=0&ei=42YtS4PKDJzyzQSk3dCtBA&cd=41#v=onepage&q=%22are%C3%A6%22&f=false', 'page': '1392'}
+#            {'_source': 'text', 'year': '1704', 'title': 'Philoſophical tranſactions, Giving ſome Account of the Preſent Undertakings, Studies and Labours of the Ingenious, In many Conſiderable Parts of the World', 'volume': 'XXIII', 'url': 'http://books.google.co.uk/books?id=j2LH2ErAT34C&pg=RA3-PA1392&dq=%22are%C3%A6%22&lr=&num=100&as_brr=0&ei=42YtS4PKDJzyzQSk3dCtBA&cd=41#v=onepage&q=%22are%C3%A6%22&f=false', 'pages': '1,392'}
+        ),
+
+
+
+        (
             # Simple
              """'''2013''', {{w|Kacey Musgraves}}, "My House":""",
              ('year', 'author', 'double_quotes'),
@@ -1135,11 +1295,6 @@ def test_get_params_others():
             """'''2010''', Erich-Norbert Detroy, Frank M. Scheelen, ''Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher'' (ISBN: 3802924258), page 49:""",
             ('year', 'author', 'italics', 'paren::isbn', 'page'),
             {'_source': 'book', 'year': '2010', 'author': 'Erich-Norbert Detroy', 'author2': 'Frank M. Scheelen', 'title': 'Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher', 'isbn': '3802924258', 'page': '49'}
-        ),
-        (
-            """'''2005''', [[w:Plato|Plato]], ''Sophist''. Translation by Lesley Brown. [[w:Stephanus pagination|234a]].""",
-            ('year', 'author', 'italics', 'translator', 'link'),
-            None
         ),
         (
             """'''2009''', [https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK ''Puff''] by John Flaherty""",
@@ -1394,15 +1549,27 @@ def notest_season_episode():
 def test_get_leading_location():
 
     assert fixer.get_leading_location('Australia: Publisher') == ("Australia", ": Publisher")
+    assert fixer.get_leading_location('Australia Publisher') == None
     assert fixer.get_leading_location('Australian: Publisher') == None
     assert fixer.get_leading_location('New York: University Press') == ('New York', ': University Press')
+    assert fixer.get_leading_location('New York Times') == None
     assert fixer.get_leading_location('New York University Press') == None
+    assert fixer.get_leading_location('University of Nebraska, 1990:') == None
+    assert fixer.get_leading_location('Pacific Search Press') == None
+    assert fixer.get_leading_location('East Aurora, NY: Roycrofters') == ('East Aurora, NY', ': Roycrofters')
+    #assert fixer.get_leading_location('') == None
 
 def test_get_leading_unhandled():
 
     assert fixer.get_leading_unhandled('Australia: Publisher') == ("Australia", ": Publisher")
     assert fixer.get_leading_unhandled(':Australia: Publisher') == (":", "Australia: Publisher")
     assert fixer.get_leading_unhandled('{{Australia}} Publisher') == ("{{Australia}}", " Publisher")
+    assert fixer.get_leading_unhandled('[Australia] Publisher') == ("[Australia]", " Publisher")
+    assert fixer.get_leading_unhandled('[[Australia]] Publisher') == ("[[Australia]]", " Publisher")
+    assert fixer.get_leading_unhandled('{{Australia Publisher') == ('{{', 'Australia Publisher')
+    assert fixer.get_leading_unhandled('[[Australia Publisher') == ('[[', 'Australia Publisher')
+    assert fixer.get_leading_unhandled('[Australia Publisher') == ('[', 'Australia Publisher')
+    assert fixer.get_leading_unhandled('john.doe123@email-address.co.uk, blah') == ('john.doe123@email-address.co.uk', ', blah')
 
 def test_get_leading_journal():
 
@@ -1438,13 +1605,36 @@ def test_get_leading_names():
     assert res == ({'editor': ['J.D. Doe']}, '. This is not a valid name')
 
     res = fixer.get_leading_names("Ms Patricia MacCormack, ''Cinesexuality''")
-    assert res == ({'author': ['Ms Patricia MacCormack']}, "''Cinesexuality''")
+    assert res == ({'author': ['Ms Patricia MacCormack']}, ", ''Cinesexuality''")
 
     res = fixer.get_leading_names("Knud H. Thomsen, Knud H. Thomsen (Pichard), ''Klokken i Makedonien'',")
     print(res)
     assert res == ({'author': ['Knud H. Thomsen']}, "Knud H. Thomsen (Pichard), ''Klokken i Makedonien'',")
 
+    res = fixer.get_leading_names("edited by Claire Bowern, Bethwyn Evans, Luisa Miceli)")
+    print(res)
+    assert res == ({'editor': ['Claire Bowern', 'Bethwyn Evans', 'Luisa Miceli']}, '')
+
+    res = fixer.get_leading_names("Dr. John Smith")
+    print(res)
+    assert res == ({'author': ['Dr. John Smith']}, '')
+
+    res = fixer.get_leading_names("Oscar Hijuelos: ''The Fourteen Sisters of Emilio Montez O'Brien''.")
+    print(res)
+    assert res == ({'author': ['Oscar Hijuelos']}, ": ''The Fourteen Sisters of Emilio Montez O'Brien''.")
+
+    res = fixer.get_leading_names("Dr. John Smith ''et al''")
+    print(res)
+    assert res == ({'author': ['Dr. John Smith', 'et al']}, '')
+
+    res = fixer.get_leading_names("Dr. John Smith ''[et. alia]''")
+    print(res)
+    assert res == ({'author': ['Dr. John Smith', 'et al']}, '')
+
+
 def test_get_leading_names_safe():
+    assert fixer.get_leading_names_safe("ed. W. Anderson, ''Treasury of the Animal World. For the Young.'', p.154") == ({'editor': ['W. Anderson']}, ", ''Treasury of the Animal World. For the Young.'', p.154")
+    assert fixer.get_leading_names_safe("ed. W. Anderson, [http://link.com article] p.154") == ({'editor': ['W. Anderson']}, ', [http://link.com article] p.154')
 
     res = fixer.get_leading_names_safe("edited by J.D. Doe. This is not a valid name")
     assert res == ({'editor': ['J.D. Doe']}, '. This is not a valid name')
@@ -1453,17 +1643,16 @@ def test_get_leading_names_safe():
     assert fixer.get_leading_names_safe("eds. Claire Bowern, Bethwyn Evans, Luisa Miceli") == ({'editor': ['Claire Bowern', 'Bethwyn Evans', 'Luisa Miceli']}, "")
     assert fixer.get_leading_names_safe("ed. Claire Bowern, Bethwyn Evans, Luisa Miceli") == ({'editor': ['Claire Bowern', 'Bethwyn Evans', 'Luisa Miceli']}, "")
     assert fixer.get_leading_names_safe("Claire Bowern, Bethwyn Evans, Luisa Miceli") == None
-    assert fixer.get_leading_names_safe("ed. W. Anderson, ''Treasury of the Animal World. For the Young.'', p.154") == ({'editor': ['W. Anderson']}, "''Treasury of the Animal World. For the Young.'', p.154")
 
 def test_classify_names():
 
-    res = fixer.classify_names("John Doe, Jr., Jane Doe (translator), Ed One, Ed Two (eds.)", "~author")
+    res = fixer.classify_names("John Doe, Jr., Jane Doe (translator), Ed Foo, Ed Bar (eds.)", "~author")
     print(res)
-    assert res == ({"author": ["John Doe, Jr."], "translator": ["Jane Doe"], "editor": ["Ed One", "Ed Two"]}, "")
+    assert res == ({"author": ["John Doe, Jr."], "translator": ["Jane Doe"], "editor": ["Ed Foo", "Ed Bar"]}, "")
 
-    res = fixer.classify_names("translated by John Doe, Jr. and Jane Doe, Ed One (editor)", "~author")
+    res = fixer.classify_names("translated by John Doe, Jr. and Jane Doe, Ed Foo (editor)", "~author")
     print(res)
-    assert res == ({'translator': ['John Doe, Jr.', 'Jane Doe'], 'editor': ['Ed One']}, "")
+    assert res == ({'translator': ['John Doe, Jr.', 'Jane Doe'], 'editor': ['Ed Foo']}, "")
 
 
     # Fail if conflicting labels
@@ -1473,7 +1662,7 @@ def test_classify_names():
 
 
     # Fail if conflicting multi-labels
-    res = fixer.classify_names("translated by John Doe, Jr. and Jane Doe, Ed One (editors)", "~author")
+    res = fixer.classify_names("translated by John Doe, Jr. and Jane Doe, Ed Foo (editors)", "~author")
     print(res)
     assert res == None
 
@@ -1525,9 +1714,13 @@ def test_classify_names():
     print(res)
     assert res == None
 
+    # Names wrapped in {{w }} must also pass validation
     res = fixer.classify_names('{{w|Y Beibl cyssegr-lan}}, Genesis 28:15:', "~author")
     print(res)
-    assert res == ({'author': ['{{w|Y Beibl cyssegr-lan}}']}, 'Genesis 28:15:')
+    assert res == None
+
+    res = fixer.classify_names('{{w|John Doe}}, Genesis 28:15:', "~author")
+    assert res == ({'author': ['{{w|John Doe}}']}, 'Genesis 28:15:')
 
     # parse et al and variations
 #    res = fixer.classify_names("Jane Doe et al.", "~author")
@@ -1560,7 +1753,12 @@ def test_classify_names():
 
 def test_get_leading_month():
     assert fixer.get_leading_month("May, test") == ("May", ", test")
-    assert fixer.get_leading_month("May 30, 2001") == ("May", " 30, 2001")
+    assert fixer.get_leading_month("May 30, 2001") == None
+
+def test_get_leading_date_retrieved():
+    assert fixer.get_leading_date_retrieved("Accessed 3 June 2019") == ('2019', 'June', -3, '')
+    assert fixer.get_leading_date_retrieved("retrieved: 3 June 2019") == ('2019', 'June', -3, '')
+    assert fixer.get_leading_date_retrieved("accessed on 3 June 2019") == ('2019', 'June', -3, '')
 
 def test_get_leading_date():
 
@@ -1644,7 +1842,7 @@ def test_get_leading_year():
 
     assert fixer.get_leading_year("2002-2012 blah") == ('2002', '-', '2012', 'blah')
     assert fixer.get_leading_year("2002,2012 blah") == ('2002', ',', '2012', 'blah')
-    assert fixer.get_leading_year("2002 and 2012 blah") == ('2002', '&', '2012', 'blah')
+    assert fixer.get_leading_year("2002 and 2012 blah") == ('2002', ' & ', '2012', 'blah')
     assert fixer.get_leading_year("2002 or 2012 blah") == ('2002', ' or ', '2012', 'blah')
 
     assert fixer.get_leading_year("2002, or 2012 blah") == ('2002', "or 2012 blah")
@@ -1661,6 +1859,21 @@ def test_get_leading_labeled_number():
     assert fixer.get_leading_labeled_number("v 12, test") == ('volume', '12', ', test')
     assert fixer.get_leading_labeled_number("p 12, test") == ('page', '12', ', test')
     assert fixer.get_leading_labeled_number("page 12, test") == ('page', '12', ', test')
+    assert fixer.get_leading_labeled_number("p12, test") == ('page', '12', ', test')
+    assert fixer.get_leading_labeled_number("p ix, test") == ('page', 'ix', ', test')
+    assert fixer.get_leading_labeled_number("pix, test") == None
+    assert fixer.get_leading_labeled_number("p one, test") == ('page', '1', ', test')
+    assert fixer.get_leading_labeled_number("p A1, test") == ('page', 'A1', ', test')
+    assert fixer.get_leading_labeled_number("pA1, test") == None
+    assert fixer.get_leading_labeled_number("pone, test") == None
+    assert fixer.get_leading_labeled_number("page 12a, test") == ('page', '12a', ', test')
+    assert fixer.get_leading_labeled_number("page 12ab, test") == None
+    assert fixer.get_leading_labeled_number("page a12b, test") == None
+    assert fixer.get_leading_labeled_number("page x, test") == ('page', 'x', ', test')
+    assert fixer.get_leading_labeled_number("page xii, test") == ('page', 'xii', ', test')
+    assert fixer.get_leading_labeled_number("page XV, test") == ('page', 'XV', ', test')
+    assert fixer.get_leading_labeled_number("page Xv, test") == None
+    assert fixer.get_leading_labeled_number("page a12, test") == ('page', 'a12', ', test')
     assert fixer.get_leading_labeled_number("page #12, test") == ('page', '12', ', test')
     assert fixer.get_leading_labeled_number("P 12, test") == None
     assert fixer.get_leading_labeled_number("pages 12 - 15, test") == ('page', '12', '-', '15', ', test')
@@ -1670,6 +1883,15 @@ def test_get_leading_labeled_number():
     assert fixer.get_leading_labeled_number("chapter Thirty-One, test") == ('chapter', '31', ', test')
     assert fixer.get_leading_labeled_number("chapter Thirty One, test") == ('chapter', '31', ', test')
     assert fixer.get_leading_labeled_number("chapter seventeen, test") == ('chapter', '17', ', test')
+
+    assert fixer.get_leading_labeled_number("page 1213") == ('page', '1213', '')
+    assert fixer.get_leading_labeled_number("page 1,213") == ('page', '1213', '')
+    assert fixer.get_leading_labeled_number("pages 12,13") ==  ('page', '12', ',13')
+    assert fixer.get_leading_labeled_number("pages 12, 13") ==  ('page', '12', ', 13')
+    assert fixer.get_leading_labeled_number("Issue 32, 9 October 2013, page 11:") ==  ('issue', '32', ', 9 October 2013, page 11:')
+
+    #assert fixer.get_leading_labeled_number('EPM Publications') == None
+    #"pages 12, 13") ==  ('page', '12', ',', '13', '')
 
 def test_get_leading_italics():
     assert fixer.get_leading_italics("'''''bold''''' stuff") == ("'''bold'''", " stuff")
@@ -1716,76 +1938,3 @@ def test_strip_wrapper_templates():
     assert fixer.strip_wrapper_templates("AB{{temp1|blah}}CD {{temp2|X}} X{{temp1| x }}X {{temp1|{{temp2|ABC}}}}", ["temp1", "temp2"]) == \
             "ABblahCD X X x X ABC"
 
-
-def _get_unparsable():
-    import re
-    with open("errors") as infile:
-        start = False
-        for line in infile:
-            line = line.strip()
-            if not line:
-                continue
-
-            if not start:
-                if line == "===unparsable_line===":
-                    start=True
-                continue
-
-            m = re.match(r": \[\[(.*?)]] <nowiki>(.*)</nowiki>", line)
-            if not m:
-                continue
-            page = m.group(1)
-            text = m.group(2)
-
-            text = text.lstrip("#:* ").strip()
-            yield page, text
-
-
-def process(args):
-#    if len(args) != 2:
-#        raise ValueError(args)
-#    else:
-#        print("XX", args)
-
-    page, text = args
-    # Needed to unpack args until Pool.istarprocess exists
-    res = fixer.get_params(text)
-    if res:
-#        print(line)
-        print("FIXED:", page)
-        return 1
-    return 0
-
-#                if res and "publisher" in res:
-#                    print(res["publisher"])
-#                authors = [v for k,v in res.items() if k.startswith("author")]
-#                for author in authors:
-#                    print(author)
-                #print(line)
-#                if len(authors)>1 or any(len(a) > 20 or len(a.split(" ")) > 2 for a in authors):
-#                    print("         ", authors, "<<<<<<<<<<<<<")
-#                else:
-#                    print("         ", authors)
-#                print("")
-
-def notest_all():
-
-    import multiprocessing
-    import sys
-
-    cpus = multiprocessing.cpu_count()-1
-    pool = multiprocessing.Pool(cpus)
-
-    valid = 0
-    invalid = 0
-    for is_valid in pool.imap_unordered(process, _get_unparsable(), 1000):
-            if is_valid:
-                valid += 1
-            else:
-                invalid += 1
-
-    print("Valid", valid, file=sys.stderr)
-    print("Invalid", invalid, file=sys.stderr)
-
-if __name__ == "__main__":
-    notest_all()

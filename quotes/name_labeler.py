@@ -2,37 +2,105 @@ import re
 import sys
 
 from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit
+from .names import *
+
+allowed_lowercase_regex = r"^(" + "|".join(map(re.escape, allowed_lowercase_prefix)) + ")[A-Z]"
 
 class NameLabeler():
 
-    def __init__(self, debug=False):
+    def __init__(self, allow_filename=None, debug=False):
         self.debug = debug
         self.state = {}
         self.stack = []
 
-        with open("allowed_authors") as infile:
-            self._allowed_names = {line.strip().lower() for line in infile if line.strip()}
-        self._allowed_names.add("et al")
+        self.allowed_names = set()
+        if allow_filename:
+            with open(allow_filename) as infile:
+                self.allowed_names = {line.strip().lower() for line in infile if line.strip()}
 
     def dprint(self, *args, **kwargs):
         if self.debug:
             print(args, kwargs, file=sys.stderr)
 
-    def allowed_lowercase_name(self, word):
-        if word.lower() in self._allowed_lowercase_names:
+    def is_allowed_lowercase_name(self, word):
+        if word.lower() in allowed_lowercase_names:
             return True
 
-        if re.match(self._allowed_lowercase_regex, word):
+        if re.match(allowed_lowercase_regex, word):
             return True
 
         return False
 
-    def is_valid_name(self, text):
+    @staticmethod
+    def links_to_text(text):
+        """ replaces '{{w|foo}}' with 'foo' and {{w|foo|bar}} with 'bar' """
+
+        pattern = r"""(?x)
+            (
+                {{
+                (w)\|
+                (?P<params1>.*?)
+                }}
+            )
+            |
+            (
+                \[\[
+                (:)?
+                (w|W|Wikipedia|s:Author)[|:]
+                (?P<params2>.*?)
+                \]\]
+            )
+        """
+
+        def replacer(m):
+            param_string = m.group('params1') if m.group('params1') else m.group('params2')
+            params = param_string.split("|")
+            if len(params) == 1:
+                return params[0].strip()
+            elif len(params) == 2:
+                return params[1].strip()
+            else:
+                return m.group(0)
+
+        return re.sub(pattern, replacer, text)
+
+        for start, alt_start, stop in [
+            ("{{w|",  "{{", "}}"),
+            ("[[w:",  "[[", "]]"),
+            ("[[w|",  "[[", "]]"),
+            ("[[W:",  "[[", "]]"),
+            ("[[Wikipedia:",  "[[", "]]"),
+            ("[[:w:", "[[", "]]"),
+            ("[[s:Author:", "[[", "]]"),
+            ]:
+
+            if text.count(stop) != 1 or text.count(alt_start) != 1:
+                continue
+
+            try:
+                start_pos = text.index(start)
+                stop_pos = text.index(stop)
+            except ValueError:
+                continue
+
+            if stop_pos < start_pos:
+                continue
+
+            params = text[start_pos+len(start):stop_pos].split("|")
+            link_text =  params[0].strip() if len(params) == 1 else params[1].strip()
+            text = text[:start_pos] + link_text + text[stop_pos+len(stop):]
+
+        return text
+
+
+    def is_valid_name(self, text, skip_case_checks=False):
 
         if not text:
             return False
 
-        if text.lower() in self._allowed_names:
+        text = self.links_to_text(text)
+
+        if text.lower() in self.allowed_names:
             self.dprint("allowed name", text)
             return True
 
@@ -40,12 +108,16 @@ class NameLabeler():
             self.dprint("disallowed name, too short", text)
             return False
 
-        if text[0] in " .;:-" or text[-1] in " ;:-":
+        if text[0] in " ,.;:-" or text[-1] in " ,;:-":
             self.dprint("disallowed name, starts or ends with delimiter", text)
             return False
 
         if text.count("-") > 1:
             self.dprint("disallowed name, multiple hyphens", text)
+            return False
+
+        if text.count(",") > 1:
+            self.dprint("disallowed name, multiple commas", text)
             return False
 
         if text.count('"') != text.count('"'):
@@ -68,28 +140,41 @@ class NameLabeler():
             self.dprint("disallowed name, unbalanced double square brackets", text)
             return False
 
-        # TODO: Ensure opening {{ matches closing }}
-        if text.startswith("{{w|") and text.endswith("}}") and text.count("{{") == 1:
-            self.dprint("allowed name, curly wikilink", text)
-            return True
-
-        if (text.startswith("[[w:") or text.startswith("[[:w:")) and text.endswith("]]") and text.count("[[") == 1:
-            self.dprint("allowed name, square bracket wikilink", text)
-            return True
-
         # Single word names must match allowlist
-        words = [w for w in re.split(r"[.\s]+", text) if w]
+        words = [w for w in re.split(r"[,.\s]+", text) if w]
         if len(words) == 1:
             self.dprint("disallowed name, single word", text)
             return False
 
-        if any(len(word) in [2] and not word.isupper() and word.lower() not in self._allowed_short_name_parts for word in words):
+        # Four or more long names fails
+        if len(list(word for word in words if len(word) > 3)) > 3:
+            self.dprint("disallowed name, many words", text)
+            return False
+
+        if any(word.lower() in disallowed_name_words for word in words):
+            self.dprint("disallowed name, disallowed name part", text)
+            return False
+
+        if any(word.endswith("'s") for word in words):
+            self.dprint("disallowed name, ends 's", text)
+            return False
+
+        bad_items = [r'''[:ə"“”()<>\d]''', "''", r"\.com"]
+        pattern = "(" +  "|".join(bad_items) + ")"
+        if re.search(pattern, text):
+            self.dprint("disallowed name, disallowed characters", text)
+            return False
+
+
+        if skip_case_checks:
+            return True
+
+        if any(len(word) in [2] and not word.isupper() and word.lower() not in allowed_short_name_words for word in words):
             self.dprint("disallowed name, short word not in allowlist", text)
             return False
 
-        # Three or more long names fails
-        if len(list(word for word in words if len(word) > 3)) > 3:
-            self.dprint("disallowed name, many words", text)
+        if any(re.match(r"[^A-Z]\[", word) for word in words):
+            self.dprint("disallowed name, contains [ not preceeded by uppercase letter")
             return False
 
         # First word in name must be uppercase
@@ -98,31 +183,19 @@ class NameLabeler():
             return False
 
         # Last word in name must be uppercase
-        if not words[-1][0].isupper() and not self.allowed_lowercase_name(words[-1]):
+        if not words[-1][0].isupper() and not self.is_allowed_lowercase_name(words[-1]):
             self.dprint("disallowed name, final name not uppercase", text)
-            return False
-
-        if any(word.lower() in self._disallowed_name_parts for word in words):
-            self.dprint("disallowed name, disallowed name part", text)
             return False
 
         # All non-uppercase words must match allowlist
         for word in words:
-            if word[0].islower() and not self.allowed_lowercase_name(word):
+            if word[0].islower() and not self.is_allowed_lowercase_name(word):
                 self.dprint("disallowed name, lowercase name part", text)
                 return False
 
-
-        bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''", r"\.com"]
-        pattern = "(" +  "|".join(bad_items) + ")"
-        if re.search(pattern, text):
-            self.dprint("disallowed name, disallowed characters", text)
-            return False
-
         return True
 
-    @staticmethod
-    def split_names(text):
+    def split_names(self, text):
 
         """ Split text on name boundaries, with awareness of wiki templates, brackets, and special handling
         for variations of "et al"
@@ -130,26 +203,100 @@ class NameLabeler():
         returns a list of (name, separator)
         """
 
+        # If the text matches a specifically allowed name, return that
+        maybe_allowed, sep = re.match(r"(.*?)([,.;:\- ]*)$", text).groups()
+        if maybe_allowed.lower() in self.allowed_names:
+            return [(maybe_allowed, sep)]
+
+        sep_options = [";", " -"]
+
+        # if the text starts out "Last, First", don't split on commas
+        if not re.match(r"\w+, \w+", text):
+            sep_options.insert(0, ",")
+
+        # Check for available separators
+        for separator in sep_options:
+            if separator in text:
+                break
+
+        sep1_pattern = fr"\s*{separator}\s*"
+
+        secondary_separators = [r"\s[/·&]\s", r"\band\b", r"\bwith\b"]
+        sep2_pattern = "(" + "|".join(fr"\s*{x}\s*" for x in secondary_separators) + ")"
+
+        suffix_pattern = r"""(?x)
+            (?P<suffix>(M\.D\.|M\.D\.|senior|Jr|MD|PhD|MSW|JD|II|III|IV|Sr|esq)
+                \.*
+                (\s*\(.*?\))?             # include anything in parenthesis following the suffix as a label
+                (\s*\[.*?\])?             # include anything in square brackets following the suffix as a label
+            )
+            (?P<sep>\s*)
+            (?P<post>.*?)
+            $
+            """
+
         name_seps = []
         _parts = []
         # nest_aware_resplit only works predictably with a single capture group
-        for name, sep in nest_aware_resplit(r"(\s+-\s+|\s*\bwith\b\s*|\s*\band\b\s*|\s*[&,;]\s*)", text, [("{{","}}"), ("[[","]]")]):
+        for name, sep in nest_aware_resplit(sep1_pattern, text, [("{{","}}"), ("[","]"), ("(", ")")]):
+
+
+        # TODO: Split on separator, then split on extra_separators
+#        for name, sep in nest_aware_resplit(r"(\s+-\s+|\s*\bwith\b\s*|\s*&\s*|\s*\band\b\s*|\s*[" + sep_chars + r"]\s*)", text, [("{{","}}"), ("[","]"), ("(", ")")]):
+
+            # Check for trailing comma
+            m = re.search("(.*?)([, ]+)$", name)
+            if m:
+                name = m.group(1)
+                sep = m.group(2) + sep
+
             has_et_al = False
 
             if not name.strip():
                 continue
 
-            if re.match(r"(Jr|MD|PhD|MSW|JD|II|III|IV|Sr)\.?", name, re.IGNORECASE):
+
+            m = re.match(suffix_pattern, name, re.IGNORECASE)
+            if m:
                 if not name_seps:
-                    return None
+                    return []
 
-                #names[-1] += f", {name}"
-                #continue
+                suffix = m.group('suffix')
+                new_sep = m.group('sep')
+                post = m.group('post')
+
+                # TODO: if post starts with (, allow it to be part of the suffix
+
+                # The suffix is only a suffix if it ends the string (no post text) or if it is followed
+                # by a secondary separator
+                # This lets us correctly match both "John Doe, M.D. and Jane Doe" and "John Doe, M.D. Jane Doe"
+
                 prev_name, prev_sep = name_seps[-1]
-                name_seps[-1] = (prev_name + prev_sep + name, sep)
-                continue
+                # End of list, just merge and finish
+                if not post:
+                    name_seps[-1] = (prev_name + prev_sep + suffix, new_sep + sep)
+                    continue
 
-            name_seps.append((name, sep))
+                # If there's no separator, it's not a suffix (eg Sr. and Racha vs Sriracha)
+                # suffix, separator, and trailing text, continue processing trailing text
+                if sep and re.match(sep2_pattern, post):
+                    name_seps[-1] = (prev_name + prev_sep + suffix, new_sep)
+                    name = post
+
+                # No separator or no trailing text, don't process as a suffix
+
+
+            secondary_splits = list(nest_aware_resplit(sep2_pattern, name, [("{{","}}"), ("[","]"), ("(", ")")]))
+
+            # Only split on secondary if both parts contain spaces
+            # to allow entries like "Jane and John Doe"
+            if all(" " in n for n,s in secondary_splits if n):
+                for name2, sep2 in secondary_splits:
+                    if sep2 == "":
+                        sep2 = sep
+                    name_seps.append((name2, sep2))
+            else:
+                name_seps.append((name, sep))
 
             #_parts.append((orig_name,separator, len(names)))
 
@@ -250,7 +397,6 @@ class NameLabeler():
           > (apply _explicit or _default to everything on the stack. set _explicit to value)
           0 (apply _explicit or _default to everything on the stack. unset _explicit)
         """
-
 
         cmd = command_line[0]
         value = command_line[1:].strip()
@@ -356,7 +502,7 @@ class NameLabeler():
             if self.stack:
                 items = self.stack.copy()
                 del self.stack[:]
-                if not _label_items(items, value):
+                if not _label_items(items):
                     return
 
             _set_explicit(value)
@@ -499,16 +645,3 @@ class NameLabeler():
 
         self.dprint("RUN COMPLETE", self.state)
 
-
-    # Valid names, unless listed in _allowed_names above can never contain these words
-    _disallowed_name_parts = ["and", "in", "of", "by", "to", "et", "press", "guides", "guide", "chapter", "diverse", "journal", "new" ]
-
-    _allowed_short_name_parts = ["ed", "jr", "md", "jd", "ii", "iv", "vi", "ms", "sr", "mr", "dr", "st"] + \
-            ["ad", "de", "da", "al", "ae", "aj", "al", "le", "ah", "ya", "ab", "do", "la", "mo", "lo", "wu", "jo", "di", "du", "le"]
-#            [ "phd", "msw", "iii", "mrs" ] +
-#            [ "one", "two" ] + \
-#            [ "doe", "ed", "eli", "jan", "san", "rob", "odd", "van", "paz"]
-
-    _allowed_lowercase_names = ["a", "y", "i", "de", "von", "van", "den", "del", "vom", "vander", "bin", "der", "ten", "las", "la", "ter", "le", "du"]
-    _allowed_lowercase_prefix = ["d'", "d’", "al-", "de", "da", "l’"]
-    _allowed_lowercase_regex = r"^(" + "|".join(map(re.escape, _allowed_lowercase_prefix)) + ")[A-Z]"
