@@ -1,4 +1,4 @@
-from autodooz.name_labeler import NameLabeler
+from autodooz.quotes.name_labeler import NameLabeler
 fixer = NameLabeler(debug=True)
 
 
@@ -54,22 +54,15 @@ def test_split_names():
     res = fixer.split_names("John and Jane Doe")
     assert [x[0] for x in res] == ['John and Jane Doe']
 
+    res = fixer.split_names("Doe and Doe")
+    assert [x[0] for x in res] == ['Doe', 'Doe']
+
     res = fixer.split_names("[[w:William F. Buckley, Jr. (author)|William F. Buckley]], John Doe, Jr., [[w:George Byron, 6th Baron Byron|Lord Byron]]")
     assert [x[0] for x in res] == ['[[w:William F. Buckley, Jr. (author)|William F. Buckley]]', 'John Doe, Jr.', '[[w:George Byron, 6th Baron Byron|Lord Byron]]']
 
 #    text="Muhammad Khalid Masud et al - Dispensing Justice in Islam: Qadis and Their Judgements"
 #    res = fixer.split_names(text)
 #    assert [x[0] for x in res] == ['Muhammad Khalid Masud', 'et al', '- Dispensing Justice in Islam: Qadis', 'Their Judgements']
-
-
-    text = "Smith Wilkins, Mary Jane"
-    assert text.lower() not in fixer.allowed_names
-    res = fixer.split_names(text)
-    assert [x[0] for x in res] == ['Smith Wilkins', 'Mary Jane']
-
-    fixer.allowed_names.add(text.lower())
-    res = fixer.split_names(text)
-    assert [x[0] for x in res] == [text]
 
 def test_classify_names():
 
@@ -87,7 +80,8 @@ def test_classify_names():
 
     res = fixer.classify_names("M. Lucas Álvarez & P. Lucas Domínguez (eds.)", "~author")
     print(res)
-    assert res == ({'editor': ['M. Lucas Álvarez', 'P. Lucas Domínguez']})
+    assert res == ({'editor': ['M. Lucas Álvarez', 'P. Lucas Domínguez']}, '')
+
 
 
     res = fixer.classify_names("Edgar Allan Poe, translated by Edwin Grobe", "~author")
@@ -121,7 +115,7 @@ def test_classify_names():
 
     res = fixer.classify_names("John Doe, This is not a valid name.", "~author")
     print(res)
-    assert res == ({'author': ['John Doe']}, 'This is not a valid name.')
+    assert res == ({'author': ['John Doe']}, ', This is not a valid name.')
 
     res = fixer.classify_names("This is not a valid name, John Doe", "~author")
     print(res)
@@ -167,7 +161,7 @@ def test_classify_names():
 
     # Invalid name followed by et al gets restored properly
     res = fixer.classify_names("Jane Doe, invalid-name, et alii, another-invalid-name", "~author")
-    assert res == ({'author': ['Jane Doe']}, 'invalid-name, et alii, another-invalid-name')
+    assert res == ({'author': ['Jane Doe']}, ', invalid-name, et alii, another-invalid-name')
 
 #    res = fixer.classify_names("Jane Doe, et alii", "~author")
 #    assert res == ({'author': ['Jane Doe', 'et al']}, '')
@@ -188,7 +182,27 @@ def test_classify_names():
     res = fixer.classify_names("Dr. John Smith", "~author")
     assert res == ({'author': ['Dr. John Smith']}, '')
 
-    # if splitting on "and" fails, retry without "and" split
+
+    res = fixer.classify_names("John Gaspar Scheuchzer translating Engelbert Kaempfer", "~author")
+    assert res == ({'translator': ['John Gaspar Scheuchzer'], 'author': ['Engelbert Kaempfer']}, '')
+    res = fixer.classify_names("John Gaspar Scheuchzer translating Engelbert Kaempfer's", "~author")
+    assert res == None
+
+
+    # If this name is not in allowed names, it will split on the comma
+    text = "Smith Wilkins, Mary Jane"
+    assert text.lower() not in fixer.allowed_names
+    res = fixer.classify_names(text, "~author")
+    assert res == ({'author': ['Smith Wilkins', 'Mary Jane']}, '')
+
+    # But if it is in allowed names, it should pass through exactly
+    fixer.allowed_names.add(text.lower())
+    res = fixer.classify_names(text, "~author")
+    print(res)
+    assert res == ({'author': ['Smith Wilkins, Mary Jane']}, '')
+
+
+    # if splitting on secondary "and" fails, fail the entire primary section
     res = fixer.classify_names("Connie Green, Religious Diversity and Children's Literature", "~author")
     assert res == ({'author': ['Connie Green']}, "Religious Diversity and Children's Literature")
 

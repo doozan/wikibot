@@ -180,8 +180,17 @@ def main():
     # Then, re-condense everything except thet over-condensed items
     condensed_params = condense_values(all_params)
     overcondensed = find_conflicts(condensed_params)
+    filtered = find_filtered(condensed_params, all_filters, ["p", "j"])
+    #filtered = find_filtered(condensed_params, all_filters)
+    for k,vals in filtered.items():
+        overcondensed[k] |= vals
     if overcondensed:
         condensed_params = condense_values(all_params, overcondensed)
+
+    # Find anything that compresses to a filterable item and try condensing again
+#    filtered = find_filtered(condensed_params, all_filters)
+#    if filtered:
+#        condensed_params = condense_values(condensed_params, filtered)
 
     # Run filter again, dump filtered
     # TODO: now that locations and authors have been split, this is where they should be filtered
@@ -360,22 +369,23 @@ def is_filtered(v, source, all_filters):
         if ":" in v:
             return True
 
-    elif source == "j":
-        if ":" in v:
-            return True
+    #elif source == "j":
+    # Don't filter :, to allow "Film review: special"
+    #    if ":" in v:
+    #        return True
 
     return contains_disallowed_word(v, source)
 
 def find_filtered(all_values, all_filters, allowed_sources=[]):
 
-    res = defaultdict(list)
+    res = defaultdict(set)
     for p, counts in all_values.items():
         if allowed_sources and p not in allowed_sources:
             continue
 
         for v in counts:
             if is_filtered(v, p, all_filters):
-                res[v].append(p)
+                res[v].add(p)
 
     return res
 
@@ -455,15 +465,14 @@ def clean_params(all_params):
     res = defaultdict(lambda: defaultdict(int))
     for p, counts in all_params.items():
         for text, count in counts.items():
-            # Don't convert the authors to lowercase yet, as some of the filtering is case-dependant
+            # Don't convert the authors to lowercase yet, as some of the filtering is case-dependent
 #            if p != "a":
             text = text.lower()
-            text = NameLabeler.links_to_text(text)
+            QuoteFixer.cleanup_text(text)
 
             if p == "p":
                 text = QuoteFixer.cleanup_publisher(text)
 
-            QuoteFixer.cleanup_text(text)
             if not text:
                 continue
             res[p][text] += count
@@ -512,11 +521,13 @@ def condense_values(all_values, excluded=[]):
 #                disallowed[short_param] = {line.strip() for line in infile if line.strip()}
 #        except (IOError, OSError):
 #            disallowed[short_param] = {}
-#
+
     res = defaultdict(lambda: defaultdict(int))
     for p, counts in all_values.items():
         for text, count in counts.items():
+
             for v in get_condensed_values(text, p):
+
 #                if v.lower() in disallowed[p]:
 #                    v = text
 #                    if v.lower() in disallowed[p]:
@@ -535,7 +546,7 @@ def condense_values(all_values, excluded=[]):
 
 
 
-def load_items(self, filename, prefixes=None, postfixes=None, disallowed_items=[]):
+def old_load_items(self, filename, prefixes=None, postfixes=None, disallowed_items=[]):
         pre = self.make_pre_regex(prefixes) if prefixes else ""
         post = self.make_post_regex(postfixes) if postfixes else ""
 
@@ -588,68 +599,20 @@ def load_items(self, filename, prefixes=None, postfixes=None, disallowed_items=[
         return items
 
 
-def split_locations(v):
-    if any(x in v for x in ["rinted", "ublished", "ublishing", ":"]):
-        return []
-
-    orig = v
-
-    v = re.sub("[.]+", ".", v)
-
-    if v.startswith("(") and v.endswith(")"):
-        v = v.strip("()")
-
-    if v.startswith("[") and not v.startswith("[[") and v.endswith("]"):
-        v = v.strip("[]")
-
-    res = []
-    for l1, _ in nest_aware_resplit("\s*[&;,—/–•·]\s*", v, NESTS):
-        for v, _ in nest_aware_resplit("\s+and\s+", l1, NESTS):
-
-            if not v:
-                continue
-
-            v = NameLabeler.links_to_text(v)
-
-            if v.startswith("and "):
-                v = v[4:]
-
-            v = v.strip("=; ")
-            if v.startswith("(") and v.endswith(")"):
-                v = v.strip("()")
-
-            if v.endswith(")") and "(" not in v:
-                v = v.strip(")")
-
-            if v.endswith("]") and "[" not in v:
-                v = v.strip("]")
-
-            if v.startswith("[") and not v.startswith("[[") and v.endswith("]"):
-                v = v.strip("[]")
-
-            if len(v.strip(". ")) < 2 or v[0].isnumeric():
-                continue
-
-            res.append(v)
-
-    return res
-
-
-
 journal_regex = re.compile(f"{QuoteFixer.journal_prefix_regex}(?P<condensed>.*?){QuoteFixer.journal_postfix_regex}$", re.IGNORECASE)
 publisher_regex = re.compile(f"{QuoteFixer.publisher_prefix_regex}(?P<condensed>.*?){QuoteFixer.publisher_postfix_regex}$", re.IGNORECASE)
 
 def condense(v, p):
 
+    v = NameLabeler.links_to_text(v)
+
     if p == "p": # publisher
-        v = NameLabeler.links_to_text(v)
         condensed = re.match(publisher_regex, v).group('condensed')
         if not condensed:
             return v
         return condensed
 
     elif p == "j": # journal
-        v = NameLabeler.links_to_text(v)
         condensed = re.match(journal_regex, v).group('condensed')
         if not condensed:
             return v
@@ -659,8 +622,6 @@ def condense(v, p):
         #res = []
 #        for v, sep in labeler.split_names(v):
         if True:
-            v = NameLabeler.links_to_text(v)
-
             # Cleanup names extracted from template parameters
 
             v = v.lstrip(". )]").strip("-# ")
@@ -702,7 +663,6 @@ def condense(v, p):
         #return res
 
     elif p == "l": # location
-        v = NameLabeler.links_to_text(v)
         return split_location(v)
 
     return v
@@ -757,8 +717,11 @@ def merge_new(path):
             outfile.write("\n")
             outfile.write("\n".join(sorted(items)))
 
-#print(split_locations("Akron, Oh."))
-#exit()
 if __name__ == "__main__":
+#    text = "{{w|Springer Science & Business Media}}"
+#    print(condense(text, "p"))
+#    exit()
+
+
     main()
 

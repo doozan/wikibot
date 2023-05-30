@@ -92,35 +92,31 @@ _countable_label_pattern = fr"((?i:{_nocase_pattern})|({_case_pattern}))"
 
           #\s*(?P<separator>\b(or|and|to)\b|[\-&–]|{{ndash}})\s*
 
+number_pattern = r"([a-zA-Z]?\d+(,\d\d\d)*[a-zA-Z]?|[ivxlcdm]+|[IVXLCDM]+)"
+spelled_number_pattern = \
+   "(" \
+   r"\b" \
+   "(?P<teen>eleven|twelve|((thir|four|fif|six|seven|eigh|nine)(teen)))?" \
+   "(?P<tens>ten|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)?" \
+   "[- ]*" \
+   "(?P<digit>one|two|three|four|five|six|seven|eight|nine)?" \
+   ")"
+
 countable_pattern = fr"""(?x)
     \b
     (?P<label>{_countable_label_pattern})
     (?P<label_sep>[ #]*)
     (
         # match arabic and roman numerals
-        (?P<num1>(
-            [a-zA-Z]?\d+(,\d\d\d)*[a-zA-Z]?
-            |[ivxlcdm]+
-            |[IVXLCDM]+
-        ))
+        (?P<num1>{number_pattern})
         (
           (?P<num_sep>\s*(\b(or|and|to)\b|[\-&–])\s*)
           [#]?                                         # number sign
-          (?P<num2>(
-            [a-zA-Z]?\d+(,\d\d\d)*[a-zA-Z]?
-            |[ivxlcdm]+
-            |[IVXLCDM]+
-          ))
+          (?P<num2>{number_pattern})
         )?
         |
         # Or, match spelled numbers
-        (?i:(?P<spelled>   # case-insensitive
-           \b
-           (?P<teen>eleven|twelve|((thir|four|fif|six|seven|eigh|nine)(teen)))?
-           (?P<tens>ten|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)?
-           [- ]*
-           (?P<digit>one|two|three|four|five|six|seven|eight|nine)?
-        ))
+        (?i:(?P<spelled>{spelled_number_pattern}))   # case-insensitive
     )
     \b
 """
@@ -176,6 +172,7 @@ text_types = {
 }
 
 countables = {
+        # article
         # ode
         # unit
         #objection

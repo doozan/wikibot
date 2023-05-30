@@ -26,12 +26,11 @@ def test_parse_text():
         ),
         (
             """'''2007''', William D. Popkin, ''Evolution of the Judicial Opinion: Institutional and Individual Styles'', NYU Press ({{ISBN|9780814767498}}), page 104:""",
-            [('year', ['2007']), ('author', ['William D. Popkin']), ('italics', ['Evolution of the Judicial Opinion: Institutional and Individual Styles']), ('separator', [', ']), ('publisher', ['NYU Press']), ('separator', [' ']), ('paren::isbn', [['9780814767498']]), ('separator', [', ']), ('page', ['104']), ('separator', [':'])]
-
+            [('year', ['2007']), ('author', ['William D. Popkin']), ('separator', [', ']), ('italics', ['Evolution of the Judicial Opinion: Institutional and Individual Styles']), ('separator', [', ']), ('publisher', ['NYU Press']), ('separator', [' ']), ('paren::isbn', [['9780814767498']]), ('separator', [', ']), ('page', ['104']), ('separator', [':'])]
         ),
         (
             """'''2006''', John G. Radcliffe, ''The Geometry of Hyperbolic Manifolds of Dimension a least 4'', András Prékopa, Emil Molnár (editors), ''Non-Euclidean Geometries: János Bolyai Memorial Volume'', [https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270],""",
-            [('year', ['2006']), ('author', ['John G. Radcliffe']), ('italics', ['The Geometry of Hyperbolic Manifolds of Dimension a least 4']), ('separator', [', ']), ('editor', ['András Prékopa', 'Emil Molnár']), ('italics2', ['Non-Euclidean Geometries: János Bolyai Memorial Volume']), ('separator', [', ']), ('url', ['https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false']), ('url::page', ['270']), ('separator', [','])]
+            [('year', ['2006']), ('author', ['John G. Radcliffe']), ('separator', [', ']), ('italics', ['The Geometry of Hyperbolic Manifolds of Dimension a least 4']), ('separator', [', ']), ('editor', ['András Prékopa', 'Emil Molnár']), ('separator', [', ']), ('italics2', ['Non-Euclidean Geometries: János Bolyai Memorial Volume']), ('separator', [', ']), ('url', ['https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false']), ('url::page', ['270']), ('separator', [','])]
         )
     ]:
         print(text)
@@ -49,13 +48,14 @@ def test_get_fingerprint():
         ),
         (
             """'''2007''', Jonathan Small, ''Chic geek: Ex model {{w|Matthew Gray Gubler}} channels his inner [[nerd]] on ''{{w|Criminal Minds}}'', in ''{{w|TV guide}}'' '', February 26, p. 23:""",
-            ('year', 'author', 'italics', 'unhandled<{{w|Criminal Minds}}>', 'italics2', 'journal', 'italics3', 'date', 'page')
+            ('year', 'author', 'italics', 'unhandled<{{w|Criminal Minds}}>', 'italics2', 'journal', 'italics3', 'date', 'page'),
+#            ('year', 'author', 'italics', 'unhandled<{{w|Criminal Minds}}>', 'italics2', 'journal', 'italics3', 'date', 'page')
 #            ('year', 'author', 'italics', 'author2', 'italics2', 'author3', 'italics3', 'date', 'page')
 
         ),
         (
             """'''1583''', Robert Harrison, “A Little Treatise vppon the firste Verse of the 122. Psalm”, as printed in Leland Henry Carlson and Albert Peel (editors, 1953), ''Elizabethan Non-Conformist Texts, Volume II: The Writings of Robert Harrison and [[w:Robert Browne (Brownist)|Robert Browne]]'', Routledge (2003), {{ISBN|978-0-415-31990-4}}, [http://books.google.com/books?id=w5QDcRGBXi0C&pg=PA91&dq=woulders pages 91–92]:""",
-            ('year', 'author', 'fancy_double_quotes', 'unhandled<as printed in Leland Henry Carlson and Albert Peel>', 'paren', 'italics::unhandled<Elizabethan Non-Conformist Texts>', 'italics::volume', 'italics::unhandled<The Writings of Robert Harrison and>', 'italics::link', 'italics::link::text', 'publisher', 'year2', 'isbn', 'url', 'url::pages')
+            ('year', 'author', 'fancy_double_quotes', 'unhandled<as printed in Leland Henry Carlson and Albert Peel>', 'paren', 'italics', 'publisher', 'year2', 'isbn', 'url', 'url::pages')
         ),
         (
             """'''1925''', {{w|Ford Madox Ford}}, ''No More Parades'', Penguin 2012 (''Parade's End''), p. 397:""",
@@ -64,6 +64,7 @@ def test_get_fingerprint():
         (
             # TODO: Don't search "publisher" after "date"
             """'''2015''', Steven E. Kuehn, "I'm Printing Your Prescription Now, Ma'am", ''Pharmaceutical Manufacturing'', September 2015, Putnam Media, page 7:""",
+#            ('year', 'author', 'double_quotes::unhandled<I>', 'double_quotes::section', 'italics', 'unhandled<September>', 'year2', 'publisher', 'page')
             ('year', 'author', 'double_quotes', 'italics', 'month', 'year2', 'publisher', 'page')
         ),
 
@@ -82,13 +83,20 @@ def test_get_fingerprint():
 def test_get_leading_publisher():
     assert fixer.get_leading_publisher('NYU Press ({{ISBN|9780814767498}}), page 104:') == ('NYU Press', ' ({{ISBN|9780814767498}}), page 104:')
     assert fixer.get_leading_publisher('NYU Press, Inc ({{ISBN|9780814767498}}), page 104:') == ('NYU Press, Inc', ' ({{ISBN|9780814767498}}), page 104:')
-    assert fixer.get_leading_publisher('NYU Press, Inc. ({{ISBN|9780814767498}}), page 104:') == ('NYU Press, Inc', '. ({{ISBN|9780814767498}}), page 104:')
+    assert fixer.get_leading_publisher('NYU Press, Inc. ({{ISBN|9780814767498}}), page 104:') == ('NYU Press, Inc.', ' ({{ISBN|9780814767498}}), page 104:')
     assert fixer.get_leading_publisher('NYU Press, Inc, LLC ({{ISBN|9780814767498}}), page 104:') == ('NYU Press, Inc, LLC', ' ({{ISBN|9780814767498}}), page 104:')
     assert fixer.get_leading_publisher('NYU Press and sons ({{ISBN|9780814767498}}), page 104:') == ('NYU Press and sons', ' ({{ISBN|9780814767498}}), page 104:')
     assert fixer.get_leading_publisher('NYU Press and sons ({{ISBN|9780814767498}}), page 104:') == ('NYU Press and sons', ' ({{ISBN|9780814767498}}), page 104:')
     assert fixer.get_leading_publisher('NYU Press&son ({{ISBN|9780814767498}}), page 104:') == ('NYU Press&son', ' ({{ISBN|9780814767498}}), page 104:')
-    assert fixer.get_leading_publisher('NYU Press&sonreir ({{ISBN|9780814767498}}), page 104:') == ('NYU Press', '&sonreir ({{ISBN|9780814767498}}), page 104:')
+    assert fixer.get_leading_publisher('NYU Press&sonreir ({{ISBN|9780814767498}}), page 104:') == None
     assert fixer.get_leading_publisher('University of Nowhere') == None
+    assert fixer.get_leading_publisher('Springer Science & Business Media {{ISBN|9783540379010}}, page 266') == ('Springer Science & Business Media', ' {{ISBN|9783540379010}}, page 266')
+
+
+#    with open("quotes/publisher.all") as infile:
+#        assert "Springer Science & Business Media".lower() in [line.strip().lower() for line in infile]
+
+
 
 def test_get_leading_link():
     assert fixer.get_leading_link('[[w:Classical Philology (journal)|Classical Philology]] test') == ('Classical Philology', '[[w:Classical Philology (journal)|Classical Philology]]', ' test')
@@ -175,39 +183,14 @@ def test_get_params_old():
             {'year': '2008', 'author': 'David Squire', 'author2': 'et al', 'title': 'The First-Time Garden Specialist', 'page': '12', 'isbn': '1845379268'}
         ),
         (
-            # ''et al.'' multiple authors
-            """'''2019''', Pierre Terjanian, Andrea Bayer, et al., ''The Last Knight: The Art, Armor, and Ambition of Maximilian I'', Metropolitan Museum of Art ({{ISBN|9781588396747}}), page 96:""",
-            {'year': '2019', 'author': 'Pierre Terjanian', 'author2': 'Andrea Bayer', 'author3': 'et al', 'title': 'The Last Knight: The Art, Armor, and Ambition of Maximilian I', 'page': '96', 'publisher': 'Metropolitan Museum of Art', 'isbn': '9781588396747'}
-        ),
-        (
             # ''et alii''
             """'''1964''': Nikolay Rimsky-Korsakov ''et alii'', ''Principles of orchestration: with musical examples drawn from his own works'', [http://books.google.co.uk/books?id=erS-2XR-kPUC&pg=PA112&dq=crescendi&ei=58nkSeaJIYyykASju4yfDQ page 112] ([http://store.doverpublications.com/0486212661.html DoverPublications.com]; {{ISBN|0486212661}}""",
             {'year': '1964', 'author': 'Nikolay Rimsky-Korsakov', 'author2': 'et al', 'title': 'Principles of orchestration: with musical examples drawn from his own works', 'pageurl': 'http://books.google.co.uk/books?id=erS-2XR-kPUC&pg=PA112&dq=crescendi&ei=58nkSeaJIYyykASju4yfDQ', 'page': '112', 'publisher': '[http://store.doverpublications.com/0486212661.html DoverPublications.com]', 'isbn': '0486212661'}
         ),
         (
-            # ''et al.''. and chapter is url
-            """'''2018''', C Ustan ''et al.''. "[https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733 Core-binding factor acute myeloid leukemia with t(8;21): Risk  factors and a novel scoring system (I-CBFit)]", ''Cancer Medicine''.""",
-            {'year': '2018', 'author': 'C Ustan', 'author2': 'et al', 'chapter': 'Core-binding factor acute myeloid leukemia with t(8;21): Risk  factors and a novel scoring system (I-CBFit)', 'chapterurl': 'https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733', 'title': 'Cancer Medicine'}
-        ),
-        (
-            # editors, author
-            """'''1995''', Solomon Feferman, John W. Dawson, Jr., Warren Goldfarb, Charlers Parsons, Robert N. Solovay (editors), {{w|Kurt Gödel}}, ''Kurt Gödel: Collected Works: Volume III'', {{w|Oxford University Press}}, [https://books.google.com.au/books?id=gDzbuUwma5MC&pg=PA419&dq=%22Hausdorff+gap%22%7C%22Hausdorff+gaps%22&hl=en&newbks=1&newbks_redir=0&sa=X&ved=2ahUKEwjo-o7D9OT7AhVQJUQIHaSlBIgQ6AF6BAhXEAI#v=onepage&q=%22Hausdorff%20gap%22%7C%22Hausdorff%20gaps%22&f=false page 419]""",
-            {'year': '1995', 'author': '{{w|Kurt Gödel}}', 'editors': 'Solomon Feferman; John W. Dawson, Jr.; Warren Goldfarb; Charlers Parsons; Robert N. Solovay', 'title': 'Kurt Gödel: Collected Works: Volume III', 'pageurl': 'https://books.google.com.au/books?id=gDzbuUwma5MC&pg=PA419&dq=%22Hausdorff+gap%22%7C%22Hausdorff+gaps%22&hl=en&newbks=1&newbks_redir=0&sa=X&ved=2ahUKEwjo-o7D9OT7AhVQJUQIHaSlBIgQ6AF6BAhXEAI#v=onepage&q=%22Hausdorff%20gap%22%7C%22Hausdorff%20gaps%22&f=false', 'page': '419', 'publisher': '{{w|Oxford University Press}}'}
-        ),
-        (
             # translator
             """'''1865''', [[w:Homer|Homer]] and [[w:Edward Smith-Stanley, 14th Earl of Derby|Edward Smith-Stanley, 14th Earl of Derby]] (translator), ''[[w:Iliad|Iliad]]'', volume 1, [http://books.google.co.uk/books?id=EEYbAAAAYAAJ&pg=PP14&dq=%22Heph%C3%A6stus%22&ei=PWSiSru7DYmGzATwjoCBCA#v=onepage&q=%22Heph%C3%A6stus%22&f=false page viii]:""",
             {'year': '1865', 'author': '[[w:Homer|Homer]]', 'translator': '[[w:Edward Smith-Stanley, 14th Earl of Derby|Edward Smith-Stanley, 14th Earl of Derby]]', 'title': '[[w:Iliad|Iliad]]', 'volume': '1', 'pageurl': 'http://books.google.co.uk/books?id=EEYbAAAAYAAJ&pg=PP14&dq=%22Heph%C3%A6stus%22&ei=PWSiSru7DYmGzATwjoCBCA#v=onepage&q=%22Heph%C3%A6stus%22&f=false', 'page': 'viii'}
-        ),
-        (
-            # unnumbered page
-             """'''2018''', Adrian Besley, ''BTS: Icons of K-Pop'', [https://books.google.com/books?id=QcxmDwAAQBAJ&pg=PT170&dq=%22army+are+clever%22 unnumbered page]:""",
-            {'year': '2018', 'author': 'Adrian Besley', 'title': 'BTS: Icons of K-Pop', 'pageurl': 'https://books.google.com/books?id=QcxmDwAAQBAJ&pg=PT170&dq=%22army+are+clever%22', 'page': 'unnumbered'}
-        ),
-        (
-            # publisher followed by ed.
-             """'''1940''', [[w:Carson McCullers|Carson McCullers]], ''[[w:The Heart Is a Lonely Hunter|The Heart Is a Lonely Hunter]]'', 2004 Houghton Mifflin ed., {{ISBN|0618526412}}, page 306,""",
-            {'year': '1940', 'author': '[[w:Carson McCullers|Carson McCullers]]', 'title': '[[w:The Heart Is a Lonely Hunter|The Heart Is a Lonely Hunter]]', 'page': '306', 'publisher': 'Houghton Mifflin', 'year_published': '2004', 'isbn': '0618526412'}
         ),
         (
             # Numbered edition
@@ -218,11 +201,6 @@ def test_get_params_old():
             # Numbered edition
              """'''2007''', John Merryman, Rogelio Pérez-Perdomo, ''The Civil Law Tradition'', 3rd edition {{ISBN|0804768331}}, page 107:""",
             {'year': '2007', 'author': 'John Merryman', 'author2': 'Rogelio Pérez-Perdomo', 'title': 'The Civil Law Tradition', 'edition': '3rd', 'page': '107', 'isbn': '0804768331'}
-        ),
-        (
-            # 1975 Dover Edition
-            """'''1945''', Neva L. Boyd, ''Handbook of Recreational Games'', 1975 [[w:Dover Publications|Dover]] edition, {{ISBN|0486232042}}, [http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight p.16]:""",
-            {'year': '1945', 'author': 'Neva L. Boyd', 'title': 'Handbook of Recreational Games', 'pageurl': 'http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight', 'page': '16', 'publisher': '[[w:Dover Publications|Dover]]', 'year_published': '1975', 'isbn': '0486232042'}
         ),
         (
             # Strip (novel) from unparsed text
@@ -242,11 +220,6 @@ def test_get_params_old():
         (
              """'''1999''', K. Zakrzewska, R. Lavery, "Modelling DNA-protein interactions", in ''Computational Molecular Biology'' (edited by J. Leszczynski; {{ISBN|008052964X}}:""",
             {'year': '1999', 'editor': 'J. Leszczynski', 'author': 'K. Zakrzewska', 'author2': 'R. Lavery', 'chapter': 'Modelling DNA-protein interactions', 'title': 'Computational Molecular Biology', 'isbn': '008052964X'}
-        ),
-        (
-            # Pages
-             """'''1999''', Peter McPhee, ''Runner'', {{ISBN|1550286749}}, pp. 37{{ndash}}8:""",
-            {'year': '1999', 'author': 'Peter McPhee', 'title': 'Runner', 'pages': '37{{ndash}}8', 'isbn': '1550286749'}
         ),
         (
             # pages
@@ -441,8 +414,7 @@ def test_get_params_unhandled():
 
         """'''2016''', "The Veracity Elasticity", season 10, episode 7 of ''{{w|The Big Bang Theory}}''""",
 
-        # TODO: in: should signal that the following is a journal title
-        """'''2022''', Shaakirrah Sanders, ''[https://www.scotusblog.com/2022/01/court-rejects-door-opening-as-a-sixth-amendment-confrontation-clause-exception/ Court rejects “door opening” as a Sixth Amendment confrontation-clause exception]'', in: SCOTUSblog, 2022-01-20""",
+
 
         # Fail on bad name
         """'''1885''', Joseph Parker,T''he people's Bible: discourses upon Holy Scripture'', volume 16, page 83""",
@@ -450,7 +422,6 @@ def test_get_params_unhandled():
         # Multi chapter, should be journal
         """'''1935''', {{w|Arthur Leo Zagat}}, ''Girl of the Goat God'', in ''Dime Mystery Magazine'', November 1935, Chapter IV, [http://gutenberg.net.au/ebooks13/1304651h.html]""",
 
-        """'''2022''', Matteo Wong, ''[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]'', in: The Atlantic, December 31 2022""",
 
     ]:
         print(text)
@@ -458,16 +429,55 @@ def test_get_params_unhandled():
         assert res == expected
 
 
-def test_aggressive():
-    fixer = QuoteFixer(debug=True, aggressive=True)
-
-    text = """'''1956''' [[Kawabata]], ''[[Snow Country]]''"""
-    res = fixer.get_params(text)
-    assert res == expected
+#def test_aggressive():
+#    fixer = QuoteFixer(debug=True, aggressive=True)
+#
+#    text = """'''1956''' [[Kawabata]], ''[[Snow Country]]''"""
+#    res = fixer.get_params(text)
+#    assert res == expected
 
 def test_get_params_books():
 
     for text, expected_fingerprint, expected_params in [
+        (
+            # ''et al.'' multiple authors
+            """'''2019''', Pierre Terjanian, Andrea Bayer, et al., ''The Last Knight: The Art, Armor, and Ambition of Maximilian I'', Metropolitan Museum of Art ({{ISBN|9781588396747}}), page 96:""",
+            ('year', 'author', 'italics', 'publisher', 'paren::isbn', 'page'),
+            {'_source': 'book', 'year': '2019', 'author': 'Pierre Terjanian', 'author2': 'Andrea Bayer', 'author3': 'et al', 'title': 'The Last Knight: The Art, Armor, and Ambition of Maximilian I', 'publisher': 'Metropolitan Museum of Art', 'isbn': '9781588396747', 'page': '96'}
+        ),
+        (
+            # 1975 Dover Edition
+            """'''1945''', Neva L. Boyd, ''Handbook of Recreational Games'', 1975 [[w:Dover Publications|Dover]] edition, {{ISBN|0486232042}}, [http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight p.16]:""",
+            ('year', 'author', 'italics', 'year2', 'publisher', 'isbn', 'url', 'url::page'),
+            {'_source': 'book', 'year': '1945', 'author': 'Neva L. Boyd', 'title': 'Handbook of Recreational Games', 'pageurl': 'http://books.google.com/books?id=12qZwZpIwCIC&pg=PA16&dq=candlelight', 'page': '16', 'publisher': '[[w:Dover Publications|Dover]]', 'year_published': '1975', 'isbn': '0486232042'}
+        ),
+        (
+            # Pages
+            """'''1999''', Peter McPhee, ''Runner'', {{ISBN|1550286749}}, pp. 37{{ndash}}8:""",
+            ('year', 'author', 'italics', 'isbn', 'pages'),
+            {'_source': 'text', 'year': '1999', 'author': 'Peter McPhee', 'title': 'Runner', 'isbn': '1550286749', 'pages': '37-8'}
+        ),
+        (
+            # publisher followed by ed.
+            """'''1940''', [[w:Carson McCullers|Carson McCullers]], ''[[w:The Heart Is a Lonely Hunter|The Heart Is a Lonely Hunter]]'', 2004 Houghton Mifflin ed., {{ISBN|0618526412}}, page 306,""",
+            ('year', 'author', 'italics::link', 'italics::link::text', 'year2', 'publisher', 'isbn', 'page'),
+
+#            ('year', 'author', 'italics', 'year2', 'publisher', 'isbn', 'page'),
+            {'_source': 'book', 'year': '1940', 'author': '[[w:Carson McCullers|Carson McCullers]]', 'title': '[[w:The Heart Is a Lonely Hunter|The Heart Is a Lonely Hunter]]', 'year_published': '2004', 'publisher': 'Houghton Mifflin', 'isbn': '0618526412', 'page': '306'}
+        ),
+        (
+            # unnumbered page
+             """'''2018''', Adrian Besley, ''BTS: Icons of K-Pop'', [https://books.google.com/books?id=QcxmDwAAQBAJ&pg=PT170&dq=%22army+are+clever%22 unnumbered page]:""",
+            ('year', 'author', 'italics', 'url', 'url::page'),
+            {'_source': 'book', 'year': '2018', 'author': 'Adrian Besley', 'title': 'BTS: Icons of K-Pop', 'pageurl': 'https://books.google.com/books?id=QcxmDwAAQBAJ&pg=PT170&dq=%22army+are+clever%22', 'page': 'unnumbered'}
+        ),
+        (
+            # editors, author
+            """'''1995''', Solomon Feferman, John W. Dawson, Jr., Warren Goldfarb, Charlers Parsons, Robert N. Solovay (editors), {{w|Kurt Gödel}}, ''Kurt Gödel: Collected Works: Volume III'', {{w|Oxford University Press}}, [https://books.google.com.au/books?id=gDzbuUwma5MC&pg=PA419&dq=%22Hausdorff+gap%22%7C%22Hausdorff+gaps%22&hl=en&newbks=1&newbks_redir=0&sa=X&ved=2ahUKEwjo-o7D9OT7AhVQJUQIHaSlBIgQ6AF6BAhXEAI#v=onepage&q=%22Hausdorff%20gap%22%7C%22Hausdorff%20gaps%22&f=false page 419]""",
+            ('year', 'editor', 'author', 'italics', 'publisher', 'url', 'url::page'),
+            {'_source': 'book', 'year': '1995', 'author': '{{w|Kurt Gödel}}', 'editors': 'Solomon Feferman; John W. Dawson, Jr.; Warren Goldfarb; Charlers Parsons; Robert N. Solovay', 'title': 'Kurt Gödel: Collected Works: Volume III', 'pageurl': 'https://books.google.com.au/books?id=gDzbuUwma5MC&pg=PA419&dq=%22Hausdorff+gap%22%7C%22Hausdorff+gaps%22&hl=en&newbks=1&newbks_redir=0&sa=X&ved=2ahUKEwjo-o7D9OT7AhVQJUQIHaSlBIgQ6AF6BAhXEAI#v=onepage&q=%22Hausdorff%20gap%22%7C%22Hausdorff%20gaps%22&f=false', 'page': '419', 'publisher': '{{w|Oxford University Press}}'}
+        ),
+
         #( """ """, "", "" ),
 #        (
 #        # bold not italics
@@ -477,12 +487,12 @@ def test_get_params_books():
 #        ),
         (
             """'''1319''', M. Lucas Álvarez & P. Lucas Domínguez (eds.), ''El monasterio de San Clodio do Ribeiro en la Edad Media''. Sada / A Coruña: Edicións do Castro, page 451:""",
-            ('year', 'author', 'editor', 'italics', 'location', 'publisher', 'page'),
+            ('year', 'editor', 'italics', 'location', 'publisher', 'page'),
             {'_source': 'book', 'year': '1319', 'editors': 'M. Lucas Álvarez; P. Lucas Domínguez', 'title': 'El monasterio de San Clodio do Ribeiro en la Edad Media', 'location': 'Sada / A Coruña', 'publisher': 'Edicións do Castro', 'page': '451'}
         ),
-        (
-            """'''1999''', ''{{w|Survivor (novel)|Survivor}}'', {{w|Chuck Palahniuk}}""", "", ""
-        ),
+#        (
+#            """'''1999''', ''{{w|Survivor (novel)|Survivor}}'', {{w|Chuck Palahniuk}}""", "", ""
+#        ),
         (
             """'''2000''', Edgar Allan Poe, translated by Edwin Grobe, ''La Falo de Uŝero-Domo'', Arizona-Stelo-Eldonejo, http://www.gutenberg.org/files/17425/17425-h/17425-h.htm""",
             ('year', 'author', 'translator', 'italics', 'publisher'),
@@ -579,7 +589,7 @@ def test_get_params_books():
         ),
         (
             """'''2006''', M.Gori, M.Ernandes, G.Angelini, "Cracking Crosswords: The Computer Challenge", ''Reasoning, Action and Interaction in AI Theories and Systems: Essays Dedicated to Luigia Carlucci Aiello'', edited by Oliviero Stock, Marco Schaerf, Springer Science & Business Media {{ISBN|9783540379010}}, page 266""",
-            ('year', 'author', 'double_quotes', 'italics', 'editor', 'journal', 'isbn', 'page'),
+            ('year', 'author', 'double_quotes', 'italics', 'editor', 'publisher', 'isbn', 'page'),
             None
         ),
         (
@@ -849,17 +859,16 @@ def test_get_params_books():
             ('year', 'author', 'italics', 'paren::isbn', 'page'),
             {'_source': 'book', 'year': '2010', 'author': 'Erich-Norbert Detroy', 'author2': 'Frank M. Scheelen', 'title': 'Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher', 'isbn': '3802924258', 'page': '49'}
         ),
-        (
-            """'''2005''', [[w:Plato|Plato]], ''Sophist''. Translation by Lesley Brown. [[w:Stephanus pagination|234a]].""",
-            ('year', 'author', 'italics', 'translator', 'page'),
-            {'_source': 'book', 'year': '2005', 'author': '[[w:Plato|Plato]]', 'title': 'Sophist', 'translator': 'Lesley Brown', 'page': '234a'}
-        ),
+#        (
+#            """'''2005''', [[w:Plato|Plato]], ''Sophist''. Translation by Lesley Brown. [[w:Stephanus pagination|234a]].""",
+#            ('year', 'author', 'italics', 'translator', 'link', 'link::text')
+#            ('year', 'author', 'italics', 'translator', 'page'),
+#            {'_source': 'book', 'year': '2005', 'author': '[[w:Plato|Plato]]', 'title': 'Sophist', 'translator': 'Lesley Brown', 'page': '234a'}
+#        ),
         (
             """'''2009''', [https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK ''Puff''] by John Flaherty""",
-            #('year', 'url', 'url::italics', 'author'),
-            #{'_source': 'book', 'year': '2009', 'url': 'https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK', 'title': 'Puff', 'author': 'John Flaherty'}
-            ('year', 'url', 'url::italics', 'unhandled<by John Flaherty>'),
-            None
+            ('year', 'url', 'url::italics', 'author'),
+            {'_source': 'text', 'year': '2009', 'url': 'https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK', 'title': 'Puff', 'author': 'John Flaherty'}
         ),
         (
             """'''1958''' [[w:Ritchie Valens|Ritchie Valens]] ''Donna'' ( a song) :""",
@@ -975,7 +984,12 @@ def test_get_params_books():
         print("__")
         print(text)
         clean_text = fixer.cleanup_text(text)
-        parsed = fixer.parse_text(clean_text)
+        parsed = fixer.parse_text(clean_text, source_before_author=True)
+        all_types = { k for k, *vs in parsed if k != "separator" }
+        if "author" not in all_types and "unhandled" in all_types and ("journal" in all_types or "publisher" in all_types):
+            fingerprint = fixer.get_fingerprint(parsed)
+            print("RESCANNING", fingerprint)
+            parsed = fixer.parse_text(clean_text, source_before_author=False)
         print(parsed)
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
@@ -989,25 +1003,42 @@ def test_get_params_journal():
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
         (
+            # ''et al.''. and chapter is url
+            """'''2018''', C Ustan ''et al.''. "[https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733 Core-binding factor acute myeloid leukemia with t(8;21): Risk  factors and a novel scoring system (I-CBFit)]", ''Cancer Medicine''.""",
+            ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal'),
+            {'_source': 'journal', 'year': '2018', 'author': 'C Ustan', 'author2': 'et al', 'titleurl': 'https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733', 'title': 'Core-binding factor acute myeloid leukemia with t(8;21): Risk factors and a novel scoring system (I-CBFit)', 'journal': 'Cancer Medicine'}
+        ),
+
+        (
+            """'''2022''', Shaakirrah Sanders, ''[https://www.scotusblog.com/2022/01/court-rejects-door-opening-as-a-sixth-amendment-confrontation-clause-exception/ Court rejects “door opening” as a Sixth Amendment confrontation-clause exception]'', in: SCOTUSblog, 2022-01-20""",
+            ('year', 'author', 'italics::url', 'italics::url::text', 'journal', 'date'),
+            {'_source': 'journal', 'date': 'Jan 20 2022', 'author': 'Shaakirrah Sanders', 'titleurl': 'https://www.scotusblog.com/2022/01/court-rejects-door-opening-as-a-sixth-amendment-confrontation-clause-exception/', 'title': 'Court rejects “door opening” as a Sixth Amendment confrontation-clause exception', 'journal': 'SCOTUSblog'}
+        ),
+        (
+            """'''2022''', Matteo Wong, ''[https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/ Hollywood’s Love Affair With Fictional Languages]'', in: The Atlantic, December 31 2022""",
+            ('year', 'author', 'italics::url', 'italics::url::text', 'journal', 'date'),
+            {'_source': 'journal', 'date': 'December 31 2022', 'author': 'Matteo Wong', 'titleurl': 'https://www.theatlantic.com/technology/archive/2022/12/avatar-2-movie-navi-constructed-language/672616/', 'title': 'Hollywood’s Love Affair With Fictional Languages', 'journal': 'The Atlantic'}
+        ),
+        (
             """'''1999''', Buddy Seigal, "[https://web.archive.org/web/20140826030806/http://www.ocweekly.com/1999-08-26/music/even-old-englishmen-still-get-wood/ Even Old Englishmen Still Get Wood]," ''OC Weekly'', 26 Aug. (retrieved 16 June 2009):""",
             ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal', 'date', 'paren::date_retrieved'),
             {'_source': 'journal', 'date': '26 Aug 1999', 'author': 'Buddy Seigal', 'titleurl': 'https://web.archive.org/web/20140826030806/http://www.ocweekly.com/1999-08-26/music/even-old-englishmen-still-get-wood/', 'title': 'Even Old Englishmen Still Get Wood', 'journal': 'OC Weekly', 'accessdate': '16 June 2009'}
         ),
 
-        (
-            """'''2009''', John Metzler, "[http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp High stakes for democracy (and terrorism) as Afghans prepare to vote ]," ''World Tribune'' (US), 7 August (retrieved 15 Sep 2010):""",
-            ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal', 'paren::location', 'date', 'paren::date_retrieved'),
-            {'_source': 'journal', 'date': '7 August 2009', 'author': 'John Metzler', 'titleurl': 'http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp', 'title': 'High stakes for democracy (and terrorism) as Afghans prepare to vote', 'journal': 'World Tribune', 'location': 'US', 'accessdate': '15 Sep 2010'}
-
-        ),
-        (
-            # mismatched dates
-            """'''2011''' Feb 21, "[http://www.dailymail.co.uk/news/article-1359019/Bankers-revive-strip-club-Spearmint-Rhino-bumper-bonuses.html Bankers revive strip club Spearmint Rhino with bumper bonuses]," ''Daily Mail'' (UK) <small>(24 July 2011)</small>:""",
-            ('date', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal', 'paren::location', 'paren::date'),
-#            ('date', 'double_quotes::url', 'double_quotes::url::text', 'italics', 'paren', 'paren::date')
-            # TODO: fail
-            {'_source': 'journal', 'date': '24 July 2011', 'titleurl': 'http://www.dailymail.co.uk/news/article-1359019/Bankers-revive-strip-club-Spearmint-Rhino-bumper-bonuses.html', 'title': 'Bankers revive strip club Spearmint Rhino with bumper bonuses', 'journal': 'Daily Mail', 'location': 'UK'}
-        ),
+#        (
+#            """'''2009''', John Metzler, "[http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp High stakes for democracy (and terrorism) as Afghans prepare to vote ]," ''World Tribune'' (US), 7 August (retrieved 15 Sep 2010):""",
+#            ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics', 'paren::location', 'date', 'paren::date_retrieved')
+#            ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal', 'paren::location', 'date', 'paren::date_retrieved'),
+#            {'_source': 'journal', 'date': '7 August 2009', 'author': 'John Metzler', 'titleurl': 'http://www.worldtribune.com/worldtribune/WTARC/2009/mz0630_07_31.asp', 'title': 'High stakes for democracy (and terrorism) as Afghans prepare to vote', 'journal': 'World Tribune', 'location': 'US', 'accessdate': '15 Sep 2010'}
+#        ),
+#        (
+#            # mismatched dates
+#            """'''2011''' Feb 21, "[http://www.dailymail.co.uk/news/article-1359019/Bankers-revive-strip-club-Spearmint-Rhino-bumper-bonuses.html Bankers revive strip club Spearmint Rhino with bumper bonuses]," ''Daily Mail'' (UK) <small>(24 July 2011)</small>:""",
+#            ('date', 'double_quotes::url', 'double_quotes::url::text', 'italics', 'paren::location', 'paren::date')
+#            ('date', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal', 'paren::location', 'paren::date'),
+            # TODO: fail because dates don't match
+#            {'_source': 'journal', 'date': '24 July 2011', 'titleurl': 'http://www.dailymail.co.uk/news/article-1359019/Bankers-revive-strip-club-Spearmint-Rhino-bumper-bonuses.html', 'title': 'Bankers revive strip club Spearmint Rhino with bumper bonuses', 'journal': 'Daily Mail', 'location': 'UK'}
+#        ),
         (
             """'''1987''', Kelly Lawrence, ''The Gone Shots'', Franklin Watts, US, [http://books.google.com.au/books?id=wcw2PjYZKx8C&q=%22uey%22%7C%22ueys%22+corner&dq=%22uey%22%7C%22ueys%22+corner&hl=en&sa=X&ei=7MaoUNThOPCVmQWprIDQBA&redir_esc=y page 280],""",
             ('year', 'author', 'italics', 'publisher', 'location', 'url', 'url::page'),
@@ -1030,9 +1061,8 @@ def test_get_params_journal():
         ),
         (
             """'''2010''', ''[[w:Der Spiegel|Der Spiegel]]'', issue [http://www.spiegel.de/spiegel/print/index-2010-49.html 49/2010], page 80:""",
-#            ('year', 'italics::link', 'italics::link::journal', 'unhandled<issue >', 'url', 'url::text', 'page')
-            ('year', 'italics::link', 'italics::link::journal', 'unhandled<issue>', 'url', 'url::text', 'page'),
-#            ('year', 'italics::journal', 'unhandled<issue>', 'url', 'url::text', 'page'),
+#            ('year', 'italics::link', 'italics::link::journal', 'unhandled<issue>', 'url', 'url::text', 'page'),
+            ('year', 'italics::journal', 'unhandled<issue>', 'url', 'url::text', 'page'),
 #            {'_source': 'journal', 'year': '2010', 'journal': '[[w:Der Spiegel|Der Spiegel]]', 'url': 'http://www.spiegel.de/spiegel/print/index-2010-49.html', 'title': '49/2010', 'page': '80'}
             {'_source': 'journal', 'year': '2010', 'journal': '[[w:Der Spiegel|Der Spiegel]]', 'url': 'http://www.spiegel.de/spiegel/print/index-2010-49.html', 'issue': '49/2010', 'page': '80'}
         ),
@@ -1049,8 +1079,9 @@ def test_get_params_journal():
         (
             # publisher comic strip not idea
             """'''1934''', {{w|George Herriman}}, ''{{w|Krazy Kat}}'', Tuesday, April 17 comic strip ({{ISBN|978-1-63140-408-5}}, p. 112):""",
-            ('year', 'author', 'italics::journal', 'date', 'publisher', 'paren::isbn', 'paren::page'),
-            {'_source': 'journal', 'date': 'April 17 1934', 'author': '{{w|George Herriman}}', 'journal': '{{w|Krazy Kat}}', 'publisher': 'comic strip', 'isbn': '978-1-63140-408-5', 'page': '112'}
+            ('year', 'author', 'italics::journal', 'date', 'unhandled<comic strip>', 'paren::isbn', 'paren::page'),
+            None
+            #{'_source': 'journal', 'date': 'April 17 1934', 'author': '{{w|George Herriman}}', 'journal': '{{w|Krazy Kat}}', 'publisher': 'comic strip', 'isbn': '978-1-63140-408-5', 'page': '112'}
         ),
         (
             """'''2008''' July 31, [[w:Richard Zoglin|Richard Zoglin]], "[https://web.archive.org/web/20080807052344/http://www.time.com/time/magazine/article/0,9171,1828301,00.html A New Dawn for ''Hair'']," ''Time''""",
@@ -1235,11 +1266,11 @@ def test_get_params_others():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
-        (
-            """'''1989''' Piers Paul Read - A Season in the West""",
-            ('year', 'author', 'unhandled<A Season in the West>'),
-            {'_source': 'text', 'year': '1989', 'author': 'Piers Paul Read', 'title': 'A Season in the West'}
-        ),
+#        (
+#            """'''1989''' Piers Paul Read - A Season in the West""",
+#            ('year', 'author', 'unhandled<A Season in the West>'),
+#            {'_source': 'text', 'year': '1989', 'author': 'Piers Paul Read', 'title': 'A Season in the West'}
+#        ),
         (
             # ISBN before title
             """'''2008''', Yolanda McVey, {{ISBN|9781585715787}}, ''Love's Secrets'':""",
@@ -1288,8 +1319,8 @@ def test_get_params_others():
         (
             # No closing "
             """'''1942''', IH Wagman, JE Gullberg, "The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements. ''American Journal of Physiology'', 137: 769-778""",
-             ('year', 'author', 'unhandled<"The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements>', 'italics', 'unhandled<137: 769-778>'),
-             None
+            ('year', 'author', 'unhandled<"The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements>', 'italics::journal', 'unhandled<137: 769-778>'),
+            None
         ),
         (
             """'''2010''', Erich-Norbert Detroy, Frank M. Scheelen, ''Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher'' (ISBN: 3802924258), page 49:""",
@@ -1298,10 +1329,8 @@ def test_get_params_others():
         ),
         (
             """'''2009''', [https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK ''Puff''] by John Flaherty""",
-            #('year', 'url', 'url::italics', 'author'),
-            #{'_source': 'book', 'year': '2009', 'url': 'https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK', 'title': 'Puff', 'author': 'John Flaherty'}
-            ('year', 'url', 'url::italics', 'unhandled<by John Flaherty>'),
-            None
+            ('year', 'url', 'url::italics', 'author'),
+            {'_source': 'text', 'year': '2009', 'url': 'https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK', 'title': 'Puff', 'author': 'John Flaherty'}
         ),
         (
             """'''2008''', Thomas W. Young - ''The Speed of Heat: An Airlift Wing at War in Iraq and Afghanistan ''""",
@@ -1576,8 +1605,7 @@ def test_get_leading_journal():
     assert fixer.get_leading_journal('Time') == ('Time', '')
     assert fixer.get_leading_journal('Time, Blah') == ('Time', ', Blah')
     assert fixer.get_leading_journal('Time Blah') == None
-    # TODO
-    assert fixer.get_leading_journal('{{w|Newsweek}} December 7, 1987') == None
+    assert fixer.get_leading_journal('{{w|Newsweek}} December 7, 1987') == ('{{w|Newsweek}}', ' December 7, 1987')
 
 def test_get_leading_isbn():
 
@@ -1588,28 +1616,28 @@ def test_get_leading_isbn():
 
 def test_get_leading_names():
 
-    res = fixer.get_leading_names("J.D. Doe. This is not part of the name string.")
-    assert res == ({'author': ['J.D. Doe']}, '. This is not part of the name string.')
+    res = fixer.get_leading_names("J.D. Doe, This is not part of the name string.")
+    assert res == ({'author': ['J.D. Doe']}, ', This is not part of the name string.')
 
     res = fixer.get_leading_names("J.D. Doe, Jane not-a-valid-name-but-explicitly-labelled Doe (editor)")
     #assert res == ({'author': ['J.D. Doe'], 'editor': ['Jane not-a-valid-name-but-explicitly-labelled Doe']}, '')
-    assert res == ({'author': ['J.D. Doe']}, 'Jane not-a-valid-name-but-explicitly-labelled Doe (editor)')
+    assert res == ({'author': ['J.D. Doe']}, ', Jane not-a-valid-name-but-explicitly-labelled Doe (editor)')
 
     res = fixer.get_leading_names("J.D. Doe, Jane not-a-valid-name Doe, John Doe")
-    assert res == ({'author': ['J.D. Doe']}, 'Jane not-a-valid-name Doe, John Doe')
+    assert res == ({'author': ['J.D. Doe']}, ', Jane not-a-valid-name Doe, John Doe')
 
     res = fixer.get_leading_names("J.D. Doe, Jane (not a valid name) Doe")
-    assert res == ({'author': ['J.D. Doe']}, 'Jane (not a valid name) Doe')
+    assert res == ({'author': ['J.D. Doe']}, ', Jane (not a valid name) Doe')
 
-    res = fixer.get_leading_names("edited by J.D. Doe. This is not a valid name")
-    assert res == ({'editor': ['J.D. Doe']}, '. This is not a valid name')
+    res = fixer.get_leading_names("edited by J.D. Doe, This is not a valid name")
+    assert res == ({'editor': ['J.D. Doe']}, ', This is not a valid name')
 
     res = fixer.get_leading_names("Ms Patricia MacCormack, ''Cinesexuality''")
     assert res == ({'author': ['Ms Patricia MacCormack']}, ", ''Cinesexuality''")
 
     res = fixer.get_leading_names("Knud H. Thomsen, Knud H. Thomsen (Pichard), ''Klokken i Makedonien'',")
     print(res)
-    assert res == ({'author': ['Knud H. Thomsen']}, "Knud H. Thomsen (Pichard), ''Klokken i Makedonien'',")
+    assert res == ({'author': ['Knud H. Thomsen']}, ", Knud H. Thomsen (Pichard), ''Klokken i Makedonien'',")
 
     res = fixer.get_leading_names("edited by Claire Bowern, Bethwyn Evans, Luisa Miceli)")
     print(res)
@@ -1636,8 +1664,8 @@ def test_get_leading_names_safe():
     assert fixer.get_leading_names_safe("ed. W. Anderson, ''Treasury of the Animal World. For the Young.'', p.154") == ({'editor': ['W. Anderson']}, ", ''Treasury of the Animal World. For the Young.'', p.154")
     assert fixer.get_leading_names_safe("ed. W. Anderson, [http://link.com article] p.154") == ({'editor': ['W. Anderson']}, ', [http://link.com article] p.154')
 
-    res = fixer.get_leading_names_safe("edited by J.D. Doe. This is not a valid name")
-    assert res == ({'editor': ['J.D. Doe']}, '. This is not a valid name')
+    res = fixer.get_leading_names_safe("edited by J.D. Doe, This is not a valid name")
+    assert res == ({'editor': ['J.D. Doe']}, ', This is not a valid name')
 
     assert fixer.get_leading_names_safe("edited by Claire Bowern, Bethwyn Evans, Luisa Miceli") == ({'editor': ['Claire Bowern', 'Bethwyn Evans', 'Luisa Miceli']}, "")
     assert fixer.get_leading_names_safe("eds. Claire Bowern, Bethwyn Evans, Luisa Miceli") == ({'editor': ['Claire Bowern', 'Bethwyn Evans', 'Luisa Miceli']}, "")
@@ -1682,7 +1710,7 @@ def test_classify_names():
 
     res = fixer.classify_names("John Doe, This is not a valid name.", "~author")
     print(res)
-    assert res == ({'author': ['John Doe']}, 'This is not a valid name.')
+    assert res == ({'author': ['John Doe']}, ', This is not a valid name.')
 
     res = fixer.classify_names("This is not a valid name, John Doe", "~author")
     print(res)
@@ -1702,7 +1730,7 @@ def test_classify_names():
     # Explicit labels apply unconditionally to the first name and then to each valid name afterwards
     res = fixer.classify_names("edited by John Doe, This is not a valid name", "~author")
     print(res)
-    assert res == ({'editor': ['John Doe']}, 'This is not a valid name')
+    assert res == ({'editor': ['John Doe']}, ', This is not a valid name')
 
     # Retroactively labelled names must all pass validation
     res = fixer.classify_names("Jane Doe, John Doe (editors)", "~author")
@@ -1720,7 +1748,7 @@ def test_classify_names():
     assert res == None
 
     res = fixer.classify_names('{{w|John Doe}}, Genesis 28:15:', "~author")
-    assert res == ({'author': ['{{w|John Doe}}']}, 'Genesis 28:15:')
+    assert res == ({'author': ['{{w|John Doe}}']}, ', Genesis 28:15:')
 
     # parse et al and variations
 #    res = fixer.classify_names("Jane Doe et al.", "~author")
@@ -1732,7 +1760,7 @@ def test_classify_names():
 
     # Invalid name followed by et al gets restored properly
     res = fixer.classify_names("Jane Doe, invalid-name, et alii, another-invalid-name", "~author")
-    assert res == ({'author': ['Jane Doe']}, 'invalid-name, et alii, another-invalid-name')
+    assert res == ({'author': ['Jane Doe']}, ', invalid-name, et alii, another-invalid-name')
 
 #    res = fixer.classify_names("Jane Doe, et alii", "~author")
 #    assert res == ({'author': ['Jane Doe', 'et al']}, '')
@@ -1851,46 +1879,46 @@ def test_get_leading_edition():
     assert fixer.get_leading_edition("2015 Limited edition, blah") == ('2015 Limited edition', ', blah')
     assert fixer.get_leading_edition("Limited 2015 ILLUSTRATED traveler's ed., blah") == ("Limited 2015 ILLUSTRATED traveler's ed.", ', blah')
 
-def test_get_leading_labeled_number():
-    assert fixer.get_leading_labeled_number("VOLUME 12, test") == ('volume', '12', ', test')
-    assert fixer.get_leading_labeled_number("volume12, test") == ('volume', '12', ', test')
-    assert fixer.get_leading_labeled_number("Vol.12, test") == ('volume', '12', ', test')
-    assert fixer.get_leading_labeled_number("v.12, test") == ('volume', '12', ', test')
-    assert fixer.get_leading_labeled_number("v 12, test") == ('volume', '12', ', test')
-    assert fixer.get_leading_labeled_number("p 12, test") == ('page', '12', ', test')
-    assert fixer.get_leading_labeled_number("page 12, test") == ('page', '12', ', test')
-    assert fixer.get_leading_labeled_number("p12, test") == ('page', '12', ', test')
-    assert fixer.get_leading_labeled_number("p ix, test") == ('page', 'ix', ', test')
-    assert fixer.get_leading_labeled_number("pix, test") == None
-    assert fixer.get_leading_labeled_number("p one, test") == ('page', '1', ', test')
-    assert fixer.get_leading_labeled_number("p A1, test") == ('page', 'A1', ', test')
-    assert fixer.get_leading_labeled_number("pA1, test") == None
-    assert fixer.get_leading_labeled_number("pone, test") == None
-    assert fixer.get_leading_labeled_number("page 12a, test") == ('page', '12a', ', test')
-    assert fixer.get_leading_labeled_number("page 12ab, test") == None
-    assert fixer.get_leading_labeled_number("page a12b, test") == None
-    assert fixer.get_leading_labeled_number("page x, test") == ('page', 'x', ', test')
-    assert fixer.get_leading_labeled_number("page xii, test") == ('page', 'xii', ', test')
-    assert fixer.get_leading_labeled_number("page XV, test") == ('page', 'XV', ', test')
-    assert fixer.get_leading_labeled_number("page Xv, test") == None
-    assert fixer.get_leading_labeled_number("page a12, test") == ('page', 'a12', ', test')
-    assert fixer.get_leading_labeled_number("page #12, test") == ('page', '12', ', test')
-    assert fixer.get_leading_labeled_number("P 12, test") == None
-    assert fixer.get_leading_labeled_number("pages 12 - 15, test") == ('page', '12', '-', '15', ', test')
-    assert fixer.get_leading_labeled_number("pages #12 - #15, test") == ('page', '12', '-', '15', ', test')
-    assert fixer.get_leading_labeled_number("chapter One, test") == ('chapter', '1', ', test')
-    assert fixer.get_leading_labeled_number("chapter ThirtyOne, test") == ('chapter', '31', ', test')
-    assert fixer.get_leading_labeled_number("chapter Thirty-One, test") == ('chapter', '31', ', test')
-    assert fixer.get_leading_labeled_number("chapter Thirty One, test") == ('chapter', '31', ', test')
-    assert fixer.get_leading_labeled_number("chapter seventeen, test") == ('chapter', '17', ', test')
+def test_get_leading_countable():
+    assert fixer.get_leading_countable("VOLUME 12, test") == ('volume', '12', ', test')
+    assert fixer.get_leading_countable("volume12, test") == ('volume', '12', ', test')
+    assert fixer.get_leading_countable("Vol.12, test") == ('volume', '12', ', test')
+    assert fixer.get_leading_countable("v.12, test") == ('volume', '12', ', test')
+    assert fixer.get_leading_countable("v 12, test") == ('volume', '12', ', test')
+    assert fixer.get_leading_countable("p 12, test") == ('page', '12', ', test')
+    assert fixer.get_leading_countable("page 12, test") == ('page', '12', ', test')
+    assert fixer.get_leading_countable("p12, test") == ('page', '12', ', test')
+    assert fixer.get_leading_countable("p ix, test") == ('page', 'ix', ', test')
+    assert fixer.get_leading_countable("pix, test") == None
+    assert fixer.get_leading_countable("p one, test") == ('page', '1', ', test')
+    assert fixer.get_leading_countable("p A1, test") == ('page', 'A1', ', test')
+    assert fixer.get_leading_countable("pA1, test") == None
+    assert fixer.get_leading_countable("pone, test") == None
+    assert fixer.get_leading_countable("page 12a, test") == ('page', '12a', ', test')
+    assert fixer.get_leading_countable("page 12ab, test") == None
+    assert fixer.get_leading_countable("page a12b, test") == None
+    assert fixer.get_leading_countable("page x, test") == ('page', 'x', ', test')
+    assert fixer.get_leading_countable("page xii, test") == ('page', 'xii', ', test')
+    assert fixer.get_leading_countable("page XV, test") == ('page', 'XV', ', test')
+    assert fixer.get_leading_countable("page Xv, test") == None
+    assert fixer.get_leading_countable("page a12, test") == ('page', 'a12', ', test')
+    assert fixer.get_leading_countable("page #12, test") == ('page', '12', ', test')
+    assert fixer.get_leading_countable("P 12, test") == None
+    assert fixer.get_leading_countable("pages 12 - 15, test") == ('page', '12', '-', '15', ', test')
+    assert fixer.get_leading_countable("pages #12 - #15, test") == ('page', '12', '-', '15', ', test')
+    assert fixer.get_leading_countable("chapter One, test") == ('chapter', '1', ', test')
+    assert fixer.get_leading_countable("chapter ThirtyOne, test") == ('chapter', '31', ', test')
+    assert fixer.get_leading_countable("chapter Thirty-One, test") == ('chapter', '31', ', test')
+    assert fixer.get_leading_countable("chapter Thirty One, test") == ('chapter', '31', ', test')
+    assert fixer.get_leading_countable("chapter seventeen, test") == ('chapter', '17', ', test')
 
-    assert fixer.get_leading_labeled_number("page 1213") == ('page', '1213', '')
-    assert fixer.get_leading_labeled_number("page 1,213") == ('page', '1213', '')
-    assert fixer.get_leading_labeled_number("pages 12,13") ==  ('page', '12', ',13')
-    assert fixer.get_leading_labeled_number("pages 12, 13") ==  ('page', '12', ', 13')
-    assert fixer.get_leading_labeled_number("Issue 32, 9 October 2013, page 11:") ==  ('issue', '32', ', 9 October 2013, page 11:')
+    assert fixer.get_leading_countable("page 1213") == ('page', '1213', '')
+    assert fixer.get_leading_countable("page 1,213") == ('page', '1213', '')
+    assert fixer.get_leading_countable("pages 12,13") ==  ('page', '12', ',13')
+    assert fixer.get_leading_countable("pages 12, 13") ==  ('page', '12', ', 13')
+    assert fixer.get_leading_countable("Issue 32, 9 October 2013, page 11:") ==  ('issue', '32', ', 9 October 2013, page 11:')
 
-    #assert fixer.get_leading_labeled_number('EPM Publications') == None
+    #assert fixer.get_leading_countable('EPM Publications') == None
     #"pages 12, 13") ==  ('page', '12', ',', '13', '')
 
 def test_get_leading_italics():

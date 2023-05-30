@@ -202,12 +202,6 @@ class NameLabeler():
 
         returns a list of (name, separator)
         """
-
-        # If the text matches a specifically allowed name, return that
-        maybe_allowed, sep = re.match(r"(.*?)([,.;:\- ]*)$", text).groups()
-        if maybe_allowed.lower() in self.allowed_names:
-            return [(maybe_allowed, sep)]
-
         sep_options = [";", " -"]
 
         # if the text starts out "Last, First", don't split on commas
@@ -219,6 +213,7 @@ class NameLabeler():
             if separator in text:
                 break
 
+        # nest_aware_resplit only works predictably with a single capture group
         sep1_pattern = fr"\s*{separator}\s*"
 
         secondary_separators = [r"\s[/·&]\s", r"\band\b", r"\bwith\b"]
@@ -237,7 +232,6 @@ class NameLabeler():
 
         name_seps = []
         _parts = []
-        # nest_aware_resplit only works predictably with a single capture group
         for name, sep in nest_aware_resplit(sep1_pattern, text, [("{{","}}"), ("[","]"), ("(", ")")]):
 
 
@@ -289,8 +283,9 @@ class NameLabeler():
             secondary_splits = list(nest_aware_resplit(sep2_pattern, name, [("{{","}}"), ("[","]"), ("(", ")")]))
 
             # Only split on secondary if both parts contain spaces
+            # or if both parts don't contain spaces
             # to allow entries like "Jane and John Doe"
-            if all(" " in n for n,s in secondary_splits if n):
+            if all(" " in n for n,s in secondary_splits if n) or all(" " not in n for n,s in secondary_splits):
                 for name2, sep2 in secondary_splits:
                     if sep2 == "":
                         sep2 = sep
@@ -520,7 +515,7 @@ class NameLabeler():
         raise ValueError("unhandled label command", command_line)
 
 
-    def classify_names(self, name_text, init_command):
+    def classify_names(self, text, init_command):
 
         """
         ["John Doe (author)", "Jane Doe (translator)", "Ed One", "Ed Two (eds.)"] => {"author": ["John Doe"], "translator": ["Jane Doe"], "editor": ["Ed One", "Ed Two"]}
@@ -535,9 +530,27 @@ class NameLabeler():
         self.state = {}
         self.stack = []
 
-        name_seps = self.split_names(name_text)
-        if not name_seps:
-            return
+
+        # If the text matches a specifically allowed name, return that
+        maybe_allowed, sep = re.match(r"(.*?)([,.;:\- ]*)$", text).groups()
+        if maybe_allowed.lower() in self.allowed_names:
+            name_seps = [(maybe_allowed, sep)]
+            post_text = ""
+
+        else:
+            # If the text doesn't match an allowed name, only search names until the first "." divider
+            # Break on ". " unless it's like J.D. or Mr.
+            pattern = r"(.*)(?<![A-Z])(?<!Jr|Dr|Ms|Mr|Sr|et)(?<!Miss)(?<!Mrs|Sra|Sgt|Pvt|etc)(\.\s.*)"
+            m = re.match(pattern, text)
+            if m:
+                text = m.group(1)
+                post_text = m.group(2)
+            else:
+                post_text = ""
+
+            name_seps = self.split_names(text)
+            if not name_seps:
+                return
 
         # Splits returns a list of (name, separator)
         # The name may be further split if it contains embedded commands
@@ -561,7 +574,7 @@ class NameLabeler():
 
         invalid = self.state.get("_invalid")
         if not invalid:
-            return self.state, ""
+            return self.state, post_text
 
         self.dprint("INVALID TEXT FOUND, stripping and re-running")
 
@@ -580,7 +593,12 @@ class NameLabeler():
         if not idx:
             return
 
-        invalid_text = "".join(sum(map(list, name_seps[idx:]), []))
+
+        prev_sep = name_seps[idx-1][1]
+        name_seps[idx-1] = (name_seps[idx-1][0], "")
+
+        invalid_text = prev_sep + "".join(sum(map(list, name_seps[idx:]), [])) + post_text
+        print("INVALID", invalid_text, name_seps)
 
         # And re-run the processor with only the valid names
         command_idxs = self._make_commands(name_seps[:idx], init_command)

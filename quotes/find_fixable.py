@@ -119,6 +119,7 @@ def main():
         else:
             invalid += 1
 
+    print("                ", file=sys.stderr)
     print("Valid", valid, file=sys.stderr)
     print("Invalid", invalid, file=sys.stderr)
 
