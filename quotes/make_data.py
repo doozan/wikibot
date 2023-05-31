@@ -283,7 +283,7 @@ def apply_resolutions(all_values, filename):
             try:
                 allowed,locations,v = line.split("\t")
             except ValueError:
-                print([line])
+                print("failed", [line])
                 exit()
 
             if len(allowed) > 1:
@@ -304,8 +304,6 @@ def contains_disallowed_word(text, source):
 
     words = [w.lower() for w in nest_aware_split(" ", stripped, NESTS)]
     res = any(w in disallowed_words[source] for w in words)
-    if "preface" in text:
-        print([text, source, stripped, words, res])
     return res
 
 def is_filtered(v, source, all_filters):

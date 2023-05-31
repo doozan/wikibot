@@ -70,6 +70,10 @@ def test_classify_names():
     print(res)
     assert res == ({'author': ['A. Doe']}, '')
 
+    res = fixer.classify_names("[[w:Alonso de Molina|Alonso de Molina]] ", "~author")
+    print(res)
+    assert res == ({'author': ['[[w:Alonso de Molina|Alonso de Molina]]']}, "")
+
     res = fixer.classify_names("John Doe, Jr., Jane Doe (translator), Ed Foo, Ed Bar (eds.)", "~author")
     print(res)
     assert res == ({"author": ["John Doe, Jr."], "translator": ["Jane Doe"], "editor": ["Ed Foo", "Ed Bar"]}, "")

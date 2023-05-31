@@ -1,6 +1,7 @@
 import re
 
 # leading * indicates that the match must be case-sensitive
+# countable things that map to distinct template parameters
 _countable_labels = {
     "chapter": [
         "chapters",
@@ -10,17 +11,6 @@ _countable_labels = {
         "cap.",
         "kapital",
         "kapitel",
-        ],
-    "page": [
-        "page",
-        "pg.",
-        "pg",
-        "*p,",  # had space
-        "*p.",
-        "*p",  # had space
-        "pages",
-        "pp.",
-        "*pp",  # had space
         ],
     "volume": [
         "volume",
@@ -32,6 +22,7 @@ _countable_labels = {
         "*v.",
         "*v",  # had space
         ],
+    "issue": [ "issue", "issues", "iss.", ],
     "number": [
         "number",
         "num",
@@ -42,42 +33,144 @@ _countable_labels = {
         "*n ",  # had space
         "№",
         ],
-    "issue": [ "issue", "issues", "iss.", ],
-    "series": [ "series", "*s.", "*s ", ],
-    "episode": [ "episode", "ep.", "*ep", ],
-    "season": ["season"],
-    "act": [ "act" ],
-    "scene": [ "scene" ],
-    "stanza": [ "stanza" ],
-    "verse": [ "verse", "verses" ],
     "line": [ "line", "lines" ],
-    "appendix": [ "appendix" ],
-    "section": [ "section", "sections" ],
-    "book": [ "book", "books", "bk." ],
-    "part": [ "part", "parts", "pt." ],
-    "booklet": [ "booklet" ],
-    "letter": [ "letter", "letters" ],
-    "lecture": [ "lecture", "lectures" ],
-    "column": [ "column", "lectures" ],
-    "devotion": [ "devotion" ],
-    "meditation": [ "meditation" ],
-    "ballad": [ "ballad" ],
-    "band": [ "band" ],
-    "canción": [ "canción" ],
-    "canto": [ "canto" ],
-    "song": [ "song" ],
-    "sonnet": [ "sonnet" ],
-    "sermon": [ "sermon" ],
-    "discourse": [ "discourse", "diſcourse", "diſcourſe" ],
-    "essay": [ "essay" ],
-    "epigraf": [ "epigraf" ],
-    "epigram": [ "epigram", "epig ", "epig." ],
-
-    # Manually include the long s variations because
-    # re.match("discourse", "Diſcourse", re.IGNORECASE) == True
-    # but "Diſcourse".lower() == 'diſcourse'
+    "page": [
+        "page",
+        "pg.",
+        "pg",
+        "*p,",  # had space
+        "*p.",
+        "*p",  # had space
+        "pages",
+        "pp.",
+        "*pp",  # had space
+        ],
+    "column": [ "column", "col" ],
 }
+countable_labels = _countable_labels.keys()
+
+
+# labels that don't map to template parameters
+# and must be combined into generic "section" parameter
+_section_labels = {
+    "series",
+    "s.",
+    "s",
+    "episode",
+    "ep.",
+    "ep",
+    "season",
+    "act",
+    "scene",
+    "stanza",
+    "verse",
+    "verses"
+    "appendix",
+    "section",
+    "book",
+    "books",
+    "bk"
+    "part",
+    "parts",
+    "pt"
+    "booklet",
+    "letter",
+    "letters",
+    "lecture",
+    "lectures",
+    "devotion",
+    "meditation",
+    "ballad",
+    "band",
+    "canción",
+    "canto",
+    "song",
+    "sonnet",
+    "sermon",
+    "discourse",
+    "essay",
+    "epigraf",
+    "epigram",
+    "epig",
+    "caption",
+    "image",
+    "letter",
+    "speech",
+    "song",
+    "poem",
+    "editorial",
+    "general postscript",
+    "dedicatory",
+    "epistle",
+    "introductory",
+    "introduction",
+    "exposition",
+    "letter",
+    "reader",
+    "article",
+    "art",
+    "ode",
+    "unit",
+    "objection",
+    "aphorism",
+    "phrase",
+    "sermon",
+    "sonnet",
+    "conversation",
+    "canto",
+    "class",
+    "cancion",
+    "class"
+    "devotion",
+    "aphorism",
+    "quest",
+    "reflection",
+    "note",
+    "f",
+
+    "author's",
+    "translator's",
+    "editor's",
+    "publisher's",
+
+    "authors",
+    "translators",
+    "editors",
+    "publishers",
+
+    'preface','prologue', 'postscript', 'foreword', 'forward', 'index', 'postscript', 'headline',
+    "footnote", "entry", "conclusion", "appendix", "epilogue", "glossary",
+    "contents", "dialogue", "figure", "diagram", "illustration", "picture", "glossary",
+    "glosario", "title", "editorial", "subtitle",
+    "closing", "opening", "paragraph", "cover",
+    "main", "margin"
+
+    # books of the bible
+    "acts", "actus", "adiae", "adias", "aggaei", "aggaeus", "amos", "apocalypse", "apocalypsis",
+    "baruch", "canticle of canticles", "canticum canticorum", "chronicles", "clementine vulgate",
+    "colossenses", "colossians", "corinthians", "corinthios", "daniel", "danielis", "deuteronomium",
+    "deuteronomy", "douay rheims", "ecclesiastes", "ecclesiasticus", "ephesians", "ephesios",
+    "esdrae", "esdras", "esther", "exodus", "ezechiel", "ezechielis", "ezekiel", "ezra", "galatas",
+    "galatians", "genesis", "habacuc", "habakkuk", "haggai", "hebraeos", "hebrews", "hosea", "ioannem",
+    "ioannis", "isaiae", "isaiah", "isaias", "jacobi", "james", "jeremiae", "jeremiah", "jeremias",
+    "jeremy", "job", "joel", "john", "jonae", "jonah", "jonas", "joshua", "josue", "judae", "jude",
+    "judges", "judices", "judith", "kings", "lamentationes", "lamentations", "leviticus", "lucam",
+    "luke", "maccabees", "machabaeorum", "machabees", "malachi", "malachiae", "malachias", "marcum",
+    "mark", "matthaeum", "matthew", "micah", "michaeae", "michaeas", "nahum", "nehemiae", "nehemiah",
+    "numbers", "numeri", "obadiah", "osee", "paralipomenon", "peter", "petri", "philemon", "philemonem",
+    "philippenses", "philippians", "proverbia", "proverbs", "psalmi", "psalms", "regum", "revelation",
+    "romanos", "romans", "ruth", "samuel", "samuelis", "sapientiae", "sentences", "song of solomon",
+    "sophoniae", "sophonias", "thessalonians", "thessalonicenses", "timotheum", "timothy", "titum",
+    "titus", "tobiae", "tobias", "tobit", "wisdom", "zachariae", "zacharias", "zechariah", "zephaniah"
+
+
+} | {l.lstrip("*").strip() for labels in _countable_labels.values() for l in labels}
+section_labels_pattern = "{" + "|".join(map(re.escape, sorted(_section_labels, key=lambda x: x+"🂲"))) + "}"
+
+# Named parts of a text
 label_to_countable_type = {label.lstrip("*"):countable for countable, labels in _countable_labels.items() for label in labels}
+text_locations = _section_labels | { k.strip() for k in label_to_countable_type.keys() }
+
 
 _case_countable_labels = [label.lstrip("*") for labels in _countable_labels.values() for label in labels if label.startswith("*")]
 _nocase_countable_labels = [label for labels in _countable_labels.values() for label in labels if not label.startswith("*")]
@@ -144,52 +237,6 @@ journal_postfixes = {
         } | journal_affixes
 
 
-# Named parts of a text
-text_locations = {
-    'preface', 'prologue', 'postscript', 'foreword', 'forward', 'chapter', 'index', 'postscript', 'headline',
-    "introduction", "footnote", "entry", "conclusion", "appendix", "epilogue", "glossary", "conclusion", "caption",
-    "caption on an image", "contents", "dialogue", "figure caption", "first column", "column", "glossary",
-    "glosario", "picture caption", "title", "editor's forward", "editors forward", "editorial", "book subtitle",
-    "subtitle", "book title", "page title", "chapter title", "closing paragraph", "cover", "cover page",
-    "main title", "margin note"
-} | { k.strip() for k in label_to_countable_type.keys() }
-
-
-# caption on an image
-#
-text_types = {
-    "letter", "speech", "song", "poem", "editorial"
-#A General Postscript
-#dedicatory epistle
-#dedicatory letter
-#Epistle Dedicatory
-#Introductory
-#Introductory Essay
-#Introductory Exposition
-#Letter to the reader
-#Translator’s Note
-#pdf dissertation
-}
-
-countables = {
-        # article
-        # ode
-        # unit
-        #objection
-        # aphorism
-#phase
-#sermon
-# sonnet
-#Conversation
-#Canto X
-#Class X
-#Devotion 8
-#Dialogue 21
-#Aphorism 15
-#Quest. VIII
-#Reflection 7
-}
-
 number_words = {
     "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
     'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen',
@@ -199,6 +246,7 @@ number_words = {
     "eleventh", "twelfth", "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth",
     "twentieth", "thirtieth", "fortieth", "fiftieth", "sixtieth", "seventieth", "eightieth", "ninetieth", "hundredth",
     }
+number_words_pattern = "(" + "|".join(number_words) + ")"
 
 # Words that can't appear in locations or names
 disallowed_words_common = {
@@ -220,9 +268,14 @@ disallowed_words_common = {
     "and", "in", "of", "by", "to", "et", "for", "on", "a", "the",
     }
 
+# bible books that are also commonly names
+biblical_names = {"amos", "daniel", "ezra", "isaiah", "james", "jeremiah", "joshua", "jeremy", "joel", "john", "jonah", "jonas", "jude", "luke", "mark", "matthew", "micah", "peter", "samuel","timothy", "tobias"}
+
 disallowed_publisher_words = { 'edition' } | text_locations
 disallowed_publisher_words -= { 'book', 'books' }
-disallowed_journal_words = { "ad" } | text_locations | text_types
+disallowed_publisher_words -= biblical_names
+disallowed_journal_words = { "ad" } | text_locations
+disallowed_journal_words -= biblical_names
 disallowed_location_words = {
     "junior", "senior", "sr", "dr", "mr", "college", "university"
     } | disallowed_words_common | text_locations
@@ -232,7 +285,7 @@ disallowed_name_words = {
     'uk', 'united', 'world', 'new',
     } | number_words | disallowed_words_common | text_locations | common_prefixes | common_postfixes \
       | publisher_prefixes | publisher_postfixes | journal_prefixes | journal_postfixes
-disallowed_name_words -= { "ed", "a", "art", "christian", "p", "pp", "p.", "v.", "v", "n.", "n", "pp", "ch", "s.", "s", "e", "e.", "pt." }
+disallowed_name_words -= { "ed", "a", "art", "christian", "p", "pp", "p.", "v.", "v", "n.", "n", "pp", "ch", "s.", "s", "e", "e.", "pt." } | biblical_names
 
 allowed_short_name_words = ["ed", "jr", "md", "jd", "ii", "iv", "vi", "ms", "sr", "mr", "dr", "st"] + \
         ["ad", "de", "da", "al", "ae", "aj", "al", "le", "ah", "ya", "ab", "do", "la", "mo", "lo", "wu", "jo", "di", "du", "le", "bo"]

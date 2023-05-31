@@ -107,8 +107,7 @@ class QuoteFixer():
     def _split_leading_separators(self, text):
         return re.match(self._separator_regex, text).groups()
 
-    def get_leading_year(self, text):
-        pattern = r"""(?x)
+    _leading_year_pattern = r"""(?x)
             (?P<years>
             (\s|'''|\(|\[)*           # ''' or ( or [
             (?P<year1>(1\d|20)\d{2})
@@ -116,11 +115,13 @@ class QuoteFixer():
               (\s*(?P<separator>or|,|&|and|-|–|to|{{ndash}})+\s*)
               (?P<year2>(1\d|20)\d{2})
             )?
-            (\s|'''|\)|\])*           # ''' or ) or ]
+            (\s|(:)?'''|\)|\])*           # ''' or ) or ]
             )
             (?P<post>.*)$         # trailing text
         """
-        m = re.match(pattern, text)
+    _leading_year_regex = re.compile(_leading_year_pattern)
+    def get_leading_year(self, text):
+        m = re.match(self._leading_year_regex, text)
         if not m:
             return
 
@@ -137,6 +138,8 @@ class QuoteFixer():
             old = group
             if group.startswith("'''") and group.endswith("'''"):
                 group = group[3:-3].strip()
+                if group.endswith(":"):
+                    group = group[:-1]
 
             if group.startswith("(") and group.endswith(")"):
                 group = group[1:-1].strip()
@@ -179,6 +182,42 @@ class QuoteFixer():
         return [val1, separator, val2]
 
 
+    classifiers = { "magazine", "song", "tv series" }
+    classifiers_pattern = "|".join(classifiers)
+    connector_words_pattern = r"(the|a|an|on|in|to)\b"
+    _leading_classifier_pattern = fr"""(?x)
+         (?P<classifier>
+             (\s*({connector_words_pattern})*\s)*
+             ({classifiers_pattern})+
+             (\s*({connector_words_pattern}))*
+        )+
+        (?P<post>.*)
+    """
+    _leading_classifier_regex = re.compile(_leading_classifier_pattern)
+
+    # Detect text that classifies the quote (magazine, song, tv series)
+    def get_leading_classifier(self, text):
+        m = re.match(self._leading_classifier_regex, text)
+        if not m:
+            return
+
+        match = m.group(1)
+        for c in ["magazine", "song", "tv series"]:
+            if c in match:
+                return {c: match}, m.group("post")
+
+    _leading_section_pattern = fr"""(?x)
+        (?P<classifer>
+            [.,:;\-()\[\]'" ]+
+            |{number_pattern}\b
+            |{number_words_pattern}\b
+            |{section_labels_pattern}\b
+            |(the|a|an|on|in|to|ad)\b
+        )+
+        $
+    """
+    _leading_section_regex = re.compile(_leading_section_pattern, re.IGNORECASE)
+
     def get_leading_section(self, text):
         # Section here refers to the section= parameter of the quote templates, which is used
         # instead of a combination labeled numbers like page= volume= column= to describe
@@ -187,15 +226,25 @@ class QuoteFixer():
         text = self.labeler.links_to_text(text)
         text = text.replace('{{gbooks.*?}}', " ")
 
-        pattern = r"""(?x)
-            ["':-]*
-            aeuthaoeutnaehoth
-            $
-        """
-
         # If all of the remaining text consists of text locations and numbers, slurp it up
-        if re.match(pattern, text):
-            return text, ""
+        if re.match(self._leading_section_regex, text):
+            return text.rstrip(",.:;- "), ""
+
+
+    _leading_unhandled_pattern = r"""(?x)
+            (?P<text>
+              \s+
+              |([^\d\w\s])\2*    # or, any non-alphanumeric+space character and any repetition
+              |(?:(?!.*?[.]{2})[a-zA-Z0-9](?:[a-zA-Z0-9.+!%-]{1,64}|)|\"[a-zA-Z0-9.+!% -]{1,64}\")@[a-zA-Z0-9][a-zA-Z0-9.-]+(.[a-z]{2,}|.[0-9]{1,})
+              |[\d\w]+          # alphanumeric
+            )
+            (?P<post>.*)$    # trailing text
+        """
+              #|[a-z0-9]+[\.'\-a-z0-9_]*[a-z0-9]+@(gmail|googlemail)\.com
+              #|([-!#-'*+/-9=?A-Z^-~]+(\.[-!#-'*+/-9=?A-Z^-~]+)*|\"([]!#-[^-~ \t]|(\\[\t -~]))+\")@([-!#-'*+/-9=?A-Z^-~]+(\.[-!#-'*+/-9=?A-Z^-~]+)*|\[[\t -Z^-~]*])
+              # email addresses https://stackoverflow.com/questions/5861332/pattern-matching-email-address-using-regular-expressions
+              #
+    _leading_unhandled_regex = re.compile(_leading_unhandled_pattern)
 
     def get_leading_unhandled(self, text):
 
@@ -216,21 +265,7 @@ class QuoteFixer():
             if end > 0:
                 return text[:end+1], text[end+1:]
 
-
-
-        pattern = r"""(?x)
-            (?P<text>
-              \s+
-              |([^\d\w\s])\2*    # or, any non-alphanumeric+space character and any repetition
-              |(?:(?!.*?[.]{2})[a-zA-Z0-9](?:[a-zA-Z0-9.+!%-]{1,64}|)|\"[a-zA-Z0-9.+!% -]{1,64}\")@[a-zA-Z0-9][a-zA-Z0-9.-]+(.[a-z]{2,}|.[0-9]{1,})
-              |[\d\w]+          # alphanumeric
-            )
-            (?P<post>.*)$    # trailing text
-        """
-              #|[a-z0-9]+[\.'\-a-z0-9_]*[a-z0-9]+@(gmail|googlemail)\.com
-              #|([-!#-'*+/-9=?A-Z^-~]+(\.[-!#-'*+/-9=?A-Z^-~]+)*|\"([]!#-[^-~ \t]|(\\[\t -~]))+\")@([-!#-'*+/-9=?A-Z^-~]+(\.[-!#-'*+/-9=?A-Z^-~]+)*|\[[\t -Z^-~]*])
-              # email addresses https://stackoverflow.com/questions/5861332/pattern-matching-email-address-using-regular-expressions
-        m = re.match(pattern, text)
+        m = re.match(self._leading_unhandled_regex, text)
         if not m:
             return
 
@@ -378,6 +413,7 @@ class QuoteFixer():
                 appended_text = ", et al"
                 name_text = name_text + appended_text
 
+        #print("NAME", [name_text, init_command])
         res = self.classify_names(name_text, init_command)
         if not res:
             return
@@ -1106,7 +1142,15 @@ class QuoteFixer():
 #        text = text.replace("et alii", "et al.")
 #        text = text.replace(' et. al.', "et al.")
 
+        #text = text.replace("''[[w:Alonso de Molina|Alonso de Molina]]''", "[[w:Alonso de Molina|Alonso de Molina]]")
+        #text = re.sub("'''1555(:)?''' ('')?(Idem|ibid)(\.)?('')?, f", "'''1555''' [[w:Alonso de Molina|Alonso de Molina]], ''Vocabulario en lengua castellana y mexicana y mexicana y castellana'', f", text, re.IGNORECASE)
+        #text = re.sub("'''1571(:)?''' ('')?(Idem|ibid)(\.)?('')?, f", "'''1571''' [[w:Alonso de Molina|Alonso de Molina]], ''Vocabulario en lengua castellana y mexicana y mexicana y castellana'', f", text, re.IGNORECASE)
+        #text = re.sub(r"'''1555(:)?'''(,)? ('')?(Idem|ibid)(\.)?('')?", "'''1555''' [[w:Alonso de Molina|Alonso de Molina]]", text, re.IGNORECASE)
+        #text = re.sub(r"'''1571(:)?'''(,)? ('')?(Idem|ibid)(\.)?('')?", "'''1571''' [[w:Alonso de Molina|Alonso de Molina]]", text, re.IGNORECASE)
+
         text = text.strip()
+
+        print(text)
         return text
 
 
@@ -1121,17 +1165,29 @@ class QuoteFixer():
             #self.warn("html_comment")
             return
 
+        parsed = self.get_parsed(text)
+        return self.convert_parsed_to_params(parsed)
+
+    def get_parsed(self, text):
+
         clean_text = self.cleanup_text(text)
-        parsed = self.parse_text(clean_text, source_before_author=True)
+        source_before_author=True
+        parsed = self.parse_text(clean_text, source_before_author=source_before_author)
 
         all_types = { k for k, *vs in parsed if k != "separator" }
         # TODO: if parsed does not contain 'author' and does 'unhandled' and 'publisher' or 'journal' - rescan, but check for author first
         if "author" not in all_types and "unhandled" in all_types and ("journal" in all_types or "publisher" in all_types):
-            print("RESCANNING")
-            parsed = self.parse_text(clean_text, source_before_author=False)
-        print("NOT RESCANNING", all_types)
+            print("RESCANNING, no author and unhandled")
+            source_before_author=False
+            parsed = self.parse_text(clean_text, source_before_author=source_before_author)
 
-        return self.convert_parsed_to_params(parsed)
+        # If section and countables, just parse section
+        if "section" in all_types and any(x in all_types or x+"s" in all_types for x in countable_labels):
+            print("RESCANNING, section and countable")
+            parsed = self.parse_text(clean_text, source_before_author=source_before_author, skip_countable=True)
+
+        return parsed
+
 
 
     def get_transformer(self, fingerprint):
@@ -1316,7 +1372,7 @@ class QuoteFixer():
 
 
     def text_handler(self, parsed):
-        allowed_params = {"page", "pages", "title", "year", "location", "publisher", "chapter", "pageurl", "year_published", "series", "url", "volume", "issn", "oclc", "month"}
+        allowed_params = {"page", "pages", "title", "year", "location", "publisher", "chapter", "pageurl", "year_published", "series", "url", "volume", "issn", "oclc", "month", "section"}
         details = self.generic_handler(parsed, "text", allowed_params)
         if not details:
             return
@@ -1447,7 +1503,7 @@ class QuoteFixer():
 
 
     def book_handler(self, parsed):
-        allowed_params = {"page", "pages", "title", "year", "location", "publisher", "chapter", "pageurl", "year_published", "series", "url", "volume", "issn", "oclc", "month"}
+        allowed_params = {"page", "pages", "title", "year", "location", "publisher", "chapter", "pageurl", "year_published", "series", "url", "volume", "issn", "oclc", "month", "section"}
         return self.generic_handler(parsed, "book", allowed_params)
 
 
@@ -1466,7 +1522,6 @@ class QuoteFixer():
     _url_page_page = {} #{ "url::page": "page", "_page_is_urlpage" }
     #_urlpage = {"url": "pageurl", "url::page": "page"}
     _paren_italics_series = {"paren::italics": "series"}
-    _chapter_title = {"italics": "chapter", "italics2": "title"}
     _year2_year_published = {"year2": "year_published"}
     _fancy_dq_chapter = {"fancy_double_quotes": "chapter"}
 
@@ -1477,6 +1532,7 @@ class QuoteFixer():
     _skip_italics = {"italics": "separator"}
     _skip_italics2 = {"italics2": "separator"}
     _italics_title = {"italics": "title"}
+    _italics2_title = {"italics2": "title"}
     _dq_title = {"double_quotes": "title"}
     _fancy_dq_title = {"fancy_double_quotes": "title"}
 
@@ -1565,14 +1621,11 @@ class QuoteFixer():
 
         return _anywhere, _anywhere_tr
 
-
-
-
 #    _book_optionals = { "_match_anywhere_optional": ('translator', 'translators', 'location', 'editor', 'publisher', 'year2', 'chapter', 'page', 'pages', 'url', 'url::page') } | _year2_published | _urlpage
 
     _book = {"_handler": book_handler, "italics": "title"}
     _book_anywhere, _book_anywhere_tr = make_anywhere(
-        [ 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc'],
+        [ 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc', 'book_classifier', 'section'],
         [ "volume", "chapter", "page" ],
         # alternate keys
         {
@@ -1591,6 +1644,7 @@ class QuoteFixer():
 #    print(_book_anywhere)
 #    print(_book_anywhere_tr)
 #    exit()
+
 
 
 
@@ -1650,7 +1704,7 @@ class QuoteFixer():
 
 
     _journal_anywhere, _journal_anywhere_tr = make_anywhere(
-        ['date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc'],
+        ['date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc', 'journal_classifier'],
         [ "issue", "page", "volume" ], # not chapter
         # alternate keys
         {
@@ -1660,10 +1714,9 @@ class QuoteFixer():
             "date_retrieved": "accessdate"
         }
     )
-    _journal_anywhere |= {'url', 'unhandled<magazine>' }
+    _journal_anywhere |= {'url'}
     _journal_anywhere_tr |= {
         "url::page": "url::page", # instead of just 'page', to trigger 'url' -> 'urlpage'
-        'unhandled': 'separator',
     }
 
 #    print(_journal_anywhere_tr)
@@ -1738,6 +1791,22 @@ class QuoteFixer():
         ({}, ['year', 'italics'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_title),
         ({}, ['date', 'italics'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_title),
 
+        # This a copy of the below book declarations, but with "section"
+        ({"author", "section"}, ['year', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr),
+        ({"author", "section"}, ['year', 'italics::url', 'italics::url::text'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_url_text_title|_italics_url_url),
+        ({"author", "section"}, ['year', 'italics::link', 'italics::link::text'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_link_title|_skip_italics_link_text),
+
+        ({"author", "section"}, ['year', 'italics::link'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_link_title),
+        ({"author", "section"}, ['year', 'fancy_quote', 'italics'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_fq_chapter|_italics_title),
+        ({"author", "section"}, ['year', 'fancy_double_quotes', 'italics'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_fancy_dq_chapter|_italics_title),
+        ({"author", "section"}, ['year', 'italics', 'double_quotes'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_dq_chapter),
+        ({"author", "section"}, ['year', 'italics', 'italics2'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_italics_chapter|_italics2_title),
+
+        ({"author", "section"}, ['year', 'italics', 'fancy_double_quotes'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fancy_dq_chapter),
+        ({"author", "section"}, ['year', 'italics', 'publisher', 'year2', 'paren::italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_paren_italics_series),
+
+
+
         #({}, ['year', 'italics', 'location', 'author'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_title|_author_publisher),
         #({}, ['year', 'author', 'unhandled<*>'], {}, {}, _text|_unhandled_title),
         #({}, ['year', 'unhandled<*>', 'italics'], {}, {}, _text|_italics_title|_unhandled_maybe_author),
@@ -1757,7 +1826,7 @@ class QuoteFixer():
         (book_must_include, ['year', 'fancy_quote', 'italics'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_fq_chapter),
         (book_must_include, ['year', 'fancy_double_quotes', 'italics'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_fancy_dq_chapter),
         (book_must_include, ['year', 'italics', 'double_quotes'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_dq_chapter),
-        (book_must_include, ['year', 'italics', 'italics2'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_chapter_title),
+        (book_must_include, ['year', 'italics', 'italics2'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_italics_chapter|_italics2_title),
 
         (book_must_include, ['year', 'italics', 'fancy_double_quotes'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_fancy_dq_chapter),
         (book_must_include, ['year', 'italics', 'publisher', 'year2', 'paren::italics'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_paren_italics_series),
@@ -1880,7 +1949,7 @@ class QuoteFixer():
             # Not necessarily a book/chapter
             #(('year', 'author', 'italics', '?location', '?editor', 'fancy_double_quotes', '?publisher', '?year2', '?chapter', '?page', '?url', '?url::page'), _book|_fancy_dq_chapter|_urlpage|_year2_published),
             (('year', 'author', 'italics', '?location', '?editor', 'double_quotes', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_dq_chapter|_url_page_page|_year2_published),
-            (('year', 'author', 'italics', '?location', '?editor', 'italics2', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_chapter_title|_url_page_page|_year2_published),
+            (('year', 'author', 'italics', '?location', '?editor', 'italics2', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_italics_chapter|_italics2_title|_year2_published),
 
             (('year', 'author', 'italics::link', '?location', '?editor', '?publisher', '?year2', '?chapter', '?page', '?pages', '?url', '?url::page'), _book|_italics_link_title|_url_page_page|_year2_published),
 
@@ -2085,7 +2154,7 @@ class QuoteFixer():
         if not sub_text:
             return new_text
 
-        sub_items = self.parse_text(sub_text, parse_names=True, parse_unlabeled_names=False)
+        sub_items = self.parse_text(sub_text, parse_names=True, parse_unlabeled_names=False, subdata=True)
         print("SUB ITEMS", [label, sub_text, sub_items])
         # If everything inside the sub item is just text, ignore it
         #if re.search(r"\[(//|http)", sub_text) \
@@ -2149,6 +2218,14 @@ class QuoteFixer():
         if text == "":
             replacements = []
 
+            all_types = { k for k, *vs in parsed }
+            if "section" in all_types:
+                 merge_into_section = {"page", "pages", "issue", "issues", "number", "numbers", "chapter"} - all_types
+                 if merge_into_section:
+                     # TODO
+                     pass
+
+
             for idx, kv in enumerate(parsed):
                 label, values = kv
                 if label == "unhandled":
@@ -2163,6 +2240,7 @@ class QuoteFixer():
                         if len(new_good_items) == 1 and new_good_items[0][0] != "unhandled":
                             replacements.append((idx, new_items))
 
+
             for idx, new_values in reversed(replacements):
                 parsed[idx:idx+1] = new_values
 
@@ -2170,7 +2248,7 @@ class QuoteFixer():
         return new_text
 
 
-    def parse_text(self, text, parse_names=True, parse_unlabeled_names=True, _recursive=False, source_before_author=True):
+    def parse_text(self, text, parse_names=True, parse_unlabeled_names=True, _recursive=False, source_before_author=True, subdata=False, skip_countable=False):
 
         orig_text = text
 
@@ -2185,8 +2263,6 @@ class QuoteFixer():
                 self.parsable_names.add("unlabeled")
 
         def get_leading_names(text):
-
-            print("GET LEADING NAMES", self.parsable_names)
             if not self.parsable_names:
                 return
             res = self.get_leading_names(text, self.parsable_names)
@@ -2243,13 +2319,15 @@ class QuoteFixer():
                 # Publishers and Journals may be links
                 ("link", self.get_leading_link, self.parse_with_subdata, True),
 
-                ("", self.get_leading_countable, self.parse_number, True),
+                ("", self.get_leading_countable, self.parse_number, lambda: not skip_countable),
 
 #                ("", self.get_leading_names_safe, self.parse_names, lambda: parse_names and parse_authors),
 
                 # TODO: if the previous entry was "Location", slurp text until date or ( or { as "unverified_publisher"
 
-                ("section", self.get_leading_section, self.parse, True),
+                ("classifier", self.get_leading_classifier, self.parse, True),
+
+                ("section", self.get_leading_section, self.parse, lambda: not subdata),
 
                 # Since the parser is about to fail, just slurp everything until the next separator into "unhandled"
                 ("unhandled", self.get_leading_unhandled, self.parse, True),
@@ -2334,6 +2412,7 @@ class QuoteFixer():
         for label, data in parsed:
 
             if label.endswith("unhandled"):
+                print("UNHANDLED", condense_unhandled)
                 if condense_unhandled:
                     fingerprint.append(f"{label}<*>")
                 else:
@@ -2380,9 +2459,11 @@ class QuoteFixer():
 
         passage, _, translation = passage.partition("|t=")
 
-#        allowed_pipes = passage.count("{{...|") + passage.count("{{w|")
-#        if passage.count("|") != allowed_pipes:
-        if next(nest_aware_split("|", passage, NESTS)) != passage:
+        # This fails on "{{a|b}} {{c|d" - where there is no closing bracket it still
+        # detects the second "|" as being inside a bracket
+        # As a temporary workaround, also fail if count("{{") > count("}}")
+        if next(nest_aware_split("|", passage, NESTS)) != passage or \
+                passage.count("{{") > passage.count("}}"):
             if section:
                 self.warn("pipe_in_passage", section, passage)
             return
@@ -2454,8 +2535,8 @@ class QuoteFixer():
         if not lang_id:
             return
 
-        # Anything that starts '''YEAR''' could be a quote
-        pattern = r"""([#:*]+)\s*(?P<quote>'''(1\d|20)\d{2}'''.*)$"""
+        # Anything that starts '''YEAR''' or '''YEAR:''' could be a quote
+        pattern = r"""([#:*]+)\s*(?P<quote>'''(1\d|20)\d{2}(:)?'''.*)$"""
 
         changed = False
         to_remove = []
@@ -2535,8 +2616,8 @@ class QuoteFixer():
             return
         translation = translation1 if translation1 else translation2
 
-        if next(nest_aware_split("|", translation, NESTS)) != translation:
-#        if "|" in translation:
+        if next(nest_aware_split("|", translation, NESTS)) != translation or \
+                translation.count("{{") > translation.count("}}"):
             self.warn("pipe_in_translation", section, translation)
             return
 
@@ -2572,6 +2653,10 @@ class QuoteFixer():
 
 
     def is_valid_template(self, template, params):
+
+        # the section paramater will override individual paramaters
+#        if "section" in params and any(x in params or x+"s" in params for x in countable_labels):
+#            return False
 
         nests = (("[[", "]]"), ("{{", "}}"), ("[http", "]")) #, (start, stop))
 

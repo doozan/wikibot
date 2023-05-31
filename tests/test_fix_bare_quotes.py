@@ -22,7 +22,7 @@ def test_parse_text():
         ( "", [] ),
         (
             " a song",
-            [("unhandled", [" a song"])]
+            [('classifier', [{'song': ' a song'}])]
         ),
         (
             """'''2007''', William D. Popkin, ''Evolution of the Judicial Opinion: Institutional and Individual Styles'', NYU Press ({{ISBN|9780814767498}}), page 104:""",
@@ -273,10 +273,6 @@ def test_get_params_old():
     #'''2023''', Munza Mushtaq, ''[https://www.csmonitor.com/World/Making-a-difference/2023/0106/In-Sri-Lanka-Pastor-Moses-shows-the-power-of-a-free-lunch In Sri Lanka, Pastor Moses shows the power of a free lunch]'', in: The Christian Science Monitor, January 6 2023
 #
 #        ),
-        (
-            """'''1990''', {{w|Andrew Davies}}, {{w|Michael Dobbs}}, ''[[w:House of Cards (UK TV show)|House of Cards]]'', Season 1, Episode 4""",
-            {'year': '1990', 'author': '{{w|Andrew Davies}}', 'author2': '{{w|Michael Dobbs}}', 'title': '[[w:House of Cards (UK TV show)|House of Cards]]', 'season': '1', 'episode': '4'}
-        ),
 #        (
 #            # Month Year
 #            """'''2012''', Adam Mathew, "Mass Effect 3", ''PlayStation Magazine'' (Australia), April 2012, [https://archive.org/details/Official_AUS_Playstation_Magazine_Issue_067_2012_04_Derwent_Howard_Publishing_AU/page/60/mode/2up?q=me3 page 60]:""",
@@ -439,6 +435,14 @@ def test_get_params_unhandled():
 def test_get_params_books():
 
     for text, expected_fingerprint, expected_params in [
+        #( """ """, "", "" ),
+
+        (
+            # Pages before section
+            """'''1999''', Peter McPhee, ''Runner'', {{ISBN|1550286749}}, page 10, caption:""",
+            ('year', 'author', 'italics', 'isbn', 'section'),
+            {'_source': 'text', 'year': '1999', 'author': 'Peter McPhee', 'title': 'Runner', 'isbn': '1550286749', 'section': 'page 10, caption'}
+        ),
         (
             # ''et al.'' multiple authors
             """'''2019''', Pierre Terjanian, Andrea Bayer, et al., ''The Last Knight: The Art, Armor, and Ambition of Maximilian I'', Metropolitan Museum of Art ({{ISBN|9781588396747}}), page 96:""",
@@ -478,7 +482,6 @@ def test_get_params_books():
             {'_source': 'book', 'year': '1995', 'author': '{{w|Kurt Gödel}}', 'editors': 'Solomon Feferman; John W. Dawson, Jr.; Warren Goldfarb; Charlers Parsons; Robert N. Solovay', 'title': 'Kurt Gödel: Collected Works: Volume III', 'pageurl': 'https://books.google.com.au/books?id=gDzbuUwma5MC&pg=PA419&dq=%22Hausdorff+gap%22%7C%22Hausdorff+gaps%22&hl=en&newbks=1&newbks_redir=0&sa=X&ved=2ahUKEwjo-o7D9OT7AhVQJUQIHaSlBIgQ6AF6BAhXEAI#v=onepage&q=%22Hausdorff%20gap%22%7C%22Hausdorff%20gaps%22&f=false', 'page': '419', 'publisher': '{{w|Oxford University Press}}'}
         ),
 
-        #( """ """, "", "" ),
 #        (
 #        # bold not italics
 #            """'''1974''', Per Lord Hailsham, '''Smedleys Ltd v Breed [1974]2 All ER 21(HL) at 24'''""",
@@ -494,9 +497,10 @@ def test_get_params_books():
 #            """'''1999''', ''{{w|Survivor (novel)|Survivor}}'', {{w|Chuck Palahniuk}}""", "", ""
 #        ),
         (
+            # Trailing bare link
             """'''2000''', Edgar Allan Poe, translated by Edwin Grobe, ''La Falo de Uŝero-Domo'', Arizona-Stelo-Eldonejo, http://www.gutenberg.org/files/17425/17425-h/17425-h.htm""",
-            ('year', 'author', 'translator', 'italics', 'publisher'),
-            {'_source': 'text', 'year': '2000', 'author': 'Edgar Allan Poe', 'translator': 'Edwin Grobe', 'title': 'La Falo de Uŝero-Domo', 'publisher': 'Arizona-Stelo-Eldonejo, http://www.gutenberg.org/files/17425/17425-h/17425-h.htm'}
+            ('year', 'author', 'translator', 'italics', 'publisher', 'unhandled<http://www.gutenberg.org/files/17425/17425-h/17425-h.htm>'),
+            None
         ),
         (
             """'''1965''', Australia. Bureau of Mineral Resources, Geology and Geophysics, ''U-K-A. Wandoan No. 1, Queensland of Union Oil Development Corporation, Kern County Land Company and Australian Oil and Gas Corporation Limited''""",
@@ -818,12 +822,6 @@ def test_get_params_books():
              {'_source': 'book', 'year': '1955', 'author': '{{w|W. H. Auden}}', 'chapter': 'Lakes', 'title': 'Selected Poetry of W. H. Auden', 'url': 'https://openlibrary.org/ia/selectedpoetry00whau', 'page': '149', 'publisher': 'Modern Library', 'year_published': '1959', 'location': 'New York'}
         ),
         (
-            # No closing "
-            """'''1942''', IH Wagman, JE Gullberg, "The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements. ''American Journal of Physiology'', 137: 769-778""",
-            ('year', 'author', 'unhandled<"The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements>', 'italics::journal', 'unhandled<137: 769-778>'),
-             None
-        ),
-        (
             """'''1399''', M. Lucas Alvarez & M. J. Justo Martín (eds.), ''Fontes documentais da Universidade de Santiago de Compostela. Pergameos da serie Bens do Arquivo Histórico Universitario (Anos 1237-1537)''. Santiago: Consello da Cultura Galega, page 268:""",
             ('year', 'editor', 'italics', 'location', 'publisher', 'page'),
             {'_source': 'book', 'year': '1399', 'editors': 'M. Lucas Alvarez; M. J. Justo Martín', 'title': 'Fontes documentais da Universidade de Santiago de Compostela. Pergameos da serie Bens do Arquivo Histórico Universitario (Anos 1237-1537)', 'location': 'Santiago', 'publisher': 'Consello da Cultura Galega', 'page': '268'}
@@ -869,11 +867,6 @@ def test_get_params_books():
             """'''2009''', [https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK ''Puff''] by John Flaherty""",
             ('year', 'url', 'url::italics', 'author'),
             {'_source': 'text', 'year': '2009', 'url': 'https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK', 'title': 'Puff', 'author': 'John Flaherty'}
-        ),
-        (
-            """'''1958''' [[w:Ritchie Valens|Ritchie Valens]] ''Donna'' ( a song) :""",
-            ('year', 'author', 'italics', 'paren'),
-            None
         ),
         (
             # BAD DATE, messes everything else up
@@ -983,13 +976,7 @@ def test_get_params_books():
     ]:
         print("__")
         print(text)
-        clean_text = fixer.cleanup_text(text)
-        parsed = fixer.parse_text(clean_text, source_before_author=True)
-        all_types = { k for k, *vs in parsed if k != "separator" }
-        if "author" not in all_types and "unhandled" in all_types and ("journal" in all_types or "publisher" in all_types):
-            fingerprint = fixer.get_fingerprint(parsed)
-            print("RESCANNING", fingerprint)
-            parsed = fixer.parse_text(clean_text, source_before_author=False)
+        parsed = fixer.get_parsed(text)
         print(parsed)
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
@@ -1266,6 +1253,42 @@ def test_get_params_others():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
+        (
+            """'''1999''' April, Matt Groening, “Episode Two: The Series Has Landed”, ''Futurama'', season 1, episode 2, opening title""",
+            ('year', 'month', 'author', 'fancy_double_quotes', 'italics', 'section'),
+            {'_source': 'text', 'year': '1999', 'month': 'April', 'author': 'Matt Groening', 'chapter': 'Episode Two: The Series Has Landed', 'title': 'Futurama', 'section': 'season 1, episode 2, opening title'}
+        ),
+        (
+            """'''1949''', G. Karsten. ‘Eenvorme, Informe, Yefforme’, ''De Speelwagen'' 10, no. 4: 307.""",
+            ('year', 'author', 'fancy_quote', 'italics', 'section'),
+            {'_source': 'text', 'year': '1949', 'author': 'G. Karsten', 'chapter': 'Eenvorme, Informe, Yefforme', 'title': 'De Speelwagen', 'section': '10, no. 4: 307'}
+        ),
+        (
+            """'''1647''', {{w|John Fletcher}}, ''A Wife for a Month'', Act V, scene i:""",
+            ('year', 'author', 'italics', 'section'),
+            {'_source': 'text', 'year': '1647', 'author': '{{w|John Fletcher}}', 'title': 'A Wife for a Month', 'section': 'Act V, scene i'}
+        ),
+        (
+            """'''1990''', {{w|Andrew Davies}}, {{w|Michael Dobbs}}, ''[[w:House of Cards (UK TV show)|House of Cards]]'', Season 1, Episode 4""",
+            ('year', 'author', 'italics::link', 'italics::link::text', 'section'),
+            {'_source': 'text', 'year': '1990', 'author': '{{w|Andrew Davies}}', 'author2': '{{w|Michael Dobbs}}', 'title': '[[w:House of Cards (UK TV show)|House of Cards]]', 'section': 'Season 1, Episode 4'}
+
+        ),
+        #(
+        #    """'''1571''', ''[[w:Alonso de Molina|Alonso de Molina]]'', ''[[w:Vocabulario en lengua castellana y mexicana y mexicana y castellana|Vocabulario en lengua castellana y mexicana y mexicana y castellana]]'', f. 117v. col. 2.""",
+        #    "",
+        #    ""
+        #),
+        #(
+        #    """'''1571''', ''Idem'', ''[[w:Vocabulario en lengua castellana y mexicana y mexicana y castellana|Vocabulario en lengua castellana y mexicana y mexicana y castellana]]'', 105r. col. 2.""",
+        #    ('year', 'author', 'italics::link', 'italics::link::text', 'section'),
+        #    {'_source': 'book', 'year': '1571', 'author': '[[w:Alonso de Molina|Alonso de Molina]]', 'title': '[[w:Vocabulario en lengua castellana y mexicana y mexicana y castellana|Vocabulario en lengua castellana y mexicana y mexicana y castellana]]', 'section': '105r. col. 2'}
+        #),
+        #(
+        #    """'''1571:''' [[w:Alonso de Molina|Alonso de Molina]], ''[[w:Vocabulario en lengua castellana y mexicana y mexicana y castellana|Vocabulario en lengua castellana y mexicana y mexicana y castellana]]'', f. 22r. col. 1.""",
+        #    ('year', 'author', 'italics::link', 'italics::link::text', 'section'),
+        #    {'_source': 'book', 'year': '1571', 'author': '[[w:Alonso de Molina|Alonso de Molina]]', 'title': '[[w:Vocabulario en lengua castellana y mexicana y mexicana y castellana|Vocabulario en lengua castellana y mexicana y mexicana y castellana]]', 'section': 'f. 22r. col. 1'}
+        #),
 #        (
 #            """'''1989''' Piers Paul Read - A Season in the West""",
 #            ('year', 'author', 'unhandled<A Season in the West>'),
@@ -1319,7 +1342,7 @@ def test_get_params_others():
         (
             # No closing "
             """'''1942''', IH Wagman, JE Gullberg, "The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements. ''American Journal of Physiology'', 137: 769-778""",
-            ('year', 'author', 'unhandled<"The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements>', 'italics::journal', 'unhandled<137: 769-778>'),
+            ('year', 'author', 'unhandled<"The Relationship between Monochromatic Light and Pupil Diameter. The Low Intensity Visibility Curve as Measured by Pupillary Measurements>', 'italics::journal', 'section'),
             None
         ),
         (
@@ -1343,7 +1366,7 @@ def test_get_params_others():
         ),
         (
             """'''1958''' [[w:Ritchie Valens|Ritchie Valens]] ''Donna'' ( a song) :""",
-            ('year', 'author', 'italics', 'paren'),
+            ('year', 'author', 'italics', 'paren::classifier'),
             None
         ),
         (
