@@ -127,6 +127,8 @@ _section_labels = {
     "reflection",
     "note",
     "f",
+    "paper",
+    "night",
 
     "author's",
     "translator's",
@@ -143,7 +145,9 @@ _section_labels = {
     "contents", "dialogue", "figure", "diagram", "illustration", "picture", "glossary",
     "glosario", "title", "editorial", "subtitle",
     "closing", "opening", "paragraph", "cover",
-    "main", "margin"
+    "main", "margin", "abstract",
+
+    "link"
 
     # books of the bible
     "acts", "actus", "adiae", "adias", "aggaei", "aggaeus", "amos", "apocalypse", "apocalypsis",
@@ -272,10 +276,11 @@ disallowed_words_common = {
 biblical_names = {"amos", "daniel", "ezra", "isaiah", "james", "jeremiah", "joshua", "jeremy", "joel", "john", "jonah", "jonas", "jude", "luke", "mark", "matthew", "micah", "peter", "samuel","timothy", "tobias"}
 
 disallowed_publisher_words = { 'edition' } | text_locations
-disallowed_publisher_words -= { 'book', 'books' }
+disallowed_publisher_words -= { 'book', 'books', 'art' }
 disallowed_publisher_words -= biblical_names
 disallowed_journal_words = { "ad" } | text_locations
 disallowed_journal_words -= biblical_names
+disallowed_journal_words -= { 'book', 'books', 'art' }
 disallowed_location_words = {
     "junior", "senior", "sr", "dr", "mr", "college", "university"
     } | disallowed_words_common | text_locations

@@ -1,4 +1,4 @@
-from autodooz.fix_bare_quotes import QuoteFixer
+from autodooz.fix_bare_quotes import QuoteFixer, Parsed, LINK
 from collections import defaultdict
 
 #from ..fix_bare_quotes import QuoteFixer
@@ -15,22 +15,21 @@ def notest_get_all_combinations():
     assert list(fixer.get_all_combinations(["a", "?b", "?c", "d", "?e", "f"])) == [['a', 'b', 'c', 'd', 'e', 'f'], ['a', 'c', 'd', 'e', 'f'], ['a', 'b', 'd', 'e', 'f'], ['a', 'd', 'e', 'f'], ['a', 'b', 'c', 'd', 'f'], ['a', 'c', 'd', 'f'], ['a', 'b', 'd', 'f'], ['a', 'd', 'f']]
 
 
-
 def test_parse_text():
 
     for text, expected in [
         ( "", [] ),
         (
             " a song",
-            [('classifier', [{'song': ' a song'}])]
+            [('classifier', [{'song': ' a song'}], ' a song')]
         ),
         (
             """'''2007''', William D. Popkin, ''Evolution of the Judicial Opinion: Institutional and Individual Styles'', NYU Press ({{ISBN|9780814767498}}), page 104:""",
-            [('year', ['2007']), ('author', ['William D. Popkin']), ('separator', [', ']), ('italics', ['Evolution of the Judicial Opinion: Institutional and Individual Styles']), ('separator', [', ']), ('publisher', ['NYU Press']), ('separator', [' ']), ('paren::isbn', [['9780814767498']]), ('separator', [', ']), ('page', ['104']), ('separator', [':'])]
+            [Parsed(type='year', values=['2007'], orig="'''2007''', "), Parsed(type='author', values=['William D. Popkin'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics', values=['Evolution of the Judicial Opinion: Institutional and Individual Styles'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='publisher', values=['NYU Press'], orig='NYU Press'), Parsed(type='separator', values=[' '], orig=' '), Parsed(type='paren::isbn', values=[['9780814767498']], orig='{{ISBN|9780814767498}}'), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='page', values=['104'], orig='page 104'), Parsed(type='separator', values=[':'], orig=':')]
         ),
         (
             """'''2006''', John G. Radcliffe, ''The Geometry of Hyperbolic Manifolds of Dimension a least 4'', András Prékopa, Emil Molnár (editors), ''Non-Euclidean Geometries: János Bolyai Memorial Volume'', [https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270],""",
-            [('year', ['2006']), ('author', ['John G. Radcliffe']), ('separator', [', ']), ('italics', ['The Geometry of Hyperbolic Manifolds of Dimension a least 4']), ('separator', [', ']), ('editor', ['András Prékopa', 'Emil Molnár']), ('separator', [', ']), ('italics2', ['Non-Euclidean Geometries: János Bolyai Memorial Volume']), ('separator', [', ']), ('url', ['https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false']), ('url::page', ['270']), ('separator', [','])]
+            [Parsed(type='year', values=['2006'], orig="'''2006''', "), Parsed(type='author', values=['John G. Radcliffe'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics', values=['The Geometry of Hyperbolic Manifolds of Dimension a least 4'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='editor', values=['András Prékopa', 'Emil Molnár'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics2', values=['Non-Euclidean Geometries: János Bolyai Memorial Volume'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='url', values=LINK(target='https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false', text='page 270', orig='[https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270]'), orig='[https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270]'), Parsed(type='url::page', values=['270'], orig='page 270'), Parsed(type='separator', values=[','], orig=',')]
         )
     ]:
         print(text)
@@ -99,7 +98,12 @@ def test_get_leading_publisher():
 
 
 def test_get_leading_link():
-    assert fixer.get_leading_link('[[w:Classical Philology (journal)|Classical Philology]] test') == ('Classical Philology', '[[w:Classical Philology (journal)|Classical Philology]]', ' test')
+    res = fixer.get_leading_link('[[w:Classical Philology (journal)|Classical Philology]] test')
+    print(res)
+    assert res == ('Classical Philology', LINK(target='w:Classical Philology (journal)', text='Classical Philology', orig='[[w:Classical Philology (journal)|Classical Philology]]'), ' test')
+
+def test_get_leading_url():
+    assert fixer.get_leading_url('http://site.com/foo... bar') == ('', LINK(target='http://site.com/foo', text='', orig='http://site.com/foo'), '... bar')
 
 def test_get_paramsx():
     for text, expected in [
@@ -299,10 +303,6 @@ def test_get_params_old():
             {'year': '2006', 'author': 'Barry A. Kosmin', 'author2': 'et al', 'title': 'Religion in a Free Market', 'pageurl': 'http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16', 'pages': 'xvi–xvii'}
         ),
         (
-            """'''2003''', ''Cincinnati Magazine'' (volume 36, number 5, page 26)""",
-            {'year': '2003', 'title': 'Cincinnati Magazine', 'volume': '36', 'number': '5', 'page': '26'}
-        ),
-        (
             # Start-End for issue number
             """'''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:""",
             {'year': '2004', 'issue': 'September-October', 'title': 'American Cowboy', 'volume': '11', 'number': '2', 'page': '53'}
@@ -406,7 +406,7 @@ def test_get_params_unhandled():
 
         """'''1986''', Anthony Burgess, ''Homage to Qwert Yuiop'' (published as ''But Do Blondes Prefer Gentlemen?'' in USA)""",
 
-        """'''1979''', ''New West'', volume 4, part 1, page 128:""",
+
 
         """'''2016''', "The Veracity Elasticity", season 10, episode 7 of ''{{w|The Big Bang Theory}}''""",
 
@@ -436,12 +436,27 @@ def test_get_params_books():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
-
         (
-            # Pages before section
-            """'''1999''', Peter McPhee, ''Runner'', {{ISBN|1550286749}}, page 10, caption:""",
+            """'''2010''' June, Martha C. Howell, ''Commerce Before Capitalism in Europe, 1300–1600'', “Introduction”, [http://books.google.co.uk/books?id=ZKhZTqkqfkEC&pg=PA26&dq=%22Yprois%22&hl=en&sa=X&ei=pS_2ToSYCtP-8QP2zrmvAQ&ved=0CDsQ6AEwAQ#v=onepage&q=%22Yprois%22&f=false page 26], footnote 42""",
+            ('year', 'month', 'author', 'italics', 'fancy_double_quotes', 'section'),
+            {'_source': 'text', 'year': '2010', 'month': 'June', 'author': 'Martha C. Howell', 'title': 'Commerce Before Capitalism in Europe, 1300-1600', 'chapter': 'Introduction', 'section': '[http://books.google.co.uk/books?id=ZKhZTqkqfkEC&pg=PA26&dq=%22Yprois%22&hl=en&sa=X&ei=pS_2ToSYCtP-8QP2zrmvAQ&ved=0CDsQ6AEwAQ#v=onepage&q=%22Yprois%22&f=false page 26], footnote 42'}
+        ),
+        (
+            """'''1877''', Victor Blüthgen, ''Aus gährender Zeit'', in: ''{{w|Die Gartenlaube}}'', year 1877, [[s:de:Seite:Die Gartenlaube (1877) 157.jpg|page 157]]:""",
+            ('year', 'author', 'italics', 'italics::journal', 'year2', 'section'),
+            {'_source': 'journal', 'year': '1877', 'author': 'Victor Blüthgen', 'title': 'Aus gährender Zeit', 'journal': '{{w|Die Gartenlaube}}', 'section': '[[s:de:Seite:Die Gartenlaube (1877) 157.jpg|page 157]]'}
+        ),
+        (
+            # Pages and no section, should be pages
+            """'''1999''', Peter McPhee, ''Runner'', {{ISBN|1550286749}}, page 10:""",
+            ('year', 'author', 'italics', 'isbn', 'page'),
+            {'_source': 'book', 'year': '1999', 'author': 'Peter McPhee', 'title': 'Runner', 'isbn': '1550286749', 'page': '10'}
+        ),
+        (
+            # Pages before section should be merged into section (and preserve original text)
+            """'''1999''', Peter McPhee, ''Runner'', {{ISBN|1550286749}}, p. 10, caption:""",
             ('year', 'author', 'italics', 'isbn', 'section'),
-            {'_source': 'text', 'year': '1999', 'author': 'Peter McPhee', 'title': 'Runner', 'isbn': '1550286749', 'section': 'page 10, caption'}
+            {'_source': 'text', 'year': '1999', 'author': 'Peter McPhee', 'title': 'Runner', 'isbn': '1550286749', 'section': 'p. 10, caption'}
         ),
         (
             # ''et al.'' multiple authors
@@ -499,8 +514,8 @@ def test_get_params_books():
         (
             # Trailing bare link
             """'''2000''', Edgar Allan Poe, translated by Edwin Grobe, ''La Falo de Uŝero-Domo'', Arizona-Stelo-Eldonejo, http://www.gutenberg.org/files/17425/17425-h/17425-h.htm""",
-            ('year', 'author', 'translator', 'italics', 'publisher', 'unhandled<http://www.gutenberg.org/files/17425/17425-h/17425-h.htm>'),
-            None
+            ('year', 'author', 'translator', 'italics', 'publisher', 'url'),
+            {'_source': 'text', 'year': '2000', 'author': 'Edgar Allan Poe', 'translator': 'Edwin Grobe', 'title': 'La Falo de Uŝero-Domo', 'publisher': 'Arizona-Stelo-Eldonejo', 'url': 'http://www.gutenberg.org/files/17425/17425-h/17425-h.htm'}
         ),
         (
             """'''1965''', Australia. Bureau of Mineral Resources, Geology and Geophysics, ''U-K-A. Wandoan No. 1, Queensland of Union Oil Development Corporation, Kern County Land Company and Australian Oil and Gas Corporation Limited''""",
@@ -598,14 +613,13 @@ def test_get_params_books():
         ),
         (
             """'''1905''', {{w|Robert Louis Stevenson}}, ''Travels with a Donkey in the Cevennes'', [[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]""",
-            ('year', 'author', 'italics', 'link', 'link::chapter'),
-            None
-#            {'_source': 'book', 'year': '1905', 'author': '{{w|Robert Louis Stevenson}}', 'title': 'Travels with a Donkey in the Cevennes', 'chapter': '[[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]'}
+            ('year', 'author', 'italics', 'section'),
+            {'_source': 'text', 'year': '1905', 'author': '{{w|Robert Louis Stevenson}}', 'title': 'Travels with a Donkey in the Cevennes', 'section': '[[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]'}
         ),
         (
             """'''1905''', [[w:Robert Louis Stevenson|Robert Louis Stevenson]], ''[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]'', [[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]""",
-            ('year', 'author', 'italics::link', 'italics::link::text', 'link', 'link::page'),
-            None
+            ('year', 'author', 'italics::link', 'italics::link::text', 'section'),
+            {'_source': 'text', 'year': '1905', 'author': '[[w:Robert Louis Stevenson|Robert Louis Stevenson]]', 'title': '[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]', 'section': '[[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]'}
         ),
         (
             # Multiple pages
@@ -990,6 +1004,27 @@ def test_get_params_journal():
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
         (
+            """'''2003''', ''Cincinnati Magazine'' (volume 36, number 5, page 26)""",
+            ('year', 'italics::journal', 'paren::volume', 'paren::number', 'paren::page'),
+            {'_source': 'journal', 'year': '2003', 'journal': 'Cincinnati Magazine', 'volume': '36', 'number': '5', 'page': '26'}
+        ),
+        (
+            """'''2007''' December 12, Howard Fineman, "Starting From Scratch", [[w:Newsweek|''Newsweek'']],""",
+            ('date', 'author', 'double_quotes', 'link', 'link::italics::journal'),
+            {'_source': 'journal', 'date': 'December 12 2007', 'author': 'Howard Fineman', 'title': 'Starting From Scratch', 'journal': "[[w:Newsweek|''Newsweek'']]"}
+        ),
+        (
+            """'''2004''', Karen Horsens, in: ''Kristeligt Dagblad'', 2004-08-02 / https://www.kristeligt-dagblad.dk/ordet/tag-jer-i-agt-de-falske-profeter...""",
+            ('year', 'author', 'italics::journal', 'date', 'url'),
+            {'_source': 'journal', 'date': 'Feb 2 2004', 'author': 'Karen Horsens', 'journal': 'Kristeligt Dagblad', 'url': 'https://www.kristeligt-dagblad.dk/ordet/tag-jer-i-agt-de-falske-profeter'}
+        ),
+
+        (
+            """'''1979''', ''New West'', volume 4, part 1, page 128:""",
+            ('year', 'italics::journal', 'section'),
+            {'_source': 'journal', 'year': '1979', 'journal': 'New West', 'section': 'volume 4, part 1, page 128'},
+        ),
+        (
             # ''et al.''. and chapter is url
             """'''2018''', C Ustan ''et al.''. "[https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733 Core-binding factor acute myeloid leukemia with t(8;21): Risk  factors and a novel scoring system (I-CBFit)]", ''Cancer Medicine''.""",
             ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal'),
@@ -1162,8 +1197,7 @@ def test_get_params_journal():
     ]:
         print("__")
         print(text)
-        clean_text = fixer.cleanup_text(text)
-        parsed = fixer.parse_text(clean_text)
+        parsed = fixer.get_parsed(text)
         print(parsed)
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
@@ -1240,8 +1274,8 @@ def test_get_params_newsgroup():
     ]:
         print("__")
         print(text)
-        clean_text = fixer.cleanup_text(text)
-        parsed = fixer.parse_text(clean_text)
+        parsed = fixer.get_parsed(text)
+        print(parsed)
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
         assert fingerprint == expected_fingerprint
@@ -1506,8 +1540,8 @@ def test_get_params_others():
     ]:
         print("__")
         print(text)
-        clean_text = fixer.cleanup_text(text)
-        parsed = fixer.parse_text(clean_text)
+        parsed = fixer.get_parsed(text)
+        print(parsed)
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
         assert fingerprint == expected_fingerprint
@@ -1834,12 +1868,12 @@ def test_get_leading_date():
     assert fixer.get_leading_date('7 16 2001 abcd') == ('2001', 'Jul', 16, ' abcd')
 
 #    assert fixer.get_leading_date('2012-02-02x') == None
-    assert fixer.get_leading_date('2012-02-02') == None
+    assert fixer.get_leading_date('2012-02-02') == ('2012', 'Feb', 2, '')
     assert fixer.get_leading_date('2012-02') == None
     assert fixer.get_leading_date('2012-2-2 abcd') == None
-    assert fixer.get_leading_date('2012-12-12 abcd') == None
-    assert fixer.get_leading_date('2012-12-13 abcd') == ('2012', 'Dec', 13, ' abcd')
-    assert fixer.get_leading_date('2012-12-31 abcd') == ('2012', 'Dec', 31, ' abcd')
+    assert fixer.get_leading_date('2012 12/12 abcd') == None
+    assert fixer.get_leading_date('2012 12/13 abcd') == ('2012', 'Dec', 13, ' abcd')
+    assert fixer.get_leading_date('2012 12/31 abcd') == ('2012', 'Dec', 31, ' abcd')
     assert fixer.get_leading_date('2012-09-18') == ('2012', 'Sep', 18, '')
     assert fixer.get_leading_date('2012.09.18') == ('2012', 'Sep', 18, '')
     assert fixer.get_leading_date('2012/09/18') == ('2012', 'Sep', 18, '')

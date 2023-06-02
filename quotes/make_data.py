@@ -39,7 +39,8 @@ ALL_TYPES = {
 
 NESTS = (("[[", "]]"), ("{{", "}}"), ("[", "]"), ("(", ")"), ("<!--", "-->")) #, (start, stop))
 
-def process(lines, all_count):
+
+def old_process(lines, all_count):
     data = "\n".join(lines)
     wikicode = mwparserfromhell.parse(data)
 
@@ -69,23 +70,80 @@ def process(lines, all_count):
     return all_count
 
 
-def dump_params(filename, path, suffix):
-    lines = []
+def iter_wxt(datafile, limit=None, show_progress=False):
+
+    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
+    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
+
     count = 0
+    for entry in parser:
+
+        if ":" in entry.title or "/" in entry.title:
+            continue
+
+        if not count % 1000 and show_progress:
+            print(count, end = '\r', file=sys.stderr)
+
+        if limit and count >= limit:
+            break
+        count += 1
+
+        yield entry.text, entry.title
+
+def extract_quote_templates(params):
+
+    article, title = params
+    wikicode = mwparserfromhell.parse(article)
+
+    if "{{quote-" not in article and "{{cite-" not in article:
+        return
+
+    count = {} #defaultdict(lambda: defaultdict(int))
+
+    for template in wikicode.filter_templates():
+        name = template.name.strip()
+        if not (name.startswith("quote") or name.startswith("cite")):
+            continue
+
+        if "-" not in name:
+            continue
+
+        _,_,source = name.partition("-")
+        if source not in ["book", "journal"]:
+            continue
+
+        for short_param, param_names in ALL_TYPES.items():
+            for param in param_names:
+                if not template.has(param):
+                    continue
+
+                v = template.get(param).value.strip()
+                if not v:
+                    continue
+
+                if short_param not in count:
+                    count[short_param] = {}
+                if v not in count[short_param]:
+                    count[short_param][v] = 0
+
+                count[short_param][v] += 1
+
+    return count
+
+def dump_params(filename, path, suffix):
+
+    iter_entries = iter_wxt(filename, 0, True)
+    pool = multiprocessing.Pool(multiprocessing.cpu_count()-1)
+    iter_items = pool.imap_unordered(extract_quote_templates, iter_entries, 1000)
+
     all_count = defaultdict(lambda: defaultdict(int))
-    with open(filename) as infile:
-        for line in infile:
-            line = line.strip()
-            if not line:
-                continue
-            count += 1
-            start = line.count("{{")
-            end = line.count("}}")
-            lines.append(line + "}}" * (start-end))
-            if not count%1000:
-                print(count, end = '\r', file=sys.stderr)
-                all_count = process(lines, all_count)
-                lines = []
+
+    for results in iter_items:
+        if not results:
+            continue
+        for param, value_counts in results.items():
+            for value, count in value_counts.items():
+                all_count[param][value] += count
 
     for p, counts in all_count.items():
         name = ALL_TYPES[p][0]
@@ -148,7 +206,6 @@ def main():
     all_params = defaultdict(lambda: defaultdict(int))
     load_params(all_params, args.datadir, "all")
     all_params = clean_params(all_params)
-
 
     all_filters = load_filters(args.datadir)
 

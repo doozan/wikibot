@@ -1,12 +1,18 @@
 import enwiktionary_sectionparser as sectionparser
-from autodooz.sections import ALL_LANGS
 import re
 import sys
+
+from autodooz.sections import ALL_LANGS
+from collections import namedtuple
 from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit
 from .quotes.name_labeler import NameLabeler
 from .quotes.names import *
 
 NESTS = (("[", "]"), ("{{", "}}"))
+
+Parsed = namedtuple("Parsed", ["type", "values", "orig"])
+
+LINK = namedtuple("LINK", [ "target", "text", "orig" ])
 
 class QuoteFixer():
 
@@ -108,6 +114,7 @@ class QuoteFixer():
         return re.match(self._separator_regex, text).groups()
 
     _leading_year_pattern = r"""(?x)
+            (year\s*)?
             (?P<years>
             (\s|'''|\(|\[)*           # ''' or ( or [
             (?P<year1>(1\d|20)\d{2})
@@ -117,9 +124,10 @@ class QuoteFixer():
             )?
             (\s|(:)?'''|\)|\])*           # ''' or ) or ]
             )
+            (?!-) # Not followed by - (avoids matching YYYY-MM-DD)
             (?P<post>.*)$         # trailing text
         """
-    _leading_year_regex = re.compile(_leading_year_pattern)
+    _leading_year_regex = re.compile(_leading_year_pattern, re.IGNORECASE)
     def get_leading_year(self, text):
         m = re.match(self._leading_year_regex, text)
         if not m:
@@ -223,12 +231,13 @@ class QuoteFixer():
         # instead of a combination labeled numbers like page= volume= column= to describe
         # where the text is located. This allows for freeform entries like "Act XI (footnote)"
 
+        orig_text = text
         text = self.labeler.links_to_text(text)
         text = text.replace('{{gbooks.*?}}', " ")
 
         # If all of the remaining text consists of text locations and numbers, slurp it up
         if re.match(self._leading_section_regex, text):
-            return text.rstrip(",.:;- "), ""
+            return orig_text.rstrip(",.:;- "), ""
 
 
     _leading_unhandled_pattern = r"""(?x)
@@ -752,12 +761,19 @@ class QuoteFixer():
 
     @staticmethod
     def get_leading_url(text):
+
+        if text.startswith("http://") or text.startswith("https://"):
+            link, _, post = text.partition(" ")
+            link = link.rstrip(".,:;- ")
+            link_text = ""
+            return link_text, LINK(link, link_text, link), text[len(link):]
+
         pattern = r"""(?x)
-            \[                              # [
-            (?P<link>(//|http)[^ ]*)             # url
-            \s*
-            (?P<link_text>\s*[^\]]*?)?             # link text
-            \]                              # ]
+            (?P<orig_link>\[                     # [
+                (?P<link>(//|http)[^ ]*)         # url
+                \s*
+                (?P<link_text>\s*[^\]]*?)?       # link text
+            \])                                  # ]
             (?P<post>.*)$            # trailing text
         """
 
@@ -766,15 +782,17 @@ class QuoteFixer():
             return
 
         link_text = m.group('link_text').strip() if m.group('link_text') else ""
-        return link_text, m.group('link'), m.group('post')
+        return link_text, LINK(m.group('link'), link_text, m.group('orig_link')), m.group('post')
 
     @staticmethod
     def get_leading_link(text):
         pattern = r"""(?x)
             (?P<link>
                 \[\[                         # open brackets [[
-                ([sw]|special):              # w:, s:, or Special:
-                [^|\]]*?                          # target
+                (?P<target>
+                    (:)?([sw]|special):      # w:, s:, or Special:
+                    [^|\]]*?                 # target
+                )
                 (\|(?P<link_text>[^\]]*?))?      # Optional text
                 \]\]                         # ]]
             )
@@ -786,8 +804,7 @@ class QuoteFixer():
             return
 
         link_text = m.group('link_text').strip() if m.group('link_text') else ""
-        return link_text, m.group('link'), m.group('post')
-        #return m.group('link'), m.group('post')
+        return link_text, LINK(m.group('target'), link_text, m.group('link')), m.group('post')
 
     @staticmethod
     # TODO: Convert to get_leading
@@ -1082,10 +1099,18 @@ class QuoteFixer():
                 if not year:
                     return
 
-                # Don't handle ambiguous dates likes 02-05, 03-14 is good, 14-03, too
-                if not day or abs(day) < 13:
-                    print("AMBIG DAY", day, month)
-                    return
+                if not day:
+                    print("NO DAY IN DATE")
+
+                # Handle ambiguous day/month pairs (2/4)
+                if abs(day) < 13:
+                    # Specifically allow YYYY-MM-DD even for dates like 2020-01-02
+                    alt = f"{year}-{(day*-1):02}-{month:02}"
+                    if text.startswith(alt):
+                        month, day = str(day*-1), int(month)
+                    else:
+                        print("AMBIG DAY", day, month, [alt, text])
+                        return
 
                 month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][int(m.group('month'))-1]
 
@@ -1150,7 +1175,6 @@ class QuoteFixer():
 
         text = text.strip()
 
-        print(text)
         return text
 
 
@@ -1311,64 +1335,39 @@ class QuoteFixer():
 
 
     def journal_handler(self, parsed):
-        allowed_params = {"year", "journal", "author", "volume", "issue", "page", "pages", "url", "title", "titleurl", "month", "publisher", "pageurl", "year_published", "issues", "location"}
+        allowed_params = {"year", "journal", "author", "volume", "issue", "page", "pages", "url", "title", "titleurl", "month", "publisher", "pageurl", "year_published", "issues", "location", "section", "number"}
         return self.generic_handler(parsed, "journal", allowed_params)
 
     def web_handler(self, parsed):
         details = { "_source": "web" }
         allowed_params = {"year", "site", "url"}
-        for item_type, values in parsed:
-            if item_type == "separator":
+        for p in parsed:
+            if p.type == "separator":
                 continue
 
-            elif item_type == "author":
-                assert len(values) == 1
-                for idx, value in enumerate(values, 1):
+            elif p.type == "author":
+                assert len(p.values) == 1
+                for idx, value in enumerate(p.values, 1):
                     key = f"author{idx}" if idx>1 else "author"
                     details[key] = value
 
             else:
-                if item_type not in allowed_params:
-                    raise ValueError("unhandled type", item_type, values)
+                if p.type not in allowed_params:
+                    raise ValueError("unhandled type", p)
 
-                if len(values) != 1:
-                    print("unhandled multi-values", item_type, values)
+                if len(p.values) != 1:
+                    print("web unhandled multi-values", p)
                     return
-                    raise ValueError("unhandled multi-values", item_type, values)
-                details[item_type] = values[0]
+                    raise ValueError("web unhandled multi-values", p)
+                details[p.type] = p.values[0]
         return details
 
 
 
     def newsgroup_handler(self, parsed):
         details = { "_source": "newsgroup" }
-        allowed_params = {"year", "title", "newsgroup", "url", "titleurl"}
-        for item_type, values in parsed:
-            if item_type.endswith("separator"):
-                continue
-
-            elif item_type == "date":
-                details = self.add_date(details, values)
-                if not details:
-                    return
-
-            elif item_type == "author":
-                if not len(values) == 1:
-                    return
-                for idx, value in enumerate(values, 1):
-                    key = f"author{idx}" if idx>1 else "author"
-                    details[key] = value
-
-            else:
-                if item_type not in allowed_params:
-                    raise ValueError("unhandled type", item_type, values)
-
-                if len(values) != 1:
-                    print("unhandled multi-values", item_type, values)
-                    return
-                    raise ValueError("unhandled multi-values", item_type, values)
-                details[item_type] = values[0]
-        return details
+        allowed_params = {"date", "author", "year", "title", "newsgroup", "url", "titleurl"}
+        return self.generic_handler(parsed, "newsgroup", allowed_params)
 
 
     def text_handler(self, parsed):
@@ -1394,7 +1393,7 @@ class QuoteFixer():
     def generic_handler(self, parsed, source, allowed_params):
         details = { "_source": source }
 
-        print("PARSED", parsed)
+        print("Parsed", parsed)
 
         def save(k,v):
             if k in details:
@@ -1402,99 +1401,109 @@ class QuoteFixer():
                 details["__failed_dup_value"] = True
             details[k] = v
 
-        for item_type, values in parsed:
+        for p in parsed:
 
-            if item_type.startswith("_maybe_"):
-                print("MAYBE", item_type, values)
+            if p.type.startswith("_maybe_"):
+                print("MAYBE", p)
                 if self.aggressive:
-                    item_type = item_type[len("_maybe_"):]
+                    p._replace(type=p.type[len("_maybe_"):])
                 else:
                     return
 
-            if item_type == "date":
-                details = self.add_date(details, values)
+            if p.type == "date":
+                details = self.add_date(details, p.values)
                 if not details:
                     return
                 continue
 
-            if item_type == "accessdate":
-                year, month, day = values
+            if p.type == "accessdate":
+                year, month, day = p.values
                 save("accessdate", f"{abs(day)} {month} {year}")
                 continue
 
-            if item_type == "url::page":
-                assert len(values) == 1
-                save("page", values[0])
+            if p.type == "url":
+                save("url", p.values.target)
+                continue
+
+            if p.type == "url::page":
+                assert len(p.values) == 1
+                save("page", p.values[0])
 
                 # rename url to pageurl
                 details = {"pageurl" if k in ["url", "chapterurl"] else k:v for k,v in details.items()}
                 continue
 
-            if item_type == "url::pages":
-                assert len(values) == 1
-                save("pages", values[0])
+            if p.type == "url::pages":
+                assert len(p.values) == 1
+                save("pages", p.values[0])
 
                 # rename url to pageurl
                 details = {"pageurl" if k in ["url", "chapterurl"] else k:v for k,v in details.items()}
                 continue
 
-            if item_type == "url::chapter":
-                assert len(values) == 1
-                save("chapter", values[0])
+            if p.type == "url::chapter":
+                assert len(p.values) == 1
+                save("chapter", p.values[0])
 
                 # rename url to chapter
                 details = {"chapterurl" if k == "url" else k:v for k,v in details.items()}
                 continue
 
-            if item_type.endswith("separator"):
+            if p.type.endswith("separator"):
                 continue
 
-            elif item_type in ["isbn"]:
-                save(item_type, "; ".join(values[0]))
+            elif p.type in ["isbn"]:
+                save(p.type, "; ".join(p.values[0]))
 
-#            elif item_type == "_maybe_bare_page_link":
-#                assert len(values) == 1
-#                if "url" in details and "page" not in details and values[0].isnumeric():
+#            elif p.type == "_maybe_bare_page_link":
+#                assert len(p.values) == 1
+#                if "url" in details and "page" not in details and p.values[0].isnumeric():
 #                    details = {"pageurl" if k == "url" else k:v for k,v in details.items()}
-#                    save("page", values[0])
+#                    save("page", p.values[0])
 #                else:
 #                    return
 
-            elif item_type == "author":
-                assert len(values)
-                for idx, value in enumerate(values, 1):
+            elif p.type == "author":
+                assert len(p.values)
+                for idx, value in enumerate(p.values, 1):
                     key = f"author{idx}" if idx>1 else "author"
                     if value.endswith("'s"):
                         value = value[:-2]
                     save(key, value)
 
-#            elif item_type == "publisher2":
-#                assert len(values) == 1
+#            elif p.type == "publisher2":
+#                assert len(p.values) == 1
 #                # assign directly to modify existing value
-#                details["publisher"] += f" ({values[0]})"
+#                details["publisher"] += f" ({p.values[0]})"
 
-            elif item_type in ["editor", "translator"]:
-                assert len(values)
-                if len(values) == 1:
-                    save(item_type, values[0])
+            elif p.type in ["editor", "translator"]:
+                assert len(p.values)
+                if len(p.values) == 1:
+                    save(p.type, p.values[0])
                 else:
-                    save(item_type + "s", "; ".join(values))
+                    save(p.type + "s", "; ".join(p.values))
 
-            elif item_type == "manual_review":
+            elif p.type == "manual_review":
                 print(parsed)
-                print("MANUAL_REVIEW:", values[0])
+                print("MANUAL_REVIEW:", p.values[0])
                 details["__failed_needs_manual_review"] = True
 
             else:
-                if item_type not in allowed_params:
-                    raise ValueError("unhandled type", item_type, values, parsed)
+                if p.type not in allowed_params:
+                    raise ValueError("unhandled type", p.type, p.values, parsed)
 
-                if len(values) != 1:
-                    print("unhandled multi-values", item_type, values)
-                    return
-                    raise ValueError("unhandled multi-values", item_type, values)
-
-                save(item_type, values[0])
+                if len(p.values) != 1:
+                    if isinstance(p.values, LINK):
+                        if "url" in p.type:
+                            save(p.type, p.values.target)
+                        else:
+                            save(p.type, p.values.orig)
+                    else:
+                        print("generic unhandled multi-values", p)
+                        return
+                        raise ValueError("generic unhandled multi-values", p)
+                else:
+                    save(p.type, p.values[0])
 
         if any(k.startswith("__failed") for k in details.keys()):
             return
@@ -1509,10 +1518,9 @@ class QuoteFixer():
 
     def apply_transformation(self, parsed, transformer):
         for idx, item in enumerate(parsed):
-            label, values = item
-            new_label = transformer.get(label)
+            new_label = transformer.get(item.type)
             if new_label:
-                parsed[idx] = (new_label, values)
+                parsed[idx] = item._replace(type=new_label)
 
 #    _book = {"*page": "page"}
     _year2_published = {"year2": "year_published" }
@@ -1704,8 +1712,8 @@ class QuoteFixer():
 
 
     _journal_anywhere, _journal_anywhere_tr = make_anywhere(
-        ['date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc', 'journal_classifier'],
-        [ "issue", "page", "volume" ], # not chapter
+        ['date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc', 'journal_classifier', 'section'],
+        [ "issue", "number", "page", "volume" ], # not chapter
         # alternate keys
         {
             #"issues": "issues",
@@ -1755,8 +1763,14 @@ class QuoteFixer():
     _link_chapter = {"link": "chapter"}
     _skip_link_chapter = {"link::chapter": "separator"}
 
+    _link_page = {"link": "page"}
+    _skip_link_page = {"link::page": "separator"}
+
     _italics_link_journal = {"italics::link": "journal"}
     _skip_italics_link_journal = {"italics::link::journal": "separator"}
+    _link_italics_journal = {"link::italics": "journal"}
+    _skip_link_italics_journal = {"link::italics::journal": "separator"}
+
     _url_text_title = {"url::text": "title"}
     _unhandled_title = {"unhandled": "title"}
     _italics_url_url = {"italics::url": "url"}
@@ -1874,8 +1888,10 @@ class QuoteFixer():
             #('year', 'journal', 'month', 'year2'),
         (journal_must_include, [], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr),
         (journal_must_include, ['italics'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_italics_title),
+        (journal_must_include, ['italics', 'link', 'link::page'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_italics_title|_link_page|_skip_link_page),
         (journal_must_include, ['italics::url', 'italics::url::text'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_italics_url_text_title|_italics_url_titleurl),
         (journal_must_include, ['url::double_quotes'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_url_dq_title|_url_titleurl),
+        ([{'date'}, {'year'}], ['double_quotes', 'link', 'link::italics::journal'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_dq_title|_link_journal|_skip_link_italics_journal),
 
         (journal_must_include, ['double_quotes::url', 'double_quotes::url::text'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_dq_url_text_title|_dq_url_titleurl),
         ([], ['year', 'italics::journal', 'unhandled<issue>', 'url', 'url::text', 'page'], [], [], _journal|_journal_anywhere_tr|_url_text_issue|_skip_unhandled),
@@ -2065,18 +2081,20 @@ class QuoteFixer():
 
     ]
 
-    def add_parsed(self, parsed, key, values):
+    def add_parsed(self, parsed, key, values, orig=None):
 
         counter = ""
         if not any(key.endswith(x) for x in ["separator", "unhandled"]):
-            for existing_key, _ in reversed(parsed):
-                if existing_key.startswith(key) and (len(existing_key) == len(key) or existing_key[len(key)].isdigit()):
-                    counter = str(int("0" + existing_key[len(key):])+1)
-                    if counter == "1":
-                        counter = "2"
+            for p in reversed(parsed):
+                if p.type.startswith(key):
+                    if p.type == key or p.type[len(key)] == ":":
+                        key = key + "2"
+                    else:
+                        prev_counter = int(p.type[len(key)])
+                        key = key + str(prev_counter+1)
                     break
 
-        parsed.append((key+counter, values))
+        parsed.append(Parsed(key, values, orig))
 
 
 
@@ -2085,9 +2103,7 @@ class QuoteFixer():
         if not res:
             return
 
-        res = list(res)
-
-        new_text = res.pop()
+        *res, new_text = res
         if new_text == text:
             raise ValueError("Returned value, but didn't change text", function, res, text)
             return
@@ -2101,7 +2117,9 @@ class QuoteFixer():
             return text
         res, new_text = res
 
-        self.add_parsed(parsed, name, res)
+        orig = text[:len(text)-len(new_text)]
+
+        self.add_parsed(parsed, name, res, orig)
         return new_text
 
     def parse_names(self, parsed, _, function, text):
@@ -2109,6 +2127,9 @@ class QuoteFixer():
         if not res:
             return text
         res, new_text = res
+        #orig = text[:len(text)-len(new_text)]
+
+        # TODO: add "names_orig"??
 
         names = res[0]
         for name, values in names.items():
@@ -2121,13 +2142,14 @@ class QuoteFixer():
         if not res:
             return text
         res, new_text = res
+        orig = text[:len(text)-len(new_text)]
 
         number_type, *values = res
         if len(values) > 1:
             number_type = number_type + "s"
             values = ["".join(values)]
 
-        self.add_parsed(parsed, number_type, values)
+        self.add_parsed(parsed, number_type, values, orig)
 
         return new_text
 
@@ -2136,6 +2158,7 @@ class QuoteFixer():
         if not res:
             return text
         res, new_text = res
+        orig = text[:len(text)-len(new_text)]
 
         # Temporary - don't parse subdata for usenet stuff
 #        if "{{monospace" in text and "Usenet" in text:
@@ -2144,10 +2167,9 @@ class QuoteFixer():
 
         sub_text, *values = res
         if values:
-            if label == "url":
-                self.add_parsed(parsed, label, values)
-            elif label == "link":
-                self.add_parsed(parsed, label, values)
+            if label in ["url", "link"]:
+                extra = values[0]
+                self.add_parsed(parsed, label, extra, orig)
             else:
                 raise ValueError("unhandled multi-value sub item")
 
@@ -2164,19 +2186,88 @@ class QuoteFixer():
 #        if all_types == {"unhandled"} or all_types == {"unhandled", "journal"} or \
 #                (len(all_types)>1 and not all_types-{"brackets", "unhandled", "separator", "italics", "parenthesis", "bold", "year", "paren"}):
             print("CONSOLIDATING", label, all_types, sub_text)
-            if label == "url":
-                self.add_parsed(parsed, "url::text", [sub_text])
-            elif label == "link":
-                self.add_parsed(parsed, "link::text", [sub_text])
+
+            if label in ["url", "link"]:
+                self.add_parsed(parsed, label + "::text", [sub_text])
             else:
                 self.add_parsed(parsed, label, [sub_text])
             return new_text
 
         for sub_item in sub_items:
-            sub_label, sub_values = sub_item
-            self.add_parsed(parsed, f"{label}::{sub_label}", sub_values)
+            #sub_label, sub_values = sub_item
+            self.add_parsed(parsed, f"{label}::{sub_item.type}", sub_item.values, sub_item.orig)
 
         return new_text
+
+    mergeable_sections = tuple(set(countable_labels) | {x+"s" for x in countable_labels})
+    def merge_countable_into_section(self, parsed):
+        # Returns True if successful, even if no changes
+
+        if not parsed:
+            return True
+
+        if parsed[-1][0] != "section":
+            return True
+#        if not parsed and parsed[-1][0] == "section":
+#            return
+
+        print("Checking for countables", parsed)
+
+        countable_start = None
+        for idx, item in enumerate(parsed):
+            if item[0].endswith(self.mergeable_sections):
+                if countable_start is None:
+                    countable_start = idx
+            elif countable_start is not None and item[0] not in ["separator", "section"]:
+                # Fail on countable, non-countable, section
+                # TODO: handle this failure better?
+                print("MERGE FAILED: found non-countable between countable and section")
+                return
+
+        if countable_start is None:
+            return True
+
+        print("Found countable", parsed[countable_start])
+
+        # what about (italics::unhandled, italics::url::page) ?
+        # or (italics::url::unhandled, italics::url::page)?
+        # url::italics::page
+        # Special handling for "url", "url::countable"
+        parts = parsed[countable_start][0].split("::")
+        if any(x in parts for x in ["url", "link"]):
+            print("FOUND CHILD, looking for parent", parts)
+            countable_start -= 1
+            if not parsed[countable_start][0].endswith(("url", "link")):
+                print("MERGE FAILED: preceeding parsed item is not root url/link", parsed[countable_start][0])
+                return
+            parts = parsed[countable_start][0].split("::")
+
+        if countable_start>0 and len(parts)>1:
+            print("FOUND CHILD, checking if it's first child", parts)
+            countable_start -= 1
+            if parsed[countable_start][0].startswith(parts[0]):
+                print("MERGE FAILED: preceeding parsed item looks like a part of the countable", parsed[countable_start][0])
+                return
+
+
+        merge_parts = []
+        for p in parsed[countable_start:]:
+            print("XX", p)
+            if "url::" in p.type or "link::" in p.type:
+                continue
+            if not p.orig:
+                raise ValueError(p, parsed)
+            merge_parts.append(p.orig)
+
+        # Merge
+        print("MERGE", merge_parts)
+        orig_text = "".join(merge_parts)
+
+        section = orig_text.rstrip(",.:;- ")
+
+        parsed[countable_start:] = [Parsed("section", [section], orig_text)]
+
+        return True
 
 
     def do_cleanup(self, parsed, text, no_recursion=False):
@@ -2186,12 +2277,14 @@ class QuoteFixer():
         # Merge any multiple "unhandled" sections
         # UN1, UN2 = UN1_UN2
         # UN1, SEP1, UN2 = UN1_SEP1_UN2
-        prev_type = parsed[-1][0]
+        prev_type = parsed[-1].type
         if prev_type == "unhandled":
-            if len(parsed) > 2 and parsed[-3][0] == "unhandled" and parsed[-2][0] == "separator":
-                parsed[-3:] = [("unhandled", ["".join(v[0] for k,v in parsed[-3:])])]
-            elif len(parsed) > 1 and parsed[-2][0] == "unhandled":
-                parsed[-2:] = [("unhandled", ["".join(v[0] for k,v in parsed[-2:])])]
+            if len(parsed) > 2 and parsed[-3].type == "unhandled" and parsed[-2].type == "separator":
+                joined = "".join(p.values[0] for p in parsed[-3:])
+                parsed[-3:] = [Parsed("unhandled", [joined], joined)]
+            elif len(parsed) > 1 and parsed[-2].type == "unhandled":
+                joined = "".join(p.values[0] for p in parsed[-2:])
+                parsed[-2:] = [Parsed("unhandled", [joined], joined)]
             #return text
 
         # Split the separator before processing the remaining text
@@ -2207,7 +2300,7 @@ class QuoteFixer():
 
         # Add the separator to the stack
         if separator:
-            self.add_parsed(parsed, "separator", [separator])
+            self.add_parsed(parsed, "separator", [separator], separator)
 
         # Add any newly-parsed values to the stack
         parsed += parsed2
@@ -2216,28 +2309,23 @@ class QuoteFixer():
         # TODO: disable text scanning
         no_recursion = True
         if text == "":
+
+            res = self.merge_countable_into_section(parsed)
+            if not res:
+                return
+
             replacements = []
-
-            all_types = { k for k, *vs in parsed }
-            if "section" in all_types:
-                 merge_into_section = {"page", "pages", "issue", "issues", "number", "numbers", "chapter"} - all_types
-                 if merge_into_section:
-                     # TODO
-                     pass
-
-
-            for idx, kv in enumerate(parsed):
-                label, values = kv
-                if label == "unhandled":
+            for idx, p in enumerate(parsed):
+                if p.type == "unhandled":
                     # convert unhandled<'in'> to separator
-                    if values[0].lower() in self.ignore_unhandled:
-                        parsed[idx] = ("separator", values)
+                    if p.values[0].lower() in self.ignore_unhandled:
+                        parsed[idx] = p._replace(type="separator")
                     elif not no_recursion:
-                        print("rescanning", kv)
+                        print("rescanning", p)
                         # Check if the "unhandled" text matches an allow-listed journal, publisher, etc
-                        new_items = self.parse_text(values[0], parse_names=True, parse_unlabeled_names=False, _recursive=True)
-                        new_good_items = [ (k,vs) for k, vs in new_items if k != "separator" ]
-                        if len(new_good_items) == 1 and new_good_items[0][0] != "unhandled":
+                        new_items = self.parse_text(p.values[0], parse_names=True, parse_unlabeled_names=False, _recursive=True)
+                        new_good_items = [ np for np in new_items if np.type != "separator" ]
+                        if len(new_good_items) == 1 and new_good_items[0].type != "unhandled":
                             replacements.append((idx, new_items))
 
 
@@ -2300,8 +2388,6 @@ class QuoteFixer():
                 #("fancy_quote", self.get_leading_fancy_quote, self.parse, True),
                 ("fancy_double_quotes", self.get_leading_fancy_double_quotes, self.parse_with_subdata, True),
                 #("fancy_double_quotes", self.get_leading_fancy_double_quotes, self.parse, True),
-                ("url", self.get_leading_url, self.parse_with_subdata, True),
-                ("brackets", self.get_leading_brackets, self.parse_with_subdata, True),
                 ("paren", self.get_leading_paren, self.parse_with_subdata, True),
 
                 ("date_retrieved", self.get_leading_date_retrieved, self.parse, True),
@@ -2316,18 +2402,14 @@ class QuoteFixer():
 
                 ("location", self.get_leading_location, self.parse, True), #, lambda: parse_names),
 
-                # Publishers and Journals may be links
-                ("link", self.get_leading_link, self.parse_with_subdata, True),
-
-                ("", self.get_leading_countable, self.parse_number, lambda: not skip_countable),
-
-#                ("", self.get_leading_names_safe, self.parse_names, lambda: parse_names and parse_authors),
-
-                # TODO: if the previous entry was "Location", slurp text until date or ( or { as "unverified_publisher"
-
                 ("classifier", self.get_leading_classifier, self.parse, True),
-
+                ("", self.get_leading_countable, self.parse_number, lambda: not skip_countable),
                 ("section", self.get_leading_section, self.parse, lambda: not subdata),
+
+                # Get links late, since Publishers, Journals, and sections may contain links
+                ("link", self.get_leading_link, self.parse_with_subdata, True),
+                ("url", self.get_leading_url, self.parse_with_subdata, True),
+                ("brackets", self.get_leading_brackets, self.parse_with_subdata, True),
 
                 # Since the parser is about to fail, just slurp everything until the next separator into "unhandled"
                 ("unhandled", self.get_leading_unhandled, self.parse, True),
@@ -2336,6 +2418,8 @@ class QuoteFixer():
         prev_text = ""
         while text and text != prev_text:
             text = self.do_cleanup(parsed, text)
+            if text is None:
+                return
             prev_text = text
 
 #            print("pre :", [text])
@@ -2369,59 +2453,20 @@ class QuoteFixer():
         return parsed
 
 
-    def merge_unhandled(self, parsed):
-
-        merge_keys = []
-        buffered_unhandled = []
-        for idx, item in enumerate(parsed):
-            datatype, data = item
-
-            if datatype == "unhandled":
-                buffered_unhandled.append(idx)
-                continue
-
-            if buffered_unhandled:
-                if datatype == "separator":
-                    buffered_unhandled.append(idx)
-                    continue
-
-                merge_keys.append(buffered_unhandled)
-                buffered_unhandled = []
-
-        if len(buffered_unhandled) > 1:
-            merge_keys.append(buffered_unhandled)
-
-   #     if merge_keys:
-   #         print("MERGING", merge_keys, parsed)
-
-        for keys in reversed(merge_keys):
-            first = keys[0]
-            last = keys[-1]
-            if parsed[last][0] == "separator":
-                last = last-1
-
-            last = last + 1
-            assert last > first
-            unhandled_text = "".join(v[0] for k,v in parsed[first:last]).strip()
-            parsed[first:last] = [("unhandled", [unhandled_text])]
-
-
-
     def get_fingerprint(self, parsed, condense_unhandled=False):
         fingerprint = []
-        for label, data in parsed:
+        for p in parsed:
 
-            if label.endswith("unhandled"):
-                print("UNHANDLED", condense_unhandled)
+            if p.type.endswith("unhandled"):
                 if condense_unhandled:
-                    fingerprint.append(f"{label}<*>")
+                    fingerprint.append(f"{p.type}<*>")
                 else:
-                    fingerprint.append(f"{label}<{data[0]}>")
+                    fingerprint.append(f"{p.type}<{p.values[0]}>")
 
-            elif label.endswith("separator"):
+            elif p.type.endswith("separator"):
                 continue
             else:
-                fingerprint.append(label)
+                fingerprint.append(p.type)
 
         return tuple(fingerprint)
 

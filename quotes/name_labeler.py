@@ -46,7 +46,7 @@ class NameLabeler():
             (
                 \[\[
                 (:)?
-                (w|W|Wikipedia|s:Author)[|:]
+                (w|W|Wikipedia|s:[^|]*)[|:]
                 (?P<params2>.*?)
                 \]\]
             )
