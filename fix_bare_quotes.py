@@ -237,7 +237,11 @@ class QuoteFixer():
 
         # If all of the remaining text consists of text locations and numbers, slurp it up
         if re.match(self._leading_section_regex, text):
-            return orig_text.rstrip(",.:;- "), ""
+            section = orig_text.rstrip(",.:;- ")
+            if section.startswith("[") and section.endswith("]"):
+                section = section.strip("[]")
+
+            return section, ""
 
 
     _leading_unhandled_pattern = r"""(?x)
@@ -1601,7 +1605,7 @@ class QuoteFixer():
 
     @staticmethod
     def make_anywhere(normal, plurals, alt_keys):
-        prefixes = ["link", "url", "paren"]
+        prefixes = ["link", "url", "paren", "brackets"]
 
         _anywhere = set()
         _anywhere_tr = {}
@@ -2087,11 +2091,17 @@ class QuoteFixer():
         if not any(key.endswith(x) for x in ["separator", "unhandled"]):
             for p in reversed(parsed):
                 if p.type.startswith(key):
-                    if p.type == key or p.type[len(key)] == ":":
+                    prev_key, _, _ = p.type.partition("::")
+
+                    if prev_key == key:
                         key = key + "2"
+                    elif prev_key[-1].isnumeric():
+                        counter = int(prev_key[-1]) + 1
+                        key = key + str(counter)
+
+                    # 'pages' starts with 'page' but they should be numbered separately
                     else:
-                        prev_counter = int(p.type[len(key)])
-                        key = key + str(prev_counter+1)
+                        continue
                     break
 
         parsed.append(Parsed(key, values, orig))
@@ -2206,7 +2216,7 @@ class QuoteFixer():
         if not parsed:
             return True
 
-        if parsed[-1][0] != "section":
+        if not parsed[-1].type.endswith("section"):
             return True
 #        if not parsed and parsed[-1][0] == "section":
 #            return
@@ -2215,10 +2225,10 @@ class QuoteFixer():
 
         countable_start = None
         for idx, item in enumerate(parsed):
-            if item[0].endswith(self.mergeable_sections):
+            if item.type.endswith(self.mergeable_sections) or item.type.endswith("section"):
                 if countable_start is None:
                     countable_start = idx
-            elif countable_start is not None and item[0] not in ["separator", "section"]:
+            elif countable_start is not None and item.type not in ["separator", "section", "url", "link"]:
                 # Fail on countable, non-countable, section
                 # TODO: handle this failure better?
                 print("MERGE FAILED: found non-countable between countable and section")
@@ -2233,20 +2243,20 @@ class QuoteFixer():
         # or (italics::url::unhandled, italics::url::page)?
         # url::italics::page
         # Special handling for "url", "url::countable"
-        parts = parsed[countable_start][0].split("::")
+        parts = parsed[countable_start].type.split("::")
         if any(x in parts for x in ["url", "link"]):
             print("FOUND CHILD, looking for parent", parts)
             countable_start -= 1
-            if not parsed[countable_start][0].endswith(("url", "link")):
-                print("MERGE FAILED: preceeding parsed item is not root url/link", parsed[countable_start][0])
+            if not parsed[countable_start].type.endswith(("url", "link")):
+                print("MERGE FAILED: preceeding parsed item is not root url/link", parsed[countable_start].type)
                 return
-            parts = parsed[countable_start][0].split("::")
+            parts = parsed[countable_start].type.split("::")
 
         if countable_start>0 and len(parts)>1:
-            print("FOUND CHILD, checking if it's first child", parts)
+            print("FOUND CHILD, checking if it's the first child", parts)
             countable_start -= 1
-            if parsed[countable_start][0].startswith(parts[0]):
-                print("MERGE FAILED: preceeding parsed item looks like a part of the countable", parsed[countable_start][0])
+            if parsed[countable_start].type.startswith(parts[0]):
+                print("MERGE FAILED: preceeding parsed item looks like a part of the countable", parsed[countable_start].type)
                 return
 
 
@@ -2388,7 +2398,6 @@ class QuoteFixer():
                 #("fancy_quote", self.get_leading_fancy_quote, self.parse, True),
                 ("fancy_double_quotes", self.get_leading_fancy_double_quotes, self.parse_with_subdata, True),
                 #("fancy_double_quotes", self.get_leading_fancy_double_quotes, self.parse, True),
-                ("paren", self.get_leading_paren, self.parse_with_subdata, True),
 
                 ("date_retrieved", self.get_leading_date_retrieved, self.parse, True),
                 ("isbn", self.get_leading_isbn, self.parse, True),
@@ -2402,14 +2411,18 @@ class QuoteFixer():
 
                 ("location", self.get_leading_location, self.parse, True), #, lambda: parse_names),
 
-                ("classifier", self.get_leading_classifier, self.parse, True),
-                ("", self.get_leading_countable, self.parse_number, lambda: not skip_countable),
-                ("section", self.get_leading_section, self.parse, lambda: not subdata),
-
                 # Get links late, since Publishers, Journals, and sections may contain links
                 ("link", self.get_leading_link, self.parse_with_subdata, True),
                 ("url", self.get_leading_url, self.parse_with_subdata, True),
+
+                ("", self.get_leading_countable, self.parse_number, lambda: not skip_countable),
+
+                ("paren", self.get_leading_paren, self.parse_with_subdata, True),
                 ("brackets", self.get_leading_brackets, self.parse_with_subdata, True),
+
+                ("classifier", self.get_leading_classifier, self.parse, True),
+
+                ("section", self.get_leading_section, self.parse, lambda: not subdata),
 
                 # Since the parser is about to fail, just slurp everything until the next separator into "unhandled"
                 ("unhandled", self.get_leading_unhandled, self.parse, True),

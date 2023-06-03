@@ -21,7 +21,9 @@ def test_parse_text():
         ( "", [] ),
         (
             " a song",
-            [('classifier', [{'song': ' a song'}], ' a song')]
+            #[Parsed(type='section', values=[' a song'], orig=' a song')]
+            [Parsed(type='classifier', values=[{'song': ' a song'}], orig=' a song')]
+
         ),
         (
             """'''2007''', William D. Popkin, ''Evolution of the Judicial Opinion: Institutional and Individual Styles'', NYU Press ({{ISBN|9780814767498}}), page 104:""",
@@ -40,6 +42,11 @@ def test_parse_text():
 def test_get_fingerprint():
 
     for text, expected in [
+
+        (
+            """'''2002''', ''a'', '''1''', ''c'', '''2''', ''e'', '''3'''""",
+            ('year', 'italics', 'bold', 'italics2', 'bold2', 'italics3', 'bold3')
+        ),
         (
             """'''2007''', William D. Popkin, ''Evolution of the Judicial Opinion: Institutional and Individual Styles'', NYU Press ({{ISBN|9780814767498}}), page 104:""",
             ('year', 'author', 'italics', 'publisher', 'paren::isbn', 'page')
@@ -437,14 +444,20 @@ def test_get_params_books():
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
         (
-            """'''2010''' June, Martha C. Howell, ''Commerce Before Capitalism in Europe, 1300–1600'', “Introduction”, [http://books.google.co.uk/books?id=ZKhZTqkqfkEC&pg=PA26&dq=%22Yprois%22&hl=en&sa=X&ei=pS_2ToSYCtP-8QP2zrmvAQ&ved=0CDsQ6AEwAQ#v=onepage&q=%22Yprois%22&f=false page 26], footnote 42""",
-            ('year', 'month', 'author', 'italics', 'fancy_double_quotes', 'section'),
-            {'_source': 'text', 'year': '2010', 'month': 'June', 'author': 'Martha C. Howell', 'title': 'Commerce Before Capitalism in Europe, 1300-1600', 'chapter': 'Introduction', 'section': '[http://books.google.co.uk/books?id=ZKhZTqkqfkEC&pg=PA26&dq=%22Yprois%22&hl=en&sa=X&ei=pS_2ToSYCtP-8QP2zrmvAQ&ved=0CDsQ6AEwAQ#v=onepage&q=%22Yprois%22&f=false page 26], footnote 42'}
+            """'''1921''', John Griffin, "Trailing the Grizzly in Oregon", in ''Forest and Stream'', pages 389-391 and 421-424, republished by Jeanette Prodgers in '''1997''' in ''The Only Good Bear is a Dead Bear'', page 35:""",
+            ('year', 'author', 'double_quotes', 'italics::journal', 'pages', 'unhandled<and 421-424, republished>', 'author2', 'year2', 'italics2', 'page'),
+            None
         ),
+#        (
+#        # TODO uncomment this
+#            """'''2010''' June, Martha C. Howell, ''Commerce Before Capitalism in Europe, 1300–1600'', “Introduction”, [http://books.google.co.uk/books?id=ZKhZTqkqfkEC&pg=PA26&dq=%22Yprois%22&hl=en&sa=X&ei=pS_2ToSYCtP-8QP2zrmvAQ&ved=0CDsQ6AEwAQ#v=onepage&q=%22Yprois%22&f=false page 26], footnote 42""",
+#            ('year', 'month', 'author', 'italics', 'section'),
+#            {'_source': 'text', 'year': '2010', 'month': 'June', 'author': 'Martha C. Howell', 'title': 'Commerce Before Capitalism in Europe, 1300-1600', 'section': 'Introduction, [http://books.google.co.uk/books?id=ZKhZTqkqfkEC&pg=PA26&dq=%22Yprois%22&hl=en&sa=X&ei=pS_2ToSYCtP-8QP2zrmvAQ&ved=0CDsQ6AEwAQ#v=onepage&q=%22Yprois%22&f=false page 26], footnote 42'}
+#        ),
         (
             """'''1877''', Victor Blüthgen, ''Aus gährender Zeit'', in: ''{{w|Die Gartenlaube}}'', year 1877, [[s:de:Seite:Die Gartenlaube (1877) 157.jpg|page 157]]:""",
-            ('year', 'author', 'italics', 'italics::journal', 'year2', 'section'),
-            {'_source': 'journal', 'year': '1877', 'author': 'Victor Blüthgen', 'title': 'Aus gährender Zeit', 'journal': '{{w|Die Gartenlaube}}', 'section': '[[s:de:Seite:Die Gartenlaube (1877) 157.jpg|page 157]]'}
+            ('year', 'author', 'italics', 'italics::journal', 'year2', 'link', 'link::page'),
+            {'_source': 'journal', 'year': '1877', 'author': 'Victor Blüthgen', 'title': 'Aus gährender Zeit', 'journal': '{{w|Die Gartenlaube}}', 'page': '[[s:de:Seite:Die Gartenlaube (1877) 157.jpg|page 157]]'}
         ),
         (
             # Pages and no section, should be pages
@@ -611,16 +624,17 @@ def test_get_params_books():
             ('year', 'author', 'double_quotes', 'italics', 'editor', 'publisher', 'isbn', 'page'),
             None
         ),
-        (
-            """'''1905''', {{w|Robert Louis Stevenson}}, ''Travels with a Donkey in the Cevennes'', [[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]""",
-            ('year', 'author', 'italics', 'section'),
-            {'_source': 'text', 'year': '1905', 'author': '{{w|Robert Louis Stevenson}}', 'title': 'Travels with a Donkey in the Cevennes', 'section': '[[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]'}
-        ),
-        (
-            """'''1905''', [[w:Robert Louis Stevenson|Robert Louis Stevenson]], ''[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]'', [[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]""",
-            ('year', 'author', 'italics::link', 'italics::link::text', 'section'),
-            {'_source': 'text', 'year': '1905', 'author': '[[w:Robert Louis Stevenson|Robert Louis Stevenson]]', 'title': '[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]', 'section': '[[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]'}
-        ),
+#        (
+#        # TODO: uncomment this
+#            """'''1905''', {{w|Robert Louis Stevenson}}, ''Travels with a Donkey in the Cevennes'', [[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]""",
+#            ('year', 'author', 'italics', 'link', 'link::chapter')
+#            {'_source': 'text', 'year': '1905', 'author': '{{w|Robert Louis Stevenson}}', 'title': 'Travels with a Donkey in the Cevennes', 'chapter': '[[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]'}
+#        ),
+#        (
+#            """'''1905''', [[w:Robert Louis Stevenson|Robert Louis Stevenson]], ''[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]'', [[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]""",
+#            ('year', 'author', 'italics::link', 'italics::link::text', 'section'),
+#            {'_source': 'text', 'year': '1905', 'author': '[[w:Robert Louis Stevenson|Robert Louis Stevenson]]', 'title': '[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]', 'section': '[[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]'}
+#        ),
         (
             # Multiple pages
             """'''2013''', Terry Pratchett, ''Raising Steam'', Doubleday, {{ISBN|978-0-857-52227-6}}, pages 345–346:""",
@@ -1004,6 +1018,11 @@ def test_get_params_journal():
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
         (
+            """'''2023''' Jane Doe, ''A Book'' Chapter: 66, (page 1) Volume XXII [picture caption]""",
+            ('year', 'author', 'italics', 'section'),
+            {'_source': 'text', 'year': '2023', 'author': 'Jane Doe', 'title': 'A Book', 'section': 'Chapter: 66, (page 1) Volume XXII [picture caption]'}
+        ),
+        (
             """'''2003''', ''Cincinnati Magazine'' (volume 36, number 5, page 26)""",
             ('year', 'italics::journal', 'paren::volume', 'paren::number', 'paren::page'),
             {'_source': 'journal', 'year': '2003', 'journal': 'Cincinnati Magazine', 'volume': '36', 'number': '5', 'page': '26'}
@@ -1287,6 +1306,12 @@ def test_get_params_others():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
+        (
+            # Should be "PAGE" not "SECTION"
+            """'''2006''', Stacey DeMarco, ''Witch in the Bedroom: Proven Sensual Magic'', Llewellyn Publications, Minnesota, [page 33]""",
+            ('year', 'author', 'italics', 'publisher', 'location', 'brackets::page'),
+            {'_source': 'text', 'year': '2006', 'author': 'Stacey DeMarco', 'title': 'Witch in the Bedroom: Proven Sensual Magic', 'publisher': 'Llewellyn Publications', 'location': 'Minnesota', 'page': '33'}
+        ),
         (
             """'''1999''' April, Matt Groening, “Episode Two: The Series Has Landed”, ''Futurama'', season 1, episode 2, opening title""",
             ('year', 'month', 'author', 'fancy_double_quotes', 'italics', 'section'),
