@@ -1,8 +1,8 @@
 from autodooz.sections import ALL_LANGS
 from collections import namedtuple
 from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit
-from .name_labeler import NameLabeler
-from .names import *
+from autodooz.quotes.name_labeler import NameLabeler
+from autodooz.quotes.names import *
 
 NESTS = (("[", "]"), ("{{", "}}"))
 Parsed = namedtuple("Parsed", ["type", "values", "orig"])
@@ -231,16 +231,22 @@ class QuoteParser():
         return [val1, separator, val2]
 
 
-    classifiers = { "magazine", "song", "tv series" }
+    classifiers = { "magazine", "song", "tv series", "transcript" }
     classifiers_pattern = "|".join(classifiers)
     connector_words_pattern = r"(the|a|an|on|in|to)\b"
     _leading_classifier_pattern = fr"""(?x)
+         (?P<open>
+             [(\[]*     # opening ( or [
+         )
          (?P<classifier>
              (\s*({connector_words_pattern})*\s)*
              ({classifiers_pattern})+
              (\s*({connector_words_pattern}))*
-        )+
-        (?P<post>.*)
+         )+
+         (?P<close>
+             [)\]]*     # closing ( or [
+         )
+         (?P<post>.*)
     """
     _leading_classifier_regex = re.compile(_leading_classifier_pattern)
 
@@ -250,39 +256,53 @@ class QuoteParser():
         if not m:
             return
 
-        match = m.group(1)
+        match = m.group('classifier')
         for c in ["magazine", "song", "tv series"]:
-            if c in match:
+            if c in match.lower():
                 return {c: match}, m.group("post")
 
-    _leading_section_pattern = fr"""(?x)
+    # TODO allow-list of templates
+    _leading_section_pattern = fr"""(?x)^
         (?P<classifer>
-            [.,:;\-()\[\]'" ]+
+            \{{\{{gbooks.*\}}\}}               # Take gbooks without validating the parameters
+            |\{{\{{.*?[|}}]                    # Other templates allowed, but parameters must pass validation
+            |\[\[.*?[|\]]                      # Links allowed, but parameters must pass validation
+            |\[http.*?[ \]]                    # [http.* until space or closing bracket
+            |http[^ ]*                         # http.* until space
             |{number_pattern}\b
             |{number_words_pattern}\b
             |{section_labels_pattern}\b
             |(the|a|an|on|in|to|ad)\b
+            |\W
         )+
-        $
     """
     _leading_section_regex = re.compile(_leading_section_pattern, re.IGNORECASE)
+
+    text = "issue [http://www.spiegel.de/spiegel/print/index-2010-49.html 49/2010], page 80:"
+
+#    text = '[http://books.google.co.uk/books?id=erS-2XR-kPUC&pg=PA112&dq=crescendi&ei=58nkSeaJIYyykASju4yfDQ page 112] ([http://store.doverpublications.com/0486212661.html DoverPublications.com]; {{ISBN|0486212661}}'
+#    text = '([http://store.doverpublications.com/0486212661.html DoverPublications.com]; {{ISBN|0486212661}}'
+#    prev_text = None
+#    print(text)
+#    while text and prev_text != text:
+#        prev_text = text
+#        text = re.sub(_leading_section_regex, "", text, 1)
+#        print(text)
+#
+#    exit()
 
     def get_leading_section(self, text):
         # Section here refers to the section= parameter of the quote templates, which is used
         # instead of a combination labeled numbers like page= volume= column= to describe
         # where the text is located. This allows for freeform entries like "Act XI (footnote)"
 
-        orig_text = text
-        text = self.labeler.links_to_text(text)
-        text = text.replace('{{gbooks.*?}}', " ")
+        # If ALL of the remaining text consists of text locations and numbers, slurp it up
+        m = re.match(self._leading_section_regex, text)
+        if not m or m.group(0) != text:
+            return
 
-        # If all of the remaining text consists of text locations and numbers, slurp it up
-        if re.match(self._leading_section_regex, text):
-            section = orig_text.rstrip(",.:;- ")
-            if section.startswith("[") and section.endswith("]"):
-                section = section.strip("[]")
-
-            return section, ""
+        section = m.group(0).strip(",.:;- ")
+        return section, ""
 
 
     _leading_unhandled_pattern = r"""(?x)
@@ -1130,53 +1150,41 @@ class QuoteParser():
         # TODO: if , is used make sure both numbers look similar
               #(\s*(?P<separator>or|,|&|and|-|–|to|{{ndash}})+\s*)
 
-    @staticmethod
-    def is_valid_title(title):
-
-        if not title:
-            return False
-
-        if title.startswith("Re:") or title.startswith("Fwd:") or title.startswith("FW:"):
-            return False
-
-        if title.startswith("{{") and title.endswith("}}"):
-            return True
-
-        if title.startswith("[") and title.endswith("]"):
-            return True
-
-        # Must start with uppercase letter
-        if title[0] not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
-            return
-
-        return not re.search("([()]|thesis|published|submitted|printed)", title)
 
     @staticmethod
-    def is_valid_publisher(text):
+    def _extract_link_format_sub(m):
+        if m.group("link_start").startswith("[[") and not m.group("link_end").endswith("]]"):
+            return m.group(0)
+        if m.group("format_start") != m.group("format_end") or m.group("format_start") in m.group("link_text"):
+            return m.group(0)
+        else:
+            return m.group("format_start") + m.group("link_start") + m.group("link_text") + m.group("link_end") + m.group("format_end")
 
-        if text.lower() in ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
-                "january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december",
-                "spring", "summer", "fall", "winter",
-                "magazine", "appendix"]:
-            return False
 
-        if text.startswith("[") and text.endswith("]"):
-            return True
+    @classmethod
+    def extract_link_format(cls, text):
+        pattern = r"""(?x)
+            (?P<link_start>
+                \[\[[^|\]]+\|  # [[foo_until_pipe
+                |
+                \[[^ \]]+\s    # [url_until_space
+            )
+            \s*
+            (?P<format_start>''|")
+            (?P<link_text>[^\]]+)
+            (?P<format_end>''|")
+            (?P<link_end>\]\]|\])  # ]] or ]
+        """
+        return re.sub(pattern, cls._extract_link_format_sub, text)
 
-        if text.startswith("{{w|") and text.endswith("}}"):
-            return True
-
-        bad_items = [r'''[:ə"“”()<>\[\]\d]''', "''",  r"\b(quoting|citing|page|by|published|reprint|edition|ed\.|p\.)\b", r"\d{4}"]
-        pattern = "(" +  "|".join(bad_items) + ")"
-        if re.search(pattern, text):
-            return False
-        return True
-
+    # TODO: Support [[:w:blah "foo"]] style links and maybe {{w|blah|''foo''}} too
 
     @classmethod
     def cleanup_text(cls, text):
         # Normalize whitespace
         text = re.sub(r"\s+", " ", text)
+
+        text = text.replace("[[w:Usenet|Usenet]]", "Usenet")
 
         # Remove templates that just wrap other text
         text = cls.strip_wrapper_templates(text, ["nowrap", "nobr"])
@@ -1187,6 +1195,9 @@ class QuoteParser():
         text = text.replace('&nbsp;', " ")
         text = text.replace('{{nbsp}}', " ")
         text = text.replace('&thinsp;', " ")
+
+        # Convert [link ''blah''] to ''[link blah]''
+        text = cls.extract_link_format(text)
 
         # Normalize dashes
         text = text.replace("–", "-")
@@ -1219,6 +1230,8 @@ class QuoteParser():
         #text = re.sub(r"'''1571(:)?'''(,)? ('')?(Idem|ibid)(\.)?('')?", "'''1571''' [[w:Alonso de Molina|Alonso de Molina]]", text, re.IGNORECASE)
 
         text = text.strip()
+
+#        text = re.sub("\(transcript\):$", "", text)
 
         return text
 
@@ -1257,6 +1270,11 @@ class QuoteParser():
 
         return res, new_text
 
+    def parsed_to_text(self, parsed):
+        print(parsed[-1])
+        print([p.orig for p in parsed])
+
+        return "".join([p.orig for p in parsed if "url::" not in p.type and "link::" not in p.type])
 
     def parse(self, parsed, name, function, text):
         res = self.run_function(function, text)
@@ -1267,6 +1285,72 @@ class QuoteParser():
         orig = text[:len(text)-len(new_text)]
 
         self.add_parsed(parsed, name, res, orig)
+        return new_text
+
+
+    @staticmethod
+    def should_pop(item):
+        always_pop = ("italics", "double_quotes", "fancy_double_quotes", "isbn", "oclc", "issn" "chapter")
+        return item.type.startswith(always_pop) or item.type.endswith(always_pop)
+
+    def parse_section(self, parsed, name, function, text):
+
+        res = self.run_function(function, text)
+        if not res:
+            return text
+        res, new_text = res
+        section_text = res[0]
+        assert new_text == ""
+        orig = text
+
+        sub_items = self.parse_text(section_text, parse_names=False, parse_unlabeled_names=False, parse_sections=False)
+
+        print("SUBITEMS", [p.type for p in sub_items])
+
+        # read through the subdata and pop anything that's not an override countable
+        # (eg, italics should never be in the section value unless it's preceeded by 
+        # something that can only be handled as section data: act 2, ''introduction''
+        popped = False
+        while sub_items:
+            # TODO: Figure out the full list of things that can be popped
+            if self.should_pop(sub_items[0]):
+                sub_item = sub_items.pop(0)
+                self.add_parsed(parsed, sub_item.type, sub_item.values, sub_item.orig)
+                popped = True
+                print("POPPED", sub_item)
+            else:
+                break
+
+        if not sub_items:
+            return new_text
+
+        trailing_items = []
+        # If there is a single bare url at the end, split it out to link no matter what
+        if sub_items and sub_items[-1].type == "url":
+            print("POPPED", sub_items[-1])
+            trailing_items.append(sub_items.pop())
+
+        print("STILL SUBITEMS", [p.type for p in sub_items])
+        if sub_items:
+            # If none of the text was unhandled, don't use "section"
+            if not any(p.type.endswith("unhandled") for p in sub_items):
+                print("ALL SUBDATA IS GOOD", sub_items)
+                for item in sub_items:
+                    self.add_parsed(parsed, item.type, item.values, item.orig)
+            else:
+
+                # If any items have been removed from the section,
+                # re-generate and re-parse the section text
+                if popped or trailing_items:
+                    orig = self.parsed_to_text(sub_items)
+                    section_text = orig.strip(",.:;- ")
+
+                self.add_parsed(parsed, name, [section_text], orig)
+
+
+        for item in trailing_items:
+            self.add_parsed(parsed, item.type, item.values, item.orig)
+
         return new_text
 
     def parse_names(self, parsed, _, function, text):
@@ -1306,6 +1390,9 @@ class QuoteParser():
             return text
         res, new_text = res
         orig = text[:len(text)-len(new_text)]
+        print("LABEL", label)
+        print("ORIG:", [orig])
+        print("RES", res)
 
         # Temporary - don't parse subdata for usenet stuff
 #        if "{{monospace" in text and "Usenet" in text:
@@ -1323,7 +1410,7 @@ class QuoteParser():
         if not sub_text:
             return new_text
 
-        sub_items = self.parse_text(sub_text, parse_names=True, parse_unlabeled_names=False, subdata=True)
+        sub_items = self.parse_text(sub_text, parse_names=True, parse_unlabeled_names=False, parse_sections=False)
         print("SUB ITEMS", [label, sub_text, sub_items])
         # If everything inside the sub item is just text, ignore it
         #if re.search(r"\[(//|http)", sub_text) \
@@ -1337,12 +1424,12 @@ class QuoteParser():
             if label in ["url", "link"]:
                 self.add_parsed(parsed, label + "::text", [sub_text])
             else:
-                self.add_parsed(parsed, label, [sub_text])
-            return new_text
+                self.add_parsed(parsed, label, [sub_text], orig)
 
-        for sub_item in sub_items:
-            #sub_label, sub_values = sub_item
-            self.add_parsed(parsed, f"{label}::{sub_item.type}", sub_item.values, sub_item.orig)
+        else:
+           for sub_item in sub_items:
+               #sub_label, sub_values = sub_item
+               self.add_parsed(parsed, f"{label}::{sub_item.type}", sub_item.values, sub_item.orig)
 
         return new_text
 
@@ -1396,25 +1483,15 @@ class QuoteParser():
                 print("MERGE FAILED: preceeding parsed item looks like a part of the countable", parsed[countable_start].type)
                 return
 
-
-        merge_parts = []
-        for p in parsed[countable_start:]:
-            print("XX", p)
-            if "url::" in p.type or "link::" in p.type:
-                continue
-            if not p.orig:
-                raise ValueError(p, parsed)
-            merge_parts.append(p.orig)
-
-        # Merge
-        print("MERGE", merge_parts)
-        orig_text = "".join(merge_parts)
+        orig_text = self.parsed_to_text(parsed[countable_start:])
 
         section = orig_text.rstrip(",.:;- ")
 
         parsed[countable_start:] = [Parsed("section", [section], orig_text)]
 
         return True
+
+
 
 
     def do_cleanup(self, parsed, text, no_recursion=False):
@@ -1457,9 +1534,9 @@ class QuoteParser():
         no_recursion = True
         if text == "":
 
-            res = self.merge_countable_into_section(parsed)
-            if not res:
-                return
+#            res = self.merge_countable_into_section(parsed)
+#            if not res:
+#                return
 
             replacements = []
             for idx, p in enumerate(parsed):
@@ -1483,7 +1560,7 @@ class QuoteParser():
         return new_text
 
 
-    def parse_text(self, text, parse_names=True, parse_unlabeled_names=True, _recursive=False, source_before_author=True, subdata=False, skip_countable=False):
+    def parse_text(self, text, parse_names=True, parse_unlabeled_names=True, _recursive=False, source_before_author=True, parse_sections=True, skip_countable=False):
 
         orig_text = text
 
@@ -1517,6 +1594,9 @@ class QuoteParser():
                 ("month", self.get_leading_month, self.parse, True),
                 ("season", self.get_leading_season, self.parse, True),
 
+                # Scan for 'section' early, as it may contain formatting
+                ("section", self.get_leading_section, self.parse_section, lambda: parse_sections),
+
                 # IF "source_before_author" is set, check for journal and publisher before author names
                 ("journal", self.get_leading_journal, self.parse, lambda: parse_names and source_before_author),
                 # Get leading edition before publisher to catch "First edition" without matching "First" as a publisher
@@ -1549,17 +1629,16 @@ class QuoteParser():
                 ("location", self.get_leading_location, self.parse, True), #, lambda: parse_names),
 
                 # Get links late, since Publishers, Journals, and sections may contain links
-                ("link", self.get_leading_link, self.parse_with_subdata, True),
+                #("link", self.get_leading_link, self.parse_with_subdata, True),
                 ("url", self.get_leading_url, self.parse_with_subdata, True),
 
                 ("", self.get_leading_countable, self.parse_number, lambda: not skip_countable),
 
+                # Classifier may be enclosed in brackets or parenthesis
+                ("classifier", self.get_leading_classifier, self.parse, True),
                 ("paren", self.get_leading_paren, self.parse_with_subdata, True),
                 ("brackets", self.get_leading_brackets, self.parse_with_subdata, True),
 
-                ("classifier", self.get_leading_classifier, self.parse, True),
-
-                ("section", self.get_leading_section, self.parse, lambda: not subdata),
 
                 # Since the parser is about to fail, just slurp everything until the next separator into "unhandled"
                 ("unhandled", self.get_leading_unhandled, self.parse, True),
@@ -1602,12 +1681,6 @@ class QuoteParser():
 
         return parsed
 
-
-
-
-
-
-
     def get_parsed(self, text):
 
         clean_text = self.cleanup_text(text)
@@ -1622,11 +1695,9 @@ class QuoteParser():
             parsed = self.parse_text(clean_text, source_before_author=source_before_author)
 
         # If section and countables, just parse section
-        if "section" in all_types and any(x in all_types or x+"s" in all_types for x in countable_labels):
-            print("RESCANNING, section and countable")
-            parsed = self.parse_text(clean_text, source_before_author=source_before_author, skip_countable=True)
+        # TODO: Remove this after section parsing is re-done
+#        if "section" in all_types and any(x in all_types or x+"s" in all_types for x in countable_labels):
+#            print("RESCANNING, section and countable")
+#            parsed = self.parse_text(clean_text, source_before_author=source_before_author, skip_countable=True)
 
         return parsed
-
-
-

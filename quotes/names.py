@@ -64,15 +64,16 @@ _section_labels = {
     "scene",
     "stanza",
     "verse",
-    "verses"
+    "verses",
     "appendix",
     "section",
     "book",
     "books",
-    "bk"
+    "bk",
+    "lib",
     "part",
     "parts",
-    "pt"
+    "pt",
     "booklet",
     "letter",
     "letters",
@@ -120,7 +121,7 @@ _section_labels = {
     "canto",
     "class",
     "cancion",
-    "class"
+    "class",
     "devotion",
     "aphorism",
     "quest",
@@ -147,7 +148,7 @@ _section_labels = {
     "closing", "opening", "paragraph", "cover",
     "main", "margin", "abstract",
 
-    "link"
+    "link",
 
     # books of the bible
     "acts", "actus", "adiae", "adias", "aggaei", "aggaeus", "amos", "apocalypse", "apocalypsis",
@@ -165,11 +166,12 @@ _section_labels = {
     "philippenses", "philippians", "proverbia", "proverbs", "psalmi", "psalms", "regum", "revelation",
     "romanos", "romans", "ruth", "samuel", "samuelis", "sapientiae", "sentences", "song of solomon",
     "sophoniae", "sophonias", "thessalonians", "thessalonicenses", "timotheum", "timothy", "titum",
-    "titus", "tobiae", "tobias", "tobit", "wisdom", "zachariae", "zacharias", "zechariah", "zephaniah"
+    "titus", "tobiae", "tobias", "tobit", "wisdom", "zachariae", "zacharias", "zechariah", "zephaniah",
+    "psalm", "letany"
 
 
 } | {l.lstrip("*").strip() for labels in _countable_labels.values() for l in labels}
-section_labels_pattern = "{" + "|".join(map(re.escape, sorted(_section_labels, key=lambda x: x+"🂲"))) + "}"
+section_labels_pattern = "(" + "|".join(map(re.escape, sorted(_section_labels, key=lambda x: x+"🂲"))) + ")"
 
 # Named parts of a text
 label_to_countable_type = {label.lstrip("*"):countable for countable, labels in _countable_labels.items() for label in labels}

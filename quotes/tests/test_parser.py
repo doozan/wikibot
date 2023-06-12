@@ -1,6 +1,31 @@
 from autodooz.quotes.parser import QuoteParser, LINK
 parser = QuoteParser(debug=True)
 
+def test_cleanup_text():
+    assert parser.cleanup_text("[http://link.foo ''bar'']") == "''[http://link.foo bar]''"
+    assert parser.cleanup_text('[http://link.foo "bar"]') == '"[http://link.foo bar]"'
+    assert parser.cleanup_text("""[http://link.foo ''bar"]""") == """[http://link.foo ''bar"]"""
+    assert parser.cleanup_text("[[foo ''bar'']]") == "''[[foo bar]]''"
+    assert parser.cleanup_text("[[foo ''bar'']") == "[[foo ''bar'']"
+
+def test_get_leading_section():
+
+    tests = (
+        'volume 4, part 1, page 128',
+        "issue [http://www.spiegel.de/spiegel/print/index-2010-49.html 49/2010], page 80",
+        "[[s:de:Seite:Die Gartenlaube (1877) 157.jpg|page 157]]",
+    )
+    for text in tests:
+        print(text)
+        res = parser.get_leading_section(text)
+        print(res)
+        assert res == (text, "")
+
+    text = "Part{{nbsp}}6, Chapter{{nbsp}}4, p.{{nbsp}}428,[https://archive.org/details/judeobscure00hard/page/428/mode/1up?q=Acherontic]"
+    assert parser.get_leading_section(text) == ('Part{{nbsp}}6, Chapter{{nbsp}}4, p.{{nbsp}}428,[https://archive.org/details/judeobscure00hard/page/428/mode/1up?q=Acherontic]', '')
+    # If section contains trailing raw html, it should be split into a "url" no matter what
+
+
 
 def test_get_leading_publisher():
     assert parser.get_leading_publisher('NYU Press ({{ISBN|9780814767498}}), page 104:') == ('NYU Press', ' ({{ISBN|9780814767498}}), page 104:')

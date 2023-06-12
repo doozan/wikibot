@@ -13,17 +13,20 @@ def test_parse_text():
         ( "", [] ),
         (
             " a song",
-            #[Parsed(type='section', values=[' a song'], orig=' a song')]
-            [Parsed(type='classifier', values=[{'song': ' a song'}], orig=' a song')]
-
+            [Parsed(type='classifier', values=[{'song': 'a song'}], orig='a song')]
         ),
         (
             """'''2007''', William D. Popkin, ''Evolution of the Judicial Opinion: Institutional and Individual Styles'', NYU Press ({{ISBN|9780814767498}}), page 104:""",
-            [Parsed(type='year', values=['2007'], orig="'''2007''', "), Parsed(type='author', values=['William D. Popkin'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics', values=['Evolution of the Judicial Opinion: Institutional and Individual Styles'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='publisher', values=['NYU Press'], orig='NYU Press'), Parsed(type='separator', values=[' '], orig=' '), Parsed(type='paren::isbn', values=[['9780814767498']], orig='{{ISBN|9780814767498}}'), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='page', values=['104'], orig='page 104'), Parsed(type='separator', values=[':'], orig=':')]
+#            [Parsed(type='year', values=['2007'], orig="'''2007''', "), Parsed(type='author', values=['William D. Popkin'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics', values=['Evolution of the Judicial Opinion: Institutional and Individual Styles'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='publisher', values=['NYU Press'], orig='NYU Press'), Parsed(type='separator', values=[' '], orig=' '), Parsed(type='paren::isbn', values=[['9780814767498']], orig='{{ISBN|9780814767498}}'), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='page', values=['104'], orig='page 104'), Parsed(type='separator', values=[':'], orig=':')]
+#            [Parsed(type='year', values=['2007'], orig="'''2007''', "), Parsed(type='author', values=['William D. Popkin'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics', values=['Evolution of the Judicial Opinion: Institutional and Individual Styles'], orig="''Evolution of the Judicial Opinion: Institutional and Individual Styles''"), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='publisher', values=['NYU Press'], orig='NYU Press'), Parsed(type='separator', values=[' '], orig=' '), Parsed(type='paren::isbn', values=[['9780814767498']], orig='{{ISBN|9780814767498}}'), Parsed(type='section', values=['page 104'], orig=', page 104')]
+            [Parsed(type='year', values=['2007'], orig="'''2007''', "), Parsed(type='author', values=['William D. Popkin'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics', values=['Evolution of the Judicial Opinion: Institutional and Individual Styles'], orig="''Evolution of the Judicial Opinion: Institutional and Individual Styles''"), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='publisher', values=['NYU Press'], orig='NYU Press'), Parsed(type='separator', values=[' '], orig=' '), Parsed(type='paren::isbn', values=[['9780814767498']], orig='{{ISBN|9780814767498}}'), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='page', values=['104'], orig='page 104')]
+
         ),
         (
             """'''2006''', John G. Radcliffe, ''The Geometry of Hyperbolic Manifolds of Dimension a least 4'', András Prékopa, Emil Molnár (editors), ''Non-Euclidean Geometries: János Bolyai Memorial Volume'', [https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270],""",
-            [Parsed(type='year', values=['2006'], orig="'''2006''', "), Parsed(type='author', values=['John G. Radcliffe'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics', values=['The Geometry of Hyperbolic Manifolds of Dimension a least 4'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='editor', values=['András Prékopa', 'Emil Molnár'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics2', values=['Non-Euclidean Geometries: János Bolyai Memorial Volume'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='url', values=LINK(target='https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false', text='page 270', orig='[https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270]'), orig='[https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270]'), Parsed(type='url::page', values=['270'], orig='page 270'), Parsed(type='separator', values=[','], orig=',')]
+            #[Parsed(type='year', values=['2006'], orig="'''2006''', "), Parsed(type='author', values=['John G. Radcliffe'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics', values=['The Geometry of Hyperbolic Manifolds of Dimension a least 4'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='editor', values=['András Prékopa', 'Emil Molnár'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics2', values=['Non-Euclidean Geometries: János Bolyai Memorial Volume'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='url', values=LINK(target='https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false', text='page 270', orig='[https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270]'), orig='[https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270]'), Parsed(type='url::page', values=['270'], orig='page 270'), Parsed(type='separator', values=[','], orig=',')]
+            [Parsed(type='year', values=['2006'], orig="'''2006''', "), Parsed(type='author', values=['John G. Radcliffe'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics', values=['The Geometry of Hyperbolic Manifolds of Dimension a least 4'], orig="''The Geometry of Hyperbolic Manifolds of Dimension a least 4''"), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='editor', values=['András Prékopa', 'Emil Molnár'], orig=None), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='italics2', values=['Non-Euclidean Geometries: János Bolyai Memorial Volume'], orig="''Non-Euclidean Geometries: János Bolyai Memorial Volume''"), Parsed(type='separator', values=[', '], orig=', '), Parsed(type='url', values=LINK(target='https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false', text='page 270', orig='[https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270]'), orig='[https://books.google.com.au/books?id=ZXgKflOpXc8C&pg=PA270&dq=%22120-cell%22%7C%22120-cells%22&hl=en&sa=X&ved=0ahUKEwjb3q7Siu3MAhUj5aYKHYosD-IQ6AEIWDAM#v=onepage&q=%22120-cell%22%7C%22120-cells%22&f=false page 270]'), Parsed(type='url::page', values=['270'], orig='page 270')]
+
         )
     ]:
         print(text)
@@ -109,16 +112,6 @@ def test_get_params_old():
             # google books link, page in link
             """'''2006''', W. Stanley Taft Jr. and James W. Mayer, ''The Science of Paintings'', {{ISBN|9780387217413}}, [https://books.google.ca/books?id=nobhBwAAQBAJ&pg=PA9&dq=%22deattributions%22&hl=en&sa=X&redir_esc=y#v=onepage&q=%22deattributions%22&f=false p. 9 (Google preview)]:""",
             {'year': '2006', 'author': 'W. Stanley Taft Jr.', 'author2': 'James W. Mayer', 'title': 'The Science of Paintings', 'isbn': '9780387217413', 'pageurl': 'https://books.google.ca/books?id=nobhBwAAQBAJ&pg=PA9&dq=%22deattributions%22&hl=en&sa=X&redir_esc=y#v=onepage&q=%22deattributions%22&f=false', 'page': '9'}
-        ),
-        (
-            # gbooks for page
-            """'''2001''', Rudi Bekkers, ''Mobile Telecommunications Standards: GSM, UMTS, TETRA, and ERMES'', Artech House ({{ISBN|9781580532501}}), page {{gbooks|PrG2URuUfioC|250|patent|pool}}:""",
-            {'year': '2001', 'author': 'Rudi Bekkers', 'title': 'Mobile Telecommunications Standards: GSM, UMTS, TETRA, and ERMES', 'publisher': 'Artech House', 'isbn': '9781580532501', 'page': '{{gbooks|PrG2URuUfioC|250|patent|pool}}'}
-        ),
-        (
-            # roman numerals
-            """'''2004''', Rob Shein, ''Zero-Day Exploit: Countdown to Darkness'', Syngress ({{ISBN|9780080543925}}), page [https://books.google.de/books?id=ddGYYKnja1UC&lpg=PR21&dq=%22zero-day%20exploit%22&pg=PR21#v=onepage&q=%22zero-day%20exploit%22&f=false xxi]:""",
-            {'year': '2004', 'author': 'Rob Shein', 'title': 'Zero-Day Exploit: Countdown to Darkness', 'pageurl': 'https://books.google.de/books?id=ddGYYKnja1UC&lpg=PR21&dq=%22zero-day%20exploit%22&pg=PR21#v=onepage&q=%22zero-day%20exploit%22&f=false', 'page': 'xxi', 'publisher': 'Syngress', 'isbn': '9780080543925'}
         ),
         (
             # translator
@@ -230,14 +223,6 @@ def test_get_params_old():
             {'year': '2014', 'editor': 'Stijn Reijnders; Koos Zwaan; Linda Duits', 'author': 'Cornel Sandvoss', 'author2': 'Laura Kearns', 'chapter': 'From Interpretive Communities to Interpretive Fairs: Ordinary Fandom, Textual Selection and Digital Media', 'title': 'The Ashgate Research Companion to Fan Cultures', 'pageurl': 'https://books.google.com/books?id=sfTiBAAAQBAJ&pg=PA93&dq=%22aca-fans%22', 'page': '93', 'publisher': 'Ashgate', 'isbn': '9781409455622'}
         ),
         (
-            """'''1857''', William Chambers, Robert Chambers, "Something about bells", ''Chambers's Journal'', vol. 28, no. 207, [http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true page 398].""",
-            {'year': '1857', 'author': 'William Chambers', 'author2': 'Robert Chambers', 'chapter': 'Something about bells', 'title': "Chambers's Journal", 'volume': '28', 'number': '207', 'pageurl': 'http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true', 'page': '398'}
-        ),
-        (
-            """'''1918''', Paul Haupt, "English 'coop' == Assyrian 'Quppu'," ''Modern Language Notes'', vol. 33, no. 7, p. 434,""",
-            {'year': '1918', 'author': 'Paul Haupt', 'chapter': "English 'coop' == Assyrian 'Quppu'", 'title': 'Modern Language Notes', 'volume': '33', 'number': '7', 'page': '434'}
-        ),
-        (
             """'''2017''', Masaki Kohana ''et al.'', "A Topic Trend on P2P Based Social Media", in ''Advances in Network-Based Information Systems: The 20th International Conference on Network-Based Information Systems (NBiS-2017)'' (eds Leonard Barolli, Makoto Takizawa, & Tomoya Enokido), [https://www.google.com/books/edition/Advances_in_Network_Based_Information_Sy/W3syDwAAQBAJ?hl=en&gbpv=1&dq=%22instance%22+mastodon&pg=PA1140&printsec=frontcover page 1140]""",
             {'year': '2017', 'editor': 'Leonard Barolli; Makoto Takizawa; Tomoya Enokido', 'author': 'Masaki Kohana', 'author2': 'et al', 'chapter': 'A Topic Trend on P2P Based Social Media', 'title': 'Advances in Network-Based Information Systems: The 20th International Conference on Network-Based Information Systems (NBiS-2017)', 'pageurl': 'https://www.google.com/books/edition/Advances_in_Network_Based_Information_Sy/W3syDwAAQBAJ?hl=en&gbpv=1&dq=%22instance%22+mastodon&pg=PA1140&printsec=frontcover', 'page': '1140'}
         ),
@@ -257,16 +242,6 @@ def test_get_params_old():
 #            {'year': '2012', 'author': 'Adam Mathew', 'chapter': 'Mass Effect 3', 'title': 'PlayStation Magazine', 'month': 'April', 'url': 'https://archive.org/details/Official_AUS_Playstation_Magazine_Issue_067_2012_04_Derwent_Howard_Publishing_AU/page/60/mode/2up?q=me3', 'page': '60'}
 #        ),
         (
-            # Day Month Year
-            """'''2012''', Adam Gopnik, "Vive La France", ''The New Yorker'', 7 May 2012:""",
-            {'author': 'Adam Gopnik', 'chapter': 'Vive La France', 'title': 'The New Yorker', 'date': '7 May 2012'}
-        ),
-        (
-            # Month Day Year
-            """'''2012''', Adam Gopnik, "Vive La France", ''The New Yorker'', May 7 2012:""",
-            {'author': 'Adam Gopnik', 'chapter': 'Vive La France', 'title': 'The New Yorker', 'date': 'May 7 2012'}
-        ),
-        (
             # Vol VI, no XXXII
             """'''1864''' "The Adventures of a Lady in Search of a Horse", ''London Society'' Vol VI, no XXXII (July 1864) [http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false p. 5]""",
             {'year': '1864', 'chapter': 'The Adventures of a Lady in Search of a Horse', 'title': 'London Society', 'volume': 'VI', 'number': 'XXXII', 'month': 'July', 'pageurl': 'http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false', 'page': '5'}
@@ -280,11 +255,6 @@ def test_get_params_old():
             # Start-End for issue number
             """'''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:""",
             {'year': '2004', 'issue': 'September-October', 'title': 'American Cowboy', 'volume': '11', 'number': '2', 'page': '53'}
-        ),
-        (
-            # no author, strip {{nowrap}}
-            """'''2009''', "Is the era of free news over?", ''The Observer'', {{nowrap|10 May:}}""",
-            {'date': '10 May 2009', 'chapter': 'Is the era of free news over?', 'title': 'The Observer'}
         ),
         (
             # Lines
@@ -348,8 +318,7 @@ def test_get_params_unhandled():
         # Extra title, unhandled
         """'''2010''', S. Suzanne Nielsen, ed, ''Food Analysis, fourth edition'', {{ISBN|978-1-4419-1477-4}}, Chapter 12, "Traditional Methods for Mineral Analysis", page 213""",
 
-        # Part, not yet handled
-        """'''2002''', John Maynard, ''Aborigines and the ‘Sport of Kings’: Aboriginal Jockeys in Australian Racing History'', Aboriginal Studies Press (2013), {{ISBN|9781922059543}}, part II, {{gbooks|4erLAgAAQBAJ|96|streeted}}:""",
+
 
         # Multiple URLS
         """'''2009''', Roger Ebert, ''Roger Ebert's Movie Yearbook 2010'',<sup >[http://books.google.com/books?id=-1aM7D_ymdAC ][http://www.amazon.com/Roger-Eberts-Movie-Yearbook-2010/dp/B003STCR2E ]</sup> Andrews McMeel Publishing, {{ISBN|978-0-7407-8536-8}}, page 363:""",
@@ -411,20 +380,61 @@ def test_get_params_books():
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
         (
+            """'''2001''', [[w:Ken Follett|Ken Follett]], [[w:Jackdaws|''Jackdaws'']], Dutton, {{ISBN|0525946284}}, page 359""",
+            ('year', 'author', 'italics', 'publisher', 'isbn', 'page'),
+            {'_source': 'book', 'year': '2001', 'author': '[[w:Ken Follett|Ken Follett]]', 'title': '[[w:Jackdaws|Jackdaws]]', 'publisher': 'Dutton', 'isbn': '0525946284', 'page': '359'}
+        ),
+        (
+            """'''1876''', Ebenezer Thorne, [https://books.google.com/books?id=IdkNAAAAQAAJ ''The Queen of the Colonies, or, Queensland as I Knew It''], 58""",
+            ('year', 'author', 'italics::url', 'italics::url::text', 'section'),
+            {'_source': 'text', 'year': '1876', 'author': 'Ebenezer Thorne', 'url': 'https://books.google.com/books?id=IdkNAAAAQAAJ', 'title': 'The Queen of the Colonies, or, Queensland as I Knew It', 'section': '58'}
+        ),
+        (
+            """'''1612''', {{w|Michael Drayton}}, {{w|Poly-Olbion}} song{{nbsp}}5 p.{{nbsp}}78[http://poly-olbion.exeter.ac.uk/the-text/full-text/song-6/]:""",
+            ('year', 'author', 'unhandled<{{w|Poly-Olbion}}>', 'section', 'url'),
+            {'_source': 'book', 'year': '1612', 'author': '{{w|Michael Drayton}}', 'title': '{{w|Poly-Olbion}}', 'section': 'song 5 p. 78', 'sectionurl': 'http://poly-olbion.exeter.ac.uk/the-text/full-text/song-6/'}
+        ),
+        (
+            """'''1695''', {{w|John Woodward (naturalist)|John Woodward}}, ''An Essay toward a Natural History of the Earth and Terrestrial Bodies'', London: Richard Wilkin, Part 4, p.{{nbsp}}198,<sup>[http://name.umdl.umich.edu/A67007.0001.001]</sup>""",
+            ('year', 'author', 'italics', 'location', 'publisher', 'section', 'url'),
+            {'_source': 'book', 'year': '1695', 'author': '{{w|John Woodward (naturalist)|John Woodward}}', 'title': 'An Essay toward a Natural History of the Earth and Terrestrial Bodies', 'location': 'London', 'publisher': 'Richard Wilkin', 'section': 'Part 4, p. 198', 'url': 'http://name.umdl.umich.edu/A67007.0001.001'}
+        ),
+        (
+            # Part, not yet handled
+            """'''2002''', John Maynard, ''Aborigines and the ‘Sport of Kings’: Aboriginal Jockeys in Australian Racing History'', Aboriginal Studies Press (2013), {{ISBN|9781922059543}}, part II, {{gbooks|4erLAgAAQBAJ|96|streeted}}:""",
+            ('year', 'author', 'italics', 'publisher', 'year2', 'isbn', 'section'),
+#            ('year', 'author', 'italics', 'publisher', 'year2', 'section')
+            {'_source': 'book', 'year': '2002', 'author': 'John Maynard', 'title': 'Aborigines and the ‘Sport of Kings’: Aboriginal Jockeys in Australian Racing History', 'publisher': 'Aboriginal Studies Press', 'year_published': '2013', 'isbn': '9781922059543', 'section': 'part II, {{gbooks|4erLAgAAQBAJ|96|streeted}}'},
+        ),
+        (
+            # gbooks for page
+            """'''2001''', Rudi Bekkers, ''Mobile Telecommunications Standards: GSM, UMTS, TETRA, and ERMES'', Artech House ({{ISBN|9781580532501}}), page {{gbooks|PrG2URuUfioC|250|patent|pool}}:""",
+            ('year', 'author', 'italics', 'publisher', 'paren::isbn', 'section'),
+            {'_source': 'book', 'year': '2001', 'author': 'Rudi Bekkers', 'title': 'Mobile Telecommunications Standards: GSM, UMTS, TETRA, and ERMES', 'publisher': 'Artech House', 'isbn': '9781580532501', 'section': 'page {{gbooks|PrG2URuUfioC|250|patent|pool}}'}
+        ),
+        (
+            # roman numerals
+            """'''2004''', Rob Shein, ''Zero-Day Exploit: Countdown to Darkness'', Syngress ({{ISBN|9780080543925}}), page [https://books.google.de/books?id=ddGYYKnja1UC&lpg=PR21&dq=%22zero-day%20exploit%22&pg=PR21#v=onepage&q=%22zero-day%20exploit%22&f=false xxi]:""",
+            ('year', 'author', 'italics', 'publisher', 'paren::isbn', 'section'),
+            {'_source': 'book', 'year': '2004', 'author': 'Rob Shein', 'title': 'Zero-Day Exploit: Countdown to Darkness', 'publisher': 'Syngress', 'isbn': '9780080543925', 'section': 'page [https://books.google.de/books?id=ddGYYKnja1UC&lpg=PR21&dq=%22zero-day%20exploit%22&pg=PR21#v=onepage&q=%22zero-day%20exploit%22&f=false xxi]'}
+        ),
+        (
             """'''1921''', John Griffin, "Trailing the Grizzly in Oregon", in ''Forest and Stream'', pages 389-391 and 421-424, republished by Jeanette Prodgers in '''1997''' in ''The Only Good Bear is a Dead Bear'', page 35:""",
             ('year', 'author', 'double_quotes', 'italics::journal', 'pages', 'unhandled<and 421-424, republished>', 'author2', 'year2', 'italics2', 'page'),
+#            ('year', 'author', 'double_quotes', 'italics::journal', 'pages', 'unhandled<*>', 'author2', 'year2', 'italics2', 'page'),
             None
         ),
-#        (
-#        # TODO uncomment this
-#            """'''2010''' June, Martha C. Howell, ''Commerce Before Capitalism in Europe, 1300–1600'', “Introduction”, [http://books.google.co.uk/books?id=ZKhZTqkqfkEC&pg=PA26&dq=%22Yprois%22&hl=en&sa=X&ei=pS_2ToSYCtP-8QP2zrmvAQ&ved=0CDsQ6AEwAQ#v=onepage&q=%22Yprois%22&f=false page 26], footnote 42""",
-#            ('year', 'month', 'author', 'italics', 'section'),
-#            {'_source': 'text', 'year': '2010', 'month': 'June', 'author': 'Martha C. Howell', 'title': 'Commerce Before Capitalism in Europe, 1300-1600', 'section': 'Introduction, [http://books.google.co.uk/books?id=ZKhZTqkqfkEC&pg=PA26&dq=%22Yprois%22&hl=en&sa=X&ei=pS_2ToSYCtP-8QP2zrmvAQ&ved=0CDsQ6AEwAQ#v=onepage&q=%22Yprois%22&f=false page 26], footnote 42'}
-#        ),
+        (
+            """'''2010''' June, Martha C. Howell, ''Commerce Before Capitalism in Europe, 1300–1600'', “Introduction”, [http://books.google.co.uk/books?id=ZKhZTqkqfkEC&pg=PA26&dq=%22Yprois%22&hl=en&sa=X&ei=pS_2ToSYCtP-8QP2zrmvAQ&ved=0CDsQ6AEwAQ#v=onepage&q=%22Yprois%22&f=false page 26], footnote 42""",
+            ('year', 'month', 'author', 'italics', 'fancy_double_quotes', 'section'),
+            {'_source': 'text', 'year': '2010', 'month': 'June', 'author': 'Martha C. Howell', 'title': 'Commerce Before Capitalism in Europe, 1300-1600', 'chapter': 'Introduction', 'section': '[http://books.google.co.uk/books?id=ZKhZTqkqfkEC&pg=PA26&dq=%22Yprois%22&hl=en&sa=X&ei=pS_2ToSYCtP-8QP2zrmvAQ&ved=0CDsQ6AEwAQ#v=onepage&q=%22Yprois%22&f=false page 26], footnote 42'}
+        ),
         (
             """'''1877''', Victor Blüthgen, ''Aus gährender Zeit'', in: ''{{w|Die Gartenlaube}}'', year 1877, [[s:de:Seite:Die Gartenlaube (1877) 157.jpg|page 157]]:""",
-            ('year', 'author', 'italics', 'italics::journal', 'year2', 'link', 'link::page'),
-            {'_source': 'journal', 'year': '1877', 'author': 'Victor Blüthgen', 'title': 'Aus gährender Zeit', 'journal': '{{w|Die Gartenlaube}}', 'page': '[[s:de:Seite:Die Gartenlaube (1877) 157.jpg|page 157]]'}
+            ('year', 'author', 'italics', 'italics::journal', 'year2', 'section'),
+            {'_source': 'journal', 'year': '1877', 'author': 'Victor Blüthgen', 'title': 'Aus gährender Zeit', 'journal': '{{w|Die Gartenlaube}}', 'section': '[[s:de:Seite:Die Gartenlaube (1877) 157.jpg|page 157]]'}
+            #('year', 'author', 'italics', 'italics::journal', 'year2', 'link', 'link::page'),
+            #{'_source': 'journal', 'year': '1876', 'author': 'Victor Blüthgen', 'title': 'Aus gährender Zeit', 'journal': '{{w|Die Gartenlaube}}', 'page': '[[s:de:Seite:Die Gartenlaube (1877) 157.jpg|page 157]]'}
         ),
         (
             # Pages and no section, should be pages
@@ -459,7 +469,8 @@ def test_get_params_books():
         (
             # publisher followed by ed.
             """'''1940''', [[w:Carson McCullers|Carson McCullers]], ''[[w:The Heart Is a Lonely Hunter|The Heart Is a Lonely Hunter]]'', 2004 Houghton Mifflin ed., {{ISBN|0618526412}}, page 306,""",
-            ('year', 'author', 'italics::link', 'italics::link::text', 'year2', 'publisher', 'isbn', 'page'),
+            ('year', 'author', 'italics', 'year2', 'publisher', 'isbn', 'page'),
+#            ('year', 'author', 'italics::link', 'italics::link::text', 'year2', 'publisher', 'isbn', 'page'),
 
 #            ('year', 'author', 'italics', 'year2', 'publisher', 'isbn', 'page'),
             {'_source': 'book', 'year': '1940', 'author': '[[w:Carson McCullers|Carson McCullers]]', 'title': '[[w:The Heart Is a Lonely Hunter|The Heart Is a Lonely Hunter]]', 'year_published': '2004', 'publisher': 'Houghton Mifflin', 'isbn': '0618526412', 'page': '306'}
@@ -591,17 +602,23 @@ def test_get_params_books():
             ('year', 'author', 'double_quotes', 'italics', 'editor', 'publisher', 'isbn', 'page'),
             None
         ),
-#        (
-#        # TODO: uncomment this
-#            """'''1905''', {{w|Robert Louis Stevenson}}, ''Travels with a Donkey in the Cevennes'', [[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]""",
-#            ('year', 'author', 'italics', 'link', 'link::chapter')
-#            {'_source': 'text', 'year': '1905', 'author': '{{w|Robert Louis Stevenson}}', 'title': 'Travels with a Donkey in the Cevennes', 'chapter': '[[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]'}
-#        ),
-#        (
-#            """'''1905''', [[w:Robert Louis Stevenson|Robert Louis Stevenson]], ''[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]'', [[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]""",
-#            ('year', 'author', 'italics::link', 'italics::link::text', 'section'),
-#            {'_source': 'text', 'year': '1905', 'author': '[[w:Robert Louis Stevenson|Robert Louis Stevenson]]', 'title': '[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]', 'section': '[[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]'}
-#        ),
+        (
+            """'''1905''', {{w|Robert Louis Stevenson}}, ''Travels with a Donkey in the Cevennes'', [[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]""",
+            ('year', 'author', 'italics', 'section'),
+#            ('year', 'author', 'italics', 'link', 'link::chapter'),
+#            None
+# TODO: Handle links?
+            {'_source': 'text', 'year': '1905', 'author': '{{w|Robert Louis Stevenson}}', 'title': 'Travels with a Donkey in the Cevennes', 'section': '[[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]'}
+        ),
+        (
+            """'''1905''', [[w:Robert Louis Stevenson|Robert Louis Stevenson]], ''[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]'', [[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]""",
+            ('year', 'author', 'italics', 'section'),
+            {'_source': 'text', 'year': '1905', 'author': '[[w:Robert Louis Stevenson|Robert Louis Stevenson]]', 'title': '[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]', 'section': '[[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]'}
+            #('year', 'author', 'italics::link', 'italics::link::text', 'link', 'link::page'),
+#            None
+            #('year', 'author', 'italics::link', 'italics::link::text', 'section'),
+            #{'_source': 'text', 'year': '1905', 'author': '[[w:Robert Louis Stevenson|Robert Louis Stevenson]]', 'title': '[[s:Travels_with_a_Donkey_in_the_Cevennes_(1905)|Travels with a Donkey in the Cévennes]]', 'section': '[[s:Travels with a Donkey in the Cevennes/The Country of the Camisards|page 166]]'}
+        ),
         (
             # Multiple pages
             """'''2013''', Terry Pratchett, ''Raising Steam'', Doubleday, {{ISBN|978-0-857-52227-6}}, pages 345–346:""",
@@ -859,11 +876,6 @@ def test_get_params_books():
 #            {'_source': 'book', 'year': '2005', 'author': '[[w:Plato|Plato]]', 'title': 'Sophist', 'translator': 'Lesley Brown', 'page': '234a'}
 #        ),
         (
-            """'''2009''', [https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK ''Puff''] by John Flaherty""",
-            ('year', 'url', 'url::italics', 'author'),
-            {'_source': 'text', 'year': '2009', 'url': 'https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK', 'title': 'Puff', 'author': 'John Flaherty'}
-        ),
-        (
             # BAD DATE, messes everything else up
             # TODO: Author shouldn't allow numbers?
             """'''1998''' May 37, "barbara trumpinski" (username), "[http://groups.google.com/group/alt.med.fibromyalgia/msg/62a64f0a538e48c0?q=ABEND kitten is '''ABEND''']", in {{monospace|alt.med.fibromyalgia}}, ''Usenet'':""",
@@ -980,25 +992,86 @@ def test_get_params_books():
         print(params)
         assert params == expected_params
 
+def test_get_params_song():
+
+    for text, expected_fingerprint, expected_params in [
+#        (
+        (
+            """'''1958''' [[w:Ritchie Valens|Ritchie Valens]] ''Donna'' ( a song) :""",
+            ('year', 'author', 'italics', 'classifier'),
+            {'_source': 'song', 'year': '1958', 'author': '[[w:Ritchie Valens|Ritchie Valens]]', 'title': 'Donna'}
+        ),
+    ]:
+
+        print("__")
+        print(text)
+        parsed = fixer.parser.get_parsed(text)
+        print(parsed)
+        fingerprint = fixer.get_fingerprint(parsed)
+        print(fingerprint)
+        assert fingerprint == expected_fingerprint
+        params = fixer.get_params(text)
+        print(params)
+        assert params == expected_params
+
+
+
 def test_get_params_journal():
 
     for text, expected_fingerprint, expected_params in [
-        #( """ """, "", "" ),
+#        (
+#            """'''2014''', Lily Lieberman, "[http://issuu.com/timespub/docs/02132014 Techies and Trekkies Unite at Geek's Night Out]", ''College Times'', Volume 13, Issue 12, 13 February 2014 - 26 February 2014, page 19:""",
+#            ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics', 'volume', 'issue', 'date', 'date2', 'page'),
+#            ""
+#        ),
         (
-            """'''2023''' Jane Doe, ''A Book'' Chapter: 66, (page 1) Volume XXII [picture caption]""",
-            ('year', 'author', 'italics', 'section'),
-            {'_source': 'text', 'year': '2023', 'author': 'Jane Doe', 'title': 'A Book', 'section': 'Chapter: 66, (page 1) Volume XXII [picture caption]'}
+            # no author, strip {{nowrap}}
+            """'''2009''', "Is the era of free news over?", ''The Observer'', {{nowrap|10 May:}}""",
+            ('year', 'double_quotes', 'italics::journal', 'date'),
+            {'_source': 'journal', 'date': '10 May 2009', 'title': 'Is the era of free news over?', 'journal': 'The Observer'}
+        ),
+        (
+            # Day Month Year
+            """'''2012''', Adam Gopnik, "Vive La France", ''The New Yorker'', 7 May 2012:""",
+            ('year', 'author', 'double_quotes', 'italics::journal', 'date'),
+            {'_source': 'journal', 'date': '7 May 2012', 'author': 'Adam Gopnik', 'title': 'Vive La France', 'journal': 'The New Yorker'}
+        ),
+        (
+            """'''1918''', Paul Haupt, "English 'coop' == Assyrian 'Quppu'," ''Modern Language Notes'', vol. 33, no. 7, p. 434,""",
+            ('year', 'author', 'double_quotes', 'italics::journal', 'volume', 'number', 'page'),
+            {'_source': 'journal', 'year': '1918', 'author': 'Paul Haupt', 'title': "English 'coop' == Assyrian 'Quppu'", 'journal': 'Modern Language Notes', 'volume': '33', 'number': '7', 'page': '434'}
+        ),
+        (
+            """'''1857''', William Chambers, Robert Chambers, "Something about bells", ''Chambers's Journal'', vol. 28, no. 207, [http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true page 398].""",
+            ('year', 'author', 'double_quotes', 'italics::journal', 'volume', 'number', 'url', 'url::page'),
+            {'_source': 'journal', 'year': '1857', 'author': 'William Chambers, Robert Chambers', 'title': 'Something about bells', 'journal': "Chambers's Journal", 'volume': '28', 'number': '207', 'pageurl': 'http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true', 'page': '398'}
+        ),
+        (
+            """'''2012''', {{w|Gillian Tindall}}, "The Alleged Lunatics' Friend Society", ''Literary Review'', 403:""",
+            ('year', 'author', 'double_quotes', 'italics::journal', 'section'),
+            {'_source': 'journal', 'year': '2012', 'author': '{{w|Gillian Tindall}}', 'title': "The Alleged Lunatics' Friend Society", 'journal': 'Literary Review', 'section': '403'}
+        ),
+        (
+            """'''1682''', {{w|John Dryden}}, ''The Medal,'' Edinburgh, “Epistle to the Whigs,”<sup>[http://name.umdl.umich.edu/A36648.0001.001]</sup>""",
+            ('year', 'author', 'italics', 'location', 'fancy_double_quotes', 'url'),
+            {'_source': 'book', 'year': '1682', 'author': '{{w|John Dryden}}', 'title': 'The Medal', 'location': 'Edinburgh', 'chapter': 'Epistle to the Whigs', 'url': 'http://name.umdl.umich.edu/A36648.0001.001'}
+        ),
+        (
+            """'''2023''' Jane Doe, ''A Book'' Chapter: 66, (page 1) Volume XXII [picture caption] http://foo.bar""",
+            ('year', 'author', 'italics', 'section', 'url'),
+            {'_source': 'text', 'year': '2023', 'author': 'Jane Doe', 'title': 'A Book', 'section': 'Chapter: 66, page 1 Volume XXII [picture caption]', 'url': 'http://foo.bar'}
         ),
         (
             """'''2003''', ''Cincinnati Magazine'' (volume 36, number 5, page 26)""",
             ('year', 'italics::journal', 'paren::volume', 'paren::number', 'paren::page'),
             {'_source': 'journal', 'year': '2003', 'journal': 'Cincinnati Magazine', 'volume': '36', 'number': '5', 'page': '26'}
         ),
-        (
-            """'''2007''' December 12, Howard Fineman, "Starting From Scratch", [[w:Newsweek|''Newsweek'']],""",
-            ('date', 'author', 'double_quotes', 'link', 'link::italics::journal'),
-            {'_source': 'journal', 'date': 'December 12 2007', 'author': 'Howard Fineman', 'title': 'Starting From Scratch', 'journal': "[[w:Newsweek|''Newsweek'']]"}
-        ),
+        # TODO: strip '' in link text?
+#        (
+#            """'''2007''' December 12, Howard Fineman, "Starting From Scratch", [[w:Newsweek|''Newsweek'']],""",
+#            ('date', 'author', 'double_quotes', 'link', 'link::italics::journal'),
+#            {'_source': 'journal', 'date': 'December 12 2007', 'author': 'Howard Fineman', 'title': 'Starting From Scratch', 'journal': "[[w:Newsweek|''Newsweek'']]"}
+#        ),
         (
             """'''2004''', Karen Horsens, in: ''Kristeligt Dagblad'', 2004-08-02 / https://www.kristeligt-dagblad.dk/ordet/tag-jer-i-agt-de-falske-profeter...""",
             ('year', 'author', 'italics::journal', 'date', 'url'),
@@ -1069,10 +1142,12 @@ def test_get_params_journal():
         ),
         (
             """'''2010''', ''[[w:Der Spiegel|Der Spiegel]]'', issue [http://www.spiegel.de/spiegel/print/index-2010-49.html 49/2010], page 80:""",
+            ('year', 'italics::journal', 'section'),
+            {'_source': 'journal', 'year': '2010', 'journal': '[[w:Der Spiegel|Der Spiegel]]', 'section': 'issue [http://www.spiegel.de/spiegel/print/index-2010-49.html 49/2010], page 80'}
 #            ('year', 'italics::link', 'italics::link::journal', 'unhandled<issue>', 'url', 'url::text', 'page'),
-            ('year', 'italics::journal', 'unhandled<issue>', 'url', 'url::text', 'page'),
+#            ('year', 'italics::journal', 'unhandled<issue>', 'url', 'url::text', 'page'),
 #            {'_source': 'journal', 'year': '2010', 'journal': '[[w:Der Spiegel|Der Spiegel]]', 'url': 'http://www.spiegel.de/spiegel/print/index-2010-49.html', 'title': '49/2010', 'page': '80'}
-            {'_source': 'journal', 'year': '2010', 'journal': '[[w:Der Spiegel|Der Spiegel]]', 'url': 'http://www.spiegel.de/spiegel/print/index-2010-49.html', 'issue': '49/2010', 'page': '80'}
+#            {'_source': 'journal', 'year': '2010', 'journal': '[[w:Der Spiegel|Der Spiegel]]', 'url': 'http://www.spiegel.de/spiegel/print/index-2010-49.html', 'issue': '49/2010', 'page': '80'}
         ),
         (
             """'''1974''', "[http://news.google.ca/newspapers?id=mWkqAAAAIBAJ&sjid=xVUEAAAAIBAJ&pg=4318,6028745&dq=did-a-number-on&hl=en Sports: Full-time Franco Busts A Couple, Rushes For 141]," ''Pittsburgh Press'', 29 Oct., p. 26 (retrieved 20 Aug. 2010):""",
@@ -1167,7 +1242,8 @@ def test_get_params_journal():
         ),
         (
             """'''2021''' April 24, David McWilliams, [https://www.irishtimes.com/opinion/david-mcwilliams-a-30-year-economic-supercycle-ended-this-week-1.4544720 "A 30-year economic supercycle ended this week"] ''The Irish Times'':""",
-            ('date', 'author', 'url', 'url::double_quotes', 'italics::journal'),
+            ('date', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal'),
+#            ('date', 'author', 'url', 'url::double_quotes', 'italics::journal'),
             {'_source': 'journal', 'date': 'April 24 2021', 'author': 'David McWilliams', 'titleurl': 'https://www.irishtimes.com/opinion/david-mcwilliams-a-30-year-economic-supercycle-ended-this-week-1.4544720', 'title': 'A 30-year economic supercycle ended this week', 'journal': 'The Irish Times'}
         ),
         (
@@ -1277,7 +1353,7 @@ def test_get_params_others():
             # Should be "PAGE" not "SECTION"
             """'''2006''', Stacey DeMarco, ''Witch in the Bedroom: Proven Sensual Magic'', Llewellyn Publications, Minnesota, [page 33]""",
             ('year', 'author', 'italics', 'publisher', 'location', 'brackets::page'),
-            {'_source': 'text', 'year': '2006', 'author': 'Stacey DeMarco', 'title': 'Witch in the Bedroom: Proven Sensual Magic', 'publisher': 'Llewellyn Publications', 'location': 'Minnesota', 'page': '33'}
+            {'_source': 'book', 'year': '2006', 'author': 'Stacey DeMarco', 'title': 'Witch in the Bedroom: Proven Sensual Magic', 'publisher': 'Llewellyn Publications', 'location': 'Minnesota', 'page': '33'}
         ),
         (
             """'''1999''' April, Matt Groening, “Episode Two: The Series Has Landed”, ''Futurama'', season 1, episode 2, opening title""",
@@ -1296,7 +1372,7 @@ def test_get_params_others():
         ),
         (
             """'''1990''', {{w|Andrew Davies}}, {{w|Michael Dobbs}}, ''[[w:House of Cards (UK TV show)|House of Cards]]'', Season 1, Episode 4""",
-            ('year', 'author', 'italics::link', 'italics::link::text', 'section'),
+            ('year', 'author', 'italics', 'section'),
             {'_source': 'text', 'year': '1990', 'author': '{{w|Andrew Davies}}', 'author2': '{{w|Michael Dobbs}}', 'title': '[[w:House of Cards (UK TV show)|House of Cards]]', 'section': 'Season 1, Episode 4'}
 
         ),
@@ -1378,8 +1454,10 @@ def test_get_params_others():
         ),
         (
             """'''2009''', [https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK ''Puff''] by John Flaherty""",
-            ('year', 'url', 'url::italics', 'author'),
+            ('year', 'italics::url', 'italics::url::text', 'author'),
+#            ('year', 'url', 'url::italics', 'author'),
             {'_source': 'text', 'year': '2009', 'url': 'https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK', 'title': 'Puff', 'author': 'John Flaherty'}
+
         ),
         (
             """'''2008''', Thomas W. Young - ''The Speed of Heat: An Airlift Wing at War in Iraq and Afghanistan ''""",
@@ -1389,11 +1467,6 @@ def test_get_params_others():
         ( """'''2005''', Rosalind Ryan, ''The Guardian'', 9 August:""",
             ('year', 'author', 'italics::journal', 'date'),
             {'_source': 'journal', 'date': '9 August 2005', 'author': 'Rosalind Ryan', 'journal': 'The Guardian'}
-        ),
-        (
-            """'''1958''' [[w:Ritchie Valens|Ritchie Valens]] ''Donna'' ( a song) :""",
-            ('year', 'author', 'italics', 'paren::classifier'),
-            None
         ),
         (
             """'''1962''', Hans Sperber, Travis Trittschuh & Hans Sperber, ''American Political Terms''""",
@@ -1496,11 +1569,6 @@ def test_get_params_others():
             """'''2003''', ''Film Review: Special'' (issues 43-48, page 31)""",
             ('year', 'italics::journal', 'paren::issues', 'paren::page'),
             {'_source': 'journal', 'year': '2003', 'journal': 'Film Review: Special', 'issue': '43-48', 'page': '31'}
-        ),
-        (
-            """'''2021''' April 24, David McWilliams, [https://www.irishtimes.com/opinion/david-mcwilliams-a-30-year-economic-supercycle-ended-this-week-1.4544720 "A 30-year economic supercycle ended this week"] ''The Irish Times'':""",
-            ('date', 'author', 'url', 'url::double_quotes', 'italics::journal'),
-            {'_source': 'journal', 'date': 'April 24 2021', 'author': 'David McWilliams', 'titleurl': 'https://www.irishtimes.com/opinion/david-mcwilliams-a-30-year-economic-supercycle-ended-this-week-1.4544720', 'title': 'A 30-year economic supercycle ended this week', 'journal': 'The Irish Times'}
         ),
         (
             """'''1982''', ''Michigan Natural Resources Magazine'', volumes 51-52, page 77:""",

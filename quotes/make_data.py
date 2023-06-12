@@ -17,6 +17,7 @@ import sys
 from autodooz.fix_bare_quotes import QuoteFixer
 from autodooz.quotes.name_labeler import NameLabeler
 from autodooz.quotes.names import countable_pattern
+from autodooz.quotes.parser import QuoteParser
 from collections import defaultdict
 from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit
 from autodooz.quotes.names import disallowed_name_words, disallowed_journal_words, disallowed_publisher_words, disallowed_location_words
@@ -523,10 +524,10 @@ def clean_params(all_params):
             # Don't convert the authors to lowercase yet, as some of the filtering is case-dependent
 #            if p != "a":
             text = text.lower()
-            QuoteFixer.cleanup_text(text)
+            QuoteParser.cleanup_text(text)
 
             if p == "p":
-                text = QuoteFixer.cleanup_publisher(text)
+                text = QuoteParser.cleanup_publisher(text)
 
             if not text:
                 continue
@@ -536,7 +537,7 @@ def clean_params(all_params):
 
 def split_location(text):
 
-    split_iter = iter(re.split(QuoteFixer.location_split_regex, text))
+    split_iter = iter(re.split(QuoteParser.location_split_regex, text))
     for v in split_iter:
         sep = next(split_iter, None)
         if not v:
@@ -654,8 +655,8 @@ def old_load_items(self, filename, prefixes=None, postfixes=None, disallowed_ite
         return items
 
 
-journal_regex = re.compile(f"{QuoteFixer.journal_prefix_regex}(?P<condensed>.*?){QuoteFixer.journal_postfix_regex}$", re.IGNORECASE)
-publisher_regex = re.compile(f"{QuoteFixer.publisher_prefix_regex}(?P<condensed>.*?){QuoteFixer.publisher_postfix_regex}$", re.IGNORECASE)
+journal_regex = re.compile(f"{QuoteParser.journal_prefix_regex}(?P<condensed>.*?){QuoteParser.journal_postfix_regex}$", re.IGNORECASE)
+publisher_regex = re.compile(f"{QuoteParser.publisher_prefix_regex}(?P<condensed>.*?){QuoteParser.publisher_postfix_regex}$", re.IGNORECASE)
 
 def condense(v, p):
 
