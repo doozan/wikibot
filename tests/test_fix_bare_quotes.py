@@ -164,16 +164,6 @@ def test_get_params_old():
             {'year': '1865', 'author': '[[w:Homer|Homer]]', 'translator': '[[w:Edward Smith-Stanley, 14th Earl of Derby|Edward Smith-Stanley, 14th Earl of Derby]]', 'title': '[[w:Iliad|Iliad]]', 'volume': '1', 'pageurl': 'http://books.google.co.uk/books?id=EEYbAAAAYAAJ&pg=PP14&dq=%22Heph%C3%A6stus%22&ei=PWSiSru7DYmGzATwjoCBCA#v=onepage&q=%22Heph%C3%A6stus%22&f=false', 'page': 'viii'}
         ),
         (
-            # Numbered edition
-             """'''2007''', John Howells, Don Merwin, ''Choose Mexico for Retirement'', 10th edition {{ISBN|0762753544}}, page 49:""",
-            {'year': '2007', 'author': 'John Howells', 'author2': 'Don Merwin', 'title': 'Choose Mexico for Retirement', 'edition': '10th', 'page': '49', 'isbn': '0762753544'}
-        ),
-        (
-            # Numbered edition
-             """'''2007''', John Merryman, Rogelio Pérez-Perdomo, ''The Civil Law Tradition'', 3rd edition {{ISBN|0804768331}}, page 107:""",
-            {'year': '2007', 'author': 'John Merryman', 'author2': 'Rogelio Pérez-Perdomo', 'title': 'The Civil Law Tradition', 'edition': '3rd', 'page': '107', 'isbn': '0804768331'}
-        ),
-        (
             # Strip (novel) from unparsed text
              """'''1959''', [[w:James Michener|James Michener]], ''[[w:Hawaii (novel)|Hawaii]]'' (novel),<sup >[http://books.google.com/books?id=1QHYAAAAMAAJ ]</sup> Fawcett Crest (1986), {{ISBN|9780449213353}}, page 737:""",
             {'year': '1959', 'author': '[[w:James Michener|James Michener]]', 'title': '[[w:Hawaii (novel)|Hawaii]]', 'pageurl': 'http://books.google.com/books?id=1QHYAAAAMAAJ', 'page': '737', 'publisher': 'Fawcett Crest', 'year_published': '1986', 'isbn': '9780449213353'}
@@ -184,28 +174,9 @@ def test_get_params_old():
             {'year': '2003', 'author': 'Karin Slaughter', 'title': 'A Faint Cold Fear', 'pageurl': 'http://books.google.com/books?id=n8yT5KxPzNAC&pg=PA169&dq=rolling', 'page': '169', 'publisher': 'HarperCollins', 'isbn': '978-0-688-17458-3'}
         ),
         (
-            # Travellers edition generated wrong publisher
-            """'''1999''', Mark Warren, ''Mark Warren's Atlas of Australian Surfing'', traveller's edition 1999, {{ISBN|0-7322-6731-5}}, page 103""",
-            {'year': '1999', 'author': 'Mark Warren', 'title': "Mark Warren's Atlas of Australian Surfing", 'edition': "traveller's", 'page': '103', 'isbn': '0-7322-6731-5'}
-        ),
-        (
-             """'''1999''', K. Zakrzewska, R. Lavery, "Modelling DNA-protein interactions", in ''Computational Molecular Biology'' (edited by J. Leszczynski; {{ISBN|008052964X}}:""",
-            {'year': '1999', 'editor': 'J. Leszczynski', 'author': 'K. Zakrzewska', 'author2': 'R. Lavery', 'chapter': 'Modelling DNA-protein interactions', 'title': 'Computational Molecular Biology', 'isbn': '008052964X'}
-        ),
-        (
             # pages
              """'''1991''', Katie Hafner & [[w:John Markoff|John Markoff]], ''Cyberpunk: Outlaws and Hackers on the Computer Frontier'' (1995 revised edition), Simon and Schuster, {{ISBN|0684818620}}, pp. 255-256:""",
             {'year': '1991', 'author': 'Katie Hafner', 'author2': '[[w:John Markoff|John Markoff]]', 'title': 'Cyberpunk: Outlaws and Hackers on the Computer Frontier', 'edition': 'revised', 'pages': '255-256', 'publisher': 'Simon and Schuster', 'isbn': '0684818620'}
-        ),
-        (
-            # Chapter title
-             """'''2008''', Ian Black, "An earthquake hits Newcastle" in ''Geordies vs Mackems & Mackems vs Geordies'', Black & White Publishing {{ISBN|9781845028619}}, page 97""",
-            {'year': '2008', 'author': 'Ian Black', 'chapter': 'An earthquake hits Newcastle', 'title': 'Geordies vs Mackems & Mackems vs Geordies', 'page': '97', 'publisher': 'Black & White Publishing', 'isbn': '9781845028619'}
-        ),
-        (
-            # Chapter title
-             """'''2009''', Cate Robertson, "Half-Crown Doxy", in ''Bitten: Dark Erotic Stories'' (ed. Susie Bright), Chronicle Books (2009), {{ISBN|9780811864251}}, [http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false page 126]:""",
-            {'year': '2009', 'editor': 'Susie Bright', 'author': 'Cate Robertson', 'chapter': 'Half-Crown Doxy', 'title': 'Bitten: Dark Erotic Stories', 'pageurl': 'http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false', 'page': '126', 'publisher': 'Chronicle Books', 'isbn': '9780811864251'}
         ),
         (
             # Pages in link text
@@ -379,6 +350,55 @@ def test_get_params_books():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
+        (
+            # Chapter title
+            """'''2009''', Cate Robertson, "Half-Crown Doxy", in ''Bitten: Dark Erotic Stories'' (ed. Susie Bright), Chronicle Books (2009), {{ISBN|9780811864251}}, [http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false page 126]:""",
+            ('year', 'author', 'double_quotes', 'italics', 'paren::editor', 'publisher', 'year2', 'isbn', 'url', 'url::page'),
+            {'_source': 'book', 'year': '2009', 'author': 'Cate Robertson', 'chapter': 'Half-Crown Doxy', 'title': 'Bitten: Dark Erotic Stories', 'editor': 'Susie Bright', 'publisher': 'Chronicle Books', 'isbn': '9780811864251', 'pageurl': 'http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false', 'page': '126'}
+        ),
+        (
+            # Chapter title
+             """'''2008''', Ian Black, "An earthquake hits Newcastle" in ''Geordies vs Mackems & Mackems vs Geordies'', Black & White Publishing {{ISBN|9781845028619}}, page 97""",
+             ('year', 'author', 'double_quotes', 'italics', 'publisher', 'isbn', 'page'),
+             {'_source': 'book', 'year': '2008', 'author': 'Ian Black', 'chapter': 'An earthquake hits Newcastle', 'title': 'Geordies vs Mackems & Mackems vs Geordies', 'publisher': 'Black & White Publishing', 'isbn': '9781845028619', 'page': '97'}
+        ),
+        (
+             """'''1999''', K. Zakrzewska, R. Lavery, "Modelling DNA-protein interactions", in ''Computational Molecular Biology'' (edited by J. Leszczynski; {{ISBN|008052964X}}:""",
+             ('year', 'author', 'double_quotes', 'italics', 'editor', 'isbn'),
+             {'_source': 'book', 'year': '1999', 'author': 'K. Zakrzewska', 'author2': 'R. Lavery', 'chapter': 'Modelling DNA-protein interactions', 'title': 'Computational Molecular Biology', 'editor': 'J. Leszczynski', 'isbn': '008052964X'}
+        ),
+        (
+            """'''1999''', Mark Warren, ''Mark Warren's Atlas of Australian Surfing'', traveller's edition 1999, {{ISBN|0-7322-6731-5}}, page 103""",
+            ('year', 'author', 'italics', 'edition', 'year2', 'isbn', 'page'),
+            {'_source': 'book', 'year': '1999', 'author': 'Mark Warren', 'title': "Mark Warren's Atlas of Australian Surfing", 'edition': "traveller's", 'isbn': '0-7322-6731-5', 'page': '103'}
+        ),
+        (
+            # Numbered edition
+            """'''2007''', John Merryman, Rogelio Pérez-Perdomo, ''The Civil Law Tradition'', 3rd edition {{ISBN|0804768331}}, page 107:""",
+            ('year', 'author', 'italics', 'edition', 'isbn', 'page'),
+            {'_source': 'book', 'year': '2007', 'author': 'John Merryman', 'author2': 'Rogelio Pérez-Perdomo', 'title': 'The Civil Law Tradition', 'edition': '3rd', 'isbn': '0804768331', 'page': '107'}
+        ),
+        (
+            # Numbered edition
+             """'''2007''', John Howells, Don Merwin, ''Choose Mexico for Retirement'', 10th edition {{ISBN|0762753544}}, page 49:""",
+             ('year', 'author', 'italics', 'edition', 'isbn', 'page'),
+             {'_source': 'book', 'year': '2007', 'author': 'John Howells', 'author2': 'Don Merwin', 'title': 'Choose Mexico for Retirement', 'edition': '10th', 'isbn': '0762753544', 'page': '49'}
+        ),
+        (
+            """'''1877''', {{w|John Harvey Kellogg}}, [https://web.archive.org/web/20140811201712/http://etext.virginia.edu/etcbin/ot2www-pubeng?specfile=%2Ftexts%2Fenglish%2Fmodeng%2Fpublicsearch%2Fmodengpub.o2w "Plain Facts for Old and Young"]:""",
+            ('year', 'author', 'double_quotes::url', 'double_quotes::url::text'),
+            {'_source': 'text', 'year': '1877', 'author': '{{w|John Harvey Kellogg}}', 'url': 'https://web.archive.org/web/20140811201712/http://etext.virginia.edu/etcbin/ot2www-pubeng?specfile=%2Ftexts%2Fenglish%2Fmodeng%2Fpublicsearch%2Fmodengpub.o2w', 'title': 'Plain Facts for Old and Young'}
+        ),
+        (
+            """'''2012''', Frances Wilson, ‘Evergreen Architecture’, ''Literary Review'', 402:""",
+            ('year', 'author', 'fancy_quote', 'italics::journal', 'section'),
+            {'_source': 'journal', 'year': '2012', 'author': 'Frances Wilson', 'title': 'Evergreen Architecture', 'journal': 'Literary Review', 'section': '402'}
+        ),
+        (
+            """'''1943''', {{w|William Saroyan}}, {{w|The Human Comedy (novel)|''The Human Comedy''}}, chapter 3,""",
+            ('year', 'author', 'italics', 'chapter'),
+            {'_source': 'book', 'year': '1943', 'author': '{{w|William Saroyan}}', 'title': '{{w|The Human Comedy (novel)|The Human Comedy}}', 'chapter': '3'}
+        ),
         (
             """'''2001''', [[w:Ken Follett|Ken Follett]], [[w:Jackdaws|''Jackdaws'']], Dutton, {{ISBN|0525946284}}, page 359""",
             ('year', 'author', 'italics', 'publisher', 'isbn', 'page'),
@@ -600,7 +620,7 @@ def test_get_params_books():
         (
             """'''2006''', M.Gori, M.Ernandes, G.Angelini, "Cracking Crosswords: The Computer Challenge", ''Reasoning, Action and Interaction in AI Theories and Systems: Essays Dedicated to Luigia Carlucci Aiello'', edited by Oliviero Stock, Marco Schaerf, Springer Science & Business Media {{ISBN|9783540379010}}, page 266""",
             ('year', 'author', 'double_quotes', 'italics', 'editor', 'publisher', 'isbn', 'page'),
-            None
+            {'_source': 'book', 'year': '2006', 'author': 'M.Gori', 'author2': 'M.Ernandes', 'author3': 'G.Angelini', 'chapter': 'Cracking Crosswords: The Computer Challenge', 'title': 'Reasoning, Action and Interaction in AI Theories and Systems: Essays Dedicated to Luigia Carlucci Aiello', 'editors': 'Oliviero Stock; Marco Schaerf', 'publisher': 'Springer Science & Business Media', 'isbn': '9783540379010', 'page': '266'}
         ),
         (
             """'''1905''', {{w|Robert Louis Stevenson}}, ''Travels with a Donkey in the Cevennes'', [[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]""",
@@ -1019,6 +1039,17 @@ def test_get_params_song():
 def test_get_params_journal():
 
     for text, expected_fingerprint, expected_params in [
+        #( """ """, "", "" ),
+        (
+            """'''1836''', ‘Legends of Blarney Castle’, ''The Knickerbocker'', volume VIII:""",
+            ('year', 'fancy_quote', 'italics::journal', 'volume'),
+            {'_source': 'journal', 'year': '1836', 'title': 'Legends of Blarney Castle', 'journal': 'The Knickerbocker', 'volume': 'VIII'}
+        ),
+        (
+            """'''2002''', “Interim force armour activities” in ''Armed Forces journal international'', v 139:""",
+            ('year', 'fancy_double_quotes', 'italics::journal', 'volume'),
+            {'_source': 'journal', 'year': '2002', 'title': 'Interim force armour activities', 'journal': 'Armed Forces journal international', 'volume': '139'}
+        ),
 #        (
 #            """'''2014''', Lily Lieberman, "[http://issuu.com/timespub/docs/02132014 Techies and Trekkies Unite at Geek's Night Out]", ''College Times'', Volume 13, Issue 12, 13 February 2014 - 26 February 2014, page 19:""",
 #            ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics', 'volume', 'issue', 'date', 'date2', 'page'),
@@ -1273,6 +1304,21 @@ def test_get_params_newsgroup():
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
         (
+            """'''2000''', 2:1, ''[//groups.google.com/d/msg/comp.sys.mac.advocacy/4GAI4Vw0b8I/7OqqIXt-w4UJ Re: Malloy digest]'', comp.os.ms-windows.nt.advocacy, Usenet,""",
+            ('year', 'author', 'italics::url', 'italics::url::text', 'newsgroup'),
+            {'_source': 'newsgroup', 'year': '2000', 'author': '2:1', 'titleurl': '//groups.google.com/d/msg/comp.sys.mac.advocacy/4GAI4Vw0b8I/7OqqIXt-w4UJ', 'title': 'Re: Malloy digest', 'newsgroup': 'comp.os.ms-windows.nt.advocacy'}
+        ),
+        (
+            """'''2003''' July 6, "Tom B" <d16842@aol.com>, "Re: Group Member Committee Agenda", ''rec.skydiving'', Usenet,""",
+            ('date', 'author', 'double_quotes', 'newsgroup'),
+            {'_source': 'newsgroup', 'date': 'July 6 2003', 'author': '"Tom B" <d16842@aol.com>', 'title': 'Re: Group Member Committee Agenda', 'newsgroup': 'rec.skydiving'}
+        ),
+        (
+            """'''2006''' August 10, Dr Peter Young <pnyoung@ormail.co.uk>, "Leftpondian circumlocution.", ''alt.possessive.its.has.no.apostrophe'', Usenet,""",
+            ('date', 'author', 'double_quotes', 'newsgroup'),
+            {'_source': 'newsgroup', 'date': 'August 10 2006', 'author': 'Dr Peter Young <pnyoung@ormail.co.uk>', 'title': 'Leftpondian circumlocution.', 'newsgroup': 'alt.possessive.its.has.no.apostrophe'}
+        ),
+        (
             """'''1994''' January 5, "Lydia M. Uribe" (username), "[http://groups.google.com/group/alt.pub.coffeehouse.amethyst/msg/4b40a74111c14fe7?q=ABEND Paul Saunders could use some cheering up....] ", in {{monospace|alt.pub.coffeehouse.amethyst}}, ''Usenet'':""",
             ('date', 'author', 'double_quotes::url', 'double_quotes::url::text', 'newsgroup'),
             {'_source': 'newsgroup', 'date': 'January 5 1994', 'author': 'Lydia M. Uribe', 'url': 'http://groups.google.com/group/alt.pub.coffeehouse.amethyst/msg/4b40a74111c14fe7?q=ABEND', 'title': 'Paul Saunders could use some cheering up....', 'newsgroup': 'alt.pub.coffeehouse.amethyst'}
@@ -1349,6 +1395,26 @@ def test_get_params_others():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
+        (
+            """'''2010''' January, David Brakke, “[http://www.jstor.org/stable/40390061 A New Fragment of Athanasius’s Thirty-Ninth '''''Festal''' Letter'': Heresy, Apocrypha, and the Canon]” in the ''{{w|Harvard Theological Review}}'', volume CIII, № 1, page 47:""",
+            ('year', 'month', 'author', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics', 'section'),
+            {'_source': 'text', 'year': '2010', 'month': 'January', 'author': 'David Brakke', 'chapterurl': 'http://www.jstor.org/stable/40390061', 'chapter': "A New Fragment of Athanasius’s Thirty-Ninth '''''Festal''' Letter'': Heresy, Apocrypha, and the Canon", 'title': '{{w|Harvard Theological Review}}', 'section': 'volume CIII, № 1, page 47'}
+        ),
+        (
+            """'''1930:''' ''[http://www.bisharat.net/Documents/poal30.htm Practical Orthography of African Languages]''""",
+            ('year', 'italics::url', 'italics::url::text'),
+            {'_source': 'text', 'year': '1930', 'url': 'http://www.bisharat.net/Documents/poal30.htm', 'title': 'Practical Orthography of African Languages'}
+        ),
+        (
+            """'''1776''', {{w|Thomas Paine}}, ''{{w|Common Sense (pamphlet)|Common Sense}}'', Philadelphia, [http://name.umdl.umich.edu/004831091.0001.000 “Of Monarchy and Hereditary Succession”], p. 13:""",
+            ('year', 'author', 'italics', 'location', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'page'),
+            {'_source': 'book', 'year': '1776', 'author': '{{w|Thomas Paine}}', 'title': '{{w|Common Sense (pamphlet)|Common Sense}}', 'location': 'Philadelphia', 'chapterurl': 'http://name.umdl.umich.edu/004831091.0001.000', 'chapter': 'Of Monarchy and Hereditary Succession', 'page': '13'}
+        ),
+        (
+            """ '''1920:''' Edward J. Martin, ''[http://books.google.com/books?vid=0h8T4QJ5xpq5S7qeauL&id=LVUp08zqnCAC&pg=PA263&lpg=PA263&dq=jacketed&as_brr=1 The Traffic Library: Principles of Classification]''""",
+            ('year', 'author', 'italics::url', 'italics::url::text'),
+            {'_source': 'text', 'year': '1920', 'author': 'Edward J. Martin', 'url': 'http://books.google.com/books?vid=0h8T4QJ5xpq5S7qeauL&id=LVUp08zqnCAC&pg=PA263&lpg=PA263&dq=jacketed&as_brr=1', 'title': 'The Traffic Library: Principles of Classification'}
+        ),
         (
             # Should be "PAGE" not "SECTION"
             """'''2006''', Stacey DeMarco, ''Witch in the Bedroom: Proven Sensual Magic'', Llewellyn Publications, Minnesota, [page 33]""",

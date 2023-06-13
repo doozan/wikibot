@@ -4,9 +4,16 @@ parser = QuoteParser(debug=True)
 def test_cleanup_text():
     assert parser.cleanup_text("[http://link.foo ''bar'']") == "''[http://link.foo bar]''"
     assert parser.cleanup_text('[http://link.foo "bar"]') == '"[http://link.foo bar]"'
+    assert parser.cleanup_text('[http://link.foo “bar”]') == '“[http://link.foo bar]”'
+    assert parser.cleanup_text('[http://link.foo ‘bar’]') == '‘[http://link.foo bar]’'
     assert parser.cleanup_text("""[http://link.foo ''bar"]""") == """[http://link.foo ''bar"]"""
-    assert parser.cleanup_text("[[foo ''bar'']]") == "''[[foo bar]]''"
-    assert parser.cleanup_text("[[foo ''bar'']") == "[[foo ''bar'']"
+    assert parser.cleanup_text("[[foo|''bar'']]") == "''[[foo|bar]]''"
+    assert parser.cleanup_text("[[foo|''bar'']") == "[[foo|''bar'']"
+
+    assert parser.cleanup_text("{{lang|fr|''foo''}}") == "''{{lang|fr|foo}}''"
+    assert parser.cleanup_text("{{w|Fer-de-Lance (book)|''Fer-de-Lance''}}") == "''{{w|Fer-de-Lance (book)|Fer-de-Lance}}''"
+    assert parser.cleanup_text('[https://web.archive.org/web/20140811201712/http://etext.virginia.edu/etcbin/ot2www-pubeng?specfile=%2Ftexts%2Fenglish%2Fmodeng%2Fpublicsearch%2Fmodengpub.o2w "Plain Facts for Old and Young"]') == '"[https://web.archive.org/web/20140811201712/http://etext.virginia.edu/etcbin/ot2www-pubeng?specfile=%2Ftexts%2Fenglish%2Fmodeng%2Fpublicsearch%2Fmodengpub.o2w Plain Facts for Old and Young]"'
+
 
 def test_get_leading_section():
 
@@ -363,8 +370,9 @@ def test_get_leading_year():
     assert parser.get_leading_year("2002, or 2012 blah") == ('2002', "or 2012 blah")
 
 def test_get_leading_edition():
-    assert parser.get_leading_edition("2015 Limited edition, blah") == ('2015 Limited edition', ', blah')
-    assert parser.get_leading_edition("Limited 2015 ILLUSTRATED traveler's ed., blah") == ("Limited 2015 ILLUSTRATED traveler's ed.", ', blah')
+    assert parser.get_leading_edition("2015 Limited edition, blah") == ('2015 Limited', ', blah')
+    assert parser.get_leading_edition("Limited 2015 ILLUSTRATED traveler's ed., blah") == ("Limited 2015 ILLUSTRATED traveler's", ', blah')
+    assert parser.get_leading_edition("10th edition blah") == ("10th", " blah")
 
 def test_get_leading_countable():
     assert parser.get_leading_countable("VOLUME 12, test") == ('volume', '12', ', test')

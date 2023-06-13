@@ -53,6 +53,7 @@ countable_labels = _countable_labels.keys()
 # labels that don't map to template parameters
 # and must be combined into generic "section" parameter
 _section_labels = {
+    "edition",
     "series",
     "s.",
     "s",

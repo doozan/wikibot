@@ -288,6 +288,10 @@ def main():
     load_params(condensed_params, args.datadir, "manually.allowed")
     # Clean the manually loaded params to convert to lowercase and apply any needed fixup
     condensed_params = clean_params(condensed_params)
+
+
+    # Remove anything that doesn't match any of the text that needs to be fixes
+
     dump_allowed(condensed_params, args.datadir, "allowed")
 
     # later - find individual words that are highly correlated to publishers or journals and add

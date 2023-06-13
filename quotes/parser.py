@@ -11,9 +11,11 @@ LINK = namedtuple("LINK", [ "target", "text", "orig" ])
 class QuoteParser():
 
     ignore_unhandled = {
-            '"', "", "(", ")", ',',
-            "in", "as", "in the", "on", "for", "and", "of",
+            '"', "", "(", ")", ',', ":", "'s", "*",
+            "in", "as", "in the", "on", "for", "and", "of", #"to",
             "from",
+            "published in", "article in", "for the author", "rev", "the",
+            #"entry in", # - this should be handled explicitly and transform "chapter" into "entry"
             # "by", "article in", "magazine", "p", "pp", "page",
     }
 
@@ -348,8 +350,19 @@ class QuoteParser():
 
     def get_leading_newsgroup_author(self, text):
 
-        if "{{monospace" in text and "Usenet" in text:
+        if re.search(", Usenet[,.]*$", text) or ("{{monospace" in text and "Usenet" in text):
             text = self._strip_leading_separators(text)
+            m = re.match("""(.*?), ("|“|'')""", text)
+            if not m:
+                return
+            username = m.group(1)
+            new_text = text[len(username):]
+
+            username = re.sub(r"([,. ]*\(?username\)?)", "", username)
+
+            if username.startswith('"') and username.endswith('"') and '"' not in username[1:-1]:
+                username = username.strip('" ')
+            return username, new_text
 
             if text.startswith('"'):
                 username, new_text = self.get_leading_start_stop('"', '"', text)
@@ -388,7 +401,7 @@ class QuoteParser():
         #
 
         if "editor" in parsable:
-            new_text = re.sub(r"^(ed\.|eds\.|edited by)\s*", "", text, flags=re.IGNORECASE)
+            new_text = re.sub(r"^(ed\. by|ed\.|eds\.|edited by)\s*", "", text, flags=re.IGNORECASE)
             if new_text != text:
                 if new_text.endswith(")") and "(" not in new_text:
                     new_text = new_text.rstrip(")")
@@ -571,9 +584,6 @@ class QuoteParser():
         return self.get_leading_start_stop(r'[', r']', text)
 
     def get_leading_fancy_double_quotes(self, text):
-        res = self.get_leading_start_stop('“', '”', text)
-        if res:
-            return res
         return self.get_leading_start_stop('“', '”', text)
 
     def get_leading_fancy_quote(self, text):
@@ -935,8 +945,8 @@ class QuoteParser():
                 |first|second|third|((eleven|twelf|thir|four|fif|six|seven|eigh|nin(e)?|ten|eleven|twelf)(th|teen))
                 |\d+(?:st|nd|rd|th)         # ordinal number
             )\s*)+
-            (?:edition|ed\.)
             )
+            (?:edition|ed\.)
             (?P<post>.*)$            # trailing text
         """
 
@@ -944,7 +954,7 @@ class QuoteParser():
         if not m:
             return
 
-        return m.group('edition'), m.group('post')
+        return m.group('edition').strip(), m.group('post')
 
 
     def get_leading_season(self, text):
@@ -1153,27 +1163,41 @@ class QuoteParser():
 
     @staticmethod
     def _extract_link_format_sub(m):
-        if m.group("link_start").startswith("[[") and not m.group("link_end").endswith("]]"):
-            return m.group(0)
-        if m.group("format_start") != m.group("format_end") or m.group("format_start") in m.group("link_text"):
-            return m.group(0)
-        else:
-            return m.group("format_start") + m.group("link_start") + m.group("link_text") + m.group("link_end") + m.group("format_end")
+
+        for start, end in  ( ('[[', ']]'), ("{{", "}}"), ("[", "]") ):
+            if m.group("link_start").startswith(start):
+                if not m.group("link_end").endswith(end):
+                    return m.group(0)
+                break
+
+        for start, end in  ( ('"', '"'), ("''", "''"), ('“', '”'), ("‘", "’") ):
+            if m.group("format_start") == start:
+                if m.group("format_end") != end:
+                    return m.group(0)
+                if start in m.group("link_text"):
+                    return m.group(0)
+                if start != end and end in m.group("link_text"):
+                    return m.group(0)
+                break
+
+        return m.group("format_start") + m.group("link_start") + m.group("link_text") + m.group("link_end") + m.group("format_end")
 
 
     @classmethod
     def extract_link_format(cls, text):
         pattern = r"""(?x)
             (?P<link_start>
-                \[\[[^|\]]+\|  # [[foo_until_pipe
+                {{(w|lang)\|[^}|]*\|   # {{w|xx| or {{lang|xx|
                 |
-                \[[^ \]]+\s    # [url_until_space
+                \[\[[^|\]]+\|          # [[foo_until_pipe|
+                |
+                \[[^ \]]+\s             # [url_until_space
             )
             \s*
-            (?P<format_start>''|")
+            (?P<format_start>''|"|“|‘)
             (?P<link_text>[^\]]+)
-            (?P<format_end>''|")
-            (?P<link_end>\]\]|\])  # ]] or ]
+            (?P<format_end>''|"|”|’)
+            (?P<link_end>}}|\]\]|\])  # }}, ]] or ]
         """
         return re.sub(pattern, cls._extract_link_format_sub, text)
 
