@@ -322,7 +322,26 @@ def test_get_params_books():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
-
+#        (
+#            """'''2008''', Austin Modine, "[http://www.theregister.co.uk/2008/10/16/internet_stimulates_brain_more_than_books_study/ Internet searches stimulate brain more than books]: Assuming good Google-fu", ''[[w:The Register|The Register]]'', October 16:""",
+#            ('year', 'author', 'double_quotes', 'italics::journal', 'date')
+#            ""
+#        ),
+        (
+            """'''2016''': "'BRAAAM!': The Sound that Invaded the Hollywood" by Adrian Daub, ''Longreads ''""",
+            "",
+            ""
+        ),
+        (
+            """'''1996''', Joan M. Drury, ''Silent Words'', Spinsters Ink, page [http://books.google.com/books?id=SYdaAAAAMAAJ&q=%22pick+up+some+McDonald%27s%22 36]:""",
+            "",
+            ""
+        ),
+        (
+            """'''1903''', {{w|Giovanni Pascoli}}, ''Myricae'', Raffaello Giusti (1903), page [https://archive.org/stream/myricaep00pascuoft#page/86/mode/1up 86], “Il miracolo”:""",
+            ('year', 'author', 'italics', 'publisher', 'year2', 'url', 'url::page', 'fancy_double_quotes'),
+            {'_source': 'book', 'year': '1903', 'author': '{{w|Giovanni Pascoli}}', 'title': 'Myricae', 'publisher': 'Raffaello Giusti', 'pageurl': 'https://archive.org/stream/myricaep00pascuoft#page/86/mode/1up', 'page': '86', 'chapter': 'Il miracolo'}
+        ),
         (
             """'''2007''', Tim Pooley, “The Uneasy Interface”, in Yuji Kawaguchi et al. (editors), ''Corpus-Based Perspectives in Linguistics'', John Benjamins Publishing Company, {{ISBN|978-90-272-3318-9}}, [http://books.google.com/books?id=0qrZwAZSQq4C&pg=PA175&dq=Torontarians page 175]:""",
             ('year', 'author', 'fancy_double_quotes', 'editor', 'italics', 'publisher', 'isbn', 'url', 'url::page'),
@@ -1053,6 +1072,11 @@ def test_get_params_journal():
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
         (
+            """'''2018''', July 5, {{w|Paul Krugman}}, [https://www.nytimes.com/2018/07/05/opinion/more-on-a-job-guarantee-wonkish.html “More on a Job Guarantee (Wonkish)”], ''The New York Times'':""",
+            ('date', 'author', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics::journal'),
+            {'_source': 'journal', 'date': 'July 5 2018', 'author': '{{w|Paul Krugman}}', 'titleurl': 'https://www.nytimes.com/2018/07/05/opinion/more-on-a-job-guarantee-wonkish.html', 'title': 'More on a Job Guarantee (Wonkish)', 'journal': 'The New York Times'}
+        ),
+        (
             """'''2021''', Julia Huang, ''[https://web.archive.org/web/20210814023137/https://www.pharmaceuticalonline.com/doc/what-is-a-cbe-filing-what-is-a-pas-what-s-the-difference-between-anda-and-nda-0001 What Is A CBE 30 Filing? What Is A PAS? What's The Difference Between ANDA And NDA?]'', "Pharmaceutical Online":""",
             ('year', 'author', 'italics::url', 'italics::url::text', 'double_quotes::journal'),
             {'_source': 'journal', 'year': '2021', 'author': 'Julia Huang', 'titleurl': 'https://web.archive.org/web/20210814023137/https://www.pharmaceuticalonline.com/doc/what-is-a-cbe-filing-what-is-a-pas-what-s-the-difference-between-anda-and-nda-0001', 'title': "What Is A CBE 30 Filing? What Is A PAS? What's The Difference Between ANDA And NDA?", 'journal': 'Pharmaceutical Online'}
@@ -1075,7 +1099,7 @@ def test_get_params_journal():
         (
             """'''2009''', Dominik Bardow, [https://www.freitag.de/autoren/dominik-bardow/die-schizophrenie-der-zahlschranke “Die Schizophrenie der Zahlschranke,”] ''{{w|der Freitag}}'', 22 December 2009:""",
             ('year', 'author', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics::journal', 'date'),
-            None
+            {'_source': 'journal', 'date': '22 December 2009', 'author': 'Dominik Bardow', 'titleurl': 'https://www.freitag.de/autoren/dominik-bardow/die-schizophrenie-der-zahlschranke', 'title': 'Die Schizophrenie der Zahlschranke', 'journal': '{{w|der Freitag}}'}
         ),
         (
             """'''1836''', ‘Legends of Blarney Castle’, ''The Knickerbocker'', volume VIII:""",

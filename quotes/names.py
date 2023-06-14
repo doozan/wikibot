@@ -150,6 +150,11 @@ _section_labels = {
 
     "link",
 
+    "mon", "tue", "wed", "th", "thu", "thurs", "fri", "sat", "sun",
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+    "jan", 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'sept', 'oct', 'nov', 'dec',
+    'january', 'february', 'march', 'april', 'june', 'july', 'augusty', 'september', 'october', 'november', 'december',
+
     # books of the bible
 #    "acts", "actus", "adiae", "adias", "aggaei", "aggaeus", "amos", "apocalypse", "apocalypsis",
 #    "baruch", "canticle of canticles", "canticum canticorum", "chronicles", "clementine vulgate",

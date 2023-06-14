@@ -298,6 +298,7 @@ class QuoteFixer():
         page = list(section.lineage)[-1]
         print("PAGE", page)
         if not self.is_valid_template(template, params):
+            print("BAD TEMPLATE", template, params)
             return
 
         new_lines = [ start + " {{" + template + "|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()]) ]
@@ -350,20 +351,22 @@ class QuoteFixer():
             self.dprint("incomplete newsgroup entry")
 
 
-        title = params.get("title")
-        if title and not self.is_valid_title(title):
-            return False
+#        title = params.get("title")
+#        if title and not self.is_valid_title(title):
+#            print("BAD TITLE", title)
+#            return False
 
         if template in ["quote-book", "cite-book"]:
             if all(x in params for x in ["year", "title"]):
                 return True
 
-        if template in ["quote-text", "cite-text"]:
+        elif template in ["quote-text", "cite-text"]:
             if sum(1 for x in ["year", "date"] if x in params) == 1 \
                     and sum(1 for x in ["author", "title"] if x in params):
                 return True
 
         elif template in ["quote-journal", "cite-journal"]:
+            print("CHECKING JOURNAL")
             if all(x in params for x in ["journal"]) and sum(1 for x in ["year", "date"] if x in params)==1:
                 return True
             self.dprint("incomplete journal entry")
@@ -1164,11 +1167,18 @@ class QuoteFixer():
         (journal_must_include, ['italics::url', 'italics::url::text'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_italics_url_text_title|_italics_url_titleurl),
         #(journal_must_include, ['url::double_quotes'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_url_dq_title|_url_titleurl),
         (journal_must_include, ['double_quotes', 'link::italics::journal'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_dq_title),
+
         (journal_must_include, ['fancy_quote', 'italics::journal'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_fq_title),
+        (journal_must_include, ['fancy_quote::url', 'fancy_quote::url::text', 'italics::journal'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_fq_url_titleurl|_fq_url_text_title),
         (journal_must_include, ['fancy_double_quotes', 'italics::journal'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_fancy_dq_title),
+        (journal_must_include, ['fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics::journal'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_fancy_dq_url_titleurl|_fancy_dq_url_text_title),
         (journal_must_include, ['double_quotes', 'italics::journal'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_dq_title),
+        (journal_must_include, ['double_quotes::url', 'double_quotes::url::text', 'italics::journal'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_dq_url_titleurl|_dq_url_text_title),
+
+
         ([{'date'}, {'year'}], ['double_quotes', 'link', 'link::italics::journal'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_dq_title|_link_journal|_skip_link_italics_journal),
 #('year', 'author', 'double_quotes', 'italics::journal', 'section')
+
 
         (journal_must_include, ['double_quotes::url', 'double_quotes::url::text'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_dq_url_text_title|_dq_url_titleurl),
         ([], ['year', 'italics::journal', 'unhandled<issue>', 'url', 'url::text', 'page'], [], [], _journal|_journal_anywhere_tr|_url_text_issue|_skip_unhandled),

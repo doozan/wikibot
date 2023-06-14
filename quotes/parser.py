@@ -1273,6 +1273,8 @@ class QuoteParser():
 
         text = cls.normalize_et_al(text)
 
+         # page [http://books.google.com/books?id=SYdaAAAAMAAJ&q=%22pick+up+some+McDonald%27s%22 36]
+        text = re.sub(r"(?:page|pages|pp.|p.|pp|p)\s*\[(http[^ ]*)\s+(\d+)\]", r"[\1 page \2]", text)
 
 
 #
