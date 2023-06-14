@@ -139,19 +139,9 @@ def test_get_params_old():
             {'year': '1971', 'author': 'Peter Brown', 'title': 'The World of Late Antiquity: AD 150—750', 'page': '54', 'publisher': 'Thames & Hudson LTD', 'year_published': '2013', 'isbn': '0393958035'}
         ),
         (
-            # No publisher, date
-            """'''1958''', [[w:John Kenneth Galbraith|John Kenneth Galbraith]], ''The Affluent Society'' (1998 edition), {{ISBN|9780395925003}}, [http://books.google.ca/books?id=IfH010hvIqcC&printsec=frontcover&source=gbs_ge_summary_r&cad=0#v=onepage&q=niggardly&f=false p. 186]:""",
-            {'year': '1958', 'author': '[[w:John Kenneth Galbraith|John Kenneth Galbraith]]', 'title': 'The Affluent Society', 'pageurl': 'http://books.google.ca/books?id=IfH010hvIqcC&printsec=frontcover&source=gbs_ge_summary_r&cad=0#v=onepage&q=niggardly&f=false', 'page': '186', 'year_published': '1998', 'isbn': '9780395925003'}
-        ),
-        (
             # illustrated edition
             """'''2001''', [[w:Yann Martel|Yann Martel]], ''Life of Pi'' (illustrated 2007 edition), {{ISBN|9780156035811}}, [http://books.google.ca/books?id=RmkhNOzuV5YC&pg=PA186&dq=%22calendar+day%22+subject:%22fiction%22&hl=en&sa=X&ei=ChOEU8PrEMiT8QHQxoC4Bw&ved=0CCwQ6AEwADgK#v=onepage&q=%22calendar%20day%22%20subject%3A%22fiction%22&f=false p. 186 (Google preview)]:""",
             {'year': '2001', 'author': '[[w:Yann Martel|Yann Martel]]', 'title': 'Life of Pi', 'pageurl': 'http://books.google.ca/books?id=RmkhNOzuV5YC&pg=PA186&dq=%22calendar+day%22+subject:%22fiction%22&hl=en&sa=X&ei=ChOEU8PrEMiT8QHQxoC4Bw&ved=0CCwQ6AEwADgK#v=onepage&q=%22calendar%20day%22%20subject%3A%22fiction%22&f=false', 'page': '186', 'year_published': '2007', 'isbn': '9780156035811'}
-        ),
-        (
-            # Publisher location
-            """'''2008''', David Squire et al, ''The First-Time Garden Specialist'' ({{ISBN|1845379268}}), page 12:""",
-            {'year': '2008', 'author': 'David Squire', 'author2': 'et al', 'title': 'The First-Time Garden Specialist', 'page': '12', 'isbn': '1845379268'}
         ),
         (
             # ''et alii''
@@ -172,11 +162,6 @@ def test_get_params_old():
             # Strip (novel) from unparsed text
              """'''2003''', Karin Slaughter, ''A Faint Cold Fear'' (novel), HarperCollins, {{ISBN|978-0-688-17458-3}}, [http://books.google.com/books?id=n8yT5KxPzNAC&pg=PA169&dq=rolling page 169]:""",
             {'year': '2003', 'author': 'Karin Slaughter', 'title': 'A Faint Cold Fear', 'pageurl': 'http://books.google.com/books?id=n8yT5KxPzNAC&pg=PA169&dq=rolling', 'page': '169', 'publisher': 'HarperCollins', 'isbn': '978-0-688-17458-3'}
-        ),
-        (
-            # pages
-             """'''1991''', Katie Hafner & [[w:John Markoff|John Markoff]], ''Cyberpunk: Outlaws and Hackers on the Computer Frontier'' (1995 revised edition), Simon and Schuster, {{ISBN|0684818620}}, pp. 255-256:""",
-            {'year': '1991', 'author': 'Katie Hafner', 'author2': '[[w:John Markoff|John Markoff]]', 'title': 'Cyberpunk: Outlaws and Hackers on the Computer Frontier', 'edition': 'revised', 'pages': '255-256', 'publisher': 'Simon and Schuster', 'isbn': '0684818620'}
         ),
         (
             # Pages in link text
@@ -218,11 +203,6 @@ def test_get_params_old():
             {'year': '1864', 'chapter': 'The Adventures of a Lady in Search of a Horse', 'title': 'London Society', 'volume': 'VI', 'number': 'XXXII', 'month': 'July', 'pageurl': 'http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false', 'page': '5'}
         ),
         (
-            # author & al. pages roman-roman
-             """'''2006''', Barry A. Kosmin & al., ''Religion in a Free Market'', [http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16 pages xvi–xvii]:""",
-            {'year': '2006', 'author': 'Barry A. Kosmin', 'author2': 'et al', 'title': 'Religion in a Free Market', 'pageurl': 'http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16', 'pages': 'xvi–xvii'}
-        ),
-        (
             # Start-End for issue number
             """'''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:""",
             {'year': '2004', 'issue': 'September-October', 'title': 'American Cowboy', 'volume': '11', 'number': '2', 'page': '53'}
@@ -240,10 +220,6 @@ def test_get_params_old():
         (
             """'''1775''', María Francisca Isla y Losada, ''Romance''""",
              {'author': 'María Francisca Isla y Losada', 'title': 'Romance', 'year': '1775'}
-        ),
-        (
-            """'''1989''', Richard Winston & al. translating [[w:Carl Jung|Carl Jung]] & al. as ''Memories, Dreams, Reflections'', p. 108:""",
-             {'year': '1989', 'translators': 'Richard Winston; et al', 'author': '[[w:Carl Jung|Carl Jung]]', 'author2': 'et al', 'title': 'Memories, Dreams, Reflections', 'page': '108'}
         ),
         (
             # TODO: Extract and process the URL links individually
@@ -276,12 +252,9 @@ def test_get_params_unhandled():
     expected = None
     for text in [
 
-        """'''2007''', Tim Pooley, “The Uneasy Interface”, in Yuji Kawaguchi et al. (editors), ''Corpus-Based Perspectives in Linguistics'', John Benjamins Publishing Company, {{ISBN|978-90-272-3318-9}}, [http://books.google.com/books?id=0qrZwAZSQq4C&pg=PA175&dq=Torontarians page 175]:""",
 
         """'''2005''', {{w|Chamillionaire}} (featuring {{w|Krayzie Bone}}), "{{w|Ridin'}}", ''{{w|The Sound of Revenge}}'':""",
 
-        # tranlating Author & al.
-        """'''1898''', Hobart Charles Porter translating Eduard Strasburger & al. ''A Text-book of Botany'', 109:""",
 
         # Fail if published date newer than citation date (usually used in journals, not needed here in a book citation)
         """'''1772''', {{w|Frances Burney}}, ''Journals & Letters'', Penguin 2001, 30 May:""",
@@ -294,8 +267,7 @@ def test_get_params_unhandled():
         # Multiple URLS
         """'''2009''', Roger Ebert, ''Roger Ebert's Movie Yearbook 2010'',<sup >[http://books.google.com/books?id=-1aM7D_ymdAC ][http://www.amazon.com/Roger-Eberts-Movie-Yearbook-2010/dp/B003STCR2E ]</sup> Andrews McMeel Publishing, {{ISBN|978-0-7407-8536-8}}, page 363:""",
 
-        # ''et al.'' in editor
-        """'''1842''', [[w:Solomon Ludwig Steinheim|Solomon Ludwig Steinheim]], "On the Perennial and the Ephemeral in Judaism" in ''The Jewish Philosophy Reader'' (2000), edited by Daniel H. Frank ''et al.'', {{ISBN|9780415168601}}, [http://books.google.ca/books?id=_UbNP_Y0edQC&dq=platitudinize+OR+platitudinizes+OR+platitudinized&q=%22platitudinized%2C%3A#v=snippet&q=%22platitudinized%2C%3A&f=false p. 402]:""",
+
 
         # bad publisher
         """'''1964''', {{w|J. D. Salinger}} (author), Judit Gyepes (translator), ''Zabhegyező'' [''{{w|The Catcher in the Rye}}''], Budapest: Európa Könyvkiadó (1998), {{ISBN|9630764024}}, chapter 11, page 95:""",
@@ -350,6 +322,46 @@ def test_get_params_books():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
+
+        (
+            """'''2007''', Tim Pooley, “The Uneasy Interface”, in Yuji Kawaguchi et al. (editors), ''Corpus-Based Perspectives in Linguistics'', John Benjamins Publishing Company, {{ISBN|978-90-272-3318-9}}, [http://books.google.com/books?id=0qrZwAZSQq4C&pg=PA175&dq=Torontarians page 175]:""",
+            ('year', 'author', 'fancy_double_quotes', 'editor', 'italics', 'publisher', 'isbn', 'url', 'url::page'),
+            {'_source': 'book', 'year': '2007', 'author': 'Tim Pooley', 'chapter': 'The Uneasy Interface', 'editors': 'Yuji Kawaguchi; et al', 'title': 'Corpus-Based Perspectives in Linguistics', 'publisher': 'John Benjamins Publishing Company', 'isbn': '978-90-272-3318-9', 'pageurl': 'http://books.google.com/books?id=0qrZwAZSQq4C&pg=PA175&dq=Torontarians', 'page': '175'}
+        ),
+        (
+            """'''1989''', Richard Winston & al. translating [[w:Carl Jung|Carl Jung]] & al. as ''Memories, Dreams, Reflections'', p. 108:""",
+            ('year', 'translator', 'author', 'italics', 'page'),
+            {'_source': 'book', 'year': '1989', 'translators': 'Richard Winston; et al', 'author': '[[w:Carl Jung|Carl Jung]]', 'author2': 'et al', 'title': 'Memories, Dreams, Reflections', 'page': '108'}
+        ),
+        (
+            # Publisher location
+            """'''2008''', David Squire et al, ''The First-Time Garden Specialist'' ({{ISBN|1845379268}}), page 12:""",
+            ('year', 'author', 'italics', 'paren::isbn', 'page'),
+            {'_source': 'book', 'year': '2008', 'author': 'David Squire', 'author2': 'et al', 'title': 'The First-Time Garden Specialist', 'isbn': '1845379268', 'page': '12'}
+        ),
+        (
+            """'''1759''', George Sale et al., ''The Modern Part of an Universal History'', {{nowrap|volume XXIX}}: ''History of the German Empire'', [http://books.google.com/books?id=dFtjAAAAMAAJ&pg=PA2 page&nbsp;2]""",
+            ('year', 'author', 'italics', 'volume', 'italics2', 'url', 'url::page'),
+            {'_source': 'book', 'year': '1759', 'author': 'George Sale', 'author2': 'et al', 'chapter': 'The Modern Part of an Universal History', 'volume': 'XXIX', 'title': 'History of the German Empire', 'pageurl': 'http://books.google.com/books?id=dFtjAAAAMAAJ&pg=PA2', 'page': '2'}
+        ),
+        (
+            # No publisher, date
+            """'''1958''', [[w:John Kenneth Galbraith|John Kenneth Galbraith]], ''The Affluent Society'' (1998 edition), {{ISBN|9780395925003}}, [http://books.google.ca/books?id=IfH010hvIqcC&printsec=frontcover&source=gbs_ge_summary_r&cad=0#v=onepage&q=niggardly&f=false p. 186]:""",
+            ('year', 'author', 'italics', 'paren::edition', 'isbn', 'url', 'url::page'),
+            {'_source': 'book', 'year': '1958', 'author': '[[w:John Kenneth Galbraith|John Kenneth Galbraith]]', 'title': 'The Affluent Society', 'edition': '1998', 'isbn': '9780395925003', 'pageurl': 'http://books.google.ca/books?id=IfH010hvIqcC&printsec=frontcover&source=gbs_ge_summary_r&cad=0#v=onepage&q=niggardly&f=false', 'page': '186'}
+        ),
+        (
+            # pages
+            """'''1991''', Katie Hafner & [[w:John Markoff|John Markoff]], ''Cyberpunk: Outlaws and Hackers on the Computer Frontier'' (1995 revised edition), Simon and Schuster, {{ISBN|0684818620}}, pp. 255-256:""",
+            ('year', 'author', 'italics', 'paren::edition', 'publisher', 'isbn', 'pages'),
+            {'_source': 'book', 'year': '1991', 'author': 'Katie Hafner', 'author2': '[[w:John Markoff|John Markoff]]', 'title': 'Cyberpunk: Outlaws and Hackers on the Computer Frontier', 'edition': '1995 revised', 'publisher': 'Simon and Schuster', 'isbn': '0684818620', 'pages': '255-256'}
+        ),
+        (
+            # ''et al.'' in editor
+            """'''1842''', [[w:Solomon Ludwig Steinheim|Solomon Ludwig Steinheim]], "On the Perennial and the Ephemeral in Judaism" in ''The Jewish Philosophy Reader'' (2000), edited by Daniel H. Frank ''et al.'', {{ISBN|9780415168601}}, [http://books.google.ca/books?id=_UbNP_Y0edQC&dq=platitudinize+OR+platitudinizes+OR+platitudinized&q=%22platitudinized%2C%3A#v=snippet&q=%22platitudinized%2C%3A&f=false p. 402]:""",
+            ('year', 'author', 'double_quotes', 'italics', 'year2', 'editor', 'isbn', 'url', 'url::page'),
+            {'_source': 'book', 'year': '1842', 'author': '[[w:Solomon Ludwig Steinheim|Solomon Ludwig Steinheim]]', 'chapter': 'On the Perennial and the Ephemeral in Judaism', 'title': 'The Jewish Philosophy Reader', 'year_published': '2000', 'editors': 'Daniel H. Frank; et al', 'isbn': '9780415168601', 'pageurl': 'http://books.google.ca/books?id=_UbNP_Y0edQC&dq=platitudinize+OR+platitudinizes+OR+platitudinized&q=%22platitudinized%2C%3A#v=snippet&q=%22platitudinized%2C%3A&f=false', 'page': '402'},
+        ),
         (
             # Chapter title
             """'''2009''', Cate Robertson, "Half-Crown Doxy", in ''Bitten: Dark Erotic Stories'' (ed. Susie Bright), Chronicle Books (2009), {{ISBN|9780811864251}}, [http://books.google.com/books?id=GWFpxR443xEC&pg=PA126&dq=%22his+grundle%22#v=onepage&q=%22his%20grundle%22&f=false page 126]:""",
@@ -1041,6 +1053,31 @@ def test_get_params_journal():
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
         (
+            """'''2021''', Julia Huang, ''[https://web.archive.org/web/20210814023137/https://www.pharmaceuticalonline.com/doc/what-is-a-cbe-filing-what-is-a-pas-what-s-the-difference-between-anda-and-nda-0001 What Is A CBE 30 Filing? What Is A PAS? What's The Difference Between ANDA And NDA?]'', "Pharmaceutical Online":""",
+            ('year', 'author', 'italics::url', 'italics::url::text', 'double_quotes::journal'),
+            {'_source': 'journal', 'year': '2021', 'author': 'Julia Huang', 'titleurl': 'https://web.archive.org/web/20210814023137/https://www.pharmaceuticalonline.com/doc/what-is-a-cbe-filing-what-is-a-pas-what-s-the-difference-between-anda-and-nda-0001', 'title': "What Is A CBE 30 Filing? What Is A PAS? What's The Difference Between ANDA And NDA?", 'journal': 'Pharmaceutical Online'}
+        ),
+#        (
+#            """'''1992''', "[timarit.is/view_page_init.jsp?issId=269791&pageId=3833037&lang=da Usuni kipigaa]", ''Atuagagdliutit''""",
+#            ('year', 'double_quotes::brackets', 'italics::journal'),
+#            {'_source': 'journal', 'year': '1992', 'title': '[timarit.is/view_page_init.jsp?issId=269791&pageId=3833037&lang=da Usuni kipigaa]', 'journal': 'Atuagagdliutit'}
+#        ),
+        (
+            """'''1992''', "[http://timarit.is/view_page_init.jsp?issId=269857&pageId=3834041&lang=da Meeqqakka]", ''Atuagagdliutit/Grønlandsposten''""",
+            ('year', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal'),
+            {'_source': 'journal', 'year': '1992', 'titleurl': 'http://timarit.is/view_page_init.jsp?issId=269857&pageId=3834041&lang=da', 'title': 'Meeqqakka', 'journal': 'Atuagagdliutit/Grønlandsposten'}
+        ),
+        (
+            """'''2015''' January 22, Daniel Gahn, "[https://www.abendzeitung-muenchen.de/inhalt.gaztro-zuckersuesse-suenden.f838d2ab-6fe6-4550-a392-80ef26a7eba6.html Zuckersüße Sünden]", in the ''Abendzeitung München'':""",
+            ('date', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal'),
+            {'_source': 'journal', 'date': 'January 22 2015', 'author': 'Daniel Gahn', 'titleurl': 'https://www.abendzeitung-muenchen.de/inhalt.gaztro-zuckersuesse-suenden.f838d2ab-6fe6-4550-a392-80ef26a7eba6.html', 'title': 'Zuckersüße Sünden', 'journal': 'Abendzeitung München'}
+        ),
+        (
+            """'''2009''', Dominik Bardow, [https://www.freitag.de/autoren/dominik-bardow/die-schizophrenie-der-zahlschranke “Die Schizophrenie der Zahlschranke,”] ''{{w|der Freitag}}'', 22 December 2009:""",
+            ('year', 'author', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics::journal', 'date'),
+            None
+        ),
+        (
             """'''1836''', ‘Legends of Blarney Castle’, ''The Knickerbocker'', volume VIII:""",
             ('year', 'fancy_quote', 'italics::journal', 'volume'),
             {'_source': 'journal', 'year': '1836', 'title': 'Legends of Blarney Castle', 'journal': 'The Knickerbocker', 'volume': 'VIII'}
@@ -1395,6 +1432,33 @@ def test_get_params_others():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
+        (
+            # tranlating Author & al.
+            """'''1898''', Hobart Charles Porter translating Eduard Strasburger & al. ''A Text-book of Botany'', 109:""",
+            ('year', 'translator', 'author', 'italics', 'section'),
+            {'_source': 'text', 'year': '1898', 'translator': 'Hobart Charles Porter', 'author': 'Eduard Strasburger', 'author2': 'et al', 'title': 'A Text-book of Botany', 'section': '109'}
+        ),
+        (
+            # author & al. pages roman-roman
+            """'''2006''', Barry A. Kosmin & al., ''Religion in a Free Market'', [http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16 pages xvi–xvii]:""",
+            ('year', 'author', 'italics', 'url', 'url::pages'),
+            {'_source': 'text', 'year': '2006', 'author': 'Barry A. Kosmin', 'author2': 'et al', 'title': 'Religion in a Free Market', 'pageurl': 'http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16', 'pages': 'xvi-xvii'}
+        ),
+        (
+            """'''1987''', "Armageddon Now!", ''{{w|Classic X-Men}}'' #15""",
+            ('year', 'double_quotes', 'italics', 'section'),
+            {'_source': 'text', 'year': '1987', 'chapter': 'Armageddon Now!', 'title': '{{w|Classic X-Men}}', 'section': '#15'}
+        ),
+        (
+            """'''1898''', {{w|George Bernard Shaw}}, ''{{w|The Perfect Wagnerite}},'' “Forgotten ere finished,”[http://www.gutenberg.org/files/1487/1487-h/1487-h.htm]""",
+            ('year', 'author', 'italics', 'fancy_double_quotes', 'url'),
+            {'_source': 'text', 'year': '1898', 'author': '{{w|George Bernard Shaw}}', 'title': '{{w|The Perfect Wagnerite}}', 'chapter': 'Forgotten ere finished', 'url': 'http://www.gutenberg.org/files/1487/1487-h/1487-h.htm'}
+        ),
+        (
+            """'''1602''', ''La Santa Biblia (antigua versión de Casiodoro de Reina)'', rev., ''Génesis 26:8'':""",
+            ('year', 'italics', 'italics2'),
+            {'_source': 'text', 'year': '1602', 'chapter': 'Génesis 26:8', 'title': 'La Santa Biblia (antigua versión de Casiodoro de Reina)'}
+        ),
         (
             """'''2010''' January, David Brakke, “[http://www.jstor.org/stable/40390061 A New Fragment of Athanasius’s Thirty-Ninth '''''Festal''' Letter'': Heresy, Apocrypha, and the Canon]” in the ''{{w|Harvard Theological Review}}'', volume CIII, № 1, page 47:""",
             ('year', 'month', 'author', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics', 'section'),

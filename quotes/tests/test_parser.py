@@ -32,7 +32,8 @@ def test_get_leading_section():
     assert parser.get_leading_section(text) == ('Part{{nbsp}}6, Chapter{{nbsp}}4, p.{{nbsp}}428,[https://archive.org/details/judeobscure00hard/page/428/mode/1up?q=Acherontic]', '')
     # If section contains trailing raw html, it should be split into a "url" no matter what
 
-
+    text = "#15"
+    assert parser.get_leading_section(text) == ('#15', '')
 
 def test_get_leading_publisher():
     assert parser.get_leading_publisher('NYU Press ({{ISBN|9780814767498}}), page 104:') == ('NYU Press', ' ({{ISBN|9780814767498}}), page 104:')
@@ -59,7 +60,15 @@ def test_get_leading_link():
 
 def test_get_leading_url():
     assert parser.get_leading_url('http://site.com/foo... bar') == ('', LINK(target='http://site.com/foo', text='', orig='http://site.com/foo'), '... bar')
+    assert parser.get_leading_url('(http://site.com/foo) bar') == None #('', LINK(target='http://site.com/foo', text='', orig='http://site.com/foo'), ' bar')
+    assert parser.get_leading_url('(http://site.com/foo bar)') == None
 
+
+def test_normalize_et_al():
+    assert parser.normalize_et_al("blah et al.; test") == "blah, et al; test"
+    assert parser.normalize_et_al("blah ''et al.''; test") == "blah, et al; test"
+    assert parser.normalize_et_al("blah (''& al''); test") == "blah, et al; test"
+    assert parser.normalize_et_al("blah, [et alios]; test") == "blah, et al; test"
 
 def notest_season_episode():
 

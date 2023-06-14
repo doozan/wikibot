@@ -196,6 +196,7 @@ def main():
     parser = argparse.ArgumentParser(description="datamine existing template paramaters")
     parser.add_argument("--wxt", help="Extract existing template paramaters from wiki extract")
     parser.add_argument("--datadir", required=True)
+    parser.add_argument("--targets", required=True)
     args = parser.parse_args()
 
     if args.wxt:
@@ -290,12 +291,39 @@ def main():
     condensed_params = clean_params(condensed_params)
 
 
-    # Remove anything that doesn't match any of the text that needs to be fixes
+    condensed_params = get_useful_params(condensed_params, args.targets)
+    print("----")
+    for k,counts in sorted(condensed_params.items()):
+        print(k, len(counts))
 
     dump_allowed(condensed_params, args.datadir, "allowed")
 
     # later - find individual words that are highly correlated to publishers or journals and add
     # them to a disallowed_names list?
+
+# Remove anything that doesn't match any of the text that needs to be fixes
+def get_useful_params(all_params, filename):
+    useful = {}
+    with open(filename, 'r') as file:
+        data = file.read().lower()
+
+    x = 0
+    valid = 0
+    res = defaultdict(lambda: defaultdict(int))
+    for p, counts in all_params.items():
+
+        for text, count in counts.items():
+            if text in data:
+                res[p][text] += count
+                valid += 1
+
+            if not x % 10:
+                print(f"{valid}/{x}", end = '\r', file=sys.stderr)
+            x += 1
+
+
+
+    return res
 
 def dump_allowed(all_values, path, suffix):
 

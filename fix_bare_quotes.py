@@ -359,7 +359,8 @@ class QuoteFixer():
                 return True
 
         if template in ["quote-text", "cite-text"]:
-            if all(x in params for x in ["year"]) and sum(1 for x in ["author", "title"] if x in params):
+            if sum(1 for x in ["year", "date"] if x in params) == 1 \
+                    and sum(1 for x in ["author", "title"] if x in params):
                 return True
 
         elif template in ["quote-journal", "cite-journal"]:
@@ -378,7 +379,7 @@ class QuoteFixer():
                 return True
             self.dprint("incomplete song entry")
 
-        print("INVALID TEMPLATE", params)
+        print("INVALID TEMPLATE", template, params)
 
         #raise ValueError("invalid template", template, params)
         return False
@@ -403,9 +404,8 @@ class QuoteFixer():
             return
 
         return not re.search("([()]|thesis|published|submitted|printed)", title)
+        #return not re.search("(thesis|published|submitted|printed)", title)
 
-
-    
 
     def process(self, text, title, summary=None, options=None):
         # This function runs in two modes: fix and report
@@ -487,7 +487,7 @@ class QuoteFixer():
 
 
     def journal_handler(self, parsed):
-        allowed_params = {"year", "journal", "author", "volume", "issue", "page", "pages", "url", "title", "titleurl", "month", "publisher", "pageurl", "year_published", "issues", "location", "section", "number"}
+        allowed_params = {"year", "journal", "author", "volume", "issue", "page", "pages", "url", "title", "titleurl", "month", "publisher", "pageurl", "year_published", "issues", "location", "section", "number", "issn"}
         return self.generic_handler(parsed, "journal", allowed_params)
 
     def web_handler(self, parsed):
@@ -749,8 +749,9 @@ class QuoteFixer():
     _url_is_titleurl = { "url": "titleurl" }
     _paren_publisher = {"paren": "_maybe_publisher"}
 
-    _paren_italics_maybe_journal = { "paren::italics": "maybe_journal" }
-    _italics_maybe_journal = { "italics": "maybe_journal" }
+    _paren_italics_maybe_journal = { "paren::italics": "_maybe_journal" }
+    _italics_maybe_journal = { "italics": "_maybe_journal" }
+    _dq_maybe_journal = { "double_quotes": "_maybe_journal" }
 
     _song = {"_handler": song_handler, }
 
@@ -785,7 +786,7 @@ class QuoteFixer():
 
     @staticmethod
     def make_anywhere(normal, plurals, alt_keys):
-        prefixes = ["link", "url", "paren", "brackets"]
+        prefixes = ["link", "url", "paren", "brackets", "italics", "double_quotes", "fancy_quote", "fancy_double_quotes"]
 
         _anywhere = set()
         _anywhere_tr = {}
@@ -817,7 +818,7 @@ class QuoteFixer():
 
     _book = {"_handler": book_handler, "italics": "title"}
     _book_anywhere, _book_anywhere_tr = make_anywhere(
-        [ 'year', 'month', 'author', 'translator', 'edition', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc', 'book_classifier', 'section'],
+        [ 'year', 'month', 'author', 'translator', 'edition', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc', 'book_classifier'],
         [ "volume", "chapter", "page" ],
         # alternate keys
         {
@@ -827,7 +828,7 @@ class QuoteFixer():
             "date_retrieved": "accessdate"
         }
     )
-    _book_anywhere |= {'url'}
+    _book_anywhere |= {'url', 'section'}
     _book_anywhere_tr |= {
         "url::page": "url::page", # instead of just 'page', to trigger 'url' -> 'urlpage'
         "url::pages": "url::pages",
@@ -878,6 +879,7 @@ class QuoteFixer():
         {'url::date'},
         {'paren::date'},
 
+        {'year'},
         {'year', 'month'},
         {'year', 'url::month'},
         {'year', 'paren::month'},
@@ -891,6 +893,7 @@ class QuoteFixer():
     journal_must_include = [
         { 'journal' },
         { 'italics::journal' },
+        { 'double_quotes::journal' },
         { 'paren::italics::journal' },
     ]
     _journal = {"_handler": journal_handler, "italics::journal": "journal", "paren::italics::journal": "journal", "volumes": "volume"}
@@ -898,7 +901,7 @@ class QuoteFixer():
 
 
     _journal_anywhere, _journal_anywhere_tr = make_anywhere(
-        ['date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc', 'journal_classifier', 'section'],
+        ['journal', 'date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'isbn', 'issn', 'oclc', 'journal_classifier', 'section'],
         [ "issue", "number", "page", "volume" ], # not chapter
         # alternate keys
         {
@@ -913,6 +916,8 @@ class QuoteFixer():
         "url::page": "url::page", # instead of just 'page', to trigger 'url' -> 'urlpage'
         "classifier": "separator",
     }
+#    print(_journal_anywhere)
+#    exit()
 
 #    print(_journal_anywhere_tr)
 #    _orig = { 'date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'year2', 'issue', 'issues', 'volumes', 'page', 'pages', 'url', 'url::chapter', 'url::page', 'isbn', 'issn', 'oclc', 'url::date', 'paren::volume', 'paren::volumes', 'paren::page', 'paren::issues', 'paren::issue', 'paren::date', 'date_retrieved', 'paren::date_retrieved'}
@@ -927,6 +932,7 @@ class QuoteFixer():
     #_journal_anywhere = { 'date', 'year', 'month', 'author', 'translator', 'location', 'editor', 'publisher', 'year2', 'issue', 'issues', 'volumes', 'page', 'pages', 'url', 'url::chapter', 'url::page', 'isbn', 'issn', 'oclc', 'url::date', 'paren::volume', 'paren::volumes', 'paren::page', 'paren::issues', 'paren::issue', 'paren::date', 'date_retrieved', 'paren::date_retrieved'}
     #_journal_anywhere_tr = {'year2': "year_published", 'issues': 'issue', 'volumes': 'volume', 'url::date': 'date', 'paren::date': 'date', 'paren::month': 'month', 'url::month': 'month', 'paren::volumes': 'volume', 'paren::volume': 'volume', 'paren::page': 'page', 'paren::issues': 'issue', 'paren::issue': 'issue', "date_retrieved": "accessdate", "paren::date_retrieved": "accessdate"}
     _journal_exclude = { 'newsgroup', 'paren::newsgroup' }
+    _maybe_journal_exclude = { 'journal', 'newsgroup', 'paren::newsgroup' }
 
     newsgroup_must_contain = [
         {'newsgroup', 'date'},
@@ -971,59 +977,78 @@ class QuoteFixer():
     _url_sectionurl = {"url": "sectionurl"}
     _url_text_section = {"url::text": "section"}
 
+    #not_book_must_contain = [{"date", "author", "section"}, { "year", "author", "section" }]
+    not_book_must_contain = [{"date"}, {"year"}]
+
     ###HANDLERS
     _all_handlers = [
         # Text handlers
 
-        ({}, ['year', 'author'], {}, {}, _text),
+#        ({}, ['year', 'author'], {}, {}, _text),
 
-        ({}, ['year', 'url', 'url::text'], {'author', 'page', 'section'}, {}, _text|_url_text_title),
-        ({}, ['year', 'italics'], {'author', 'page', 'section'}, {}, _text|_italics_title),
-        ({}, ['year', 'italics::url', 'italics::url::text'], {'author', 'page', 'section'}, {}, _text|_italics_url_url|_italics_url_text_title),
-        ({}, ['year', 'double_quotes'], {'author', 'page', 'section'}, {}, _text|_dq_title),
-        ({}, ['year', 'double_quotes::url', 'double_quotes::url::text'], {'author', 'page', 'section'}, {}, _text|_dq_url_url|_dq_url_text_title),
-        ({}, ['year', 'fancy_double_quotes'], {'author', 'page', 'section'}, {}, _text|_fancy_dq_title),
-        ({}, ['year', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text'], {'author', 'page', 'section'}, {}, _text|_fancy_dq_url_url|_fancy_dq_url_text_title),
-        ({}, ['year', 'fancy_quote'], {'author', 'page', 'section'}, {}, _text|_fq_title),
-        ({}, ['year', 'fancy_quote::url', 'fancy_quote::url::text'], {'author', 'page', 'section'}, {}, _text|_fq_url_url|_fq_url_text_title),
+#        ({}, ['year', 'url', 'url::text'], {'author', 'page', 'section'}, {}, _text|_url_text_title),
+#        ({}, ['year', 'italics', 'italics2'], {'author', 'page', 'section'}, {}, _text|_italics_chapter|_italics2_title),
+#        ({}, ['year', 'italics'], {'author', 'page', 'section'}, {}, _text|_italics_title),
+#        ({}, ['year', 'italics::url', 'italics::url::text'], {'author', 'page', 'section'}, {}, _text|_italics_url_url|_italics_url_text_title),
+#        ({}, ['year', 'double_quotes'], {'author', 'page', 'section'}, {}, _text|_dq_title),
+#        ({}, ['year', 'double_quotes::url', 'double_quotes::url::text'], {'author', 'page', 'section'}, {}, _text|_dq_url_url|_dq_url_text_title),
+#        ({}, ['year', 'fancy_double_quotes'], {'author', 'page', 'section'}, {}, _text|_fancy_dq_title),
+#        ({}, ['year', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text'], {'author', 'page', 'section'}, {}, _text|_fancy_dq_url_url|_fancy_dq_url_text_title),
+#        ({}, ['year', 'fancy_quote'], {'author', 'page', 'section'}, {}, _text|_fq_title),
+#        ({}, ['year', 'fancy_quote::url', 'fancy_quote::url::text'], {'author', 'page', 'section'}, {}, _text|_fq_url_url|_fq_url_text_title),
 
-        ({}, ['year', 'author', 'italics', 'url', 'url::text'], {}, {}, _text|_italics_title|_url_sectionurl|_url_text_section),
-        ({}, ['year', 'italics', 'paren::volumes', 'paren::page'], {}, {}, _text|_paren_volumes_volume|_paren_page),
+#        ({}, ['year', 'author', 'italics', 'url', 'url::text'], {}, {}, _text|_italics_title|_url_sectionurl|_url_text_section),
+#        ({}, ['year', 'italics', 'paren::volumes', 'paren::page'], {}, {}, _text|_paren_volumes_volume|_paren_page),
 
-        ({}, ['year', 'italics', 'publisher'], {}, {}, _text|_italics_title|_publisher_author),
-        ({}, ['year', 'publisher', 'italics'], {}, {}, _text|_italics_title|_publisher_author),
+#        ({}, ['year', 'italics', 'publisher'], {}, {}, _text|_italics_title|_publisher_author),
+#        ({}, ['year', 'publisher', 'italics'], {}, {}, _text|_italics_title|_publisher_author),
 
-        ({}, ['year', 'italics'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_title),
-        ({}, ['date', 'italics'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_title),
+#        ({}, ['year', 'italics'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_title),
+#        ({}, ['date', 'italics'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_title),
 
-        # This a copy of the below book declarations, but with "section"
-        ({"author", "section"}, ['year', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr),
-        ({"author", "section"}, ['year', 'italics::url', 'italics::url::text'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_url_text_title|_italics_url_url),
+#        ([{'date'},{'year'}], ['italics', 'fancy_double_quotes'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_title|_fancy_dq_chapter),
 
-        ({"author", "section"}, ['year', 'italics::link'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_link_title),
-        ({"author", "section"}, ['year', 'italics::link', 'italics::link::text'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_link_title|_skip_italics_link_text),
 
-        ({"author", "section"}, ['year', 'double_quotes', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_dq_chapter),
-        ({"author", "section"}, ['year', 'double_quotes::url', 'double_quotes::url::text', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_dq_url_chapterurl|_dq_url_text_chapter),
+#        ({}, ['year', 'url', 'url::text'], {'author', 'page', 'section'}, {}, _text|_url_text_title),
 
-        ({"author", "section"}, ['year', 'fancy_quote', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fq_chapter),
-        ({"author", "section"}, ['year', 'fancy_quote::url', 'fancy_quote::url::text', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fq_url_chapterurl|_fq_url_text_chapter),
+        (not_book_must_contain, ['url', 'url::text'], _book_anywhere, _book_exclude, _text|_url_text_title|_book_anywhere_tr),
 
-        ({"author", "section"}, ['year', 'fancy_double_quotes', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fancy_dq_chapter),
-        ({"author", "section"}, ['year', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fancy_dq_url_chapterurl|_fancy_dq_url_text_chapter),
+        (not_book_must_contain, ['italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr),
+        (not_book_must_contain, ['italics::url', 'italics::url::text'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_url_text_title|_italics_url_url),
 
-        ({"author", "section"}, ['year', 'italics', 'italics2'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_chapter|_italics2_title),
+        (not_book_must_contain, ['double_quotes'], _book_anywhere, _book_exclude, _text|_dq_title|_book_anywhere_tr),
+        (not_book_must_contain, ['double_quotes::url', 'double_quotes::url::text'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_dq_url_text_title|_dq_url_url),
 
-        ({"author", "section"}, ['year', 'italics', 'double_quotes'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_dq_chapter),
-        ({"author", "section"}, ['year', 'italics', 'double_quotes::url', 'double_quotes::url::text'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_dq_url_chapterurl|_dq_url_text_chapter),
+        (not_book_must_contain, ['fancy_quote'], _book_anywhere, _book_exclude, _text|_fq_title|_book_anywhere_tr),
+        (not_book_must_contain, ['fancy_quote::url', 'fancy_double_quotes::url::text'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_fq_url_text_title|_fq_url_url),
 
-        ({"author", "section"}, ['year', 'italics', 'fancy_quote'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fq_chapter),
-        ({"author", "section"}, ['year', 'italics', 'fancy_quote::url', 'fancy_quote::url::text'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fq_url_chapterurl|_fq_url_text_chapter),
+        (not_book_must_contain, ['fancy_double_quotes'], _book_anywhere, _book_exclude, _text|_fancy_dq_title|_book_anywhere_tr),
+        (not_book_must_contain, ['fancy_double_quotes::url', 'fancy_double_quotes::url::text'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_fancy_dq_url_text_title|_fancy_dq_url_url),
 
-        ({"author", "section"}, ['year', 'italics', 'fancy_double_quotes'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fancy_dq_chapter),
-        ({"author", "section"}, ['year', 'italics', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fancy_dq_url_chapterurl|_fancy_dq_url_text_chapter),
+        (not_book_must_contain, ['italics::link'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_link_title),
+        (not_book_must_contain, ['italics::link', 'italics::link::text'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_link_title|_skip_italics_link_text),
 
-#        ({"author", "section"}, ['year', 'italics', 'publisher', 'year2', 'paren::italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_paren_italics_series),
+        (not_book_must_contain, ['double_quotes', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_dq_chapter),
+        (not_book_must_contain, ['double_quotes::url', 'double_quotes::url::text', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_dq_url_chapterurl|_dq_url_text_chapter),
+
+        (not_book_must_contain, ['fancy_quote', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fq_chapter),
+        (not_book_must_contain, ['fancy_quote::url', 'fancy_quote::url::text', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fq_url_chapterurl|_fq_url_text_chapter),
+
+        (not_book_must_contain, ['fancy_double_quotes', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fancy_dq_chapter),
+        (not_book_must_contain, ['fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fancy_dq_url_chapterurl|_fancy_dq_url_text_chapter),
+
+        (not_book_must_contain, ['italics', 'italics2'], _book_anywhere, _book_exclude, _text|_book_anywhere_tr|_italics_chapter|_italics2_title),
+
+        (not_book_must_contain, ['italics', 'double_quotes'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_dq_chapter),
+        (not_book_must_contain, ['italics', 'double_quotes::url', 'double_quotes::url::text'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_dq_url_chapterurl|_dq_url_text_chapter),
+
+        (not_book_must_contain, ['italics', 'fancy_quote'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fq_chapter),
+        (not_book_must_contain, ['italics', 'fancy_quote::url', 'fancy_quote::url::text'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fq_url_chapterurl|_fq_url_text_chapter),
+
+        (not_book_must_contain, ['italics', 'fancy_double_quotes'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fancy_dq_chapter),
+        (not_book_must_contain, ['italics', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_fancy_dq_url_chapterurl|_fancy_dq_url_text_chapter),
+
+#        (not_book_must_contain, ['italics', 'publisher', 'year2', 'paren::italics'], _book_anywhere, _book_exclude, _text|_italics_title|_book_anywhere_tr|_paren_italics_series),
 
 
 
@@ -1047,6 +1072,22 @@ class QuoteFixer():
 
         (book_must_include, ['year', 'italics::link'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_italics_link_title),
         (book_must_include, ['year', 'italics::link', 'italics::link::text'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_italics_link_title|_skip_italics_link_text),
+
+        (book_must_include, ['double_quotes'], _book_anywhere, _book_exclude, _book|_dq_title|_book_anywhere_tr),
+        (book_must_include, ['double_quotes::url', 'double_quotes::url::text'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_dq_url_text_title|_dq_url_url),
+
+        (book_must_include, ['fancy_quote'], _book_anywhere, _book_exclude,_book|_fq_title|_book_anywhere_tr),
+        (book_must_include, ['fancy_quote::url', 'fancy_double_quotes::url::text'], _book_anywhere, _book_exclude,_book|_book_anywhere_tr|_fq_url_text_title|_fq_url_url),
+
+        (book_must_include, ['fancy_double_quotes'], _book_anywhere, _book_exclude,_book|_fancy_dq_title|_book_anywhere_tr),
+        (book_must_include, ['fancy_double_quotes::url', 'fancy_double_quotes::url::text'], _book_anywhere, _book_exclude,_book|_book_anywhere_tr|_fancy_dq_url_text_title|_fancy_dq_url_url),
+
+        (book_must_include, ['italics::link'], _book_anywhere, _book_exclude,_book|_book_anywhere_tr|_italics_link_title),
+        (book_must_include, ['italics::link', 'italics::link::text'], _book_anywhere, _book_exclude,_book|_book_anywhere_tr|_italics_link_title|_skip_italics_link_text),
+
+        (book_must_include, ['double_quotes', 'italics'], _book_anywhere, _book_exclude,_book|_italics_title|_book_anywhere_tr|_dq_chapter),
+        (book_must_include, ['double_quotes::url', 'double_quotes::url::text', 'italics'], _book_anywhere, _book_exclude,_book|_italics_title|_book_anywhere_tr|_dq_url_chapterurl|_dq_url_text_chapter),
+
 
         (book_must_include, ['year', 'double_quotes', 'italics'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_dq_chapter),
         (book_must_include, ['year', 'double_quotes::url', 'double_quotes::url::text', 'italics'], _book_anywhere, _book_exclude, _book|_book_anywhere_tr|_dq_url_chapterurl|_dq_url_text_chapter),
@@ -1136,6 +1177,17 @@ class QuoteFixer():
 
 # Enable this, grep "maybe_journal" in the output, then add valid journals to the allow list
 # grep maybe_journal fixes.all | sort | uniq >> allowed_journals
+#            ('date', 'author', 'double_quotes::url', 'double_quotes::url::text', 'journal'),
+
+        #(maybe_journal_must_include, ['italics::url', 'italics::url::text', 'double_quotes'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_italics_url_text_title|_italics_url_titleurl|_dq_maybe_journal),
+
+#         (maybe_journal_must_include, ['double_quotes', 'italics'], _journal_anywhere, _maybe_journal_exclude, _journal|_journal_anywhere_tr|_dq_title|_italics_maybe_journal),
+#         (maybe_journal_must_include, ['double_quotes::url', 'double_quotes::url::text', 'italics'], _journal_anywhere, _maybe_journal_exclude, _journal|_journal_anywhere_tr|_dq_url_titleurl|_dq_url_text_title|_italics_maybe_journal),
+#         (maybe_journal_must_include, ['fancy_double_quotes', 'italics'], _journal_anywhere, _maybe_journal_exclude, _journal|_journal_anywhere_tr|_fancy_dq_title|_italics_maybe_journal),
+#         (maybe_journal_must_include, ['fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics'], _journal_anywhere, _maybe_journal_exclude, _journal|_journal_anywhere_tr|_fancy_dq_url_titleurl|_fancy_dq_url_text_title|_italics_maybe_journal),
+#         (maybe_journal_must_include, ['fancy_quote', 'italics'], _journal_anywhere, _maybe_journal_exclude, _journal|_journal_anywhere_tr|_fq_title|_italics_maybe_journal),
+#         (maybe_journal_must_include, ['fancy_quote::url', 'fancy_quote::url::text', 'italics'], _journal_anywhere, _maybe_journal_exclude, _journal|_journal_anywhere_tr|_fq_url_titleurl|_fq_url_text_title|_italics_maybe_journal),
+
 #        ({}, ['year', 'italics', 'volumes', 'page'], {}, {}, _journal|_italics_maybe_journal),
 #        ({}, ['year', 'italics', 'paren::volumes', 'paren::page'], {}, {}, _journal|_paren_volumes_volume|_paren_page|_italics_maybe_journal),
 #        (maybe_journal_must_include, ['italics'], _journal_anywhere, _journal_exclude, _journal|_journal_anywhere_tr|_italics_maybe_journal),

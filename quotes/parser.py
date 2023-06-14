@@ -152,7 +152,8 @@ class QuoteParser():
 
     #_separator_regex = re.escape(re.match(r"([/#:;-.–,—\s]*)(.*)", text)
 
-    _separator_regex = r"([/#:;\-.–,— ]*)(.*)$"
+    #_separator_regex = r"([/#:;\-.–,— ]*)(.*)$"
+    _separator_regex = r"([/:;\-.–,— ]*)(.*)$"
     def _split_leading_separators(self, text):
         return re.match(self._separator_regex, text).groups()
 
@@ -280,7 +281,7 @@ class QuoteParser():
     """
     _leading_section_regex = re.compile(_leading_section_pattern, re.IGNORECASE)
 
-    text = "issue [http://www.spiegel.de/spiegel/print/index-2010-49.html 49/2010], page 80:"
+#    text = "issue [http://www.spiegel.de/spiegel/print/index-2010-49.html 49/2010], page 80:"
 
 #    text = '[http://books.google.co.uk/books?id=erS-2XR-kPUC&pg=PA112&dq=crescendi&ei=58nkSeaJIYyykASju4yfDQ page 112] ([http://store.doverpublications.com/0486212661.html DoverPublications.com]; {{ISBN|0486212661}}'
 #    text = '([http://store.doverpublications.com/0486212661.html DoverPublications.com]; {{ISBN|0486212661}}'
@@ -795,6 +796,15 @@ class QuoteParser():
     @staticmethod
     def get_leading_url(text):
 
+#        # handle bare link in parenthesis (http://foo.bar)
+#        if text.startswith("(http://") or text.startswith("(https://"):
+#            link, _, post = text[1:].partition(")")
+#            link = link.rstrip(".,:;- ")
+#            if " " in link:
+#                return
+#            link_text = ""
+#            return link_text, LINK(link, link_text, link), post
+
         if text.startswith("http://") or text.startswith("https://"):
             link, _, post = text.partition(" ")
             link = link.rstrip(".,:;- ")
@@ -1203,6 +1213,28 @@ class QuoteParser():
 
     # TODO: Support [[:w:blah "foo"]] style links and maybe {{w|blah|''foo''}} too
 
+
+    @staticmethod
+    def _normalize_et_al_sub(m):
+        if len(m.group('start')) == len(m.group('end')):
+            return ", et al"
+        return m.group(0)
+
+    @classmethod
+    def normalize_et_al(cls, text):
+        pattern = r"""(?x)
+                ,*
+                \s+
+                (?P<start>['(\[]*)
+                (et|&)[.]?             # et or et.
+                \s+
+                al(ii|ia|ios)?      # al, al., alii, alia, alios
+                \b
+                \.?
+                (?P<end>['\])]*)
+                """
+        return re.sub(pattern, cls._normalize_et_al_sub, text)
+
     @classmethod
     def cleanup_text(cls, text):
         # Normalize whitespace
@@ -1231,11 +1263,17 @@ class QuoteParser():
         text = text.replace('{{ndash}}', "-")
         text = text.replace('{{mdash}}', "-")
 
+        text = re.sub(r"(''La Santa Biblia \(antigua versión de Casiodoro de Reina\)''), rev., ''(.*?)''", r"''\2'', \1", text)
+
         #text = re.sub(r'\[\[w:Stephanus pagination\|(.*?)\]\]', r'page \1', text)
         #text = re.sub(r"(\{\{w\|(Y Beibl cyssegr-lan|New King James Version|Bishops' Bible|Douay–Rheims Bible)\}\}),", r"''\1'',", text)
         #text = re.sub(r"(Luther Bible|King James Translators|King James Bible|Wycliffe Bible),", r"''\1'',", text)
         #text = text.replace("L. Spence Encyc. Occult", "L. Spence, ''Encyc. Occult''")
         #text = text.replace("Gibson Complete Illust. Bk Div. & Prophecy", "''Gibson Complete Illust. Bk Div. & Prophecy''")
+
+        text = cls.normalize_et_al(text)
+
+
 
 #
 #        text = text.replace('[[et alios]]', "et al.")
@@ -1451,9 +1489,14 @@ class QuoteParser():
                 self.add_parsed(parsed, label, [sub_text], orig)
 
         else:
-           for sub_item in sub_items:
-               #sub_label, sub_values = sub_item
-               self.add_parsed(parsed, f"{label}::{sub_item.type}", sub_item.values, sub_item.orig)
+#            if label in ["paren", "bracket"]:
+#                for sub_item in sub_items:
+#                    #sub_label, sub_values = sub_item
+#                    self.add_parsed(parsed, f"{sub_item.type}", sub_item.values, sub_item.orig)
+#            else:
+                for sub_item in sub_items:
+                    #sub_label, sub_values = sub_item
+                    self.add_parsed(parsed, f"{label}::{sub_item.type}", sub_item.values, sub_item.orig)
 
         return new_text
 
@@ -1613,6 +1656,9 @@ class QuoteParser():
 
         parse_options = [
                 ("date", self.get_leading_date, self.parse, True),
+
+                # Process edition before year, to capture "1995 revised edition"
+                ("edition", self.get_leading_edition, self.parse, lambda: parse_names and source_before_author),
                 ("year", self.get_leading_year, self.parse, True),   # process "year" before "bold"
                 ("month_day", self.get_leading_month_day, self.parse, True),
                 ("month", self.get_leading_month, self.parse, True),
@@ -1624,7 +1670,6 @@ class QuoteParser():
                 # IF "source_before_author" is set, check for journal and publisher before author names
                 ("journal", self.get_leading_journal, self.parse, lambda: parse_names and source_before_author),
                 # Get leading edition before publisher to catch "First edition" without matching "First" as a publisher
-                ("edition", self.get_leading_edition, self.parse, lambda: parse_names and source_before_author),
                 ("publisher", self.get_leading_publisher, self.parse, lambda: parse_names and source_before_author),
 
                 ("_unlabeled_names", get_leading_names, self.parse_names, True),
