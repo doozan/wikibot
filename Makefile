@@ -275,7 +275,7 @@ $(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.allforms.csv
 $(LIST)es_drae_errors: $(BUILDDIR)/es-en.enwikt.txt.bz2 $(SPANISH_DATA)/es-en.data
 >   echo "Running $@..."
 >   $(LIST_DRAE_ERRORS) --wordlist $(SPANISH_DATA)/es-en.data $(BUILDDIR)/es-en.enwikt.txt.bz2 --draelinks $(DRAEDATA)/drae.links $(SAVE)
->   touch $@ 
+>   touch $@
 
 $(LIST)es_drae_mismatched_genders: $(SPANISH_DATA)/es-en.data
 >   @echo "Running $@..."
@@ -460,7 +460,8 @@ $(LIST)convert_list_to_col: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >       --lang cs \
 >       --lang es \
 >       --lang mt \
->       --lang pl
+>       --lang pl \
+>       --lang zlw-opl
 
 >   touch $@
 
@@ -512,7 +513,7 @@ $(FIX)section_headers:
 >   @
 >   SRC="User:JeffDoozan/lists/section_headers/fixes"
 >   FIX="--fix ele_cleanup --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=500
+>   MAX=1500
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
@@ -524,7 +525,7 @@ $(FIX)section_levels:
 >   @
 >   SRC="User:JeffDoozan/lists/section_levels/fixes"
 >   FIX="--fix ele_cleanup --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=1000
+>   MAX=1500
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
@@ -663,7 +664,7 @@ $(FIX)bare_quotes:
 $(FIX)%_list_to_col:
 >   SRC="User:JeffDoozan/lists/$*/der_rel_terms/fixes"
 >   FIX="--fix list_to_col --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=20000
+>   MAX=2000
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
@@ -674,7 +675,7 @@ $(FIX)%_list_to_col:
 lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides mismatched_headlines bare_quotes convert_list_to_col unbalanced_delimiters section_header_errors section_level_errors section_order_errors t9n_problems fr_missing_lemmas fr_missing_tlfi pt_with_synonyms section_stats missing_forms) # missing_forms last because it's slow on low memory machine
 
 # Fixes that are safe to run automatically and without supervision
-autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides bare_quotes cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col)
+autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides bare_quotes cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col)
 
 # Fixes that may make mistakes and need human supervision
 otherfixes: $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form)
