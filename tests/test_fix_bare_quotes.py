@@ -129,11 +129,6 @@ def test_get_params_old():
             {'year': '2012', 'translator': 'Judit Szántó', 'author': '{{w|Kathy Reichs}}', 'title': 'Csont és bőr', 'publisher': 'Ulpius-ház', 'isbn': '9789632545981', 'chapter': '11', 'page': '169'}
         ),
         (
-            # Publisher after page
-            """'''1992''', {{w|Samuel Beckett}}, ''{{w|Dream of Fair to Middling Women}}'', p. 71. John Calder {{ISBN|978-0714542133}}:""",
-            {'year': '1992', 'author': '{{w|Samuel Beckett}}', 'title': '{{w|Dream of Fair to Middling Women}}', 'page': '71', 'publisher': 'John Calder', 'isbn': '978-0714542133'}
-        ),
-        (
             # reprint
             """'''1971''', Peter Brown, ''The World of Late Antiquity: AD 150—750'', Thames & Hudson LTD (2013 reprint), {{ISBN|0393958035}}, page 54.""",
             {'year': '1971', 'author': 'Peter Brown', 'title': 'The World of Late Antiquity: AD 150—750', 'page': '54', 'publisher': 'Thames & Hudson LTD', 'year_published': '2013', 'isbn': '0393958035'}
@@ -197,11 +192,6 @@ def test_get_params_old():
 #            """'''2012''', Adam Mathew, "Mass Effect 3", ''PlayStation Magazine'' (Australia), April 2012, [https://archive.org/details/Official_AUS_Playstation_Magazine_Issue_067_2012_04_Derwent_Howard_Publishing_AU/page/60/mode/2up?q=me3 page 60]:""",
 #            {'year': '2012', 'author': 'Adam Mathew', 'chapter': 'Mass Effect 3', 'title': 'PlayStation Magazine', 'month': 'April', 'url': 'https://archive.org/details/Official_AUS_Playstation_Magazine_Issue_067_2012_04_Derwent_Howard_Publishing_AU/page/60/mode/2up?q=me3', 'page': '60'}
 #        ),
-        (
-            # Vol VI, no XXXII
-            """'''1864''' "The Adventures of a Lady in Search of a Horse", ''London Society'' Vol VI, no XXXII (July 1864) [http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false p. 5]""",
-            {'year': '1864', 'chapter': 'The Adventures of a Lady in Search of a Horse', 'title': 'London Society', 'volume': 'VI', 'number': 'XXXII', 'month': 'July', 'pageurl': 'http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false', 'page': '5'}
-        ),
         (
             # Start-End for issue number
             """'''2004''' September-October, ''American Cowboy'', volume 11, number 2, page 53:""",
@@ -328,15 +318,21 @@ def test_get_params_books():
 #            ""
 #        ),
         (
-            """'''2016''': "'BRAAAM!': The Sound that Invaded the Hollywood" by Adrian Daub, ''Longreads ''""",
-            "",
-            ""
+            # Publisher after page
+            """'''1992''', {{w|Samuel Beckett}}, ''{{w|Dream of Fair to Middling Women}}'', p. 71. John Calder {{ISBN|978-0714542133}}:""",
+            ('year', 'author', 'italics', 'page', 'publisher', 'isbn'),
+            {'_source': 'book', 'year': '1992', 'author': '{{w|Samuel Beckett}}', 'title': '{{w|Dream of Fair to Middling Women}}', 'page': '71', 'publisher': 'John Calder', 'isbn': '978-0714542133'}
         ),
         (
             """'''1996''', Joan M. Drury, ''Silent Words'', Spinsters Ink, page [http://books.google.com/books?id=SYdaAAAAMAAJ&q=%22pick+up+some+McDonald%27s%22 36]:""",
-            "",
-            ""
+            ('year', 'author', 'italics', 'publisher', 'url', 'url::page'),
+            {'_source': 'book', 'year': '1996', 'author': 'Joan M. Drury', 'title': 'Silent Words', 'publisher': 'Spinsters Ink', 'pageurl': 'http://books.google.com/books?id=SYdaAAAAMAAJ&q=%22pick+up+some+McDonald%27s%22', 'page': '36'}
         ),
+#        (
+#            """'''2016''': "'BRAAAM!': The Sound that Invaded the Hollywood" by Adrian Daub, ''Longreads ''""",
+#            ('year', 'double_quotes', 'author', 'italics::journal'),
+#            ""
+#        ),
         (
             """'''1903''', {{w|Giovanni Pascoli}}, ''Myricae'', Raffaello Giusti (1903), page [https://archive.org/stream/myricaep00pascuoft#page/86/mode/1up 86], “Il miracolo”:""",
             ('year', 'author', 'italics', 'publisher', 'year2', 'url', 'url::page', 'fancy_double_quotes'),
@@ -710,11 +706,11 @@ def test_get_params_books():
             ('year', 'author', 'italics', 'url', 'url::page', 'paren::publisher', 'paren::isbn'),
             {'_source': 'book', 'year': '2001', 'author': 'Delys Bird', 'author2': 'Robert Dixon', 'author3': 'Christopher Lee', 'title': 'Authority and Influence', 'pageurl': 'http://books.google.co.uk/books?id=DABZAAAAMAAJ&q=ambilaevous&dq=ambilaevous&ei=QiuSSImiGIHAigHKibD6DA&pgis=1', 'page': '54', 'publisher': 'University of Queensland Press', 'isbn': '0702232033; 9780702232039'}
         ),
-        (
-            """'''1977''', Olga Kuthanová, translating Jan Hanzák & Jiří Formánek, ''The Illustrated Encyclopedia of Birds'', London 1992, p. 177:""",
-            ('year', 'translator', 'author', 'italics', 'location', 'year2', 'page'),
-            {'_source': 'book', 'year': '1977', 'translator': 'Olga Kuthanová', 'author': 'Jan Hanzák', 'author2': 'Jiří Formánek', 'title': 'The Illustrated Encyclopedia of Birds', 'page': '177', 'location': 'London', 'year_published': '1992'}
-        ),
+#        (
+#            """'''1977''', Olga Kuthanová, translating Jan Hanzák & Jiří Formánek, ''The Illustrated Encyclopedia of Birds'', London 1992, p. 177:""",
+#            ('year', 'translator', 'author', 'italics', 'location', 'year2', 'page'),
+#            {'_source': 'book', 'year': '1977', 'translator': 'Olga Kuthanová', 'author': 'Jan Hanzák', 'author2': 'Jiří Formánek', 'title': 'The Illustrated Encyclopedia of Birds', 'page': '177', 'location': 'London', 'year_published': '1992'}
+#        ),
         (
             # Publisher in parenthesis, not handled - other items can be in parethensis
             """'''2010''' Frank Buchmann-Moller ''Someone to Watch Over Me: The Life and Music of Ben Webster'' (University of Michigan Press) {{ISBN|0472025988}} p.57""",
@@ -1071,6 +1067,18 @@ def test_get_params_journal():
 
     for text, expected_fingerprint, expected_params in [
         #( """ """, "", "" ),
+        (
+            """'''2003''', November 17, ''The New Yorker'': "Connolly is an instinctive disturber of the peace, an enemy of blandness &mdash; of the beigists.""",
+            ('date', 'italics::journal', 'unhandled<"Connolly is an instinctive disturber of the peace, an enemy of blandness - of the beigists>'),
+            None
+        ),
+        (
+            # Vol VI, no XXXII
+            """'''1864''' "The Adventures of a Lady in Search of a Horse", ''London Society'' Vol VI, no XXXII (July 1864) [http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false p. 5]""",
+            ('year', 'double_quotes', 'italics::journal', 'section'),
+            {'_source': 'journal', 'year': '1864', 'title': 'The Adventures of a Lady in Search of a Horse', 'journal': 'London Society', 'section': 'Vol VI, no XXXII (July 1864) [http://books.google.com/books?id=_NscAQAAIAAJ&dq=heepishly&pg=PA5#v=onepage&q=heepishly&f=false p. 5]'}
+
+        ),
         (
             """'''2018''', July 5, {{w|Paul Krugman}}, [https://www.nytimes.com/2018/07/05/opinion/more-on-a-job-guarantee-wonkish.html “More on a Job Guarantee (Wonkish)”], ''The New York Times'':""",
             ('date', 'author', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics::journal'),

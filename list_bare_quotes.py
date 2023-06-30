@@ -51,6 +51,13 @@ class WikiSaver(BaseHandler):
         res.append(f"; {count} item{'s' if count>1 else ''}")
         return res
 
+    # Error page exceeds the 2M limit on wiktionary, so skip it
+    def save_page(self, dest, page_text):
+        if "error" in dest:
+            return
+        super().save(dest, page_text)
+
+
 class FileSaver(WikiSaver):
 
     def save_page(self, dest, page_text):

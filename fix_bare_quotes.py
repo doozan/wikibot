@@ -351,10 +351,10 @@ class QuoteFixer():
             self.dprint("incomplete newsgroup entry")
 
 
-#        title = params.get("title")
-#        if title and not self.is_valid_title(title):
-#            print("BAD TITLE", title)
-#            return False
+        title = params.get("title")
+        if title and not self.is_valid_title(title):
+            print("BAD TITLE", title)
+            return False
 
         if template in ["quote-book", "cite-book"]:
             if all(x in params for x in ["year", "title"]):
@@ -391,6 +391,9 @@ class QuoteFixer():
     def is_valid_title(title):
 
         if not title:
+            return False
+
+        if title == "Usenet":
             return False
 
         if title.startswith("Re:") or title.startswith("Fwd:") or title.startswith("FW:"):

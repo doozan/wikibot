@@ -321,8 +321,6 @@ def get_useful_params(all_params, filename):
                 print(f"{valid}/{x}", end = '\r', file=sys.stderr)
             x += 1
 
-
-
     return res
 
 def dump_allowed(all_values, path, suffix):
