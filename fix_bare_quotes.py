@@ -4,12 +4,12 @@ import sys
 
 from autodooz.sections import ALL_LANGS
 from collections import namedtuple
-from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit
+from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit, nest_aware_contains
 from autodooz.quotes.parser import QuoteParser, LINK
 from .quotes.name_labeler import NameLabeler
 from .quotes.names import *
 
-NESTS = (("[", "]"), ("{{", "}}"))
+NESTS = (("[[", "]]"), ("{{", "}}"))
 
 class QuoteFixer():
 
@@ -173,7 +173,7 @@ class QuoteFixer():
         # This fails on "{{a|b}} {{c|d" - where there is no closing bracket it still
         # detects the second "|" as being inside a bracket
         # As a temporary workaround, also fail if count("{{") > count("}}")
-        if next(nest_aware_split("|", passage, NESTS)) != passage or \
+        if nest_aware_contains("|", passage, NESTS) or \
                 passage.count("{{") > passage.count("}}"):
             if section:
                 self.warn("pipe_in_passage", section, passage)
@@ -278,7 +278,7 @@ class QuoteFixer():
             return
         translation = translation1 if translation1 else translation2
 
-        if next(nest_aware_split("|", translation, NESTS)) != translation or \
+        if nest_aware_contains("|", translation, NESTS) or \
                 translation.count("{{") > translation.count("}}"):
             self.warn("pipe_in_translation", section, translation)
             return
@@ -324,13 +324,8 @@ class QuoteFixer():
         #if "section" in params and any(x in params or x+"s" in params for x in _section_override_params):
         #    return False
 
-        nests = (("[[", "]]"), ("{{", "}}"), ("[http", "]")) #, (start, stop))
-
-        for k in ["url", "pageurl", "titleurl", "chapterurl", "title", "author"]:
-            v = params.get(k, "").strip()
-
-            if v.startswith("|") or v.endswith("|") \
-                    or next(nest_aware_split("|", v, NESTS)) != v:
+        for k,v in params.items():
+            if nest_aware_contains("|", v, NESTS):
                 # TODO: self.warn()
                 self.dprint("pipe_in_value", k, v, params)
                 return False
