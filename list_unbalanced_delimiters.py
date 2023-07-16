@@ -91,14 +91,15 @@ def iter_wxt(datafile, options, limit=None, show_progress=False):
         yield entry.text, entry.title, None, options
 
 
-delims = [("{", "}"), ("[", "]")] #, ("(", ")"), ("<", ">")]
+delims = [("{{", "}}"), ("{", "}"), ("[", "]")] #, ("(", ")"), ("<", ">")]
 
 def process_page(text, title, summary=None, options=None):
 
     log = []
 
-    # Strip <nowiki> and HTML comments
+    # Strip <nowiki>, <math>, and HTML comments
     text = re.sub("<\s*nowiki\s*>.*?<\s*/\s*nowiki\s*>", "", text, flags=re.DOTALL)
+    text = re.sub("<\s*math\s*>.*?<\s*/\s*math\s*>", "", text, flags=re.DOTALL)
     text = re.sub("<!--.*?-->", "", text, flags=re.DOTALL)
 
     entry = sectionparser.parse(text, title)
