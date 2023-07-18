@@ -1,0 +1,98 @@
+#!/usr/bin/python3
+#
+# Copyright (c) 2023 Jeff Doozan
+#
+# This is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+"""
+Generate monthly pages, per discussion at https://en.wiktionary.org/wiki/Wiktionary:Grease_pit/2023/January#Generating_new_monthly_discussion_pages
+"""
+
+import argparse
+import pywikibot
+
+from datetime import datetime
+
+#_discussions = ["Wiktionary:Etymology scriptorium", "Wiktionary:Grease pit", "Wiktionary:Information desk", "Wiktionary:Tea room", "Wiktionary:Beer parlour"]
+_discussions = ["Wiktionary:Information desk"]
+_months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+
+def offset_to_date(month_offset):
+    """ Convert an integer month offset to a YEAR/Month string. 0 is 2023/January """
+    if month_offset < 0 or month_offset > 120:
+        raise ValueError("Invalid month offset", month_offset)
+
+    year = 2023 + int(month_offset/12)
+    month = _months[month_offset % 12]
+    return f"{year}/{month}"
+
+def create_page_with_watchlist(site, watchlist_source, target, target_text):
+    """ Create a new page with the watchlist as an existing page """
+
+    print(f"Creating {target} with watchlist from {watchlist_source}")
+
+    source_page = pywikibot.Page(pywikibot.Link(watchlist_source, site))
+    if not source_page.exists() or source_page.isRedirectPage():
+        print(f"{watchlist_source} doesn't exist or is a redirect, skipping")
+        return
+
+    target_page = pywikibot.Page(pywikibot.Link(target, site))
+    if target_page.exists() and not target_page.isRedirectPage():
+        print(f"{target} already exists, skipping")
+        return
+
+    source_page.move(target, f"Temporarily moved to [[{target}]] to copy watchlist membership")
+    print(f"Temporarily moved to [[{target}]] to copy watchlist membership")
+
+    # target_page must be reloaded now that it has been created
+    target_page = pywikibot.Page(pywikibot.Link(target, site))
+    target_page.move(watchlist_source, f"Moved data back to [[{watchlist_source}]]")
+    print(f"Moved data back to [[{watchlist_source}]]")
+
+    # reload target_page again and set text
+    target_page = pywikibot.Page(pywikibot.Link(target, site))
+    target_page.text = target_text
+    target_page.save(f"Added page text")
+    print(f"Added page text")
+
+    return True
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Create Wiktionary discussion pages")
+    parser.add_argument("--start", help="Starting month (numbered starting at 0 from Jan 2023), page must already exist on Wiktionary (default: current month)", type=int)
+    parser.add_argument("--count", help="Number of future months to create (default 1)", type=int, default=1)
+    args = parser.parse_args()
+
+    if not args.start:
+        args.start = ((datetime.now().year - 2023) * 12) + (datetime.now().month-1)
+
+    site = pywikibot.Site()
+
+    failed = False
+    src_date = offset_to_date(args.start)
+    for dest_offset in range(args.start+1, args.start+args.count+1):
+        dest_date = offset_to_date(dest_offset)
+
+        for discussion in _discussions:
+            try:
+                create_page_with_watchlist(site, f"{discussion}/{src_date}", f"{discussion}/{dest_date}", "{{discussion month}}")
+            except Exception as e:
+                print(e)
+                failed = True
+
+    exit(failed)
+
+if __name__ == "__main__":
+    main()
