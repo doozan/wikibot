@@ -324,7 +324,7 @@ class FormFixer():
         if gender_param:
             return "{{head|es|noun form|" + gender_param + "}}"
         else:
-            raise ValueError("Noun form needs a gender")
+            raise ValueError("Noun form needs a gender", form_obj)
 
     def get_form_head(self, form_obj):
         if form_obj.pos == "n":
