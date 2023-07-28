@@ -97,7 +97,7 @@ class OverrideFixer():
             if p in current_forms:
                 current = current_forms[p]
                 default = default_forms[p]
-                if len(current_forms[p]) == 1 and current_forms[p] == default_forms[p] and template.has(p):
+                if len(current) == 1 and current == default and template.has(p):
                     template.remove(p)
                     self.fix(f"removed_{p}", section, current, default, f"removed '{p}={current[0]}'")
                 else:
@@ -107,10 +107,25 @@ class OverrideFixer():
         if p in current_forms:
             current = current_forms[p]
             default = default_forms[p]
-            if len(current_forms[p]) == 1 and current_forms[p] == default_forms[p]:
+            if len(current) == 1 and current == default:
                 template.remove(2)
                 self.fix(f"removed_{p}", section, current, default, "removed unneeded plural override")
             else:
+                for x, item in enumerate(current, 1):
+                    plural = 2 if x == 1 else f"pl{x}"
+                    if item == title:
+                        if template.has(plural):
+                            template.add(plural, "#")
+                            self.fix(f"replaced_{plural}", section, current, default, f"replaced '{plural}={title}' with '{plural}=#'")
+                        else:
+                            print("NOT FOUND", plural, title)
+                    if len(default) == 1 and item == default[0]:
+                        if template.has(plural):
+                            template.add(plural, "+")
+                            self.fix(f"replaced_{plural}", section, current, default, f"replaced '{plural}={title}' with '{plural}=+'")
+                        else:
+                            print("NOT FOUND", plural, title)
+
                 self.warn(f"custom_{p}", section, current, default)
 
 
