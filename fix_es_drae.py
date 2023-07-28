@@ -1,5 +1,4 @@
 import enwiktionary_sectionparser as sectionparser
-import mwparserfromhell
 import re
 import sys
 
