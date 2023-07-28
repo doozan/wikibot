@@ -97,6 +97,7 @@ def main():
                     expand_matches=args.expand_matches,
                     compact=not args.full, revision=article.revisionid)
 
+        entries = [e for e in entries if e]
         if not entries:
             continue
 
