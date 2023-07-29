@@ -108,7 +108,7 @@ def process_page(text, title, summary=None, options=None):
         return []
 
     for section in entry.filter_sections():
-        text = "\n".join(section._lines)
+        text = section.content_text
         for opener, closer in delims:
             open_count = text.count(opener)
             close_count = text.count(closer)

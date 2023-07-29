@@ -44,12 +44,18 @@ class ListToColFixer():
         """ Returns True if the section was modified """
 
         lang_id = ALL_LANGS[list(section.lineage)[-2]]
-        new_lines = self.process_lines(lang_id, section._lines, section, page)
-        if new_lines and new_lines != section._lines:
-            if "\n".join(section._lines).count("col-auto") < "\n".join(new_lines).count("col-auto"):
+
+        # Convert list of possibly multi-line content_wikilines to a list of individual lines
+        old_lines = []
+        for item in section.content_wikilines:
+            old_lines += item.splitlines()
+
+        new_lines = self.process_lines(lang_id, old_lines, section, page)
+        if new_lines and new_lines != old_lines:
+            if "\n".join(old_lines).count("col-auto") < "\n".join(new_lines).count("col-auto"):
                 self.fix("list_to_col", section, "converted to {{col-auto}}")
 
-            section._lines = new_lines
+            section.content_wikilines = new_lines
             return True
 
     def ignore_line(self, line):

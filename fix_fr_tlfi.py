@@ -22,12 +22,12 @@ def fr_add_tlfi(text, title, summary, options):
     all_further_reading = french.filter_sections(matches="Further reading")
     if all_further_reading:
         further_reading = all_further_reading[0]
-        further_reading._lines.insert(0, "* {{R:fr:TLFi}}")
+        further_reading.content_wikilines.insert(0, "* {{R:fr:TLFi}}")
 
     # Otherwise, create and insert or append the new section
     else:
         further_reading = sectionparser.Section(entry, 3, "References")
-        further_reading._lines.append("* {{R:fr:TLFi}}")
+        further_reading.content_wikilines.append("* {{R:fr:TLFi}}")
 
         anagrams = french.filter_sections(matches="Anagrams", recursive=False)
         if anagrams:

@@ -142,10 +142,10 @@ class QuoteFixer():
 
         return match_list == fp_list
 
-    def get_passage(self, passage_lines, section=None):
+    def get_passage(self, passage_wikilines, section=None):
         lines = []
         converted_template = False
-        for line in passage_lines:
+        for line in passage_wikilines:
 
             passage = line.lstrip("#*: ")
             if "|" in passage:
@@ -186,8 +186,8 @@ class QuoteFixer():
         return passage, translation
 
 
-    def get_translation(self, translation_lines):
-        return "<br>".join(l.lstrip("#*: ") for l in translation_lines)
+    def get_translation(self, translation_wikilines):
+        return "<br>".join(l.lstrip("#*: ") for l in translation_wikilines)
 
 
 
@@ -202,8 +202,9 @@ class QuoteFixer():
 
         changed = False
         to_remove = []
-        for idx, line in enumerate(section._lines):
-            m = re.match(pattern, line)
+
+        for idx, wikiline in enumerate(section.content_wikilines):
+            m = re.match(pattern, wikiline)
             if not m:
                 continue
 
@@ -211,32 +212,32 @@ class QuoteFixer():
 
             params = self.get_params(m.group('quote'))
             if not params:
-                self.warn("unparsable_line", section, line)
+                self.warn("unparsable_line", section, wikiline)
                 continue
 
-            passage_lines = []
-            translation_lines = []
+            passage_wikilines = []
+            translation_wikilines = []
 
             offset = 1
             failed = False
-            while idx+offset < len(section._lines) and section._lines[idx+offset].startswith(start + ":"):
+            while idx+offset < len(section.content_wikilines) and section.content_wikilines[idx+offset].startswith(start + ":"):
 
-                if re.match(re.escape(start) + ":[^:]", section._lines[idx+offset]):
-                    if translation_lines and passage_lines:
-                        self.warn("multi_passage", section, section._lines[idx+offset])
+                if re.match(re.escape(start) + ":[^:]", section.content_wikilines[idx+offset]):
+                    if translation_wikilines and passage_wikilines:
+                        self.warn("multi_passage", section, section.content_wikilines[idx+offset])
                         failed = True
                         break
-                    passage_lines.append(section._lines[idx+offset])
+                    passage_wikilines.append(section.content_wikilines[idx+offset])
 
-                elif re.match(re.escape(start) + "::[^:]", section._lines[idx+offset]):
-                    if not passage_lines:
-                        self.warn("translation_before_passage", section, section._lines[idx+offset])
+                elif re.match(re.escape(start) + "::[^:]", section.content_wikilines[idx+offset]):
+                    if not passage_wikilines:
+                        self.warn("translation_before_passage", section, section.content_wikilines[idx+offset])
                         failed = True
                         break
-                    translation_lines.append(section._lines[idx+offset])
+                    translation_wikilines.append(section.content_wikilines[idx+offset])
 
                 else:
-                    self.warn("unhandled_following_line", section, section._lines[idx+offset])
+                    self.warn("unhandled_following_line", section, section.content_wikilines[idx+offset])
                     failed = True
                     break
 
@@ -245,34 +246,32 @@ class QuoteFixer():
             if failed:
                 continue
 
-            new_lines = self.get_new_lines(start, section, params, passage_lines, translation_lines, idx)
-            if not new_lines:
+            new_wikiline = self.get_new_wikiline(start, section, params, passage_wikilines, translation_wikilines, idx)
+            if not new_wikiline:
                 continue
 
-            for x, line in enumerate(new_lines):
-                section._lines[idx+x] = line
+            section.content_wikilines[idx] = new_wikiline
 
-            used = len(new_lines)
-            for to_remove_idx in range(idx+used, idx+offset):
+            for to_remove_idx in range(idx+1, idx+offset):
                 to_remove.append(to_remove_idx)
 
             changed = True
 
         for idx in reversed(to_remove):
-            del section._lines[idx]
+            del section.content_wikilines[idx]
 
         return changed
 
-    def get_new_lines(self, start, section, params, passage_lines, translation_lines, idx):
+    def get_new_wikiline(self, start, section, params, passage_wikilines, translation_wikilines, idx):
 
         lang_id = ALL_LANGS.get(section._topmost.title)
 
-        res = self.get_passage(passage_lines, section)
+        res = self.get_passage(passage_wikilines, section)
         if not res:
             return
         passage, translation1 = res
 
-        translation2 = self.get_translation(translation_lines)
+        translation2 = self.get_translation(translation_wikilines)
         if translation1 and translation2:
             self.warn("multi_translations", section, translation1 + " ----> " + translation2)
             return
@@ -301,18 +300,18 @@ class QuoteFixer():
             print("BAD TEMPLATE", template, params)
             return
 
-        new_lines = [ start + " {{" + template + "|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()]) ]
+        new_wikiline = [ start + " {{" + template + "|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()]) ]
         if translation2:
-            new_lines.append("|passage=" + passage)
-            new_lines.append("|translation=" + translation + "}}")
+            new_wikiline.append("|passage=" + passage)
+            new_wikiline.append("|translation=" + translation + "}}")
         elif translation1:
-            new_lines.append("|passage=" + passage + "|t=" + translation + "}}")
+            new_wikiline.append("|passage=" + passage + "|t=" + translation + "}}")
         elif passage:
-            new_lines.append("|passage=" + passage + "}}")
+            new_wikiline.append("|passage=" + passage + "}}")
         else:
-            new_lines[0] += "}}"
+            new_wikiline[0] += "}}"
 
-        return new_lines
+        return "\n".join(new_wikiline)
 
 
     # Parameters that are ignored if "section" is provided

@@ -50,7 +50,7 @@ class OverrideFixer():
     def is_simple_female_equivalent(self, custom, default, section):
         masculines = custom if custom and custom not in [ ["1"], ["+"] ] else default
         masculine = masculines[0]
-        return not section._children and section._lines[1:] == ['', "# {{female equivalent of|es|" + masculine + "}}"]
+        return not section._children and section.content_wikilines[1:] == ['', "# {{female equivalent of|es|" + masculine + "}}"]
 
     def cleanup_overrides(self, title, template, section):
 
@@ -129,9 +129,9 @@ class OverrideFixer():
                 self.warn(f"custom_{p}", section, current, default)
 
 
-    def cleanup_line(self, line, title, section):
+    def cleanup_wikiline(self, wikiline, title, section):
 
-        for template in templates.iter_templates(line):
+        for template in templates.iter_templates(wikiline):
             if template.name != "es-noun":
                 continue
 
@@ -140,9 +140,9 @@ class OverrideFixer():
             new_template = str(template)
 
             if new_template != old_template:
-                line = line.replace(old_template, new_template)
+                wikiline = wikiline.replace(old_template, new_template)
 
-        return line
+        return wikiline
 
 
     def process(self, text, title, summary=None):
@@ -156,14 +156,14 @@ class OverrideFixer():
         entry_changed = False
         for spanish in entry.ifilter_sections(matches="Spanish", recursive=False):
             for section in spanish.ifilter_sections(matches="Noun"):
-                for idx, line in enumerate(section._lines):
-                    if "{{es-noun" not in line:
+                for idx, wikiline in enumerate(section.content_wikilines):
+                    if "{{es-noun" not in wikiline:
                         continue
 
-                    new_line = self.cleanup_line(line, title, section)
-                    if new_line != line:
+                    new_wikiline = self.cleanup_wikiline(wikiline, title, section)
+                    if new_wikiline != wikiline:
                         entry_changed = True
-                        section._lines[idx] = new_line
+                        section.content_wikilines[idx] = new_wikiline
 
         if not entry_changed:
             return text

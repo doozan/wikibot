@@ -85,10 +85,9 @@ class DraeFixer():
         # Remove DRAE line if it appears in References or See also
         remove_section = []
         for section in spanish.ifilter_sections(matches=lambda x: x.title in ["Further reading", "See also", "References"]):
-            for line in section._lines:
-                section._lines = [l for l in section._lines if l != drae_line]
+            section.content_lines = [l for l in section.content_wikilines if l != drae_line]
             # IF the section is now empty, remove it
-            if not section._lines:
+            if not section.content_wikilines:
                 remove_section.append(section)
         for section in remove_section:
             idx = section.parent._children.index(section)
@@ -111,7 +110,7 @@ class DraeFixer():
             else:
                 spanish._children.append(section)
 
-        section._lines.insert(0, drae_line)
+        section.content_wikilines.insert(0, drae_line)
 
         if summary is not None:
             summary.append("/*Spanish*/ added missing DRAE link")
@@ -171,10 +170,7 @@ class DraeFixer():
 
         for old_match, new in fixes:
             old = old_match.group(0)
-            new_lines = []
-            for line in section._lines:
-                new_lines.append(line.replace(old, new))
-            section._lines = new_lines
+            section.content_wikilines = [i.replace(old, new) for i in section.content_wikilines]
 
         if summary is not None:
             summary.append("/*Spanish*/ adjusted DRAE link")

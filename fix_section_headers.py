@@ -448,7 +448,7 @@ class SectionHeaderFixer():
     def remove_empty_sections(self, entry):
         for lang in entry.filter_sections(recursive=False):
             for section in lang.filter_sections():
-                if not section._lines and not section._children:
+                if not section.content_wikilines and not section._children:
                     self.fix("empty_section", section, "removed empty section")
                     section.parent._children.remove(section)
 
@@ -458,7 +458,7 @@ class SectionHeaderFixer():
             if re.search(PATTERN_REF_TAGS, str(section)) and not re.search(PATTERN_REFS, str(section)):
                 ref_section = next(section.ifilter_sections(matches="References"), None)
                 if ref_section:
-                    ref_section._lines.insert(0, "<references/>")
+                    ref_section.content_wikilines.insert(0, "<references/>")
                     self.fix("missing_ref_target", ref_section, "added missing <references/>")
                     continue
 
@@ -475,20 +475,20 @@ class SectionHeaderFixer():
 
     def rename_misnamed_etymology(self, entry):
         for section in entry.ifilter_sections(matches = lambda x: x.title == "Pronunciation"):
-            if any(re.search(PATTERN_ETY_TEMPLATES, line) for line in section._lines):
+            if re.search(PATTERN_ETY_TEMPLATES, section.content_text):
                 self.fix("misnamed_etymology", section, "renamed to Etymology (manually reviewed)")
                 section.title = "Etymology"
 
     def rename_misnamed_pronunciation(self, entry):
         for section in entry.ifilter_sections(matches = lambda x: x.title == "Etymology"):
             print("scanning", section.path)
-            if any("IPA" in line and "IPAchar" not in line and "IPAfont" not in line for line in section._lines):
+            if any("IPA" in wl and "IPAchar" not in wl and "IPAfont" not in wl for wl in section.content_wikilines):
                 self.fix("misnamed_pronunciation", section, "renamed to Pronunciation (manually reviewed)")
                 section.title = "Pronunciation"
 
     def rename_misnamed_further_reading(self, entry):
         for section in entry.ifilter_sections(matches = lambda x: x.title == "References"):
-            if not any(re.match(PATTERN_REFS, line.strip(" #:*")) for line in section._lines):
+            if not any(re.match(PATTERN_REFS, wl.strip(" #:*")) for wl in section.content_wikilines):
                 self.fix("misnamed_further_reading", section, "renamed to Further reading")
                 section.title = "Further reading"
 
@@ -498,42 +498,42 @@ class SectionHeaderFixer():
         Not safe to run generally """
         for section in entry.ifilter_sections(matches = lambda x: x.title == "References"):
             moved_idx = []
-            for idx, line in enumerate(section._lines):
-                if not re.match(PATTERN_REFS, line.strip(" #:*")):
+            for idx, wikiline in enumerate(section.content_wikilines):
+                if not re.match(PATTERN_REFS, wikiline.strip(" #:*")):
                     moved_idx.append(idx)
 
             if not moved_idx:
                 continue
 
-            moved_lines = []
+            moved_wikilines = []
             for idx in reversed(moved_idx):
-                moved_lines.insert(0, section._lines.pop(idx))
+                moved_wikilines.insert(0, section.content_wikilines.pop(idx))
 
             existing_section = next(section.parent.ifilter_sections(matches = lambda x: x.title == "Further reading"), None)
             if existing_section:
                 self.fix("moved_further_reading", section, "moved non-footnotes to Further reading")
-                for line in moved_lines:
-                    if line not in existing_section._lines:
-                        existing_section._lines.append(line)
+                for line in moved_wikilines:
+                    if line not in existing_section.content_wikilines:
+                        existing_section.content_wikilines.append(line)
 
             else:
                 self.fix("split_further_reading", section, "split non-footnotes to Further reading")
                 new_section = sectionparser.Section(section.parent, section.level, "Further reading")
-                new_section._lines = moved_lines
+                new_section.content_wikilines = moved_wikilines
                 section.parent._children.append(new_section)
 
     def rename_misnamed_references(self, entry):
         for section in entry.ifilter_sections(matches = lambda x: x.title == "Further reading"):
-            if len(section._lines) == 1 \
-                    and re.match(PATTERN_REFS, section._lines[0].strip(" #:*")) \
+            if len(section.content_wikilines) == 1 \
+                    and re.match(PATTERN_REFS, section.content_wikilines[0].strip(" #:*")) \
                     and "References" not in section.lineage:
                         self.fix("misnamed_references", section, "renamed to References")
                         section.title = "References"
 
     def rename_misnamed_quotations(self, entry):
         for section in entry.ifilter_sections(matches = lambda x: x.title == "Citations"):
-            if len(section._lines) == 1 \
-                    and re.match("{{seeCites.*?}}", section._lines[0].strip(" #:*")) \
+            if len(section.content_wikilines) == 1 \
+                    and re.match("{{seeCites.*?}}", section.content_wikilines[0].strip(" #:*")) \
                     and "Quotation" not in section.lineage:
                         self.fix("misnamed_quotations", section, "renamed to Quotations")
                         section.title = "Quotations"

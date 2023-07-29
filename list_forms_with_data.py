@@ -155,26 +155,26 @@ class MoveSubsectionsRunner():
 
         summary = []
         target = None
-        for item in entry.ifilter_sections(recursive=True, matches=lambda x: x.title in ALL_POS):
+        for section in entry.ifilter_sections(recursive=True, matches=lambda x: x.title in ALL_POS):
 
-            if not re.search("^\s*{{head\|es\|(past participle|[^|]* form)", "".join(item._lines)):
-                target = item
+            if not re.search("^\s*{{head\|es\|(past participle|[^|]* form)", section.content_text):
+                target = section
                 continue
 
             if not target:
                 continue
 
-            if not item._children:
+            if not section._children:
                 continue
 
             if target._children:
-                target._children += item._children
+                target._children += section._children
             else:
-                target._children = item._children
-            item._children = []
+                target._children = section._children
+            section._children = []
             moved = True
 
-            summary.append(f"moved subsections from {item.title} to {target.title}")
+            summary.append(f"moved subsections from {section.title} to {target.title}")
 
         if not summary:
             return page_text

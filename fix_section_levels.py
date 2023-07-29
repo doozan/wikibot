@@ -119,32 +119,54 @@ class SectionLevelFixer():
                 peer.reparent(lang, target_idx)
                 new_peers = True
 
+    def cleanup_counter(self, sections):
+        # Unnumbered countables should have no counter
+        if len(sections) == 1:
+            section = sections[0]
+            if section.count:
+                self.fix("autofix_unneeded_counter", section, "removed counter")
+                section.count = None
+
+        elif len(sections) > 1:
+            for count, section in enumerate(sections, 1):
+                count = str(count)
+                if section.count != count:
+                    self.fix("autofix_wrong_counter", section, f"renamed to {section.title} {count}")
+                    section.count = count
+
+    def fix_numbering(self, entry):
+        for l2 in entry.filter_sections(recursive=False):
+
+            for countable_title in COUNTABLE_SECTIONS:
+                sections = l2.filter_sections(recursive=False, matches=countable_title)
+
+                if not sections:
+                    continue
+
+                self.cleanup_counter(sections)
+
+                # Check for nested countable
+                for section in sections:
+                    for countable_title in COUNTABLE_SECTIONS:
+                        if countable_title == section.title:
+                            continue
+                        child_sections = section.filter_sections(recursive=False, matches=countable_title)
+                        if child_sections:
+                            self.cleanup_counter(child_sections)
 
     def cleanup_countable(self, countable_title, parent):
 
         sections = parent.filter_sections(recursive=False, matches=countable_title)
 
+        # Single countable sections should have no children
         if len(sections) == 1:
-            self.cleanup_single_countable(sections[0])
-        elif len(sections) > 1:
-            self.cleanup_multi_countable(sections)
+            section = sections[0]
 
-    #    promote_embedded_peers(countable, lang, summary, page_title)
+            # Exception: Pronunciation sections are allowed to have nested Usage notes
+            if section.title == "Pronunciation" and section.filter_sections(matches="Usage notes"):
+                return
 
-
-    def cleanup_single_countable(self, section):
-
-        # Unnumbered countables should have no counter
-        if section.count:
-            self.fix("autofix_unneeded_counter", section, "removed counter")
-            section.count = None
-
-        # pronunciation sections are allowed to have nested Usage notes
-        if section.title == "Pronunciation" and any(x.title == "Usage notes" for x in section._children):
-            return
-
-        # Unnumbered countables should have no children
-        self.promote_children(section)
+            self.promote_children(section)
 
     def promote_children(self, section):
         if not section._children:
@@ -171,12 +193,6 @@ class SectionLevelFixer():
         idx = new_parent._children.index(old_parent) + 1
         child.reparent(new_parent, idx)
 
-    def cleanup_multi_countable(self, sections):
-        for count, section in enumerate(sections, 1):
-            count = str(count)
-            if section.count != count:
-                self.fix("autofix_wrong_counter", section, f"renamed to {section.title} {count}")
-                section.count = count
 
     def move_single_pronunciation(self, lang):
         ps = lang.filter_sections(matches="Pronunciation")
@@ -475,10 +491,10 @@ class SectionLevelFixer():
                 if len(all_countable) > 1:
                     for s in all_countable:
                         if not s._children:
-                            if not s._lines:
+                            if not s.content_text:
                                 self.warn("empty_countable", f"{s.path}")
                             else:
-                                if not any("{{zh-see" in l or "{{ja-see" in l for l in s._lines):
+                                if "{{zh-see" in s.content_text or "{{ja-see" in s.content_text:
                                     self.warn("childless_countable", f"{s.path}")
                             return page_text
 
@@ -493,6 +509,8 @@ class SectionLevelFixer():
 
             self.pos_adopt_stray_children(lang)
             self.cleanup_nested_countable(lang)
+
+        self.fix_numbering(entry)
 
         self.fix_anagrams(entry)
         self.move_misplaced_translations(entry)

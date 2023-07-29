@@ -22,47 +22,25 @@ def test_sort_languages():
     result = """\
 ==Translingual==
 
-----
-
 ==English==
-
-----
 
 ==Aisi==
 
-----
-
 ==Estonian==
-
-----
 
 ==Finnish==
 
-----
-
 ==Hawaiian==
-
-----
 
 ==Spanish==
 
-----
-
 ==Thai==
-
-----
 
 ==Võro==
 
-----
-
 ==Votic==
 
-----
-
 ==Yámana==
-
-----
 
 ==Yoruba==
 """

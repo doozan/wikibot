@@ -47,7 +47,7 @@ def merge(page_text, page_title, summary, options, src_text, src_title):
     if not src:
         return
 
-    dest._lines += [line for line in src._lines if line and "{{head" not in line]
+    dest.content_wikilines += [line for line in src.content_wikilines if line and "{{head" not in line]
     dest._children += [child for child in src._children if child.title not in ["Conjugation", "Quotations"]]
 
     summary.append(f"/*Portuguese*/ moved refleive verb data from {src_title} (manually assisted)")
@@ -63,7 +63,7 @@ def remove(page_text, page_title, summary, options, dest_title):
         raise ValueError(f"No verb section found in merge source {page_title}, this should never happend")
 
     section._children = []
-    section._lines = ["{{head|pt|verb form}}", "", "# {{reflexive of|pt|" + dest_title + "}}"]
+    section.content_wikilines = ["{{head|pt|verb form}}", "", "# {{reflexive of|pt|" + dest_title + "}}"]
     summary.append(f"/*Portuguese*/ moved refleive verb data to lemma {dest_title} (manually assisted)")
 
     return str(entry)

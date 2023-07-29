@@ -8,6 +8,8 @@ from collections import defaultdict
 import enwiktionary_sectionparser as sectionparser
 from autodooz.sections import WT_POS, WT_ELE, ALL_LANGS, COUNTABLE_SECTIONS
 
+PATTERN_SIMPLE_REFS = r"(?i)(<\s*references\s*/>|{{reflist}})"
+
 errors = defaultdict(list)
 def log(error, section, notes=None):
     if isinstance(section, str):
@@ -81,7 +83,6 @@ def export_errors(prefix, summary):
     for error in error_header.keys()-errors.keys():
         export_error(prefix, error, [], summary)
 
-
 def validate_entry(entry, errors):
 
     for x in errors:
@@ -112,13 +113,12 @@ def validate_entry(entry, errors):
         if section.count and not section.title in COUNTABLE_SECTIONS:
             log("unexpected_counter", section)
 
-        if not section._lines and not section._children:
+        if not section.content_wikilines and not section._children:
             log("empty_section", section)
 
-        PATTERN_SIMPLE_REFS = r"(?i)(<\s*references\s*/>|{{reflist}})"
-        if any(re.search(PATTERN_SIMPLE_REFS, d) for d in section._lines):
+        if any(re.search(PATTERN_SIMPLE_REFS, wl) for wl in section.content_wikilines):
             if "References" not in section.lineage:
-                if len(section._lines) == 1:
+                if len(section.content_wikilines) == 1:
                     log("misnamed_references_section", section)
                 else:
                     log("reference_tag_outside_references", section)

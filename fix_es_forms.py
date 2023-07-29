@@ -470,7 +470,7 @@ class FormFixer():
             added_forms.add(item)
 
         section = sectionparser.Section(None, level, title)
-        section._lines = lines
+        section.content_wikilines = lines
         return section
 
     def generate_full_entry(self, title, forms):
@@ -918,12 +918,12 @@ class FormFixer():
 
     @classmethod
     def is_form(cls, section):
-        line = ""
+        wikiline = ""
         # Skip leading empty lines (shouldn't exist, but just to be safe)
-        for line in section._lines:
-            if line.strip():
+        for wikiline in section.content_wikilines:
+            if wikiline.strip():
                 break
-        return cls.is_form_header(line)
+        return cls.is_form_header(wikiline)
 
     ALLOWED_FORMTYPES = {
             'f', 'pl', 'fpl', 'mpl', 'infinitive', 'reflexive', 'smart_inflection', 'form'
@@ -963,29 +963,29 @@ class FormFixer():
             log("has_subsection")
             return False
 
-        first_line = True
-        for line in section._lines:
+        first_wikiline = True
+        for wikiline in section.content_wikilines:
 
             # Remove generic labels
-            line = line.replace("{{lb|es|uds.}}", "")
-            line = line.replace("{{lb|es|Latin America|uds.}}", "")
-            line = line.replace("{{lb|es|Latin America}}", "")
+            wikiline = wikiline.replace("{{lb|es|uds.}}", "")
+            wikiline = wikiline.replace("{{lb|es|Latin America|uds.}}", "")
+            wikiline = wikiline.replace("{{lb|es|Latin America}}", "")
             # Remove formatting
-            line = line.strip(" *#:")
+            wikiline = wikiline.strip(" *#:")
 
-            if not line:
+            if not wikiline:
                 continue
 
-            # The first line must be a form headline
-            if first_line:
-                if not cls.is_form_header(line):
-                    log("not_form_header", line)
+            # The first wikiline must be a form headline
+            if first_wikiline:
+                if not cls.is_form_header(wikiline):
+                    log("not_form_header", wikiline)
                     return False
-                first_line = False
+                first_wikiline = False
                 continue
 
             # All other lines must be valid form declarations
-            if not cls.is_form_sense(line, log):
+            if not cls.is_form_sense(wikiline, log):
                 return False
 
         return True
@@ -1031,7 +1031,7 @@ class FormFixer():
         changes = []
         section = removeable[0]
         new_section = self.full_pos(section.level, forms)
-        section._lines = new_section._lines
+        section.content_wikilines = new_section.content_wikilines
         changes.append(f"/*{section.path}*/ regenerated section using new templates")
 
         for item in removeable[1:]:
