@@ -756,8 +756,6 @@ def test_complex():
 
 def test_complex2():
 
-    # sorting
-
     text = """\
 ==English==
 
@@ -787,11 +785,11 @@ def test_complex2():
 
 =====Synonyms=====
 
+=====Translations=====
+
 =====Derived terms=====
 
 =====Related terms=====
-
-=====Translations=====
 
 ===Etymology 2===
 
@@ -976,7 +974,7 @@ def test_adopt_matched_cousin():
 
 ===Article===
 
-====See also====
+===See also===
 
 ===Related terms===\
 """
