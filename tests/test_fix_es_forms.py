@@ -801,8 +801,6 @@ def test_adding_new_entry_only_english(fixer, allforms):
 
 # blah
 
-----
-
 ==Spanish==
 
 ===Adjective===
@@ -827,8 +825,6 @@ def test_inserting_new_entry(fixer, allforms):
 
 # blah
 
-----
-
 ==Armenian==
 
 ===Verb===
@@ -837,8 +833,6 @@ def test_inserting_new_entry(fixer, allforms):
 # blah
 
 {{cat|blah}}
-
-----
 
 ==Swedish==
 
@@ -856,8 +850,6 @@ def test_inserting_new_entry(fixer, allforms):
 
 # blah
 
-----
-
 ==Armenian==
 
 ===Verb===
@@ -867,16 +859,12 @@ def test_inserting_new_entry(fixer, allforms):
 
 {{cat|blah}}
 
-----
-
 ==Spanish==
 
 ===Adjective===
 {{head|es|adjective form|g=m-p|g2=f-p}}
 
 # {{adj form of|es|alegre||p}}
-
-----
 
 ==Swedish==
 
@@ -914,8 +902,6 @@ def test_prepend_new_entry(fixer, allforms):
 
 # {{adj form of|es|alegre||p}}
 
-----
-
 ==Swedish==
 
 ===Verb===
@@ -949,8 +935,6 @@ def test_append_new_entry(fixer, allforms):
 {{head|verb}}
 
 # blah
-
-----
 
 ==Spanish==
 
@@ -1443,8 +1427,6 @@ def test_remove_last_lang(fixer, allforms):
 
 # blah
 
-----
-
 ==Spanish==
 
 ====Noun====
@@ -1460,8 +1442,6 @@ def test_remove_last_lang(fixer, allforms):
 {{en-verb}}
 
 # blah
-
-----
 
 """
 
@@ -1482,16 +1462,12 @@ def test_remove_middle_lang(fixer, allforms):
 
 # blah
 
-----
-
 ==Spanish==
 
 ====Noun====
 {{es-noun}}
 
 # {{plural of|es|blah}}
-
-----
 
 ==Thai==
 
@@ -1508,8 +1484,6 @@ def test_remove_middle_lang(fixer, allforms):
 {{en-verb}}
 
 # blah
-
-----
 
 ==Thai==
 
@@ -1535,8 +1509,6 @@ def test_remove_first_lang(fixer, allforms):
 {{es-noun}}
 
 # {{plural of|es|blah}}
-
-----
 
 ==Thai==
 
@@ -1788,8 +1760,6 @@ def notest_append_new_pos3(fixer, allforms):
 
 # blah
 
-----
-
 ===Thai===
 
 ===Noun===
@@ -1809,8 +1779,6 @@ def notest_append_new_pos3(fixer, allforms):
 {{head|es|noun form|g=m-p|g2=f-p}}
 
 # {{noun form of|es|dentista||p}}
-
-----
 
 ===Thai===
 
@@ -2140,9 +2108,7 @@ def test_fulanos(fixrunner):
 ===Noun===
 {{head|pt|noun form}}
 
-# {{plural of|pt|fulano}}
-
-----
+# {{plural of|pt|fulano}}\
 """
 
     result = """\
@@ -2153,8 +2119,6 @@ def test_fulanos(fixrunner):
 {{head|pt|noun form}}
 
 # {{plural of|pt|fulano}}
-
-----
 
 ==Spanish==
 
@@ -2861,8 +2825,6 @@ def test_atente(fixer, allforms):
 # {{es-verb form of|atentar}}
 # {{es-compound of|aten|er|aten|te|mood=imperative|person=tú}}
 
-----
-
 ==Venetian==
 
 ===Adjective===
@@ -2879,8 +2841,6 @@ def test_atente(fixer, allforms):
 
 # {{es-verb form of|atener}}
 # {{es-verb form of|atentar}}
-
-----
 
 ==Venetian==
 
