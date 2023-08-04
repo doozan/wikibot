@@ -385,3 +385,16 @@ wikifix['es_all_nyms'] = {
         })],
     "post-fixes": [(ele_cleanup, None)],
 }
+
+
+from autodooz.fix_quote_with_bare_passage import QuoteFixer as QPassFixer
+def fix_quote_with_bare_passage(text, title, summary, options):
+    fixer = get_fixer(QPassFixer)
+    return fixer.process(text, title, summary, options)
+
+wikifix['quote_with_bare_passage'] = {
+    'mode': 'function',
+    "pre-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(fix_quote_with_bare_passage, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
