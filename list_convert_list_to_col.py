@@ -19,7 +19,7 @@ class WikiSaver(BaseHandler):
 
         # sort autofix sections first so they can be split into other pages
         # everything else sorted by count of section entries (smallest to largest)
-        return sorted(items, key=lambda x: (x.lang_id, "autofix" in x.error, count[(x.lang_id, x.error)], x.error, x.page))
+        return sorted(items, key=lambda x: (x.lang_id, "autofix" not in x.error, count[(x.lang_id, x.error)], x.error, x.page))
 
     def is_new_section(self, item, prev_item):
         return prev_item and prev_item.error != item.error
