@@ -398,3 +398,28 @@ wikifix['quote_with_bare_passage'] = {
     "fixes": [(fix_quote_with_bare_passage, None)],
     "post-fixes": [(ele_cleanup, None)],
 }
+
+from autodooz.fix_bare_ux import BareUxFixer
+def fix_bare_ux(text, title, summary, options):
+    fixer = get_fixer(BareUxFixer)
+    return fixer.process(text, title, summary, options)
+
+wikifix['bare_ux'] = {
+    'mode': 'function',
+    "pre-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(fix_bare_ux, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
+
+from autodooz.fix_sense_bylines import BylineFixer
+def fix_sense_bylines(text, title, summary, options):
+    fixer = get_fixer(BylineFixer)
+    return fixer.process(text, title, summary, options)
+
+wikifix['sense_bylines'] = {
+    'mode': 'function',
+    "pre-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(fix_sense_bylines, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
