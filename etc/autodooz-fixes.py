@@ -411,7 +411,6 @@ wikifix['bare_ux'] = {
     "post-fixes": [(ele_cleanup, None)],
 }
 
-
 from autodooz.fix_sense_bylines import BylineFixer
 def fix_sense_bylines(text, title, summary, options):
     fixer = get_fixer(BylineFixer)
