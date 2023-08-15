@@ -364,6 +364,16 @@ def test_get_leading_year():
     assert parser.get_leading_year("('''2002''') blah") == ('2002', 'blah')
     assert parser.get_leading_year("('''2002'''), blah") == ('2002', 'blah')
 
+    assert parser.get_leading_year("c. '''2002''', blah") == ('c. 2002', 'blah')
+    assert parser.get_leading_year("'''c 2002''', blah") == ('c. 2002', 'blah')
+    assert parser.get_leading_year("'''circa 2002''', blah") == ('c. 2002', 'blah')
+    assert parser.get_leading_year("'''ante 2002''', blah") == ('a. 2002', 'blah')
+    assert parser.get_leading_year("'''post 2002''', blah") == ('p. 2002', 'blah')
+
+    assert parser.get_leading_year("'''{{circa|2002}}''', blah") == ('c. 2002', 'blah')
+    assert parser.get_leading_year("{{circa|2002}}, blah") == ('c. 2002', 'blah')
+
+
     assert parser.get_leading_year("0002 blah") == None
     assert parser.get_leading_year("2200 blah") == None
     assert parser.get_leading_year("12345 blah") == None

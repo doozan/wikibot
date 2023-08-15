@@ -30,9 +30,9 @@ class WikiSaver(BaseHandler):
 
     def page_name(self, page_sections, prev):
         if "autofix" in page_sections[0][0].error:
-            return "fixes"
+            return "bare_quotes/fixes"
         else:
-            return "errors"
+            return "bare_quotes/errors"
 
     def format_entry(self, entry, prev_entry):
         if entry.details:
@@ -104,12 +104,19 @@ def process(args):
     # Needed to unpack args until Pool.istarprocess exists
     return fixer.process(*args)
 
+from enwiktionary_sectionparser.posparser import BARE_QUOTE_LINE_RX
+def dump_targets(args):
+    text, title = args
+    for prefix, quote in re.findall(BARE_QUOTE_LINE_RX, text):
+        print(quote)
+
 def main():
     global fixer
     parser = argparse.ArgumentParser(description="Find Spanish nouns with manually specified forms")
     parser.add_argument("wxt", help="Wiktionary extract file")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
+    parser.add_argument("--dump-targets", help="Dump all lines that might be bare quotes", action='store_true')
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
     parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
     args = parser.parse_args()
@@ -120,6 +127,12 @@ def main():
         args.j = multiprocessing.cpu_count()-1
 
     iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
+
+    if args.dump_targets:
+        pool = multiprocessing.Pool(args.j)
+        for item in pool.imap_unordered(dump_targets, iter_entries, 1000):
+            pass
+        exit()
 
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)
@@ -132,7 +145,7 @@ def main():
             log(*log_values)
 
     if args.save:
-        base_url = f"User:JeffDoozan/lists/bare_quotes"
+        base_url = f"User:JeffDoozan/lists"
         logger.save(base_url, WikiSaver, commit_message=args.save)
     else:
         dest = ""

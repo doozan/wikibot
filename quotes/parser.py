@@ -1,8 +1,12 @@
+import mwparserfromhell as mwparser
+import sys
+
 from autodooz.sections import ALL_LANGS
 from collections import namedtuple
 from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit
 from autodooz.quotes.name_labeler import NameLabeler
 from autodooz.quotes.names import *
+
 
 NESTS = (("[", "]"), ("{{", "}}"))
 Parsed = namedtuple("Parsed", ["type", "values", "orig"])
@@ -157,32 +161,50 @@ class QuoteParser():
     def _split_leading_separators(self, text):
         return re.match(self._separator_regex, text).groups()
 
+    _leading_year_template_pattern = r"""(?x)
+            (?P<years>
+                (\s|'''|\(|\[)*           # ''' or ( or [
+                (?P<template>
+                    {{\s*
+                      (c\.|circa|circa2|a\.|ante|post)                   # date templates
+                    \s*\|?[^{}]*
+                    }}
+                )
+                (\s|(:)?'''|\)|\])*           # ''' or ) or ]
+            )
+            (?P<post>.*)$         # trailing text
+    """
+
     _leading_year_pattern = r"""(?x)
+            (?P<q1>circa|ca[.]?|c[.]?|ante|a[.]?|post|p[.]?)?\s*       # optional date qualifier
             (year\s*)?
             (?P<years>
             (\s|'''|\(|\[)*           # ''' or ( or [
+            \s*
+            (?P<q2>circa|ca[.]?|c[.]?|ante|a[.]?|post|p[.]?)?\s*       # optional date qualifier
             (?P<year1>(1\d|20)\d{2})
             (
               (\s*(?P<separator>or|,|&|and|-|–|to|{{ndash}})+\s*)
               (?P<year2>(1\d|20)\d{2})
             )?
+            \s*({{\s*(CE|C\.E\.)[^}]*}}|CE[:, ])?\s*
             (\s|(:)?'''|\)|\])*           # ''' or ) or ]
             )
+            \s*({{\s*(CE|C\.E\.)[^}]*}}|CE[:, ])?\s*
             (?!-) # Not followed by - (avoids matching YYYY-MM-DD)
             (?P<post>.*)$         # trailing text
         """
     _leading_year_regex = re.compile(_leading_year_pattern, re.IGNORECASE)
+    _leading_year_template_regex = re.compile(_leading_year_template_pattern, re.IGNORECASE)
     def get_leading_year(self, text):
-        m = re.match(self._leading_year_regex, text)
+
+        m_template = re.match(self._leading_year_template_regex, text)
+        m = m_template if m_template else re.match(self._leading_year_regex, text)
         if not m:
             return
 
         group = m.group('years').strip()
         post_text = m.group('post')
-
-        # Don't match 1234 in 12345
-        if group[-1].isnumeric and post_text and post_text[0].isnumeric():
-            return
 
         # Validate that all of the opening and closing pairs match up
         old = ""
@@ -199,16 +221,43 @@ class QuoteParser():
             if group.startswith("[") and group.endswith("]"):
                 group = group[1:-1].strip()
 
-        if not (group[0].isnumeric() and group[-1].isnumeric()):
+        if group[0] in "'[(" or group[-1] in "'])":
             return
+
+
+        # Parse templates
+        if m_template:
+            t = next(mwparser.parse(group).ifilter_templates())
+            qualifier = t.name.rstrip()[0]
+            if not t.has(1) or any(p.name not in ["1", "2", "short"] for p in t.params):
+                return
+
+            year1 = str(t.get(1).value).strip(" '")
+            year2 = str(t.get(2).value).strip(" '") if t.has(2) else None
+            separator = "-" if year2 else None
+        else:
+
+            # Don't match 1234 in 12345
+            if group[-1].isnumeric and post_text and post_text[0].isnumeric():
+                return
+
+            # Double qualifiers should never happen
+            if m.group("q1") and m.group("q2"):
+                return
+
+            qualifier = m.group("q1") if m.group("q1") else m.group("q2")
+            year1 = m.group('year1')
+            year2 = m.group('year2')
+            separator = m.group('separator')
+
+
+        if qualifier:
+            qualifier = qualifier[0].lower()
+            year1 = qualifier + ". " + year1
 
         # Strip {{CE}} after year
         post_text = self._strip_leading_separators(post_text)
         post_text = re.sub(r"^({{(CE|C\.E\.)[^}]*}}|CE[:,])\s*", "", post_text)
-
-        year1 = m.group('year1')
-        year2 = m.group('year2')
-        separator = m.group('separator')
 
         return tuple(self.single_or_range(year1, year2, separator) + [post_text])
 

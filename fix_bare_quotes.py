@@ -9,19 +9,41 @@ from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit, nest
 from autodooz.quotes.parser import QuoteParser, LINK
 from .quotes.name_labeler import NameLabeler
 from .quotes.names import *
+from enwiktionary_sectionparser.posparser import BARE_QUOTE_LINE_RX
 
 NESTS = (("[[", "]]"), ("{{", "}}"))
 
+# Templates that can appear inside a passage
 ALLOWED_PASSAGE_TEMPLATES = {"...", "sic", "smallcaps", "w", "l", "lang"}
-ALLOWED_UX_TEMPLATES = [ "usex", "ux", "uxi", "quote"]
+
+# UX templates that can contain passages and translations
+ALLOWED_UX_TEMPLATES = [ "usex", "ux", "uxi", "quote", "quotei" ]
 
 # Templates that can't be merged but shouldn't generate a warning
 UNHANDLED_UX_TEMPLATES = ["ja-usex", "zh-usex", "ja-x", "th-x", "zh-x"]
 
-UX_PASSAGE_PARAMS = [ "text", "passage", "2" ]
-UX_T_PARAMS = [ "t", "translation", "3" ]
-UX_TR_PARAMS = [ "tr", "translit", "transliteration", "4" ]
-ALLOWED_UX_PARAMS = ["1"] +  UX_PASSAGE_PARAMS + UX_T_PARAMS + UX_TR_PARAMS
+ALLOWED_UX_PARAMS = {
+    "1": None,
+
+    "2": "passage",
+    "text": "passage",
+    "passage": "passage",
+
+    "3": "translation",
+    "t": "translation",
+    "translation": "translation",
+
+    "4": "transliteration",
+    "tr": "transliteration",
+    "translit": "transliteration",
+    "transliteration": "transliteration",
+
+    "lit": "lit",
+
+    "inline": None,
+
+    "subst": "subst",
+}
 
 def wikilines_to_quote_params(wikilines, prefix, warn):
     passage_wikilines = []
@@ -30,13 +52,13 @@ def wikilines_to_quote_params(wikilines, prefix, warn):
     offset = 0
     while offset < len(wikilines) and wikilines[offset].startswith(prefix + ":"):
 
-        if re.match(re.escape(prefix) + ":[^:]", wikilines[offset]):
+        if re.match(re.escape(prefix) + r":[^#:*]", wikilines[offset]):
             if translation_wikilines and passage_wikilines:
                 warn("multi_passage", "\n".join(wikilines[:offset]))
                 return
             passage_wikilines.append(wikilines[offset])
 
-        elif re.match(re.escape(prefix) + "::[^:]", wikilines[offset]):
+        elif re.match(re.escape(prefix) + r"::[^#:*]", wikilines[offset]):
             if not passage_wikilines:
                 warn("translation_before_passage", "\n".join(wikilines[:offset]))
                 return
@@ -49,50 +71,55 @@ def wikilines_to_quote_params(wikilines, prefix, warn):
         offset += 1
 
     if not offset:
-        return
+        # Check for quote headlines followed (incorrectly) by an unindented {{quote}} or {{quotei}}
+        if offset < len(wikilines) and re.match(re.escape(prefix) + r"\s*\{\{\s*(quote|quotei)\s*\|", wikilines[offset]):
+            passage_wikilines.append(wikilines[offset])
+            offset +=1
+        else:
+            return
 
     res = get_passage_params(passage_wikilines, translation_wikilines, warn)
     if not res:
         return
 
-    passage, translation, translit = res
-
-    return offset, {"passage": passage, "translation": translation, "transliteration": translit }
+    return offset, res
 
 
 def get_passage_params(passage_wikilines, translation_wikilines, warn):
 
-    """ Returns passage, translation, transliteration """
+    """ Returns dictionary that may contain values for
+    passage, translation, transliteration """
 
     res = get_passage(passage_wikilines, warn)
     if not res:
         return
-    passage, translation1, translit = res
 
-    translation2 = get_translation(translation_wikilines)
-    if translation1 and translation2:
-        warn("multi_translations", "\n".join(passage_wikilines + translation_wikilines))
+    if "passage" not in res:
+        warn("no passage", "\n".join(passage_wikilines))
         return
 
-    translation = translation1 if translation1 else translation2
+    if translation_wikilines:
+        if "translation" in res:
+            warn("multi_translations", "\n".join(passage_wikilines + translation_wikilines))
+            return
+        translation = get_translation(translation_wikilines)
+        if not translation:
+            print("no_translation", "\n".join(translation_wikilines))
+        res["translation"] = translation
 
-    if translation and not passage:
-        warn("translation_without_passage", "\n".join(passage_wikilines + translation_wikilines))
+    if nest_aware_contains("|", res["passage"], NESTS):
+        warn("pipe_in_passage", res["passage"])
         return
 
-    if passage and nest_aware_contains("|", passage, NESTS):
-        warn("pipe_in_passage", passage)
+    if nest_aware_contains("|", res.get("translation", ""), NESTS):
+        warn("pipe_in_translation", res["translation"])
         return
 
-    if translation and nest_aware_contains("|", translation, NESTS):
-        warn("pipe_in_translation", translation)
+    if nest_aware_contains("|", res.get("transliteration", ""), NESTS):
+        warn("pipe_in_translit", res["transliteration"])
         return
 
-    if translit and nest_aware_contains("|", translit, NESTS):
-        warn("pipe_in_translit", translit)
-        return
-
-    return passage, translation, translit
+    return res
 
 def get_passage(passage_wikilines, warn):
     converted_template = False
@@ -104,7 +131,7 @@ def get_passage(passage_wikilines, warn):
         return
 
     if "|" not in passage:
-        return passage, None, None
+        return {"passage": passage}
 
     # Get all template names (without recursion)
     wiki = mwparser.parse(passage)
@@ -112,7 +139,7 @@ def get_passage(passage_wikilines, warn):
 
     # If all templates are allowed, no further processing needed
     if not set(templates) - ALLOWED_PASSAGE_TEMPLATES:
-        return passage, None, None
+        return {"passage": passage}
 
     # don't handle and don't log ja-usex as an error (quote- templates don't handle japanese)
     if len(templates) == 1 and templates[0] in UNHANDLED_UX_TEMPLATES:
@@ -130,30 +157,22 @@ def get_passage(passage_wikilines, warn):
         return
 
     # extract values from ux template
-
     if any(p.name.strip() not in ALLOWED_UX_PARAMS for p in t.params):
         warn("unhandled_ux_template_param_in_passage", passage)
         return
 
-    passages = [ str(t.get(p).value) for p in UX_PASSAGE_PARAMS if t.has(p) ]
-    translations = [ str(t.get(p).value) for p in UX_T_PARAMS if t.has(p) ]
-    translits = [ str(t.get(p).value) for p in UX_TR_PARAMS if t.has(p) ]
+    res = {}
+    for p, k in ALLOWED_UX_PARAMS.items():
+        # Ignore params that don't map to a value
+        if not k:
+            continue
+        if t.has(p):
+            if p in res:
+                warn(f"multiple_{k}_values", str(t))
+                return
+            res[k] = t.get(p).value.strip()
 
-    if len(passages) > 1:
-        warn("multiple_passage_param", str(t))
-        return
-    if len(translations) > 1:
-        warn("multiple_translation_param", str(t))
-        return
-    if len(translits) > 1:
-        warn("multiple_translit_param", str(t))
-        return
-
-    passage = passages[0] if passages else ""
-    translation = translations[0] if translations else ""
-    translit = translits[0] if translits else ""
-
-    return passage, translation, translit
+    return res
 
 def get_translation(translation_wikilines):
     return "<br>".join(l.lstrip("#*: ") for l in translation_wikilines)
@@ -186,7 +205,7 @@ class QuoteFixer():
         # Proposed changes will be manually, verified, be aggressive
         self.aggressive=aggressive
 
-    def get_params(self, text):
+    def get_quote_params(self, text):
 
         print("___")
         print(text)
@@ -345,20 +364,17 @@ class QuoteFixer():
         if not lang_id:
             return
 
-        # Anything that starts '''YEAR''' or '''YEAR:''' could be a quote
-        pattern = r"""([#:*]+)\s*(?P<quote>'''(1\d|20)\d{2}(:)?'''.*)$"""
-
         changed = False
         to_remove = []
 
         for idx, wikiline in enumerate(section.content_wikilines):
-            m = re.match(pattern, wikiline)
+            m = re.match(BARE_QUOTE_LINE_RX, wikiline)
             if not m:
                 continue
 
-            prefix = m.group(1)
+            prefix = m.group('prefix')
 
-            params = self.get_params(m.group('quote'))
+            params = self.get_quote_params(m.group('quote'))
             if not params:
                 self.warn("unparsable_line", section, wikiline)
                 continue
@@ -376,7 +392,7 @@ class QuoteFixer():
 
             section.content_wikilines[idx] = new_wikiline
 
-            for to_remove_idx in range(idx+1, idx+offset):
+            for to_remove_idx in range(idx+1, idx+offset+1):
                 to_remove.append(to_remove_idx)
 
             changed = True
@@ -390,9 +406,9 @@ class QuoteFixer():
 
         lang_id = ALL_LANGS.get(section._topmost.title)
 
-        prefix = "cite" if section.title in ["References", "Further reading", "Etymology"] else "quote"
+        template_type = "cite" if section.title in ["References", "Further reading", "Etymology"] else "quote"
         source = params.pop("_source")
-        template = prefix + "-" + source
+        template = template_type + "-" + source
 
         page = list(section.lineage)[-1]
         print("PAGE", page)
@@ -403,12 +419,17 @@ class QuoteFixer():
         new_wikiline = [ prefix + " {{" + template + "|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()]) ]
 
         if lang_id == "en" and passage_params.get("translation"):
-            self.warn("english_has_translation", section, "\n".join(section.content_wikilines[idx:idx+offset]))
+            self.warn("english_has_translation", section, passage_params)
             return
 
-        for k in ["passage", "translation", "transliteration"]:
+        ORDERED_PARAMS = ["passage", "translation", "transliteration"]
+        for k in ORDERED_PARAMS:
             if passage_params.get(k):
                 new_wikiline.append(f"|{k}={passage_params[k]}")
+        for k,v in sorted(passage_params.items()):
+            if k in ORDERED_PARAMS:
+                continue
+            new_wikiline.append(f"|{k}={passage_params[k]}")
 
         new_wikiline[-1] += "}}"
         return "\n".join(new_wikiline)
