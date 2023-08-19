@@ -3,12 +3,13 @@ import re
 import multiprocessing
 import os
 import sys
+import mwparserfromhell as mwparser
 
 from autodooz.sections import ALL_POS, COUNTABLE_SECTIONS, ALL_LANGS
 from .list_mismatched_headlines import HEAD_TEMPLATES, POS_TEMPLATES
 
 POS_TEMPLATE_LIST = [ "[a-z]+" + t if t.startswith("-") else t for templates in POS_TEMPLATES.values() for t in templates if not "=" in t ]
-HEADLINE_PATTERN = "^\s*{{\s*(" + "|".join(POS_TEMPLATE_LIST + HEAD_TEMPLATES) + ")\s*[|}]"
+HEADLINE_PATTERN = r"^\s*{{\s*(" + "|".join(POS_TEMPLATE_LIST + HEAD_TEMPLATES) + r")\s*[|}]"
 RE_HEADLINE = re.compile(HEADLINE_PATTERN)
 
 def is_headline(text):
@@ -76,7 +77,7 @@ class BylineFixer():
         entry_changed = False
 
         # Skip this particular disaster
-        if page in ["уж"]:
+        if page.partition("#")[0] in ["уж"]:
             return [] if summary is None else page_text
 
         entry = sectionparser.parse(page_text, page)
@@ -85,7 +86,6 @@ class BylineFixer():
 
         for section in entry.ifilter_sections(matches=lambda x: x.title != "Idiom" and x.title in ALL_POS \
                 and x.parent and (x.parent.title in COUNTABLE_SECTIONS or x.parent.title in ALL_LANGS)):
-        #for section in entry.ifilter_sections(matches=lambda x: x.title in ALL_POS):
 
             # Navajo entries are a mess
             if section._topmost.title == "Navajo":
@@ -298,6 +298,152 @@ class BylineFixer():
             self.cleanup_sense_item(child, section, update_style=False)
 
 
+    def fix_complex_byline(self, byline, section=None):
+
+        m = re.search(sectionparser.PosParser.re_templates, byline.data)
+        if not m:
+            return
+
+        template_type = sectionparser.PosParser.template_to_type[m.group('t')]
+
+        if template_type in sectionparser.PosParser.ALL_NYMS:
+            return self.fix_nym_byline(template_type, byline, section)
+        else:
+            if section:
+                self.warn(f"complex_{template_type}", section, "sense" + byline.name[1:], str(byline))
+            return
+
+    def fix_nym_byline(self, template_type, byline, section):
+
+        prev = None
+        extra = byline.data
+        while prev != extra:
+            prev = extra
+            extra = re.sub(r"\s*(<!--.*?-->|{{[^{}]*}})", "", prev)
+
+        replacements = []
+        extra_qualifiers = []
+        extra_nyms = []
+
+        full_extra = extra
+#        extra = extra.replace("'&nbsp;", " ")
+#        extra = extra.replace("'&ndash;", "-")
+        extra = extra.strip("\",;. ")
+        if extra:
+
+            m = re.match(r"^('')?\(('')?(?P<q>[^()]*?)('')?\)('')?$", extra, flags=re.DOTALL)
+            if m:
+                extra_qualifiers.append(m.group('q'))
+                replacements.append((full_extra, ""))
+
+            else:
+                self.warn(f"complex_{template_type}_unhandled text", section, "sense" + byline.name[1:], str(byline))
+                return
+
+#            m = re.match(r"^('')?\(('')?(?P<q>[^()]*?)('')?\)('')?$", extra, flags=re.DOTALL)
+#            else:
+
+        wiki = mwparser.parse(byline.data)
+        templates = wiki.filter_templates(recursive=False)
+        if not templates:
+            if section:
+                self.warn(f"complex_{template_type}_no_templates", section, "sense" + byline.name[1:], str(byline))
+            return
+
+        template = templates.pop(0)
+
+        # Only add qualifiers to single syn templates
+        if extra_qualifiers and templates:
+            if section:
+                self.warn(f"complex_{template_type}_bare_quote_and_other_templates", section, "sense" + byline.name[1:], str(byline))
+            return
+
+        if templates:
+            # Handle extra qualifier templates
+            if len(templates) == 1 and templates[0].name.strip() in ["i", "q", "qualifier"]:
+
+                q_template = templates[0]
+                if len(q_template.params) != 1 or not q_template.has(1):
+                    # TODO: push each param into extra_qualifiers
+                    print("no 1= param in qualifier", section.page, byline.data)
+                    return
+
+                if extra_qualifiers:
+                    if section:
+                        self.warn(f"complex_{template_type}_dup_qualifiers", section, "sense" + byline.name[1:], str(byline))
+                    return
+
+                qualifier = q_template.get(1)
+                if qualifier.startswith("''") and qualifier.endswith("''"):
+                    qualifier = qualifier.strip("'")
+
+                extra_qualifiers.append(qualifier)
+                replacements.append((str(q_template), ""))
+                #replacements.append((full_extra, ""))
+
+            else:
+                lang_id = template.get(1).strip()
+                mergeable_templates = sectionparser.PosParser.TYPE_TO_TEMPLATES[template_type] + ["l", "l-line"]
+                if all(t.name.strip() in mergeable_templates and t.get(1).strip() == lang_id for t in templates):
+                    for t in templates:
+                        if len(t.params) != 2:
+                            return
+                        extra_nyms.append(t.get(2).strip())
+                        replacements.append((str(t), ""))
+                    #replacements.append((full_extra, ""))
+
+                else:
+                    if section:
+                        self.warn(f"complex_{template_type}_unhandled_template", section, "sense" + byline.name[1:], str(byline))
+                    return
+
+        if extra_qualifiers:
+            if len(template.params) != 2 or not template.has(2):
+                if section:
+                    self.warn(f"complex_{template_type}_multi_values_with_qualifier", section, "sense" + byline.name[1:], str(byline))
+                return
+
+            old = str(template)
+            if "<q" in template.get(2):
+                if section:
+                    self.warn(f"complex_{template_type}_multi_qualifiers", section, "sense" + byline.name[1:], str(byline))
+                return
+
+            for qualifier in extra_qualifiers:
+                template.add(2, template.get(2).rstrip() + f"<qq:{qualifier}>")
+
+            new = str(template)
+            replacements.append((old, new))
+            if section:
+                self.fix(f"{template_type}_bare_qualifier", section, byline.name, f"merged bare {template_type} qualifier into template")
+
+        if extra_nyms:
+            max_param = max(int(p.name.strip()) for p in template.params if p.name.strip().isdigit())
+            old = str(template)
+            for idx, extra_nym in enumerate(extra_nyms, 1):
+                template.add(max_param+idx, extra_nym)
+
+            new = str(template)
+            replacements.append((old, new))
+            if section:
+                self.fix(f"{template_type}_bare_extra", section, byline.name, f"merged bare {template_type} items into template")
+
+        text = byline.data
+        for old, new in replacements:
+            new_text = text.replace(old, new)
+            if new_text == text:
+                return
+                raise ValueError("ERROR replacing text", text, replacements)
+            text = new_text
+
+        text = text.rstrip(",; ")
+
+        byline._type = template_type
+        byline.data = text
+
+        return True
+
+
 
     def validate_sense_list(self, sense_list, section):
 
@@ -325,10 +471,8 @@ class BylineFixer():
                 # Detect items with templates that would classify them by type, but labelled unknown
                 # indicates that the line is not a single template wrapper
                 if child._type == "unknown":
-                    m = re.search(sectionparser.PosParser.re_templates, child.data)
-                    if m:
-                        template_type = sectionparser.PosParser.template_to_type[m.group('t')]
-                        self.warn(f"complex_{template_type}", section, "sense" + child.name[1:], str(child))
+                    fixed = self.fix_complex_byline(child, section)
+                    if not fixed:
                         return False
 
                 # don't warn on subsenses
