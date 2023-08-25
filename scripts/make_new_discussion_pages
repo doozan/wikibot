@@ -24,8 +24,7 @@ import pywikibot
 
 from datetime import datetime
 
-#_discussions = ["Wiktionary:Etymology scriptorium", "Wiktionary:Grease pit", "Wiktionary:Information desk", "Wiktionary:Tea room", "Wiktionary:Beer parlour"]
-_discussions = ["Wiktionary:Information desk"]
+_discussions = ["Wiktionary:Etymology scriptorium", "Wiktionary:Grease pit", "Wiktionary:Information desk", "Wiktionary:Tea room", "Wiktionary:Beer parlour"]
 _months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
 def offset_to_date(month_offset):
