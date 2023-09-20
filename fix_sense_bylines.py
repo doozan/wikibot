@@ -337,7 +337,7 @@ class BylineFixer():
                 replacements.append((full_extra, ""))
 
             else:
-                self.warn(f"complex_{template_type}_unhandled text", section, "sense" + byline.name[1:], str(byline))
+                self.warn(f"complex_{template_type}_unhandled_text", section, "sense" + byline.name[1:], str(byline))
                 return
 
 #            m = re.match(r"^('')?\(('')?(?P<q>[^()]*?)('')?\)('')?$", extra, flags=re.DOTALL)
