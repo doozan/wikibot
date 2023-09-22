@@ -85,10 +85,6 @@ def export_errors(prefix, summary, errors):
 
 def validate_entry(entry, errors):
 
-    for x in errors:
-        error, path, line = x
-        loge(errors, error, path, line)
-
     for section in entry.ifilter_sections():
         for line in section.content_wikilines:
             m = re.match("(^|^.*?\n)==[^=]+==", line, re.DOTALL)
@@ -326,7 +322,13 @@ def process(args):
     text, title, _ = args
 
     errors = defaultdict(list)
-    entry = sectionparser.parse(text, title, errors)
+
+    section_errors = []
+    entry = sectionparser.parse(text, title, section_errors)
+
+    for error, section, details in section_errors:
+        log(errors, error, section, details)
+
     validate_entry(entry, errors)
 
     sections = [ (section.title, section.level) if section.title else ("(no section title)", section.level)
