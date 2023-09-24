@@ -422,3 +422,73 @@ wikifix['sense_bylines'] = {
     "fixes": [(fix_sense_bylines, None)],
     "post-fixes": [(ele_cleanup, None)],
 }
+
+
+import mwparserfromhell as mwparser
+def fix_polish_etydate(text, title, summary, options):
+    wikt = sectionparser.parse(text, title)
+    if not wikt:
+        return text
+
+    for l2 in wikt.ifilter_sections(matches="Polish", recursive=False):
+        for section in l2.ifilter_sections(matches="Etymology", recursive=False):
+            for idx, wikiline in enumerate(section.content_wikilines):
+                if "etydate" not in wikiline:
+                    continue
+                if not re.search(r"(R:zlw-opl:SPJSP|R:zlw-opl:SSP1953|\{\{inh[+]?\\s*|\s*pl\s*\|\s*zlw-opl)", wikiline):
+                    continue
+
+                wiki = mwparser.parse(wikiline)
+                templates = map(str, wiki.filter_templates(matches="etydate", recursive=False))
+                for old in templates:
+                   wikiline = wikiline.replace(old, "").rstrip()
+                   wikiline = wikiline.replace(old, "").lstrip(". ")
+                   wikiline = wikiline.replace(". .", ".")
+                   wikiline = wikiline.replace(".  ", ". ")
+                   wikiline = wikiline.replace("  .", " .")
+
+                section.content_wikilines[idx] = wikiline
+
+    new = str(wikt)
+    if new != text:
+        summary.append("/* Polish */ remove {{etydate}} from Polish lemmas inherited from Old Polish (per request)")
+    return new
+
+wikifix['polish_etydate'] = {
+    'mode': 'function',
+    "pre-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(fix_polish_etydate, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
+def fix_polish_refs(text, title, summary, options):
+    print("scanning", title)
+
+    wikt = sectionparser.parse(text, title)
+    if not wikt:
+        return text
+
+    for l2 in wikt.ifilter_sections(matches="Polish", recursive=False):
+        for section in l2.ifilter_sections(matches="References"):
+            remove = []
+            for idx, wikiline in enumerate(section.content_wikilines):
+                if re.match(r"[#:*]+\s*{{\s*(R:pl:NFJP|R:pl:NFJP)[^}]*}}\s*$", wikiline):
+                    remove.append(idx)
+
+            for idx in reversed(remove):
+                del section.content_wikilines[idx]
+
+    new = str(wikt)
+    if new != text:
+        summary.append("/* Polish */ removed {{R:pl:NFJP}} from Polish references (per request)")
+    return new
+
+wikifix['polish_refs'] = {
+    'mode': 'function',
+    "pre-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(fix_polish_refs, None)],
+    "post-fixes": [(ele_cleanup, None)],
+}
+
+
+
