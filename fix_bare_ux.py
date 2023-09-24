@@ -122,9 +122,9 @@ class BareUxFixer():
                         self.warn("unfixable_multi_ux", section, item.name, str(sense))
                     continue
 
-#                if len(bare_ux_items) > 1:
-#                    self.warn("multi_bare_ux", section, "", str(sense))
-#                    continue
+                if len(bare_ux_items) > 1:
+                    self.warn("multi_bare_ux", section, "", str(sense))
+                    continue
 
                 if bare_ux_items and any(c._type not in ALLOWED_SIBLINGS for c in sense._children):
                     self.warn("bare_ux_with_unhandled_siblings", section, "", str(sense))
