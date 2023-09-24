@@ -16,8 +16,11 @@ NESTS = (("[[", "]]"), ("{{", "}}"))
 # Templates that can appear inside a passage
 ALLOWED_PASSAGE_TEMPLATES = {"...", "sic", "smallcaps", "w", "l", "lang"}
 
+# Templates that should never appear in a passage
+DISALLOWED_PASSAGE_TEMPLATES = {"audio"}
+
 # UX templates that can contain passages and translations
-ALLOWED_UX_TEMPLATES = [ "usex", "ux", "uxi", "quote", "quotei" ]
+ALLOWED_UX_TEMPLATES = [ "usex", "ux", "uxi", "quote", "quotei", "lang" ]
 
 # Templates that can't be merged but shouldn't generate a warning
 UNHANDLED_UX_TEMPLATES = ["ja-usex", "zh-usex", "ja-x", "th-x", "zh-x"]
@@ -45,7 +48,7 @@ ALLOWED_UX_PARAMS = {
     "subst": "subst",
 }
 
-def wikilines_to_quote_params(wikilines, prefix, warn):
+def wikilines_to_quote_params(wikilines, prefix, warn, handle_ux_templates=False):
     passage_wikilines = []
     translation_wikilines = []
 
@@ -78,19 +81,19 @@ def wikilines_to_quote_params(wikilines, prefix, warn):
         else:
             return
 
-    res = get_passage_params(passage_wikilines, translation_wikilines, warn)
+    res = get_passage_params(passage_wikilines, translation_wikilines, warn, handle_ux_templates)
     if not res:
         return
 
     return offset, res
 
 
-def get_passage_params(passage_wikilines, translation_wikilines, warn):
+def get_passage_params(passage_wikilines, translation_wikilines, warn, handle_ux_templates):
 
     """ Returns dictionary that may contain values for
     passage, translation, transliteration """
 
-    res = get_passage(passage_wikilines, warn)
+    res = get_passage(passage_wikilines, warn, handle_ux_templates)
     if not res:
         return
 
@@ -104,7 +107,8 @@ def get_passage_params(passage_wikilines, translation_wikilines, warn):
             return
         translation = get_translation(translation_wikilines)
         if not translation:
-            print("no_translation", "\n".join(translation_wikilines))
+            warn("no_translation", "\n".join(translation_wikilines))
+            return
         res["translation"] = translation
 
     if nest_aware_contains("|", res["passage"], NESTS):
@@ -121,7 +125,7 @@ def get_passage_params(passage_wikilines, translation_wikilines, warn):
 
     return res
 
-def get_passage(passage_wikilines, warn):
+def get_passage(passage_wikilines, warn, handle_ux_templates):
     converted_template = False
 
     passage = "<br>".join(l.lstrip("#*:").strip() for l in passage_wikilines)
@@ -140,6 +144,13 @@ def get_passage(passage_wikilines, warn):
     # If all templates are allowed, no further processing needed
     if not set(templates) - ALLOWED_PASSAGE_TEMPLATES:
         return {"passage": passage}
+
+    # Fail if not handling UX templates
+    if not handle_ux_templates:
+        return
+
+    if set(templates) & DISALLOWED_PASSAGE_TEMPLATES:
+        return
 
     # don't handle and don't log ja-usex as an error (quote- templates don't handle japanese)
     if len(templates) == 1 and templates[0] in UNHANDLED_UX_TEMPLATES:
@@ -175,8 +186,15 @@ def get_passage(passage_wikilines, warn):
     return res
 
 def get_translation(translation_wikilines):
-    return "<br>".join(l.lstrip("#*: ") for l in translation_wikilines)
+    translation = "<br>".join(l.lstrip("#*: ") for l in translation_wikilines)
 
+    wiki = mwparser.parse(translation)
+    templates = [t.name.strip() for t in wiki.ifilter_templates(recursive=False)]
+
+    if set(templates) & DISALLOWED_PASSAGE_TEMPLATES:
+        return
+
+    return translation
 
 class QuoteFixer():
 
@@ -375,18 +393,25 @@ class QuoteFixer():
             prefix = m.group('prefix')
 
             params = self.get_quote_params(m.group('quote'))
-            if not params:
-                self.warn("unparsable_line", section, wikiline)
-                continue
-
 
             warn = lambda e, d: self.warn(e, section, d)
-            res = wikilines_to_quote_params(section.content_wikilines[idx+1:], prefix, warn)
+            res = wikilines_to_quote_params(section.content_wikilines[idx+1:], prefix, warn, bool(params))
             if not res:
                 continue
             offset, passage_params = res
 
-            new_wikiline = self.get_new_wikiline(prefix, section, params, passage_params)
+            if not params:
+                self.warn("unparsable_line", section, wikiline)
+                if passage_params:
+                    template_line = self.get_quote_template(prefix, section, passage_params)
+                    if not template_line or "|mul|" in template_line or "|en|" in template_line:
+                        continue
+                    new_wikiline = wikiline + "\n" + template_line
+                else:
+                    continue
+            else:
+                new_wikiline = self.get_new_wikiline(prefix, section, params, passage_params)
+
             if not new_wikiline:
                 continue
 
@@ -402,19 +427,44 @@ class QuoteFixer():
 
         return changed
 
-    def get_new_wikiline(self, prefix, section, params, passage_params):
+    def get_quote_template(self, prefix, section, passage_params):
+        lang_id = ALL_LANGS.get(section._topmost.title)
+        new_wikiline = [ prefix + ":" + " {{quote|" + lang_id ]
+
+        if lang_id == "en" and passage_params.get("translation"):
+            self.warn("english_has_translation", section, passage_params)
+            return
+
+        ORDERED_PARAMS = ["passage", "translation", "transliteration"]
+        for k in ORDERED_PARAMS:
+            if passage_params.get(k):
+                if k == "passage":
+                    new_wikiline.append(f"|{passage_params[k]}")
+                else:
+                    new_wikiline.append(f"\n|{k}={passage_params[k]}")
+        for k,v in sorted(passage_params.items()):
+            if k in ORDERED_PARAMS:
+                continue
+            new_wikiline.append(f"|{k}={passage_params[k]}")
+
+        new_wikiline[-1] += "}}"
+        return "".join(new_wikiline)
+
+
+    def get_new_wikiline(self, prefix, section, params, passage_params, template_override=None):
 
         lang_id = ALL_LANGS.get(section._topmost.title)
 
-        template_type = "cite" if section.title in ["References", "Further reading", "Etymology"] else "quote"
-        source = params.pop("_source")
-        template = template_type + "-" + source
+        if template_override:
+            template = template_override
+        else:
+            template_type = "cite" if section.title in ["References", "Further reading", "Etymology"] else "quote"
+            source = params.pop("_source")
+            template = template_type + "-" + source
 
-        page = list(section.lineage)[-1]
-        print("PAGE", page)
-        if not self.is_valid_template(template, params):
-            print("BAD TEMPLATE", template, params)
-            return
+            if not self.is_valid_template(template, params):
+                print("BAD TEMPLATE", template, params)
+                return
 
         new_wikiline = [ prefix + " {{" + template + "|" + lang_id + "|" + "|".join([f"{k}={v}" for k,v in params.items()]) ]
 
