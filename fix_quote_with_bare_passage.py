@@ -109,7 +109,12 @@ class QuoteFixer():
                 passage_param_names = ["passage", "text"]
                 if POSITION_PARAM.get(template_name):
                     passage_param_names.append(POSITION_PARAM.get(template_name))
-                if any(t.has(p) for p in passage_param_names):
+                existing_passage_param = [p for p in passage_param_names if t.has(p)]
+                if existing_passage_param:
+                    #existing_passage = str(t.get(existing_passage_param[0]))
+                    #new_passage = existing_passage + "<br>" + passage_params["passage"]
+                    #del passage_params["passage"]
+                    #wikiline = wikiline.replace(existing_passage, new_passage)
                     self.warn("quote_with_child_lines", section, "\n".join(section.content_wikilines[idx:idx+offset+1]))
                     continue
 
@@ -135,8 +140,9 @@ class QuoteFixer():
 
                 # Some RQ templates can't handle newlines
                 sep = "" if fragile_template else "\n"
-                new_wikiline = re.sub("}}\s*$", "", wikiline) + f"{sep}|" + f"{sep}|".join(new_params) + "}}"
-                section.content_wikilines[idx] = new_wikiline
+                if new_params:
+                    wikiline = re.sub("}}\s*$", "", wikiline) + f"{sep}|" + f"{sep}|".join(new_params) + "}}"
+                section.content_wikilines[idx] = wikiline
 
                 for to_remove_idx in range(idx+1, idx+offset+1):
                     to_remove.append(to_remove_idx)
