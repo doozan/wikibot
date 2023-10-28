@@ -6,14 +6,7 @@ import sys
 import mwparserfromhell as mwparser
 
 from autodooz.sections import ALL_POS, COUNTABLE_SECTIONS, ALL_LANGS
-from .list_mismatched_headlines import HEAD_TEMPLATES, POS_TEMPLATES
-
-POS_TEMPLATE_LIST = [ "[a-z]+" + t if t.startswith("-") else t for templates in POS_TEMPLATES.values() for t in templates if not "=" in t ]
-HEADLINE_PATTERN = r"^\s*{{\s*(" + "|".join(POS_TEMPLATE_LIST + HEAD_TEMPLATES) + r")\s*[|}]"
-RE_HEADLINE = re.compile(HEADLINE_PATTERN)
-
-def is_headline(text):
-    return bool(re.match(RE_HEADLINE, text))
+from .list_mismatched_headlines import is_header
 
 class BylineFixer():
 
@@ -95,32 +88,97 @@ class BylineFixer():
             if not pos:
                 continue
 
+            if any(re.search(r"(?<!{){\|", str(sense)) for sense in pos.senses):
+                warn("sense_has_wikitable", section)
+                continue
+
             old_pos_text = str(pos)
 
             if not pos.senses:
-                first_sense = None
-                headline_after_sense = False
-                for idx, line in enumerate(pos.headlines):
-                    if first_sense is None:
-                        if any(line.startswith(c) for c in "#*:"):
-                            first_sense = idx
-                    elif is_headline(line):
-                        headline_after_sense = True
-                        break
+                headline_idx = []
+                sense_idx = []
+                unhandled_idx = []
 
-                if first_sense is None:
-                    self.warn("no_senses", section)
-                elif headline_after_sense:
-                    if section._children:
-                        self.warn("headline_after_senses", section)
+                for idx, line in enumerate(pos.headlines):
+                    if not line:
+                        continue
+                    if is_header(section, line):
+                        headline_idx.append(idx)
+                    elif line and line[0] in "#*:":
+                        sense_idx.append(idx)
                     else:
-                        self.warn("headline_after_senses_no_children", section)
+                        unhandled_idx.append(idx)
+
+                #print("NO SENSES", sense_idx, headline_idx)
+                if not sense_idx and len(headline_idx) == 1 and headline_idx[-1] == len(pos.headlines)-1:
+                    assert len(section.content_wikilines) == len(pos.headlines)
+
+                    #self.warn("empty_sense_list", section)
+
+                    # Special handling for garbage templates
+                    if ("ru-" in pos.headlines[-1] and "-alt" in pos.headlines[-1]) or \
+                       ("ar-" in pos.headlines[-1] and ("-inf-" in pos.headlines[-1] or "-coll-" in pos.headlines[-1])) or \
+                       any(x in pos.headlines[-1] for x in ["ar-root", "ja-see", "zh-see"]):
+                            continue
+
+                    lang_id = ALL_LANGS.get(section._topmost.title)
+                    section.content_wikilines.append("")
+                    section.content_wikilines.append("# {{rfdef|" + lang_id + "}}")
+                    pos = sectionparser.parse_pos(section)
+                    self.fix("missing_rfdef", section, "", "added rfdef to empty POS")
+
+#                elif not sense_idx and len(headline_idx) and len(unhandled_idx):
+#                        # Headline followed by lines that are missing #
+#                        self.warn("no_senses", section)
+#                        continue
+
+                        # Special headling for headlines followed by lines that are missing # (needs manual verification)
+#                        print("FIXING SENSES", headline_idx, len(pos.headlines), pos.headlines)
+#                        for idx, line in enumerate(section.content_wikilines[headline_idx[-1]+1:], headline_idx[-1]+1):
+#                            print(idx, line)
+#                            if line:
+#                                section.content_wikilines[idx] = "# " + line
+#                        pos = sectionparser.parse_pos(section)
+#                        self.fix("missing_prefix", section, "", "added missing prefix (manually reviewed)")
+
                 else:
-                    text = "\n".join(pos.headlines[first_sense:])
-                    if len(text) > 512:
-                        text = text[:500] + "\n..."
-                    self.warn("unparsable_sense_list", section, "", text)
-                continue
+
+                    if not sense_idx:
+                        self.warn("no_senses", section)
+
+                    elif not(headline_idx):
+                        self.warn("missing_headline", section)
+
+                    # Warn on non-consecutive headlines
+                    elif not unhandled_idx and headline_idx and any(headline_idx[x] != headline_idx[x]+1 for x in range(len(headline_idx)-1)):
+                        continue
+                        if section._children:
+                            self.warn("multi_headlines", section)
+                        else:
+                            self.warn("multi_headlines_no_children", section)
+
+                    # Warn on senses before the first headline
+                    elif sense_idx[0] < headline_idx[0]:
+                        if section._children:
+                            self.warn("headline_after_senses", section)
+                        else:
+                            self.warn("headline_after_senses_no_children", section)
+
+                    elif unhandled_idx and all(pos.headlines[x].startswith("<!--") and pos.headlines[x].endswith("-->") for x in unhandled_idx):
+                        #print("___", section.page, section.path, [pos.headlines[x] for x in unhandled_idx])
+                        #all(pos.headlines[x].startswith("<!--") and pos.headlines[x].endswith("-->") for x in unhandled_idx):
+                        self.warn("comment_in_sense_list", section)
+
+                    else:
+
+                        text = "\n".join(pos.headlines[sense_idx[0]:])
+                        if len(text) > 512 and unhandled_idx:
+                            text = "\n".join(pos.headlines[x] for x in unhandled_idx)
+
+                        if len(text) > 512:
+                            text = text[:500] + "\n..."
+                        self.warn("unparsable_sense_list", section, "", text)
+                    continue
 
             failed = self.fix_sense_list_levels(pos.senses, section)
             if failed:
@@ -176,8 +234,20 @@ class BylineFixer():
 
         style = sense_list[0].style
         if not all(s.style == style for s in sense_list):
-            self.warn("mixed_sense_styles", section, "", "")
-            return True
+
+#            if len(sense_list) > 1 and sense_list[-1]._type not in ["unknown", "sense"]:
+#                parent = sense_list[0]
+#                child = sense_list.pop()
+#                child.parent = parent
+#                child.level = parent.level +1
+#                child.prefix = parent.prefix + ":"
+#                child.style = self.TYPE_TO_STYLE[child._type]
+#
+#                parent._children.append(child)
+#                self.fix("stray_" + child._type, section, parent.name, "adopted stray " + child._type)
+#            else:
+                self.warn("mixed_sense_styles", section, "", "")
+                return True
 
         for idx, sense in enumerate(sense_list, 1):
             if sense._type not in ["unknown", "sense"]:
@@ -192,6 +262,12 @@ class BylineFixer():
                     sense.prefix = "#"
                     self.fix("sense_prefix", section, f"sense{idx}", "fixed sense prefix")
                 else:
+                    # THIS REQUIERES MANUAL VERIFICATION
+                    #sense.level = 1
+                    #sense.style = "#"
+                    #sense.prefix = "#"
+                    #self.fix("sense_prefix", section, f"sense{idx}", "fixed sense prefix  (manually verified)")
+
                     self.warn("unexpected_l1_item", section, f"sense{idx}", f"{sense.prefix} {sense.data}")
                     return True
 
@@ -295,7 +371,10 @@ class BylineFixer():
             item.prefix = item.parent.prefix + item.style
 
         for child in item._children:
-            self.cleanup_sense_item(child, section, update_style=False)
+            # Only fix the style tags of for senses and sub-senses
+            # This allows #* bare quote to be followed by #*: {{quote}}
+            parent_is_sense = item._type == "sense" and item.style == "#"
+            self.cleanup_sense_item(child, section, update_style=parent_is_sense)
 
 
     def fix_complex_byline(self, byline, section=None):
@@ -309,6 +388,19 @@ class BylineFixer():
         if template_type in sectionparser.PosParser.ALL_NYMS:
             return self.fix_nym_byline(template_type, byline, section)
         else:
+
+# manual cleanup
+#            if template_type == "ux":
+#                text = byline.data
+#                text = text.rstrip(".")
+#
+#                if text != byline.data:
+#                    byline._type = "ux"
+#                    byline.data = text
+#                    self.fix(f"{template_type}_cleanup", section, byline.name, f"removed . after ux template")
+#                    return True
+
+#                return self.fix_nym_byline(template_type, byline, section)
             if section:
                 self.warn(f"complex_{template_type}", section, "sense" + byline.name[1:], str(byline))
             return
@@ -360,11 +452,13 @@ class BylineFixer():
 
         if templates:
             # Handle extra qualifier templates
-            if len(templates) == 1 and templates[0].name.strip() in ["i", "q", "qualifier"]:
+            if len(templates) == 1 and templates[0].name.strip() in ["i", "q", "qual", "qualifier", "gloss", "lb"]:
 
                 q_template = templates[0]
-                if len(q_template.params) != 1 or not q_template.has(1):
-                    # TODO: push each param into extra_qualifiers
+
+                first_param = 2 if q_template.name.strip() in ["lb"] else 1
+
+                if not q_template.has(first_param):
                     print("no 1= param in qualifier", section.page, byline.data)
                     return
 
@@ -373,9 +467,13 @@ class BylineFixer():
                         self.warn(f"complex_{template_type}_dup_qualifiers", section, "sense" + byline.name[1:], str(byline))
                     return
 
-                qualifier = q_template.get(1)
-                if qualifier.startswith("''") and qualifier.endswith("''"):
-                    qualifier = qualifier.strip("'")
+                if len(q_template.params) > first_param:
+                    print("multiple qualifiers", section.page, byline.data)
+                    qualifier = "; ".join(str(x.value) for x in q_template.params[first_param-1:])
+                else:
+                    qualifier = q_template.get(first_param)
+                    if qualifier.startswith("''") and qualifier.endswith("''"):
+                        qualifier = qualifier.strip("'")
 
                 extra_qualifiers.append(qualifier)
                 replacements.append((str(q_template), ""))
@@ -396,6 +494,15 @@ class BylineFixer():
                     if section:
                         self.warn(f"complex_{template_type}_unhandled_template", section, "sense" + byline.name[1:], str(byline))
                     return
+
+#        if template_type == "ux" and len(extra_qualifiers) == 1:
+#            old = str(template) # + extra_data
+#            template.add("q", extra_qualifiers[0])
+#            new = str(template)
+#            replacements.append((old, new))
+#            if section:
+#                self.fix(f"{template_type}_bare_qualifier", section, byline.name, f"merged bare {template_type} qualifier into template")
+
 
         if extra_qualifiers:
             if len(template.params) != 2 or not template.has(2):
