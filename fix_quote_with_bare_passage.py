@@ -3,6 +3,7 @@ import mwparserfromhell as mwparser
 import re
 import sys
 
+from autodooz.sections import ALL_LANGS
 from autodooz.fix_bare_quotes import wikilines_to_quote_params, UNHANDLED_UX_TEMPLATES
 from enwiktionary_parser.utils import nest_aware_contains
 NESTS = (("[[", "]]"), ("{{", "}}"))
@@ -118,37 +119,86 @@ class QuoteFixer():
                     self.warn("quote_with_child_lines", section, "\n".join(section.content_wikilines[idx:idx+offset+1]))
                     continue
 
+                # Fragile templates can't handle newline separated paramaters
+                fragile_template = False
+                # Unhandled templates can't handle passage= parameter
+                unhandled_template = False
+
                 if template_name.startswith("RQ:"):
+                    if template_name in ["RQ:sga-gloss", "RQ:sga:Glosses", "RQ:sga-Corm"]:
+                        # skip mixed irish/latin quotes
+                        continue
                     if template_name in ALLOWED_RQ_TEMPLATES:
                         fragile_template = True
                     else:
+                        # Unhandled templates with an existing {{quote can be ignored
+                        if "{{quote" in section.content_wikilines[idx+1]:
+                            continue
+
+                        unhandled_template = True
                         self.warn("unhandled_rq_with_bare_passage", section, "\n".join(section.content_wikilines[idx:idx+offset+1]))
-                        continue
-                else:
-                    fragile_template = False
 
                 if passage_params.get("translation"):
                     if section.path.startswith("English:"):
                         self.warn("english_has_translation", section, "\n".join(section.content_wikilines[idx:idx+offset+1]))
                         continue
 
-                new_params = []
-                # Sort passage, translation, and transliteration before other possible params
-                for k, v in sorted(passage_params.items(), key=lambda x:
+
+
+                if unhandled_template:
+                    if "{{quote" in section.content_wikilines[idx+1]:
+                        print("already a quote")
+                        continue
+
+                    if passage_params.keys() - {"passage", "translation"}:
+                        self.warn("unhandled_passage_param", section, "\n".join(section.content_wikilines[idx:idx+offset+1]))
+
+                    passage = passage_params["passage"]
+                    translation = passage_params.get("translation")
+                    translit = None
+                    if template_name == "RQ:Tanach":
+                        if passage.startswith("{{lang|he|") and passage.endswith("}}"):
+                            passage = passage[len("{{lang|he|"):-2]
+                        if translation and "<br>" in translation:
+                            translit, translation = translation.split("<br>")
+                        print("TEM", template_name, [translit, translation])
+
+                    lang_id = ALL_LANGS.get(section._topmost.title)
+                    if translit:
+                        new_wikiline = prefix + ": {{quote|" + lang_id + "|" + passage + "|tr=" + translit + "|t=" + translation + "}}"
+                    elif translation:
+                        new_wikiline = prefix + ": {{quote|" + lang_id + "|" + passage + "|" + translation + "}}"
+                    else:
+                        new_wikiline = prefix + ": {{quote|" + lang_id + "|" + passage + "}}"
+                    section.content_wikilines[idx+1] = new_wikiline
+
+                    for to_remove_idx in range(idx+2, idx+offset+1):
+                        print(to_remove_idx)
+                        to_remove.append(to_remove_idx)
+
+                    entry_changed = True
+                    self.fix("quote_outside_template", section, "converted bare passage to quote")
+                    #self.warn("quote_with_child_lines", section, "\n".join(section.content_wikilines[idx:idx+offset+1]))
+
+                else:
+                    new_params = []
+                    # Sort passage, translation, and transliteration before other possible params
+                    for k, v in sorted(passage_params.items(), key=lambda x:
                         (0, x) if x[0] in ["passage", "translation", "transliteration"] else (1, x)):
-                    new_params.append(f"{k}={passage_params[k]}")
+                        new_params.append(f"{k}={passage_params[k]}")
 
-                # Some RQ templates can't handle newlines
-                sep = "" if fragile_template else "\n"
-                if new_params:
-                    wikiline = re.sub("}}\s*$", "", wikiline) + f"{sep}|" + f"{sep}|".join(new_params) + "}}"
-                section.content_wikilines[idx] = wikiline
+                    # Some RQ templates can't handle newlines
+                    sep = "" if fragile_template else "\n"
+                    if new_params:
+                        wikiline = re.sub("}}\s*$", "", wikiline) + f"{sep}|" + f"{sep}|".join(new_params) + "}}"
+                    section.content_wikilines[idx] = wikiline
 
-                for to_remove_idx in range(idx+1, idx+offset+1):
-                    to_remove.append(to_remove_idx)
+                    for to_remove_idx in range(idx+1, idx+offset+1):
+                        to_remove.append(to_remove_idx)
 
-                entry_changed = True
-                self.fix("passage_outside_template", section, "merged bare passage into existing quote template")
+                    entry_changed = True
+                    self.fix("passage_outside_template", section, "merged bare passage into existing quote template")
+
 
             for idx in reversed(to_remove):
                 del section.content_wikilines[idx]
