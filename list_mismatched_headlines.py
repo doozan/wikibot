@@ -19,10 +19,12 @@
 Find possible mismatches between a POS section header and the headline
 """
 
+import multiprocessing
+import pywikibot
 import os
 import re
 import sys
-import pywikibot
+
 from pywikibot import xmlreader
 from autodooz.sections import ALL_POS, ALL_LANGS, ALL_LANG_IDS
 from autodooz.wikilog import WikiLogger, BaseHandler
@@ -31,12 +33,16 @@ from collections import defaultdict
 
 from collections import namedtuple
 
+import enwiktionary_sectionparser as sectionparser
+
+
 class Logger(WikiLogger):
     _paramtype = namedtuple("params", [ "error", "page", "language", "section", "line", "highlight" ])
 
 logger = Logger()
 
 def log(error, page, language, section, line, highlight=None):
+    line = line.replace("\n", "")
     if error in ["error"]:
         print(error, page, language, section, line)
 
@@ -44,7 +50,7 @@ def log(error, page, language, section, line, highlight=None):
         error = f"Language id mismatch (id is not '{ALL_LANGS[language]}')"
     logger.add(error, page, language, section, line, highlight)
 
-# pass if the string appears in thea headword template name
+# pass if the string appears in the headword template name
 POS_TEMPLATES = {
     "adjectival noun": ['-adj'],
     "adjective": ["-adj", "ar-nisba", "-apf"],
@@ -69,7 +75,7 @@ POS_TEMPLATES = {
     "preposition": ["-prep"],
     "prepositional phrase": ["-pp", "-prep phrase", "-prepositional phrase"],
     "pronoun": ["-pron", "-prpr", "-ppron", "-personal pronoun"],
-    "proper noun": ["-prop", "ro-name", "-noun", "-plural proper noun", "-prpn"],
+    "proper noun": ["-prop", "ro-name", "-noun", "-plural proper noun", "-prpn", "-proper noun", "-given name"],
     "proverb": ["-proverb", "-phrase", "-prov"],
     "romanization": ["-rom", "cmn-pinyin", "yue-jyut", "-tr"],
     "transliteration": ["-tr"],
@@ -108,26 +114,37 @@ POS_HEADWORDS = {
     "verb": ["verb", "past participle", "gerund", "present participle", "infinitive", "participle form", "passive participles", "kok-pos|v", "participle"],
 }
 
-# Templates that act like {{head}} and will contain keywords paramaters to define the POS
+# Templates that act like {{head}} and will contain keywords parameters to define the POS
 HEAD_TEMPLATES = [
     "head",
     "head-lite",
+
     "az-head",
     "grk-ita-head",
     "mh-head",
     "za-head",
+    "tl-head",
+    "ryu-head",
 
     "brx-pos",
     "ha-pos",
     "hi-pos",
     "ig-pos",
+    "it-pos",
     "ja-pos",
     "kok-pos",
     "ko-pos",
+    "nup-pos",
     "oj-pos",
     "pa-pos",
     "ru-pos",
+    "pa-pos",
+    "ru-pos",
+    "ru-adj-alt-ё",
+    "ru-noun-alt-ё",
     "ru-pos-alt-ё",
+    "ru-verb-alt-ё",
+    "ru-proper noun-alt-ё",
     "ryu-pos",
     "tt-pos",
     "ur-pos",
@@ -146,7 +163,7 @@ GLOBAL_HEADWORDS = [
 # The headword line template should be the first template immediately after a POS section header
 # Alas, this is not always the case, so it's necessary to sort through some other templates
 # to get to the actual headword template (list items must be lowercase)
-IGNORE_TEMPLATES = [
+IGNORE_TEMPLATES = {
     'anchor', 'attention', 'attn', 'audio', 'cardinalbox', 'cln', 'colorbox', 'commons',
     'commonscat', 'elements', 'enum', 'examples', 'fa-regional', 'ja-kanjitab', 'ko-hanja',
     'ko-hanjatab', 'ko-regional', 'ko-yin form of', 'ko-yang form of', 'ku-regional', 'mul-number',
@@ -155,35 +172,15 @@ IGNORE_TEMPLATES = [
     'seecites', 'slim-wikipedia', 'stroke order', 'swp', 'taxlink', 'taxon', 'taxoninfl',
     'tea room', 'vi-readings', 'wiki', 'wikibooks', 'wikipedia', 'wikiquote', 'wikisource',
     'wikispecies', 'wikiversity', 'wikiversity lecture', 'wikivoyage', 'wp', 'zodiac'
-]
+}
 
 # Ignore lines that match [[LINK:*]]]
 IGNORE_LINKS = [
     "file", "image", "category"
 ]
 
-# If the first template is in this list, it's a sign that the entry is missing a template
-NOT_HEADLINES = [
-    "lb", "i", "q", "l", "l/ja", "der-top", "ux", "alternative form of"
-]
-
-# Ignore LANGUAGE, POS (accepts * as a wildcard for either LANGUAGE or POS)
-IGNORE_SECTIONS = [
-        ("Translingual", "*"),
-        ("Esperanto", "*"),
-        ("Ido", "*"),
-        ("*", "Abbreviations"),
-        ("*", "Han character"),
-        ("*", "Hanja"),
-        ("*", "Kanji"),
-        ("*", "Symbol")
-]
-
-def ignore_lang(lang):
-    return lang not in ALL_LANGS or any(l for l in IGNORE_SECTIONS if l[0] == lang)
-
-def ignore_section(lang, section):
-    return any(l for l in IGNORE_SECTIONS if l[0] in ["*", lang] and l[1] in ["*", section])
+IGNORE_LANGS = [ "Translingual", "Esperanto", "Ido" ]
+IGNORE_POS = [ "Abbreviations", "Han character", "Hanja", "Kanji", "Symbol", "Suffix" ]
 
 # template language names that are permitted within non-matching language sections
 LANGUAGE_ALTS = {
@@ -202,145 +199,175 @@ def language_matches(lang_id, lang_name):
     if LANGUAGE_ALTS.get(id_name) == lang_name:
         return True
 
-# Fairly gross and sloppy, but good enough for headword lines
-# will erroneosly accept {{ template } blah }
-# doesn't treat {{ as a single brace (to enable {| |} table matching)
-def first_template_is_closed(line):
-    depth = 0
+def get_template_name(text):
+    res = re.match(r"\s*{{\s*(.*?)\s*[|}]", text)
+    return res.group(1) if res else None
 
-    for c in line:
-        if c == "{":
-            depth += 1
-        elif c == "}":
-            depth -= 1
-            if depth == 0:
-                return True
+def is_pre_header(line):
 
-def check_page(title, page_text):
+    line = line.strip()
 
-    lang = None
-    section_title = None
-    in_pos_header = False
-    open_template = None
+    # skip empty lines
+    if not line:
+        return True
 
-    for line in page_text.splitlines():
+    # skip single line comments
+    if line.startswith("<!--") and line.endswith("-->"):
+        return True
 
-        line = line.strip()
-        if not line:
-            continue
+    # skip [[file:]] and other links
+    if line.startswith("[[") and line[2:].split(":")[0].strip().lower() in IGNORE_LINKS:
+        return True
 
-        # If the first template after a headword line is not closed, merge each line together until it is closed
-        if open_template:
-            line = open_template + line
-            open_template = None
-        else:
-            # Skip wiki stuff that might be in the way of a template
-            line = line.lstrip(" *#:")
+    # Skip tables
+    if line.startswith("{|"):
+        return True
 
-        # Check for section headers
-        if line.startswith("=="):
-            res = re.match("(==+)\s*(.*?)\s*==+", line)
-            if res:
-                section_title = res.group(2)
-                if len(res.group(1)) == 2:
-                    # TODO: this doesn't work??
-                    lang = section_title if not ignore_lang(section_title) else None
-                elif lang:
-                    in_pos_header = section_title in ALL_POS and not ignore_section(lang, section_title)
-                    if in_pos_header:
-                        pos_templates = POS_TEMPLATES.get(section_title.lower(), [section_title.lower()])
-                        pos_line_matches = POS_LINE_MATCHES.get(section_title.lower(), [])
-                        pos_headwords = POS_HEADWORDS.get(section_title.lower(), [section_title.lower()])
-            continue
+    if line.startswith("{{"):
+        template = get_template_name(line)
+        if template and template.lower() in IGNORE_TEMPLATES:
+            return True
 
-        # Ignore everything that's not in a POS section
-        if not in_pos_header:
-            continue
+def is_header(section, line):
 
-        # skip single line comments
-        if line.startswith("<!--") and line.endswith("-->"):
-            continue
+    template = get_template_name(line)
+    if not template:
+        return False
 
-        # Skip links
-        if line.startswith("[[") and line[2:].split(":")[0].strip().lower() in IGNORE_LINKS:
-            continue
+    if template in { "head", "head-lite", "diacritic" }:
+        return True
 
-        # Find the first template
-        if line.startswith("{{") or line.startswith("{|"):
-            # Ensure the first template is closed so we can properly parse it or skip it completely
-            if not first_template_is_closed(line):
-                open_template = line
-                continue
+    template = template.lower()
+    # Anything that starts with "LANG-" is considered a valid header
+    if "-" in template:
+        splits = template.split("-")
 
-            # Skip tables
-            if line.startswith("{|"):
-                continue
+        # Check for hyphenated language codes first
+        if len(splits) > 2 and "-".join(splits[:2]) in ALL_LANG_IDS:
+            return True
 
-            # We only need to match the template name, the parameters are unimportant
-            res = re.match(r"{{\s*(.*?)\s*[|}]", line)
-            if res:
-                template = res.group(1).lower()
+        if splits[0] in ALL_LANG_IDS:
+            return True
 
-                # Templates that may preceed the headline
-                if template in IGNORE_TEMPLATES:
+        # "inc-pra" uses "pra-" as a prefix; "gmq-pro" uses "gmq-"
+        if splits[0] in { "pra", "gmq" }:
+            return True
+
+    return False
+
+def get_template_lang_id(line):
+
+    template = get_template_name(line).lower()
+
+    # Search templates for language codes
+    template_lang_id = None
+    if "-" in template:
+        splits = template.split("-")
+
+        # Check for hyphenated language codes first
+        if len(splits) > 2 and "-".join(splits[:2]) in ALL_LANG_IDS:
+            return "-".join(splits[:2])
+
+        # Fallback to unhyphenated language code
+        if splits[0] in ALL_LANG_IDS:
+            return splits[0]
+
+    # The first paramater of HEAD-like template is the language code
+    elif template in [ "head", "head-lite", "diacritic" ] :
+        res = re.match(r"{{\s*" + template + r"\s*\|\s*(.*?)\s*\|", line)
+        if res:
+            return res.group(1)
+
+
+def process(args):
+
+    # Needed to unpack args until Pool.istarprocess exists
+    page_text, title = args
+
+    res = []
+
+    entry = sectionparser.parse(page_text, title)
+    if not entry:
+        return res
+
+    for lang in entry.ifilter_sections(recursive=False, matches=lambda x: x.title in ALL_LANGS and x.title not in IGNORE_LANGS):
+        lang_id = ALL_LANGS.get(lang._topmost.title)
+
+        for section in lang.ifilter_sections(matches=lambda x: x.title in ALL_POS and x.title not in IGNORE_POS):
+
+            pos_templates = POS_TEMPLATES.get(section.title.lower(), [section.title.lower()])
+            pos_line_matches = POS_LINE_MATCHES.get(section.title.lower(), [])
+            pos_headwords = POS_HEADWORDS.get(section.title.lower(), [section.title.lower()])
+            for line in section.content_wikilines:
+                # Skip wiki stuff that might be in the way of a template
+                line = line.lstrip(" *#:")
+
+                # Skip lines that are allowed to appear before the headline
+                if is_pre_header(line):
                     continue
 
-            # We've finally reached a template that's not in the ignore list,
-            # so we don't need to look at any future lines in this section
-            in_pos_header = False
+                # Find the first template
+                if line.startswith("{{"):
+                    if not is_header(section, line):
+                        res.append(("Missing headline", title, lang.title, section.title, line))
+                        break
 
-            # Unparsable template
-            if not res:
-                log("error", title, lang, section_title, line)
-                continue
+                    template_lang_id = get_template_lang_id(line)
 
-            if template in NOT_HEADLINES:
-                log("Missing headline", title, lang, section_title, line)
-                continue
+                    # if template has a language prefix, check that it matches the parent language
+                    if template_lang_id and not language_matches(template_lang_id, lang.title):
+                        res.append(("lang-mismatch", title, lang.title, section.title, line))
+                        break
 
-            # Search templates for language codes
-            template_lang_id = None
-            if "-" in template:
-                splits = template.split("-")
+                    # We only need to match the template name, the parameters are unimportant
+                    template = get_template_name(line).lower()
 
-                # Check for hyphenated language codes first
-                if len(splits) > 2:
-                    template_lang_id = "-".join(splits[0:2])
+                    # if this is a head-like template, check that a matching word appears on the headword line
+                    if template in HEAD_TEMPLATES:
+                        if any(pos for pos in pos_headwords if pos in line):
+                            break
+                        if any(alt for alt in GLOBAL_HEADWORDS if alt in line):
+                            break
 
-                # Fallback to unhyphenated language code
-                if template_lang_id not in ALL_LANG_IDS:
-                    template_lang_id = splits[0]
+                    # Verify that template matches the allowed pos templates
+                    elif any(pos in template for pos in pos_templates):
+                        break
 
-            # The first paramater of the {{head}} template is the language code
-            elif template == "head":
-                res = re.match(r"{{\s*head\s*\|\s*(.*?)\s*\|", line)
-                if res:
-                    template_lang_id = res.group(1)
+                    if any(match in line for match in pos_line_matches):
+                        break
 
-            # if template has a language prefix, check that it matches the parent language
-            if template_lang_id and not language_matches(template_lang_id, lang):
-                log("lang-mismatch", title, lang, section_title, line)
-                continue
+                    res.append(("Mismatched templates", title, lang.title, section.title, line))
+                    break
 
-            # if this is head-like tempalte, check that a matching word appears on the headword line
-            if template in HEAD_TEMPLATES:
-                if any(pos for pos in pos_headwords if pos in line):
-                    continue
-                if any(alt for alt in GLOBAL_HEADWORDS if alt in line):
-                    continue
+                else: # line doesn't start with a template
+                    res.append(("Unexpected text (probably missing headline)", title, lang.title, section.title, line))
+                    break
+    return res
 
-            # Verify that template matches the allowed pos templates
-            elif any(pos for pos in pos_templates if pos in template):
-                continue
 
-            if any(match in line for match in pos_line_matches):
-                continue
+def iter_wxt(datafile, limit=None, show_progress=False):
 
-            log("Mismatched templates", title, lang, section_title, line)
+    if not os.path.isfile(datafile):
+        raise FileNotFoundError(f"Cannot open: {datafile}")
 
-        else: # line doesn't start with a template
-            in_pos_header = False
-            log("Unexpected text (probably missing headline)", title, lang, section_title, line)
+    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
+    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
+
+    count = 0
+    for entry in parser:
+
+        if ":" in entry.title or "/" in entry.title:
+            continue
+
+        if not count % 1000 and show_progress:
+            print(count, end = '\r', file=sys.stderr)
+
+        if limit and count >= limit:
+            break
+        count += 1
+
+        yield entry.text, entry.title
+
 
 def main():
 
@@ -351,24 +378,23 @@ def main():
     argparser.add_argument("--progress", help="Display progress", action='store_true')
     argparser.add_argument("--date", help="Date of the database dump (used to generate page messages)")
     argparser.add_argument("--save", help="Save to wiktionary with specified commit message")
+    argparser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
     args = argparser.parse_args()
 
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(args.wxt)
+    if not args.j:
+        args.j = multiprocessing.cpu_count()-1
 
-    count = 0
-    for page in parser:
-        if ":" in page.title or "/" in page.title:
-            continue
+    iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
 
-        if not count % 1000 and args.progress:
-            print(count, end = '\r', file=sys.stderr)
+    if args.j > 1:
+        pool = multiprocessing.Pool(args.j)
+        iter_items = pool.imap_unordered(process, iter_entries, 1000)
+    else:
+        iter_items = map(process, iter_entries)
 
-        if args.limit and count >= args.limit:
-            break
-        count += 1
-
-        check_page(page.title, page.text)
+    for results in iter_items:
+        for log_values in results:
+            log(*log_values)
 
     if args.save:
         base_url = "User:JeffDoozan/lists/mismatched pos"
