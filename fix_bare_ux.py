@@ -77,6 +77,9 @@ class BareUxFixer():
                 fixable_items = []
                 bare_ux_items = [c for c in sense._children if c._type == "bare_ux"]
 
+
+
+
 #                # TODO: Manual review - if there are exactly 2 bare_ux_items and neither have children
 #                # then the second item may be the translation of the first item
 #                if len(bare_ux_items) == 2 and all(not i._children for i in bare_ux_items):
@@ -86,10 +89,17 @@ class BareUxFixer():
 #                    print("MULTI UX SIBLINGS", idx_bare_ux_items, str(sense))
 #                    if idx_bare_ux_items[1] == idx_bare_ux_items[0]+1:
 #                        self.warn("fixme_multi_ui", section, "", "")
-#                        continue
+#                        translation = bare_ux_items.pop()
+#                        bare_ux_items[0]._children = [translation]
 
                 for item in bare_ux_items:
                     passage = str(item.data)
+
+                    # TODO: Manual review - special handling for lines like "#: ''i alle '''fall''' - in any case''"
+                    # NOTE: this is paired with a fix below, be sure to comment/uncomment both together
+#                    if is_italic(passage) and " - " in passage:
+#                        fixable_items.append(item)
+#                    continue
 
                     if lang_id == "en":
                         # English UX items must be complete sentences
@@ -138,7 +148,7 @@ class BareUxFixer():
                     if str(item.data) in str(wikiline):
 
                         assert is_italic(item.data)
-                        passage = item.data[2:-2]
+                        passage = item.data[2:-2].strip()
 
                         translation = None
                         if item._children:
@@ -146,12 +156,15 @@ class BareUxFixer():
                             translation = item._children[0].data
 
                             if is_italic(translation.strip()):
-                                translation = translation.strip()[2:-2]
+                                translation = translation.strip()[2:-2].strip()
 
-                            assert translation.strip()
+                            assert translation
 
                             to_remove.append(idx+1)
 
+#                        # NOTE: Manual fix
+#                        if not translation and " - " in passage:
+#                            passage, translation =  passage.split(" - ")
 
                         if "|" in passage:
                             self.warn("pipe_in_ux_passage", section, item.name, passage)
