@@ -36,6 +36,8 @@ error_header = {
     "trailing_open_template": "Pages with an unclosed template",
     "trailing_open_nowiki_tag": "Pages with an unclosed  <nowiki><nowiki></nowiki> tag",
     "trailing_open_ref_tag": "Pages with an unclosed  <nowiki><ref></nowiki> tag",
+    "trailing_open_math_tag": "Pages with an unclosed  <nowiki><math></nowiki> tag",
+    "trailing_open_wikitable": "Pages with an unclosed  <nowiki>{| |}</nowiki> wikitable",
 
     "first_section_not_l2": "First section on the page is not L2",
     "duplicate_l2": "Duplicate L2 sections",
@@ -110,6 +112,12 @@ def validate_entry(entry, errors):
 
         if entry._state & 0x400:
             log(errors, "trailing_open_html_comment", entry, bad_line)
+
+        if entry._state & 0x800:
+            log(errors, "trailing_open_math_tag", entry, bad_line)
+
+        if entry._state & 0x1000:
+            log(errors, "trailing_open_wikitable", entry, bad_line)
 
     if not entry._children:
         log(errors, "empty_page", entry)
