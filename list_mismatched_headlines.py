@@ -120,11 +120,13 @@ HEAD_TEMPLATES = [
     "head-lite",
 
     "az-head",
+    "bcl-head",
     "grk-ita-head",
     "mh-head",
     "za-head",
     "tl-head",
     "ryu-head",
+    "xug-head",
 
     "brx-pos",
     "ha-pos",
@@ -134,6 +136,7 @@ HEAD_TEMPLATES = [
     "ja-pos",
     "kok-pos",
     "ko-pos",
+    "nsk-pos",
     "nup-pos",
     "oj-pos",
     "pa-pos",
@@ -151,6 +154,10 @@ HEAD_TEMPLATES = [
     "vi-pos",
     "yo-pos",
     "et-nom"
+
+    "crk-cans",
+    "crk-form",
+
 ]
 
 # Words that can appear in {{head}} to make a valid headline for any POS
