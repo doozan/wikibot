@@ -89,7 +89,7 @@ class BylineFixer():
                 continue
 
             if any(re.search(r"(?<!{){\|", str(sense)) for sense in pos.senses):
-                warn("sense_has_wikitable", section)
+                self.warn("sense_has_wikitable", section)
                 continue
 
             old_pos_text = str(pos)
