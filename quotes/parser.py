@@ -23,13 +23,11 @@ class QuoteParser():
             # "by", "article in", "magazine", "p", "pp", "page",
     }
 
-    @staticmethod
     def make_pre_regex(prefixes):
         # Sort "bigger" before "big"
         prefixes = sorted(prefixes, key=lambda x: x+'🂲')
         return "((" + "|".join(prefixes) + r")\s+)*".lower()
 
-    @staticmethod
     def make_post_regex(postfixes):
         # Sort "bigger" before "big"
         postfixes = sorted(postfixes, key=lambda x: x+'🂲')

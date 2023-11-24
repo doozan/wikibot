@@ -54,7 +54,7 @@ def get_unparsable(fixer, filename):
 def process(args):
     fixer, page, text = args
     # Needed to unpack args until Pool.istarprocess exists
-    res = fixer.get_params(text)
+    res = fixer.get_quote_params(text)
     if res:
         return (page, res, text)
     return
