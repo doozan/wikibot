@@ -31,8 +31,8 @@ def fr_add_tlfi(text, title, summary, options):
 
         anagrams = french.filter_sections(matches="Anagrams", recursive=False)
         if anagrams:
-            target_pos = french._children.index_of(anagrams[0])
-            french._children.insert(target_pos, anagrams)
+            target_pos = french._children.index(anagrams[0])
+            french._children.insert(target_pos, further_reading)
         else:
             french._children.append(further_reading)
 
