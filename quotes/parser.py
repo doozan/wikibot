@@ -83,19 +83,6 @@ class QuoteParser():
 
         return items
 
-    _allowed_locations = set()
-    with open("quotes/location.allowed") as infile:
-        for line in infile:
-            line = line.strip()
-            if not line:
-                continue
-            _allowed_locations.add(line)
-
-    # sort "bigger" before "big"
-    _allowed_locations = sorted(_allowed_locations, key=lambda x: x+'🂲')
-
-
-
     def dprint(self, *args, **kwargs):
         if self.debug:
             print(args, kwargs, file=sys.stderr)
