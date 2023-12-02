@@ -955,7 +955,6 @@ class QuoteFixer():
 
 
 
-    @staticmethod
     def make_anywhere(normal, plurals, alt_keys):
         prefixes = ["link", "url", "paren", "brackets", "italics", "double_quotes", "fancy_quote", "fancy_double_quotes"]
 
