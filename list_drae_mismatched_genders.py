@@ -27,9 +27,21 @@ class WikiSaver(BaseHandler):
 
     def make_rows(self, entries):
         for x in entries:
+            drae_count = wiki_count = 0
+            if x.drae_genders in ["m", "f"] and x.wiki_genders in ["m", "f"]:
+                if x.drae_genders == "m":
+                    drae_count = x.m + x.mp
+                    wiki_count = x.f + x.fp
+                else:
+                    drae_count = x.f + x.fp
+                    wiki_count = x.m + x.mp
+
+            fmt_wiki_genders = f"'''{x.wiki_genders}'''" if wiki_count > drae_count*100 else x.wiki_genders
+            fmt_drae_genders = f"'''{x.drae_genders}'''" if drae_count > wiki_count*100 else x.drae_genders
+
             max_count = max([x.m, x.f, x.mp, x.fp])
             counts = [f"'''{c}'''" if c == max_count else c for c in [x.m, x.f, x.mp, x.fp]]
-            yield f"[[{x.page}#Spanish|{x.page}]]", x.drae_genders, x.wiki_genders, *counts
+            yield f"[[{x.page}#Spanish|{x.page}]]", fmt_wiki_genders, fmt_drae_genders, *counts
 
     def make_section(self, base_path, page_name, section_entries, prev_section_entries, pages):
         head_rows = [["Page", "gender", "DRAE genders", "el ''word''", "la ''word''", "los ''word''", "las ''word''"]]
@@ -48,12 +60,12 @@ class FileSaver(WikiSaver):
         super().save(*args, **nargs, commit_message=None)
 
 class Logger(WikiLogger):
-    _paramtype = namedtuple("params", ["page", "drae_genders", "wiki_genders", "m", "f", "mp", "fp"])
+    _paramtype = namedtuple("params", ["page", "wiki_genders", "drae_genders", "m", "f", "mp", "fp"])
 
 logger = Logger()
 
-def log(page, drae_genders, wiki_genders, m, f, mp, fp):
-    logger.add(page, drae_genders, wiki_genders, m, f, mp, fp)
+def log(page, wiki_genders, drae_genders, m, f, mp, fp):
+    logger.add(page, wiki_genders, drae_genders, m, f, mp, fp)
 
 def main():
     parser = argparse.ArgumentParser(description="Find verbs with split data")
