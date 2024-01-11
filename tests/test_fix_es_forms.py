@@ -95,11 +95,8 @@ accidentar
 pos: v
   meta: {{es-verb}} {{es-conj}}
   gloss: to cause an accident
-_____
-accidentarse
-pos: v
-  meta: {{es-verb}} {{es-conj|nocomb=1}}
   gloss: to have an accident, get into an accident, crash
+    q: reflexive
 _____
 acostar
 pos: v
@@ -164,8 +161,8 @@ pos: n
 _____
 antojarse
 pos: v
-  meta: {{es-verb}} {{es-conj}}
-  gloss: verb
+  meta: {{es-verb|<only3sp>}} {{es-conj|<only3sp>}}
+  gloss: to fancy, would like
 _____
 aparecido
 pos: adj
@@ -2339,8 +2336,7 @@ def test_errar_verb_multi_forms(fixer, allforms):
 
 # {{es-verb form of|mood=ind|tense=pres|num=s|pers=2|formal=n|ending=ar|errar}}
 """
-#    print(allforms.all_forms["erras"])
-#    print(allforms.all_forms["yerras"])
+    print(allforms.get_lemmas(title))
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
     assert declared_forms == [('yerras', 'v', 'smart_inflection', 'errar', [])]
@@ -2350,8 +2346,8 @@ def test_errar_verb_multi_forms(fixer, allforms):
 
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
 
-    assert missing_forms == [('yerras', 'v', 'smart_inflection', 'errar', [])]
     assert unexpected_forms == {('yerras', 'v', 'pres_2s', 'errar')}
+    assert missing_forms == [('yerras', 'v', 'smart_inflection', 'errar', [])]
 
 # {{es-verb form of|errar<ye[Spain],+[Latin America]>}}
 
@@ -2793,7 +2789,7 @@ def test_antojando(fixer, allforms):
 ===Verb===
 {{head|es|verb form}}
 
-# {{es-verb form of|antojarse}}\
+# {{es-verb form of|antojarse<only3sp>}}\
 """
 
     declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
