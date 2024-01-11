@@ -147,8 +147,10 @@ class FormFixer():
 
                     if pos == "v" and formtype in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
                         pos = "part"
+
                         if formtype != "pp_ms":
-                            lemma = word.forms["pp_ms"][0]
+                            idx = word.forms[formtype].index(form)
+                            lemma = word.forms["pp_ms"][idx]
 
                     if not cls.can_handle_formtype(formtype):
                         continue
