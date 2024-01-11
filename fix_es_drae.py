@@ -7,10 +7,8 @@ from collections import defaultdict
 class DraeFixer():
 
     def __init__(self, link_filename, logger=None):
-        drae_links, must_link_by_id = self.load_links(link_filename)
-        self.drae_links = drae_links
-        self.must_link_by_id = must_link_by_id
         self.logger = logger
+        self.drae_links, self.must_link_by_id = self.load_links(link_filename)
 
     def log(self, *args, **kwargs):
         if self.logger:
@@ -22,14 +20,15 @@ class DraeFixer():
         must_link_by_id = {}
         with open(filename) as infile:
             for line in infile:
-                items = line.strip().split("\t")
-                if len(items) == 3:
-                    form, link_id, link = items
-                elif len(items) == 2:
-                    form, link_id = items
+                form, link = line.strip().split("\t")
+                if link.startswith("#"):
+                    link_id = link[1:]
+                    link = form
+                elif " " in form and "#" in link:
+                    link_id = link
                     link = form
                 else:
-                    raise ValueError("unhandled line", line, filename)
+                    link_id = None
 
                 # forms with question marks must use direct link id
                 if "?" in link:
@@ -145,14 +144,15 @@ class DraeFixer():
                     if target != title:
                         if " " in title and target and " " not in target:
                             if len(targets) > 1:
-                                self.log("drae_link_custom_target", title, "is '{target}', should be ('" + "', '".join(targets) +"')")
+                                self.log("drae_link_custom_target", title, f"is '{target}', should be ('{', '.join(targets)}')")
                             else:
                                 # If the existing link is to a single word, but the page is a phrase
                                 # and there a matching phrase in drae, replace the link
                                 self.log("drae_link_wrong_target_autofix", title, targets[0])
                                 fixes.append((template, self.make_drae_template(title, targets[0])))
                         else:
-                            self.log("drae_link_custom_target", title, "('" + "', '".join(targets) +"')")
+                            self.log("drae_link_custom_target", title, f"is '{target}', should be ('{', '.join(targets)}')")
+                            #self.log("drae_link_custom_target", title, "('" + "', '".join(targets) +"')")
                     else:
                         if len(targets) > 1:
                             self.log("drae_link_wrong_target", title, "('" + "', '".join(targets) +"')")
