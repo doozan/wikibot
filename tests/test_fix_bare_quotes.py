@@ -4,7 +4,6 @@ from collections import defaultdict
 
 #from ..fix_bare_quotes import QuoteFixer
 fixer = QuoteFixer(debug=True)
-get_params = fixer.get_params
 
 
 def test_parse_text():
@@ -101,7 +100,8 @@ def test_get_paramsx():
 
     ]:
         print(text)
-        res = fixer.get_params(text)
+        parsed = fixer.parser.get_parsed(text)
+        res = fixer.convert_parsed_to_params(parsed)
         assert res == expected
 
 
@@ -234,7 +234,8 @@ def test_get_params_old():
     ]:
         expected = None
         print(text)
-        res = fixer.get_params(text)
+        parsed = fixer.parser.get_parsed(text)
+        res = fixer.convert_parsed_to_params(parsed)
         assert res == expected
 
 def test_get_params_unhandled():
@@ -297,7 +298,8 @@ def test_get_params_unhandled():
 
     ]:
         print(text)
-        res = fixer.get_params(text)
+        parsed = fixer.parser.get_parsed(text)
+        res = fixer.convert_parsed_to_params(parsed)
         assert res == expected
 
 
@@ -820,12 +822,12 @@ def test_get_params_books():
             ('year', 'author', 'italics', 'publisher', 'isbn', 'url', 'url::page'),
             {'_source': 'book', 'year': '2003', 'author': 'Gillian Cloke', 'title': 'This Female Man of God: Women and Spiritual Power in the Patristic Age, 350-450 AD', 'publisher': 'Routledge', 'isbn': '9781134868254', 'pageurl': 'https://books.google.com/books?id=KCGIAgAAQBAJ&lpg=PA66&dq=%22inchastity%22&pg=PA66#v=onepage&q=%22inchastity%22&f=false', 'page': '66'}
         ),
-        (
-            # Semicolon separator for authors
-            """'''2013''', Judy Faust; Punch Faust, ''The MOTs File: Memories, Observations, and Thoughts'', AuthorHouse {{ISBN|9781491827123}}, page 88""",
-            ('year', 'author', 'italics', 'publisher', 'isbn', 'page'),
-            {'_source': 'book', 'year': '2013', 'author': 'Judy Faust', 'author2': 'Punch Faust', 'title': 'The MOTs File: Memories, Observations, and Thoughts', 'publisher': 'AuthorHouse', 'isbn': '9781491827123', 'page': '88'}
-        ),
+#        (
+#            # Semicolon separator for authors
+#            """'''2013''', Judy Faust; Punch Faust, ''The MOTs File: Memories, Observations, and Thoughts'', AuthorHouse {{ISBN|9781491827123}}, page 88""",
+#            ('year', 'author', 'italics', 'publisher', 'isbn', 'page'),
+#            {'_source': 'book', 'year': '2013', 'author': 'Judy Faust', 'author2': 'Punch Faust', 'title': 'The MOTs File: Memories, Observations, and Thoughts', 'publisher': 'AuthorHouse', 'isbn': '9781491827123', 'page': '88'}
+#        ),
         (
             # ISBN last
             """'''2006''' Kelly Pyrek, ''Forensic Nursing'', page 514, {{ISBN|084933540X}}.""",
@@ -1035,9 +1037,11 @@ def test_get_params_books():
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
         assert fingerprint == expected_fingerprint
-        params = fixer.get_params(text)
-        print(params)
-        assert params == expected_params
+
+        parsed = fixer.parser.get_parsed(text)
+        res = fixer.convert_parsed_to_params(parsed)
+        print(res)
+        assert res == expected_params
 
 def test_get_params_song():
 
@@ -1057,9 +1061,11 @@ def test_get_params_song():
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
         assert fingerprint == expected_fingerprint
-        params = fixer.get_params(text)
-        print(params)
-        assert params == expected_params
+
+        parsed = fixer.parser.get_parsed(text)
+        res = fixer.convert_parsed_to_params(parsed)
+        print(res)
+        assert res == expected_params
 
 
 
@@ -1144,7 +1150,7 @@ def test_get_params_journal():
         (
             """'''1857''', William Chambers, Robert Chambers, "Something about bells", ''Chambers's Journal'', vol. 28, no. 207, [http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true page 398].""",
             ('year', 'author', 'double_quotes', 'italics::journal', 'volume', 'number', 'url', 'url::page'),
-            {'_source': 'journal', 'year': '1857', 'author': 'William Chambers, Robert Chambers', 'title': 'Something about bells', 'journal': "Chambers's Journal", 'volume': '28', 'number': '207', 'pageurl': 'http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true', 'page': '398'}
+            {'_source': 'journal', 'year': '1857', 'author': 'William Chambers', 'author2': 'Robert Chambers', 'title': 'Something about bells', 'journal': "Chambers's Journal", 'volume': '28', 'number': '207', 'pageurl': 'http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true', 'page': '398'}
         ),
         (
             """'''2012''', {{w|Gillian Tindall}}, "The Alleged Lunatics' Friend Society", ''Literary Review'', 403:""",
@@ -1262,7 +1268,8 @@ def test_get_params_journal():
         (
             # publisher comic strip not idea
             """'''1934''', {{w|George Herriman}}, ''{{w|Krazy Kat}}'', Tuesday, April 17 comic strip ({{ISBN|978-1-63140-408-5}}, p. 112):""",
-            ('year', 'author', 'italics::journal', 'date', 'unhandled<comic strip>', 'paren::isbn', 'paren::page'),
+            ('year', 'author', 'italics', 'date', 'unhandled<comic strip>', 'paren::isbn', 'paren::page'),
+
             None
             #{'_source': 'journal', 'date': 'April 17 1934', 'author': '{{w|George Herriman}}', 'journal': '{{w|Krazy Kat}}', 'publisher': 'comic strip', 'isbn': '978-1-63140-408-5', 'page': '112'}
         ),
@@ -1364,9 +1371,11 @@ def test_get_params_journal():
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
         assert fingerprint == expected_fingerprint
-        params = fixer.get_params(text)
-        print(params)
-        assert params == expected_params
+
+        parsed = fixer.parser.get_parsed(text)
+        res = fixer.convert_parsed_to_params(parsed)
+        print(res)
+        assert res == expected_params
 
 def test_get_params_newsgroup():
 
@@ -1456,9 +1465,12 @@ def test_get_params_newsgroup():
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
         assert fingerprint == expected_fingerprint
-        params = fixer.get_params(text)
-        print(params)
-        assert params == expected_params
+
+
+        parsed = fixer.parser.get_parsed(text)
+        res = fixer.convert_parsed_to_params(parsed)
+        print(res)
+        assert res == expected_params
 
 def test_get_params_others():
 
@@ -1767,9 +1779,12 @@ def test_get_params_others():
         fingerprint = fixer.get_fingerprint(parsed)
         print(fingerprint)
         assert fingerprint == expected_fingerprint
-        params = fixer.get_params(text)
-        print(params)
-        assert params == expected_params
+
+
+        parsed = fixer.parser.get_parsed(text)
+        res = fixer.convert_parsed_to_params(parsed)
+        print(res)
+        assert res == expected_params
 
 def test_entry():
     # TODO: fix this

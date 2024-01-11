@@ -341,6 +341,11 @@ pos: n
   etymology: ex- + conseller
   gloss: former conseller
 _____
+freír
+pos: v
+  meta: {{es-verb}} {{es-conj}}
+  gloss: to fry
+_____
 fulano
 pos: prop
   meta: {{head|es|proper noun|g=m|plural|fulanos|feminine|fulana|feminine plural|fulanas}}
@@ -3147,3 +3152,30 @@ def test_parts(fixer, allforms):
     missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
     assert missing_forms ==  []
     assert unexpected_forms == set()
+
+
+def test_fritas(fixer, allforms):
+
+    text = """
+==Spanish==
+
+====Participle====
+{{head|es|past participle form|g=f-p}}
+
+# {{feminine plural of|es|freído}}\
+"""
+
+    title = "fritas"
+    wikt = wtparser.parse_page(text, title=title, parent=None, skip_style_tags=True)
+
+    declared_forms = fixer.get_declared_forms(title, fixer.wordlist, allforms)
+    assert declared_forms == [DeclaredForm(form='fritas', pos='part', formtype='pp_fp', lemma='frito', lemma_genders=[])]
+
+    entry = fixer.get_language_entry(title, wikt, "Spanish")
+    existing_forms = fixer.get_existing_forms(title, entry)
+    assert existing_forms == { ExistingForm(form='fritas', pos='part', formtype='pp_fp', lemma='freído'): '# {{feminine plural of|es|freído}}' }
+
+    missing_forms, unexpected_forms = fixer.compare_forms(declared_forms, existing_forms)
+    assert missing_forms == [DeclaredForm(form='fritas', pos='part', formtype='pp_fp', lemma='frito', lemma_genders=[])]
+    assert unexpected_forms == {ExistingForm(form='fritas', pos='part', formtype='pp_fp', lemma='freído')}
+

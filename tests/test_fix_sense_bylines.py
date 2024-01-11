@@ -1,4 +1,5 @@
 from autodooz.fix_sense_bylines import BylineFixer
+import enwiktionary_sectionparser as sectionparser
 
 fixer = BylineFixer()
 
@@ -17,9 +18,33 @@ def test_fix_nym_with_bare_qualifier():
 
     ]
 
+
     for text, expected in tests:
-        print(text)
-        assert fixer.fix_complex_byline("syn", text) == expected
+
+        page_text = f"""\
+===Noun===
+{{head|en|noun}}
+
+# test
+#: {text}
+"""
+
+        page_expected = f"""
+===Noun===
+{{head|en|noun}}
+
+# test
+#: {expected}
+"""
+
+        section = next(sectionparser.parse(page_text, "foo").ifilter_sections())
+        pos = sectionparser.parse_pos(section)
+
+        fixer.validate_sense_list(pos.senses, section)
+        new_pos_text = str(pos)
+        section.content_wikilines = [new_pos_text]
+
+        assert(str(section) == page_expected)
 
 
 text = """
