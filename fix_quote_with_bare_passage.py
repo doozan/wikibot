@@ -100,7 +100,7 @@ class QuoteFixer():
                     continue
 
                 warn = lambda e, d: self.warn(e, section, d)
-                res = wikilines_to_quote_params(section.content_wikilines[idx+1:], prefix, warn)
+                res = wikilines_to_quote_params(section.content_wikilines[idx+1:], prefix, warn, handle_ux_templates=True)
                 if not res:
                     continue
                 offset, passage_params = res
@@ -156,12 +156,12 @@ class QuoteFixer():
                     passage = passage_params["passage"]
                     translation = passage_params.get("translation")
                     translit = None
-                    if template_name == "RQ:Tanach":
-                        if passage.startswith("{{lang|he|") and passage.endswith("}}"):
-                            passage = passage[len("{{lang|he|"):-2]
-                        if translation and "<br>" in translation:
-                            translit, translation = translation.split("<br>")
-                        print("TEM", template_name, [translit, translation])
+#                    if template_name == "RQ:Tanach":
+#                        if passage.startswith("{{lang|he|") and passage.endswith("}}"):
+#                            passage = passage[len("{{lang|he|"):-2]
+#                        if translation and "<br>" in translation:
+#                            translit, translation = translation.split("<br>")
+#                        print("TEM", template_name, [translit, translation])
 
                     lang_id = ALL_LANGS.get(section._topmost.title)
                     if translit:
@@ -190,7 +190,7 @@ class QuoteFixer():
                     # Some RQ templates can't handle newlines
                     sep = "" if fragile_template else "\n"
                     if new_params:
-                        wikiline = re.sub("}}\s*$", "", wikiline) + f"{sep}|" + f"{sep}|".join(new_params) + "}}"
+                        wikiline = re.sub(r"}}\s*$", "", wikiline) + f"{sep}|" + f"{sep}|".join(new_params) + "}}"
                     section.content_wikilines[idx] = wikiline
 
                     for to_remove_idx in range(idx+1, idx+offset+1):
