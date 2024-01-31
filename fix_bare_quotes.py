@@ -22,8 +22,10 @@ DISALLOWED_PASSAGE_TEMPLATES = {"audio"}
 # UX templates that can contain passages and translations
 ALLOWED_UX_TEMPLATES = [ "usex", "ux", "uxi", "quote", "quotei", "lang" ]
 
+# TODO: allow ko-usex, but 1= is passage not langid
+
 # Templates that can't be merged but shouldn't generate a warning
-UNHANDLED_UX_TEMPLATES = ["ja-usex", "zh-usex", "ja-x", "th-x", "zh-x"]
+UNHANDLED_UX_TEMPLATES = ["ja-usex", "zh-usex", "ja-x", "th-x", "zh-x", "zh-q"]
 
 ALLOWED_UX_PARAMS = {
     "1": None,
@@ -45,7 +47,10 @@ ALLOWED_UX_PARAMS = {
 
     "inline": None,
 
+    "sc": "sc",
     "subst": "subst",
+    "norm": "norm",
+    "footer": "footer",
 }
 
 def wikilines_to_quote_params(wikilines, prefix, warn, handle_ux_templates=False):
@@ -91,7 +96,7 @@ def wikilines_to_quote_params(wikilines, prefix, warn, handle_ux_templates=False
 def get_passage_params(passage_wikilines, translation_wikilines, warn, handle_ux_templates):
 
     """ Returns dictionary that may contain values for
-    passage, translation, transliteration """
+    passage, translation, transliteration, footer """
 
     res = get_passage(passage_wikilines, warn, handle_ux_templates)
     if not res:
@@ -152,19 +157,19 @@ def get_passage(passage_wikilines, warn, handle_ux_templates):
     if set(templates) & DISALLOWED_PASSAGE_TEMPLATES:
         return
 
-    # don't handle and don't log ja-usex as an error (quote- templates don't handle japanese)
-    if len(templates) == 1 and templates[0] in UNHANDLED_UX_TEMPLATES:
-        return
-
-    # If only one template, it's a known UX template
-    if len(templates) != 1 or templates[0] not in ALLOWED_UX_TEMPLATES:
-        warn("unhandled_template_in_passage", passage)
-        return
-
-    # and there is no text outside the template
+    # verify that there is no text outside the template
     t = next(wiki.ifilter_templates(recursive=False))
     if str(t) != passage.strip():
-        warn("mixed_ux_template_in_passage", passage)
+        warn("text_outside_ux_template_in_passage", passage)
+        return
+
+    # don't handle and don't log ja-usex as an error (quote- templates don't handle japanese)
+    if templates[0] in UNHANDLED_UX_TEMPLATES:
+        return
+
+    # if it's an expected UX template
+    if templates[0] not in ALLOWED_UX_TEMPLATES:
+        warn("unhandled_template_in_passage", passage)
         return
 
     # extract values from ux template
