@@ -570,8 +570,9 @@ class FormFixer():
 
         return items
 
-    @classmethod
-    def get_existing_forms(cls, title, wikt):
+    #@classmethod
+    #def get_existing_forms(cls, title, wikt):
+    def get_existing_forms(self, title, wikt):
         existing_forms = {}
 
         # if feminine noun with masculine, add form of masculine
@@ -582,7 +583,7 @@ class FormFixer():
                 gender = "f" # if "f" in word.genders else "m"
                 mate =  "m" #if gender == "f" else "f"
 
-                wlword = Word(title, [("meta", word.headword), ("pos", word.shortpos)])
+                wlword = Word(self.wordlist, title, [("meta", word.headword), ("pos", word.shortpos)])
                 if mate in wlword.forms:
                     for mate_lemma in wlword.forms[mate]:
                         item = ExistingForm(title, word.shortpos, gender, mate_lemma)
@@ -599,7 +600,7 @@ class FormFixer():
             formtype, lemma, nonform = Sense.parse_form_of(gloss)
 
             # Limit to the formtypes we can handle, forms like "misspelling of" aren't our concern
-            if cls.can_handle_formtype(formtype):
+            if self.can_handle_formtype(formtype):
 
                 if pos == "part":
                     formtype = {"f": "pp_fs", "fpl": "pp_fp", "mpl": "pp_mp"}.get(formtype,formtype)
@@ -751,7 +752,7 @@ class FormFixer():
         # If the gender isn't part of the formtype, use the lemma's gender(s)
         if missing_form.pos in ["v", "part"]:
             if len(word_targets) > 1:
-                raise ValueError("Multiple word matches")
+                raise ValueError("Multiple word matches", missing_form, word_targets)
             return word_targets[0]
 
         if missing_form.formtype == "pl":
@@ -1198,7 +1199,7 @@ class FixRunner():
 #            pass
         except BaseException as e:
             print("ERROR:", e)
-            #raise e
+            raise e
             with open("error.log", "a") as outfile:
                 print(f"{title} failed during add forms {e}")
                 outfile.write(f"{title}: failed during add forms {e}\n")
@@ -1270,7 +1271,7 @@ class FixRunner():
             return self._add_forms(page_text, title, skip_errors=True)
         except BaseException as e:
             print("ERROR:", e)
-            #raise e
+            raise e
             with open("error.log", "a") as outfile:
                 print(f"{title} failed during add forms {e}")
                 outfile.write(f"{title}: failed during add forms {e}\n")
