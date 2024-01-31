@@ -293,7 +293,10 @@ def main():
             declared_forms = FormFixer.get_declared_forms(form, wordlist, allforms)
             existing_forms = get_existing_forms(form, wordlist)
             missing_forms, unexpected_forms = FormFixer.compare_forms(declared_forms, existing_forms)
-            if not missing_forms:
+
+            # Fix for corner case lloviznar/lloviznarse - 'lloviznar' is defective and doesn't have some forms
+            # but the reflexive 'lloviznarse' isn't -- therefore we need to allow "lloviznarse" in place of "lloviznar"
+            if form.startswith("llovizn"):
                 continue
 
             missing_pos = []
@@ -346,14 +349,14 @@ def main():
 
                 error("missing_sense", form, item)
 
-        del allforms # Unload allforms in an attempt to recover memory before generating pages
+            for item in sorted(unexpected_forms):
+                pos = "v" if item.pos == "part" else item.pos
+                if allforms.has_lemma(item.lemma, pos):
+                    error("unexpected_form", form, item)
+                else:
+                    error("missing_lemma", form, item)
 
-        for item in sorted(unexpected_forms):
-            pos = "v" if item.pos == "part" else item.pos
-            if allforms.has_lemma(item.lemma, pos):
-                error("unexpected_form", form, item)
-            else:
-                error("missing_lemma", form, item)
+        del allforms # Unload allforms in an attempt to recover memory before generating pages
 
     if args.save:
         base_url = "User:JeffDoozan/lists/es/forms"
