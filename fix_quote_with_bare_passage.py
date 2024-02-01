@@ -31,11 +31,11 @@ POSITION_PARAM = {
 
 from .allowed_rq_templates import RQ_INVOKE_TEMPLATES, RQ_OTHER_TEMPLATES
 
-RQ_INVOKE_TEMPLATES += {"quote-text", "quote-journal", "quote-book", "quote-song", "quote-av", "quote-web"}
+RQ_INVOKE_TEMPLATES |= {"quote-text", "quote-journal", "quote-book", "quote-song", "quote-av", "quote-web"}
 
 # Aliases of commonly used templates
-ALLOWED_RQ_TEMPLATES = RQ_INVOKE_TEMPLATES + RQ_OTHER_TEMPLATES
-ALLOWED_RQ_TEMPLATES += {'RQ:Awwam', 'RQ:Ibn al-ʿawwām', 'RQ:Ibn Sina:1593', 'RQ:Pearson Expo', 'RQ:ga-Finck', 'RQ:Manyoshu', 'RQ:老乞大', 'RQ:ko:交隣須知', 'RQ:Wilkins MM', 'RQ:pi:Five Precepts', 'RQ:Pearson Expo', 'RQ:Ogier Ghiselin de Busbecq', 'RQ:Ibn Sina:1593', 'RQ:Mujin Gihaeng', 'RQ:Konkōmyō Saishōōkyō Ongi', 'RQ:Utsubo Monogatari','RQ:Jewish Oral Law','RQ:Mishnah','RQ:Tosefta','RQ:JTalmud','RQ:BTalmud','RQ:Talmud'}
+ALLOWED_RQ_TEMPLATES = RQ_INVOKE_TEMPLATES | RQ_OTHER_TEMPLATES \
+        | {'RQ:Awwam', 'RQ:Ibn al-ʿawwām', 'RQ:Ibn Sina:1593', 'RQ:Pearson Expo', 'RQ:ga-Finck', 'RQ:Manyoshu', 'RQ:老乞大', 'RQ:ko:交隣須知', 'RQ:Wilkins MM', 'RQ:pi:Five Precepts', 'RQ:Pearson Expo', 'RQ:Ogier Ghiselin de Busbecq', 'RQ:Ibn Sina:1593', 'RQ:Mujin Gihaeng', 'RQ:Konkōmyō Saishōōkyō Ongi', 'RQ:Utsubo Monogatari','RQ:Jewish Oral Law','RQ:Mishnah','RQ:Tosefta','RQ:JTalmud','RQ:BTalmud','RQ:Talmud'}
 
 from autodooz.sections import ALL_POS
 from collections import defaultdict
@@ -193,7 +193,7 @@ class QuoteFixer():
                         new_params.append(f"{p}={passage_params[k]}")
 
                     # Some RQ templates can't handle newlines
-                    sep = "\n" if template_name in RQ_INCLUDE_TEMPLATES else ""
+                    sep = "\n" if template_name in RQ_INVOKE_TEMPLATES else ""
 
                     if new_params:
                         wikiline = re.sub(r"}}\s*$", "", wikiline) + f"{sep}|" + f"{sep}|".join(new_params) + "}}"
