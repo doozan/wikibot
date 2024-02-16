@@ -130,3 +130,36 @@ def test_vada():
 
     res = fixer.process(text, "test", [], [])
     assert str(res) == text
+
+def test_geometri():
+
+    text = """
+==Swedish==
+
+===Noun===
+{{sv-noun|c}}
+
+# {{lb|sv|mathematics}} [[geometry]]; a specific set of rules defining the possible [[spatial]] [[relationship]]s
+#: ''Genom att modifiera Euklides parallellaxiom kunde Lobatjevskij definiera en ny sorts '''geometri.'''''
+#:: By modifying the [[parallel postulate]] of [[w:Euclid|Euclid]], [[w:Nikolai Ivanovich Lobachevsky|Lobachevsky]] defined a new kind of geometry.
+# a [[geometry]], a [[shape]]; an item's relative [[spatial]] [[attribute]]s
+#: ''När ett nytt ämne med en annan '''geometri''' ska bearbetas, utarbetas ett nytt NC-program.''
+#:: When a new object with a different geometry is to be manufactured, a new CNC program is developed.\
+"""
+
+    expected = """
+==Swedish==
+
+===Noun===
+{{sv-noun|c}}
+
+# {{lb|sv|mathematics}} [[geometry]]; a specific set of rules defining the possible [[spatial]] [[relationship]]s
+#: ''Genom att modifiera Euklides parallellaxiom kunde Lobatjevskij definiera en ny sorts '''geometri.'''''
+#:: By modifying the [[parallel postulate]] of [[w:Euclid|Euclid]], [[w:Nikolai Ivanovich Lobachevsky|Lobachevsky]] defined a new kind of geometry.
+# a [[geometry]], a [[shape]]; an item's relative [[spatial]] [[attribute]]s
+#: {{ux|sv|När ett nytt ämne med en annan '''geometri''' ska bearbetas, utarbetas ett nytt NC-program.
+|t=When a new object with a different geometry is to be manufactured, a new CNC program is developed.}}\
+"""
+
+    res = fixer.process(text, "test", [], [])
+    assert str(res) == expected

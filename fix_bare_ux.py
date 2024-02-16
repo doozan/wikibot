@@ -78,8 +78,6 @@ class BareUxFixer():
                 bare_ux_items = [c for c in sense._children if c._type == "bare_ux"]
 
 
-
-
 #                # TODO: Manual review - if there are exactly 2 bare_ux_items and neither have children
 #                # then the second item may be the translation of the first item
 #                if len(bare_ux_items) == 2 and all(not i._children for i in bare_ux_items):
@@ -145,6 +143,7 @@ class BareUxFixer():
             to_remove = []
             for item in all_fixable_ux:
                 for idx, wikiline in enumerate(section.content_wikilines):
+                    to_remove_if_changed = []
                     if str(item.data) in str(wikiline):
 
                         assert is_italic(item.data)
@@ -160,7 +159,7 @@ class BareUxFixer():
 
                             assert translation
 
-                            to_remove.append(idx+1)
+                            to_remove_if_changed.append(idx+1)
 
 #                        # NOTE: Manual fix
 #                        if not translation and " - " in passage:
@@ -193,6 +192,7 @@ class BareUxFixer():
 
                         self.fix("bare_ux", section, item.name, "converted bare ux to template")
                         entry_changed = True
+                        to_remove += to_remove_if_changed
 
             for idx in reversed(to_remove):
                 del section.content_wikilines[idx]
