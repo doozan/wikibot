@@ -144,55 +144,56 @@ class BareUxFixer():
             for item in all_fixable_ux:
                 for idx, wikiline in enumerate(section.content_wikilines):
                     to_remove_if_changed = []
-                    if str(item.data) in str(wikiline):
+                    if str(item.data) not in str(wikiline):
+                        continue
 
-                        assert is_italic(item.data)
-                        passage = item.data[2:-2].strip()
+                    assert is_italic(item.data)
+                    passage = item.data[2:-2].strip()
 
-                        translation = None
-                        if item._children:
-                            assert len(item._children) == 1
-                            translation = item._children[0].data
+                    translation = None
+                    if item._children:
+                        assert len(item._children) == 1
+                        translation = item._children[0].data
 
-                            if is_italic(translation.strip()):
-                                translation = translation.strip()[2:-2].strip()
+                        if is_italic(translation.strip()):
+                            translation = translation.strip()[2:-2].strip()
 
-                            assert translation
+                        assert translation
 
-                            to_remove_if_changed.append(idx+1)
+                        to_remove_if_changed.append(idx+1)
 
-#                        # NOTE: Manual fix
-#                        if not translation and " - " in passage:
-#                            passage, translation =  passage.split(" - ")
+#                    # NOTE: Manual fix
+#                    if not translation and " - " in passage:
+#                        passage, translation =  passage.split(" - ")
 
-                        if "|" in passage:
-                            self.warn("pipe_in_ux_passage", section, item.name, passage)
-                            continue
+                    if "|" in passage:
+                        self.warn("pipe_in_ux_passage", section, item.name, passage)
+                        continue
 
-                        if translation and "|" in translation:
-                            self.warn("pipe_in_ux_translation", section, item.name, translation)
-                            continue
+                    if translation and "|" in translation:
+                        self.warn("pipe_in_ux_translation", section, item.name, translation)
+                        continue
 
-                        if "://" in passage:
-                            self.warn("url_in_ux_passage", section, item.name, passage)
-                            continue
+                    if "://" in passage:
+                        self.warn("url_in_ux_passage", section, item.name, passage)
+                        continue
 
-                        if translation and "://" in translation:
-                            self.warn("url_in_ux_translation", section, item.name, translation)
-                            continue
+                    if translation and "://" in translation:
+                        self.warn("url_in_ux_translation", section, item.name, translation)
+                        continue
 
-                        new_wikiline = item.prefix + " {{ux|" + lang_id + "|" + passage
-                        if translation:
-                            if len(translation) > 80 or len(passage) > 80:
-                                new_wikiline += "\n|t=" + translation
-                            else:
-                                new_wikiline += "|" + translation
-                        new_wikiline += "}}"
-                        section.content_wikilines[idx] = new_wikiline
+                    new_wikiline = item.prefix + " {{ux|" + lang_id + "|" + passage
+                    if translation:
+                        if len(translation) > 80 or len(passage) > 80:
+                            new_wikiline += "\n|t=" + translation
+                        else:
+                            new_wikiline += "|" + translation
+                    new_wikiline += "}}"
+                    section.content_wikilines[idx] = new_wikiline
 
-                        self.fix("bare_ux", section, item.name, "converted bare ux to template")
-                        entry_changed = True
-                        to_remove += to_remove_if_changed
+                    self.fix("bare_ux", section, item.name, "converted bare ux to template")
+                    entry_changed = True
+                    to_remove += to_remove_if_changed
 
             for idx in reversed(to_remove):
                 del section.content_wikilines[idx]
