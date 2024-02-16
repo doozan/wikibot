@@ -732,8 +732,8 @@ $(FIX)bare_ux:
 >   echo $$LINKS > $@
 
 $(FIX)punc_refs:
->   $(WIKIFIX) --fix punc_refs -namespace:0 -search:"insource:/ref[ \n]*>[,.;]/"
->   $(WIKIFIX) --fix punc_refs -namespace:0 -search:"insource:/\<ref[^>]*\/[ ]*\>[.,;]/"
+>   $(WIKIFIX) --fix punc_refs -namespace:0 -search:"insource:/ref[ \n]*>[ ]*[,.;]/"
+>   $(WIKIFIX) --fix punc_refs -namespace:0 -search:"insource:/\<ref[^>]*\/[ ]*\>[ ]*[.,;]/"
 
 $(FIX)rq_templates: $(BUILDDIR)/rq_template_params.json
 >   $(WIKIFIX) --fix rq_template -search:"insource:/\{quote-/ -insource:/quote-meta/ prefix:Template:RQ:"
