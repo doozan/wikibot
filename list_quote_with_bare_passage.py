@@ -109,7 +109,7 @@ def main():
     parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
     args = parser.parse_args()
 
-    fixer = QuoteFixer()
+    fixer = QuoteFixer("templates.json")
 
     if not args.j:
         args.j = multiprocessing.cpu_count()-1

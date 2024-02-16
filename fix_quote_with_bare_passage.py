@@ -1,4 +1,5 @@
 import enwiktionary_sectionparser as sectionparser
+import json
 import mwparserfromhell as mwparser
 import re
 import sys
@@ -29,22 +30,24 @@ POSITION_PARAM = {
 #    "quote-lite": None,
 }
 
-from .allowed_rq_templates import RQ_INVOKE_TEMPLATES, RQ_OTHER_TEMPLATES
+#from .allowed_rq_templates import RQ_INVOKE_TEMPLATES, RQ_OTHER_TEMPLATES
 
-RQ_INVOKE_TEMPLATES |= {"quote-text", "quote-journal", "quote-book", "quote-song", "quote-av", "quote-web"}
+QUOTE_TEMPLATES = {"quote-text", "quote-journal", "quote-book", "quote-song", "quote-av", "quote-web"}
 
 # Aliases of commonly used templates
-ALLOWED_RQ_TEMPLATES = RQ_INVOKE_TEMPLATES | RQ_OTHER_TEMPLATES \
-        | {'RQ:Awwam', 'RQ:Ibn al-ʿawwām', 'RQ:Ibn Sina:1593', 'RQ:Pearson Expo', 'RQ:ga-Finck', 'RQ:Manyoshu', 'RQ:老乞大', 'RQ:ko:交隣須知', 'RQ:Wilkins MM', 'RQ:pi:Five Precepts', 'RQ:Pearson Expo', 'RQ:Ogier Ghiselin de Busbecq', 'RQ:Ibn Sina:1593', 'RQ:Mujin Gihaeng', 'RQ:Konkōmyō Saishōōkyō Ongi', 'RQ:Utsubo Monogatari','RQ:Jewish Oral Law','RQ:Mishnah','RQ:Tosefta','RQ:JTalmud','RQ:BTalmud','RQ:Talmud'}
+#ALLOWED_RQ_TEMPLATES = RQ_INVOKE_TEMPLATES | RQ_OTHER_TEMPLATES | QUOTE_TEMPLATES
 
 from autodooz.sections import ALL_POS
 from collections import defaultdict
 
 class QuoteFixer():
 
-    def __init__(self):
+    def __init__(self, template_data):
         self._summary = None
         self._log = []
+
+        with open(template_data) as infile:
+            self._templates = json.load(infile)
 
     def fix(self, code, section, details):
         # When running tests, section will be empty
@@ -135,7 +138,7 @@ class QuoteFixer():
                         continue
 
                 # For templates that don't support passage=, use {{quote}}
-                if template_name not in ALLOWED_RQ_TEMPLATES and template_name != "Q":
+                if template_name not in self._templates and template_name != "Q":
                     self.warn("unhandled_rq_with_passage", section, template_name)
 
                     if "{{quote" in section.content_wikilines[idx+1]:
@@ -193,7 +196,7 @@ class QuoteFixer():
                         new_params.append(f"{p}={passage_params[k]}")
 
                     # Some RQ templates can't handle newlines
-                    sep = "\n" if template_name in RQ_INVOKE_TEMPLATES else ""
+                    sep = "\n" if template_name in QUOTE_TEMPLATES else ""
 
                     if new_params:
                         wikiline = re.sub(r"}}\s*$", "", wikiline) + f"{sep}|" + f"{sep}|".join(new_params) + "}}"
