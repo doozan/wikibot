@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
+import multiprocessing
 import os
 import re
 import sys
@@ -54,7 +55,8 @@ def rq_template_supports_params(text):
     text = get_included_text(text)
 
     if rq_template_uses_invoke(text):
-        return bool(re.search(r"\|\s*allowparams\s*=\s*\*", text))
+        return True
+        #return bool(re.search(r"\|\s*allowparams\s*=\s*\*", text))
 
     elif not rq_template_uses_template(text):
         return False
@@ -103,13 +105,43 @@ def iter_search(text, limit=None, show_progress=False):
             print(count, end = '\r', file=sys.stderr)
         yield item
 
+
+def process(entry):
+
+    entry_title = str(entry.title)
+    entry_text = str(entry.text)
+
+    if not entry_title.startswith("Template:"):
+        return
+
+    if "/" in entry_title:
+        return
+
+    m = re.match(r"^#REDIRECT[:]?\s+\[\[\s*(Template:RQ:.*?)\s*\]\]", entry_text, re.IGNORECASE)
+    if m:
+        return "redir", m.group(1), entry_title
+
+    if not entry_title.startswith("Template:RQ:"):
+        return
+
+    if rq_template_uses_invoke(entry_text) and rq_template_supports_params(entry_text):
+        print(";[[" + entry_title + "]]: allowparams = " + ",".join(get_used_params(entry_text)))
+        return "module", entry_title
+
+    elif rq_template_uses_template(entry_text) and rq_template_supports_params(entry_text):
+        return "template", entry_title
+
 def main():
 
     parser = argparse.ArgumentParser(description="Find RQ templates that can handle passage= parameters")
     parser.add_argument("xml", help="XML file to load")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
+    parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
     args = parser.parse_args()
+
+    if not args.j:
+        args.j = multiprocessing.cpu_count()-1
 
     from pywikibot import xmlreader
     dump = xmlreader.XmlDump(args.xml)
@@ -124,44 +156,41 @@ def main():
     tl = 0
 
     redirect_targets = defaultdict(set)
-    uses_module = {}
-    uses_template = {}
+    valid_module_templates = set()
+    valid_wiki_templates = set()
+
+    if args.j > 1:
+        pool = multiprocessing.Pool(args.j)
+        iter_items = pool.imap_unordered(process, iter_entries, 1000)
+    else:
+        iter_items = map(process, iter_entries)
 
 
     count = 0
-    for entry in iter_entries:
+    for res in iter_items:
         count += 1
-        if not count % 1000 and args.progress:
-            print(count, end = '\r', file=sys.stderr)
-
+        if count % 1000 == 0 and args.progress:
+            print(count, file=sys.stderr, end="\r")
         if args.limit and count > args.limit:
             break
 
-        #entry_title, entry_text = entry.title, entry.text
-        entry_title = str(entry.title)
-        entry_text = str(entry.text)
-
-        if not entry_title.startswith("Template:"):
+        if not res:
             continue
+        template_type, *values = res
+        if template_type == "redir":
+            target, template_name = values
+            redirect_targets[target].add(template_name)
+        elif template_type == "module":
+            template_name = values[0]
+            valid_module_templates.add(template_name)
+        elif template_type == "template":
+            template_name = values[0]
+            valid_wiki_templates.add(template_name)
+        else:
+            raise ValueError("unhandled response", res)
 
-        if "/" in entry_title:
-            continue
+    exit()
 
-        m = re.match(r"^#REDIRECT[:]?\s+\[\[\s*(Template:RQ:.*?)\s*\]\]", entry_text, re.IGNORECASE)
-        if m:
-            redirect_targets[m.group(1)].add(entry_title)
-            continue
-
-        if not entry_title.startswith("Template:RQ:"):
-            continue
-
-        if rq_template_uses_invoke(entry_text) and rq_template_supports_params(entry_text):
-            uses_module[entry_title] = entry_text
-        elif rq_template_uses_template(entry_text) and rq_template_supports_params(entry_text):
-            uses_template[entry_title] = entry_text
-
-
-    valid_module_templates = uses_module.keys()
     for k in valid_module_templates & redirect_targets.keys():
         valid_module_templates |= redirect_targets[k]
 
@@ -170,16 +199,15 @@ def main():
         print(f'    "{template.removeprefix("Template:")}",')
     print("}")
 
-    valid_templates = uses_template.keys()
-    for k in valid_templates & redirect_targets.keys():
-        valid_templates |= redirect_targets[k]
+    for k in valid_wiki_templates & redirect_targets.keys():
+        valid_wiki_templates |= redirect_targets[k]
 
     print("RQ_OTHER_TEMPLATES = {")
-    for template in sorted(valid_templates):
+    for template in sorted(valid_wiki_templates):
         print(f'    "{template.removeprefix("Template:")}",')
     print("}")
 
-    print("dumped", len(valid_templates)+len(valid_module_templates), file=sys.stderr)
+    print("dumped", len(valid_wiki_templates)+len(valid_module_templates), file=sys.stderr)
 
 if __name__ == "__main__":
     main()
