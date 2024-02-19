@@ -48,6 +48,10 @@ fix(page_text, page_title, summary, CUSTOM_PARAMS)
 SPANISH_DATA = "../spanish_data"
 DRAE_DATA = "../drae_data"
 
+import os
+NEWEST = max(f.name for f in os.scandir(SPANISH_DATA) if f.is_dir() and re.match(r"\d\d\d\d-\d\d-\d\d$", f.name))
+NEWEST_DATA = os.path.join(SPANISH_DATA, NEWEST)
+
 _fixers = {}
 def get_fixer(cls, **kwparams):
     item = (cls, *kwparams)
@@ -287,32 +291,6 @@ wikifix['es_form_overrides'] = {
     "post-fixes": [(ele_cleanup, None)],
 }
 
-from autodooz.fix_inline_modifiers import InlineFixer
-def inline_modifiers(text, title, summary, options):
-    fixer = get_fixer(InlineFixer)
-    return fixer.process(text, title, summary)
-
-wikifix['inline_modifiers'] = {
-    'mode': 'function',
-    "pre-fixes": [(sectionparser_cleanup, None)],
-    "fixes": [(inline_modifiers, None)],
-    "post-fixes": [(ele_cleanup, None)],
-}
-
-from autodooz.fix_html_comments import CommentFixer
-def fix_html_comments(text, title, summary, options):
-    fixer = get_fixer(CommentFixer)
-    return fixer.process(text, title, summary)
-
-wikifix['html_comments'] = {
-    'mode': 'function',
-    "pre-fixes": [(sectionparser_cleanup, None)],
-    "fixes": [(fix_html_comments, None)],
-    "post-fixes": [(ele_cleanup, None)],
-}
-
-
-
 from autodooz.fix_list_to_col import ListToColFixer
 def fix_list_to_col(text, title, summary, options):
     fixer = get_fixer(ListToColFixer)
@@ -329,6 +307,46 @@ wikifix['list_to_col'] = {
 }
 
 
+#from autodooz.fix_misnamed_section import MisnamedSection
+#def fix_misnamed_section(text, title, summary, options):
+#    fixer = get_fixer(MisnamedSection)
+#    return fixer.process(text, title, summary, options)
+#
+#_conj_not_conjugation = [ "lad", "sco", "ms", "vi", "tyz", "syc", "xum", "ase", "raj", "lo", "uz", "khb", "lif", "sd", "nan" ]
+#_inflection = [ "grc", "fy", "dum", "vot", "hit" ]
+#
+#_non_conjugation_conj = _conj_not_conjugation + _inflection
+#_non_declension_decl = _non_conjugation_conj
+#
+#_inflection_to_conj = ["da", "lv", "sw", "la", "yi", "eo", "li", "ofs", "nn", "bg", "tr", "sq", "odt",
+#        "he", "id", "de", "ur", "ar", "it", "es", "tg", "mt", "ia", "ang", "io", "hi", "kl", "ks", "tl",
+#        "az", "ru", "bo", "ta", "ne", "akk", "stq", "pa", "kpv", "pt"
+#        ]
+#_inflection_to_decl = _inflection_to_conj
+#
+#_pron_templates = [ "IPA", r"[a-z]+-IPA", "r[a-z]+-pr", "hyphenation", "hyph" ]
+#_ety_templates = [ "bor", r"bor\+", "bor-lite", "borrowed", "cognate", "cog", "cog-lite", "coinage", "coin", "coined", "compound", "com", "com+", "contraction", "contr", "derived", "der", "der\+", "der-lite", "etydate",  "false cognate", "genericized trademark", "gentrade", "hyperthesis", "inh", r"inh\+", "inh-lite", "inherited", "initialism", "internationalism", "internat", "lit", "metathesis", "named-after", "nominalization", "noncognate", "noncog", "ncog", "nc", "nonlemma", "nl", "onomatopoeic", "onom", "piecewise doublet", "pseudo-acronym", "pseudo-loan", "pl", "surface analysis", "surf", "transliteration", "translit", "uncertain", "unc", "undefined derivation", "uder", "der\?", "unknown", "unk", "word", "affix", "af", "pre", "prefix", "suffix", "suf", "compound", "com", "confix", "con" ]
+#_desc_templates = [ "desc", "descendant" ]
+#wikifix['misnamed_section'] = {
+#    'mode': 'function',
+#    "pre-fixes": [(sectionparser_cleanup, None)],
+#    "fixes": [(fix_misnamed_section, {
+#        "patterns": {
+#            #"{{\s*(" + "|".join(_pron_templates) + ")\s*([\|}]|$)": "Pronunciation",
+#
+## fix all inflections except explicitly disallowed
+##            "{{\s*((?!(" + "|".join(_non_conjugation_conj) + "))[a-z]+-conj)\s*([\|}]|$)": "Conjugation",
+##            "{{\s*((?!(" + "|".join(_non_declension_decl) + "))[a-z]+-decl)\s*([\|}]|$)": "Declension",
+## fix only inflections that are explicitly allowed
+##            "{{\s*((" + "|".join(_inflection_to_conj) + ")-conj)\s*([\|}]|$)": "Conjugation",
+##            "{{\s*((" + "|".join(_inflection_to_decl) + ")-decl)\s*([\|}]|$)": "Declension",
+#
+##            "{{\s*(" + "|".join(_ety_templates) + ")\s*([\|}]|$)": "Etymology",
+##            "{{\s*(" + "|".join(_desc_templates) + ")\s*([\|}]|$)": "Descendants",
+#        }
+#        })],
+#    "post-fixes": [(ele_cleanup, None)],
+#}
 
 from autodooz.nym_sections_to_tags import NymSectionToTag
 simple_nym_fixes = [ #{
@@ -389,15 +407,16 @@ wikifix['es_all_nyms'] = {
 
 from autodooz.fix_quote_with_bare_passage import QuoteFixer as QPassFixer
 def fix_quote_with_bare_passage(text, title, summary, options):
-    fixer = get_fixer(QPassFixer)
+    fixer = get_fixer(QPassFixer, **options)
     return fixer.process(text, title, summary, options)
 
 wikifix['quote_with_bare_passage'] = {
     'mode': 'function',
     "pre-fixes": [(sectionparser_cleanup, None)],
-    "fixes": [(fix_quote_with_bare_passage, None)],
+    "fixes": [(fix_quote_with_bare_passage, {"template_data": "templates.json"})],
     "post-fixes": [(ele_cleanup, None)],
 }
+
 
 from autodooz.fix_bare_ux import BareUxFixer
 def fix_bare_ux(text, title, summary, options):
@@ -410,6 +429,7 @@ wikifix['bare_ux'] = {
     "fixes": [(fix_bare_ux, None)],
     "post-fixes": [(ele_cleanup, None)],
 }
+
 
 from autodooz.fix_sense_bylines import BylineFixer
 def fix_sense_bylines(text, title, summary, options):
@@ -490,5 +510,46 @@ wikifix['polish_refs'] = {
     "post-fixes": [(ele_cleanup, None)],
 }
 
+wikifix['empty_wikiline'] = {
+    'mode': 'regex',
+    'context': 'none',
+    'fixes': [ ('^[#*:]+[ ]*(\n|$)', '') ],
+}
 
+from autodooz.fix_rq_template import RqTemplateFixer
+def fix_rq_template(text, title, summary, options):
+    fixer = get_fixer(RqTemplateFixer, **options)
+    return fixer.process(text, title, summary, options)
 
+wikifix['rq_template'] = {
+    'mode': 'function',
+    "fixes": [(fix_rq_template, {"bad_template_file": None})],
+}
+
+from autodooz.fix_bad_rq_params import RqParamFixer
+def fix_rq_params(text, title, summary, options):
+    fixer = get_fixer(RqParamFixer, **options)
+    return fixer.process(text, title, summary, options)
+
+wikifix['rq_params'] = {
+    'mode': 'function',
+    "fixes": [(fix_rq_params, {"template_data": os.path.join(NEWEST_DATA, "templates.json")})],
+    "post-fixes": [(sectionparser_cleanup, None)],
+}
+
+from autodooz.fix_punc_refs import fix_punc_refs
+wikifix['punc_refs'] = {
+    'mode': 'function',
+    "fixes": [(fix_punc_refs, None)],
+}
+
+from autodooz.fix_bad_template_params import ParamFixer
+def fix_bad_template_params(text, title, summary, options):
+    fixer = get_fixer(ParamFixer, **options)
+    return fixer.process(text, title, summary, options)
+
+wikifix['bad_template_params'] = {
+    'mode': 'function',
+    "fixes": [(fix_bad_template_params, {"template_data": os.path.join(NEWEST_DATA, "template_params.json")})],
+    "post-fixes": [(sectionparser_cleanup, None)],
+}
