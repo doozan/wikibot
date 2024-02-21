@@ -179,7 +179,7 @@ $(LIST)es_maybe_forms: $(BUILDDIR)/es-en.enwikt.data-full
 >   $(LIST_MAYBE_FORMS) --wordlist $< $(SAVE)
 >   touch $@
 
-$(LIST)missing_forms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/all-en.enwikt.pages $(BUILDDIR)/es-en.enwikt.txt.bz2
+$(LIST)es_missing_forms: $(BUILDDIR)/es-en.enwikt.allforms.csv $(BUILDDIR)/es-en.enwikt.data-full $(BUILDDIR)/all-en.enwikt.pages $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   echo "Running $@..."
 >   $(LIST_MISSING_FORMS) --allforms $(BUILDDIR)/es-en.enwikt.allforms.csv --allpages $(BUILDDIR)/all-en.enwikt.pages --articles $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/es-en.enwikt.data-full $(SAVE)
 >   touch $@
@@ -763,7 +763,7 @@ $(FIX)template_params: $(BUILDDIR)/template_params.json
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides mismatched_headlines convert_list_to_col quote_with_bare_passage sense_bylines bare_ux unbalanced_delimiters section_header_errors section_level_errors section_order_errors t9n_problems fr_missing_lemmas fr_missing_tlfi pt_with_synonyms bad_template_params section_stats missing_forms) # missing_forms last because it's slow on low memory machine
+lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_lemmas fr_missing_tlfi pt_with_synonyms mismatched_headlines quote_with_bare_passage sense_bylines bare_ux unbalanced_delimiters section_header_errors section_level_errors section_order_errors t9n_problems convert_list_to_col bad_template_params es_missing_forms section_stats) # slower stuff last
 
 # Fixes that are safe to run automatically and without supervision
 autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col quote_with_bare_passage sense_bylines bare_ux punc_refs rq_templates)
