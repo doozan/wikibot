@@ -63,7 +63,7 @@ def clean_name(obj):
     return text.strip()
 
 def clean_value(obj):
-    text = re.sub(r"<!--.*?-->", "", str(obj.value))
+    text = re.sub(r"<!--.*?-->", "", str(obj.value), flags=re.DOTALL)
     return text.strip()
 
 class ParamFixer():
