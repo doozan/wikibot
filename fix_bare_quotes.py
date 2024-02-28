@@ -805,11 +805,7 @@ class QuoteFixer():
 
             elif p.type == "author":
                 assert len(p.values)
-                for idx, value in enumerate(p.values, 1):
-                    key = f"author{idx}" if idx>1 else "author"
-                    if value.endswith("'s"):
-                        value = value[:-2]
-                    save(key, value)
+                save(p.type, "; ".join(p.values))
 
 #            elif p.type == "publisher2":
 #                assert len(p.values) == 1
