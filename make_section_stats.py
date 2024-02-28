@@ -35,6 +35,7 @@ error_header = {
     "trailing_open_html_comment": "Pages with an unclosed HTML comment",
     "trailing_open_template": "Pages with an unclosed template",
     "trailing_open_nowiki_tag": "Pages with an unclosed  <nowiki><nowiki></nowiki> tag",
+    "trailing_open_pre_tag": "Pages with an unclosed  <nowiki><pre></nowiki> tag",
     "trailing_open_ref_tag": "Pages with an unclosed  <nowiki><ref></nowiki> tag",
     "trailing_open_math_tag": "Pages with an unclosed  <nowiki><math></nowiki> tag",
     "trailing_open_wikitable": "Pages with an unclosed  <nowiki>{| |}</nowiki> wikitable",
@@ -101,22 +102,25 @@ def validate_entry(entry, errors):
         last_wikiline = last_node.content_wikilines[-1]
         bad_line = last_wikiline.splitlines()[0]
 
-        if entry._state & 0xFF:
+        if "open_templates" in entry._state:
             log(errors, "trailing_open_template", entry, bad_line)
 
-        if entry._state & 0x100:
+        if "open_ref" in entry._state:
             log(errors, "trailing_open_ref_tag", entry, bad_line)
 
-        if entry._state & 0x200:
+        if "open_nowiki" in entry._state:
             log(errors, "trailing_open_nowiki_tag", entry, bad_line)
 
-        if entry._state & 0x400:
+        if "open_comment" in entry._state:
             log(errors, "trailing_open_html_comment", entry, bad_line)
 
-        if entry._state & 0x800:
+        if "open_math" in entry._state:
             log(errors, "trailing_open_math_tag", entry, bad_line)
 
-        if entry._state & 0x1000:
+        if "open_pre" in entry._state:
+            log(errors, "trailing_open_pre_tag", entry, bad_line)
+
+        if "open_table" in entry._state:
             log(errors, "trailing_open_wikitable", entry, bad_line)
 
     if not entry._children:
