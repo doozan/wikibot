@@ -32,7 +32,7 @@ POSITION_PARAM = {
 
 #from .allowed_rq_templates import RQ_INVOKE_TEMPLATES, RQ_OTHER_TEMPLATES
 
-QUOTE_TEMPLATES = {"quote-text", "quote-journal", "quote-book", "quote-song", "quote-av", "quote-web"}
+QUOTE_TEMPLATES = POSITION_PARAM.keys()
 
 # Aliases of commonly used templates
 #ALLOWED_RQ_TEMPLATES = RQ_INVOKE_TEMPLATES | RQ_OTHER_TEMPLATES | QUOTE_TEMPLATES
@@ -138,7 +138,36 @@ class QuoteFixer():
                         continue
 
                 # For templates that don't support passage=, use {{quote}}
-                if template_name not in self._templates and template_name != "Q":
+                if template_name in self._templates or template_name in QUOTE_TEMPLATES or template_name != "Q":
+
+                    # {{Q}} uses param names that don't match {{quote-*}} and {{RQ:*}} templates
+                    ALT_PARAM_NAMES = {
+                        "passage": "quote",
+                        "translation": "t",
+                        "transliteration": "tr",
+                    }
+                    new_params = []
+                    # Sort passage, translation, and transliteration before other possible params
+                    for k, v in sorted(passage_params.items(), key=lambda x:
+                        (0, x) if x[0] in ["passage", "translation", "transliteration"] else (1, x)):
+
+                        p = ALT_PARAM_NAMES.get(k, k) if template_name == "Q" else k
+                        new_params.append(f"{p}={passage_params[k]}")
+
+                    # Some RQ templates can't handle newlines
+                    sep = "\n" if template_name in QUOTE_TEMPLATES else ""
+
+                    if new_params:
+                        wikiline = re.sub(r"}}\s*$", "", wikiline) + f"{sep}|" + f"{sep}|".join(new_params) + "}}"
+                    section.content_wikilines[idx] = wikiline
+
+                    for to_remove_idx in range(idx+1, idx+offset+1):
+                        to_remove.append(to_remove_idx)
+
+                    entry_changed = True
+                    self.fix("passage_outside_template", section, "merged bare passage into existing quote template")
+
+                else:
                     self.warn("unhandled_rq_with_passage", section, template_name)
 
                     if "{{quote" in section.content_wikilines[idx+1]:
@@ -180,33 +209,6 @@ class QuoteFixer():
                     self.fix("quote_outside_template", section, "converted bare passage to quote")
                     #self.warn("quote_with_child_lines", section, "\n".join(section.content_wikilines[idx:idx+offset+1]))
 
-                else:
-                    # {{Q}} uses param names that don't match {{quote-*}} and {{RQ:*}} templates
-                    ALT_PARAM_NAMES = {
-                        "passage": "quote",
-                        "translation": "t",
-                        "transliteration": "tr",
-                    }
-                    new_params = []
-                    # Sort passage, translation, and transliteration before other possible params
-                    for k, v in sorted(passage_params.items(), key=lambda x:
-                        (0, x) if x[0] in ["passage", "translation", "transliteration"] else (1, x)):
-
-                        p = ALT_PARAM_NAMES.get(k, k) if template_name == "Q" else k
-                        new_params.append(f"{p}={passage_params[k]}")
-
-                    # Some RQ templates can't handle newlines
-                    sep = "\n" if template_name in QUOTE_TEMPLATES else ""
-
-                    if new_params:
-                        wikiline = re.sub(r"}}\s*$", "", wikiline) + f"{sep}|" + f"{sep}|".join(new_params) + "}}"
-                    section.content_wikilines[idx] = wikiline
-
-                    for to_remove_idx in range(idx+1, idx+offset+1):
-                        to_remove.append(to_remove_idx)
-
-                    entry_changed = True
-                    self.fix("passage_outside_template", section, "merged bare passage into existing quote template")
 
 
             for idx in reversed(to_remove):
