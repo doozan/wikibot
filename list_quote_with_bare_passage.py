@@ -103,13 +103,14 @@ def main():
     global fixer
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
     parser.add_argument("wxt", help="Wiktionary extract file")
+    parser.add_argument("--json", help="JSON file with template data", required=True)
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
     parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
     args = parser.parse_args()
 
-    fixer = QuoteFixer("templates.json")
+    fixer = QuoteFixer(args.json)
 
     if not args.j:
         args.j = multiprocessing.cpu_count()-1
