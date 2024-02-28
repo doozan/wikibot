@@ -13,6 +13,8 @@ from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 
 FIX_PATH = "template_params"
+TOTAL_TEMPLATES = 0
+TOTAL_COUNT = 0
 
 class WikiSaver(BaseHandler):
 
@@ -26,19 +28,35 @@ class WikiSaver(BaseHandler):
         count = defaultdict(int)
         for item in items:
             if "autofix" in item.error:
-                fix_count[item.template_name] += 1
+                fix_count[item.error] += 1
             else:
                 count[item.template_name] += 1
 
 
+
+        def sort_items(x):
+
+            # fixes are sorted above everything, by error code
+            if "autofix" in x.error:
+                return 0, fix_count[x.error]*-1, x.error, x.page, x.template_name, x.key
+
+            # errors are sorted by template name
+            return 1, count[x.template_name]*-1, x.template_name, x.key, x.page
+
         # sort autofix sections first so they can be split into other pages
         # everything else sorted by count of section entries (smallest to largest)
-        return sorted(items, key=lambda x: ("autofix" not in x.error, fix_count[x.template_name]*-1 if "autofix" in x.error else count[x.template_name]*-1, x.template_name, x.key, x.page))
+        return sorted(items, key=sort_items)
 
     def is_new_section(self, item, prev_item):
+        if prev_item and prev_item.error.startswith("autofix"):
+            return prev_item and prev_item.error != item.error
+
         return prev_item and prev_item.template_name != item.template_name
 
     def is_new_page(self, page_sections, section_entries):
+        res = page_sections and (page_sections[-1][-1].error.startswith("autofix") != section_entries[0].error.startswith("autofix"))
+        if res:
+            print("NEW PAGE")
         return page_sections and (page_sections[-1][-1].error.startswith("autofix") != section_entries[0].error.startswith("autofix"))
 
     def page_name(self, page_sections, prev):
@@ -51,7 +69,7 @@ class WikiSaver(BaseHandler):
 
         # if it's a fix, just print the pagename
         if "autofix" in entry.error:
-            return [f"[[{entry.page}]]"]
+            return [f": [[{entry.page}]] {entry.details}"]
 
 
         data = entry.bad_data.replace("<BAD>", '<span style="color:red">').replace("</BAD>", '</span>')
@@ -70,7 +88,10 @@ class WikiSaver(BaseHandler):
             return []
 
         total_items = sum(map(len, page_sections))
-        res = [f"; {total_items} template calls using invalid parameters"]
+        res = [ f"; {total_items:,} template calls using invalid parameters",
+                f"; {TOTAL_TEMPLATES:,} unique templates validated",
+                f"; {TOTAL_COUNT:,} total template calls checked",
+                ]
 
         param_count = defaultdict(int)
         for section_entries in page_sections:
@@ -95,18 +116,13 @@ class WikiSaver(BaseHandler):
     def get_section_header(self, base_path, page_name, section_entries, prev_section_entries, pages):
         res = []
 
-        # Remove duplicate pages
-        if page_name.endswith("/fixes"):
-            to_remove = []
-            seen = set()
-            for idx, i in enumerate(section_entries):
-                if i.page in seen:
-                    to_remove.append(idx)
-                else:
-                    seen.add(i.page)
+        item = section_entries[0]
+        count = len(section_entries)
 
-            for idx in reversed(to_remove):
-                del section_entries[idx]
+        if page_name.endswith("/fixes"):
+            res.append(f"==={item.error}===")
+            res.append(f"; {count} page{'s' if count>1 else ''}")
+            return res
 
         if prev_section_entries and len(prev_section_entries) >= 2 and len(section_entries) < 2:
             res.append("")
@@ -116,8 +132,6 @@ class WikiSaver(BaseHandler):
         if len(section_entries) < 2:
             return res
 
-        item = section_entries[0]
-        count = len(section_entries)
 
         param_count = defaultdict(int)
         for i in section_entries:
@@ -138,6 +152,11 @@ class WikiSaver(BaseHandler):
 
         SUMMARY_CUTOFF=20
         SUMMARY_LEN=10
+
+        # Don't truncate some templates
+        if item.template_name in ["taxlink"]:
+            SUMMARY_CUTOFF = count + 1
+
         if count > SUMMARY_CUTOFF:
             summary = "(unhandled params: " + ", ".join(f"'{k}':{v}" for k,v in sorted(param_count.items(), key=lambda x: (x[1]*-1, x[0]))) + ")"
             del section_entries[SUMMARY_LEN:]
@@ -198,7 +217,7 @@ def process(args):
     return fixer.process(*args)
 
 def main():
-    global fixer
+    global fixer, TOTAL_TEMPLATES, TOTAL_COUNT
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
     parser.add_argument("wxt", help="Wiktionary extract file")
     parser.add_argument("--json", help="JSON file with template data", required=True)
@@ -212,6 +231,7 @@ def main():
         args.j = multiprocessing.cpu_count()-1
 
     fixer = ParamFixer(args.json)
+    TOTAL_TEMPLATES = len(fixer._templates)
 
     iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
 
@@ -221,7 +241,8 @@ def main():
     else:
         iter_items = map(process, iter_entries)
 
-    for results in iter_items:
+    for count, results in iter_items:
+        TOTAL_COUNT += count
         for log_values in results:
             log(*log_values)
 
