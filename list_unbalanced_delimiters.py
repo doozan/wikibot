@@ -6,7 +6,6 @@ import os
 import re
 import sys
 
-from autodooz.fix_list_to_col import ListToColFixer
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 import enwiktionary_sectionparser as sectionparser
@@ -91,15 +90,29 @@ def iter_wxt(datafile, options, limit=None, show_progress=False):
         yield entry.text, entry.title, None, options
 
 
-delims = [("{{", "}}"), ("{", "}"), ("[", "]")] #, ("(", ")"), ("<", ">")]
+delims = [
+        (
+            ["{{"],
+            ["}}"]
+        ),
+        (
+            ["{", "&lbrace;", "&#x7B;", "&lcub;"],
+            ["}", "&rbrace;", "&#x7D;", "&rcub;"],
+        ),
+        (
+            ["[", "&lbrack;", "&#91;", "&lsqb;"],
+            ["]", "&rbrack;", "&#93;", "&rsqb;"]
+        )
+    ]
 
 def process_page(text, title, summary=None, options=None):
 
     log = []
 
-    # Strip <nowiki>, <math>, and HTML comments
-    text = re.sub("<\s*nowiki\s*>.*?<\s*/\s*nowiki\s*>", "", text, flags=re.DOTALL)
-    text = re.sub("<\s*math\s*>.*?<\s*/\s*math\s*>", "", text, flags=re.DOTALL)
+    # Strip <nowiki>, <math>, <score> and HTML comments
+    text = re.sub(r"<\s*nowiki\s*>.*?<\s*/\s*nowiki\s*>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<\s*math\s*>.*?<\s*/\s*math\s*>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<\s*score\s*?(\s[^>]*)?>.*?<\s*/\s*score\s*>", "", text, flags=re.DOTALL)
     text = re.sub("<!--.*?-->", "", text, flags=re.DOTALL)
 
     entry = sectionparser.parse(text, title)
@@ -109,29 +122,36 @@ def process_page(text, title, summary=None, options=None):
 
     for section in entry.filter_sections():
         text = section.content_text
-        for opener, closer in delims:
+        for openers, closers in delims:
+
+            opener = openers[0]
+            closer = closers[0]
+
             open_count = text.count(opener)
             close_count = text.count(closer)
-            if open_count != close_count:
+
+            all_open_count = sum(text.count(o) for o in openers)
+            all_close_count = sum(text.count(c) for c in closers)
+
+            if open_count != close_count and all_open_count != all_close_count:
+
                 language = list(section.lineage)[-2]
                 page = title + "#" + language
                 if open_count > close_count:
                     log.append((f"extra_{opener}", page, title + ":" + section.path, f"{open_count}, {close_count}"))
                 else:
                     # Navajo uses {{nv-theme-header}} plus |} to build tables
-                    if closer == "}" and language == "Navajo" and (close_count - open_count == text.count("{{nv-theme-header}}") == text.count("\n|}")):
+                    if closer == "}" and language == "Navajo":# and (close_count - open_count == text.count("{{nv-theme-header}}") == text.count("\n|}")):
                         continue
                     log.append((f"extra_{closer}", page, title + ":" + section.path, f"{close_count}, {open_count}"))
 
     return log
 
-fixer = None
 def process(args):
     # Needed to unpack args until Pool.istarprocess exists
     return process_page(*args)
 
 def main():
-    global fixer
     parser = argparse.ArgumentParser(description="Find Spanish nouns with manually specified forms")
     parser.add_argument("wxt", help="Wiktionary extract file")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
@@ -140,8 +160,6 @@ def main():
 
     parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
     args = parser.parse_args()
-
-    fixer = ListToColFixer()
 
     if not args.j:
         args.j = multiprocessing.cpu_count()-1
