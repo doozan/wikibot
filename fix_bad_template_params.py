@@ -5,12 +5,16 @@ import os
 import sys
 import mwparserfromhell as mwparser
 import json
-
+import urllib
 
 
 
 IGNORE_TEMPLATES = [
 ]
+
+IGNORE_PER_TEMPLATE = {
+    "taxlink": [ "noshow" ],
+}
 
 RENAME = {
 #    "access": "accessdate",
@@ -66,6 +70,15 @@ def clean_value(obj):
     text = re.sub(r"<!--.*?-->", "", str(obj.value), flags=re.DOTALL)
     return text.strip()
 
+def escape_url(text):
+    if "?" not in text:
+        return text
+
+    return urllib.parse.quote(text, safe=':/?&;+%')
+
+    #site, _, params = text.partition("?")
+    #return site + "?" + urllib.parse.quote(params)
+
 class ParamFixer():
 
     def __init__(self, template_data):
@@ -76,10 +89,6 @@ class ParamFixer():
             _template_data = json.load(f)
             self._templates = _template_data["templates"]
             self._redirects = _template_data["redirects"]
-            #for k,target in _template_data["redirects"].items():
-            #    if target in self._templates:
-            #        self._templates[k] = self._templates[target]
-
             print("LOADED", len(self._templates))
 
         for template, replacements in RENAME_PER_TEMPLATE.items():
@@ -178,21 +187,20 @@ class ParamFixer():
         self._log = []
 
         wiki = mwparser.parse(page_text)
+        to_replace_str = []
 
         for t in wiki.ifilter_templates(recursive=True, matches=lambda x: clean_name(x) in self._templates or self._redirects.get(clean_name(x)) in self._templates):
 
             t_name = clean_name(t)
             # resolve any redirects
             new_name = self._redirects.get(t_name, t_name)
+
+            # Rename redirects to use direct template name
             if new_name != t_name:
                 if new_name in RENAME_REDIRECTS:
                     self.fix("renamed_redirect", page, t, None, f"renamed template to {new_name}")
                     t.name = new_name
                 t_name = new_name
-
-            # Ignore RQ: templates until after the 2/20/2024 dump
-            if t_name.startswith("RQ:"):
-                continue
 
             # skip manually adjusted templates
             if t_name in IGNORE_TEMPLATES:
@@ -227,6 +235,12 @@ class ParamFixer():
                         new_name = case_mismatch[0]
                         to_rename.append((p, new_name))
 
+                    # handle positional params with urls containing "="
+                    elif re.match("http[s]?://", p_name) and clean_value(p) and " " not in clean_value(p):
+                        old_str = str(p.name) + "=" + clean_value(p)
+                        new_str = escape_url(old_str.strip())
+                        to_replace_str.append((t, old_str, new_str))
+
                     elif p_name in REMOVE_PER_TEMPLATE.get(t_name, []):
                         to_remove.append(p)
 
@@ -251,6 +265,9 @@ class ParamFixer():
 #                    elif p_name in ["url", "format", "year", "chapter", "book", "author", "title", "pageurl", "edition"]:
 #                        self.fix("bad_param", page, t, p_name, f"removed unused param '{p_name}'")
 #                        t.remove(p)
+
+                    elif p_name in IGNORE_PER_TEMPLATE.get(t_name, []):
+                        continue
 
                     else:
                         bad_params.append(p_name)
@@ -279,7 +296,14 @@ class ParamFixer():
             if bad_params:
                 self.warn("bad_param", page, t, bad_params)
 
+        new_page_text = str(wiki)
+
+        for t_name, old_str, new_str in to_replace_str:
+            self.fix("unescaped_url", page, t_name, None, f"escaped url containing = in a positional param")
+            new_page_text = new_page_text.replace(old_str, new_str)
+
         if summary is None:
             return self._log
 
-        return str(wiki)
+        return new_page_text
+
