@@ -1,5 +1,6 @@
 from collections import namedtuple
 import pywikibot
+import sys
 
 """
 Pages are composed of one or more Sections
@@ -69,10 +70,10 @@ class BaseHandler():
             self._site = pywikibot.Site()
         wiki_page = pywikibot.Page(self._site, page)
         if wiki_page.text.strip() == page_text.strip():
-            print(f"{page} has no changes")
+            print(f"{page} has no changes", file=sys.stderr)
             return
         wiki_page.text = page_text
-        print(f"saving {page}")
+        print(f"saving {page}", file=sys.stderr)
         wiki_page.save(self.args.commit_message)
 
     def index_header(self, index_items):
