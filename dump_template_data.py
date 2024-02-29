@@ -13,9 +13,8 @@ from pywikibot import xmlreader
 
 
 # https://www.mediawiki.org/wiki/Help:Magic_words
-MAGIC_WORDS = [ "FULLPAGENAME", "PAGENAME", "BASEPAGENAME", "NAMESPACE", "!" ]
-
-
+MAGIC_WORDS = [ "FULLPAGENAME", "PAGENAME", "BASEPAGENAME", "NAMESPACE", "!", "SUBPAGENAME", "SUBJECTSPACE", "TALKPAGENAME"  ]
+MW_COMMANDS = MAGIC_WORDS + ["subst", "safesubst", "uc", "lc", "padleft", "padright", "ns", "urlencode", "fullurl", "localurl", "ucfirst"]
 
 
 def iter_xml(datafile, limit=None, show_progress=False):
@@ -91,66 +90,97 @@ def get_included_text(text):
     text = re.sub("<\s*noinclude\s*[/]\s*>", "", text, flags=re.DOTALL)
     text = re.sub("<\s*noinclude\s*>.*?<\s*/\s*noinclude\s*>", "", text, flags=re.DOTALL)
     text = re.sub(r"<\s*[/]?\s*includeonly\s*[/]?\s*>", "", text)
+
+    if "onlyinclude" in text:
+        text = "".join(re.findall("<\s*onlyinclude\s*>(.*?)<\s*/\s*onlyinclude\s*>", text, flags=re.DOTALL))
+
     return text
 
 
-invoke_count = defaultdict(int)
-
 fixer = None
-def get_allowed_params(args):
+def get_template_stats(args):
 
     entry_text, entry_title = args
     entry_title = entry_title.removeprefix("Template:")
     entry_text = get_included_text(entry_text)
 
+    entry_text = re.sub("{{\s*(" + "|".join(MW_COMMANDS) + ")\s*:", "", entry_text, flags=re.IGNORECASE)
+
     m = re.match(r"^\s*#REDIRECT[:]?\s*\[\[\s*([:]?T(?:emplate)?:(.*?))\s*\]\]", entry_text, re.IGNORECASE)
     if m:
-        return entry_title, {"|REDIR|": m.group(2).strip()}
+        return entry_title, "redirect", m.group(2).strip()
 
-    ALLOWED_INVOKE = [ "string", "ugly hacks" ]
-    invokes = [m.group(1).strip() for m in re.finditer("#invoke:(.*?)[|}]", entry_text, re.DOTALL)]
-    for i in invokes:
-        invoke_count[i] += 1
-    if not all(i in ALLOWED_INVOKE for i in invokes):
-        return entry_title, None
+    used_modules = sorted(set(m.group(1).strip() for m in re.finditer("#invoke:(.*?)[|}]", entry_text, re.DOTALL)))
 
-    entry_title = entry_title.removeprefix("Template:")
+    # if a module uses invoke, check if it's a pure Lua implementation or mixed
+    if used_modules:
+        if len(used_modules) > 1:
+            template_type = "mixed"
+        else:
+            if re.search("{{#(^invoke)|{{{[^{}]*?}}}", entry_text):
+                template_type = "mixed"
+            else:
+                template_type = "lua"
+    else:
+        template_type = "wiki"
+
     #used_params = list({m.group(1):1 for m in re.finditer(r"\{\{\{\s*([a-zA-Z0-9. +/_-]+?)[|}]", entry_text)}.keys())
     used_params = list({m.group(1).strip():1 for m in re.finditer(r"\{\{\{\s*([^=|{}<>]+?)[|}]", entry_text)}.keys())
 
     # filter out PAGENAME, etc
     used_params = [p for p in used_params if p not in MAGIC_WORDS]
 
-    return entry_title, used_params
+    used_templates = None
+    if template_type in ["wiki", "mixed"]:
 
+        # Strip {{{vars}}}
+        prev_text = None
+        stripped = entry_text
+        while prev_text != stripped:
+            prev_text = stripped
+            stripped = re.sub(r"\{\{\{[^{}]*", "", stripped)
+        # strip {{#commands
+        stripped = re.sub("{{\s*#[^{}]*", "", stripped)
+
+        used_templates = []
+        for m in re.finditer("{{(.*?)[{<}|]", stripped, re.DOTALL):
+            if not m.group(1):
+                continue
+            template_name = re.sub("<!--.*?-->", "", m.group(1)).strip()
+            if not template_name or "\n" in template_name:
+                continue
+            if template_name not in used_templates and template_name not in MAGIC_WORDS:
+                used_templates.append(template_name)
+
+    return entry_title, template_type, used_modules, used_templates, used_params
 
 
 def dump_template_args(iter_entries, filename):
     global fixer
     fixer = RqTemplateFixer(None)
-    iter_items = map(get_allowed_params, iter_entries)
+    iter_items = map(get_template_stats, iter_entries)
 
     templates = {}
     unparsable = set()
     redirects = {}
     for res in iter_items:
-        entry_title, allowed_params = res
-        if allowed_params is None:
-            unparsable.add(entry_title)
-        elif "|REDIR|" in allowed_params:
-            target = allowed_params["|REDIR|"]
-            redirects[entry_title] = target
-        else:
-            templates[entry_title] = allowed_params
+        template, template_type, *extra = res
+        if template_type == "redirect":
+            redirects[template] = extra[0]
+            continue
+
+        used_modules, used_templates, used_params = extra
+        templates[template] = {k:v for k,v in [
+            ("params", used_params),
+            ("templates", used_templates),
+            ("modules", used_modules),
+        ] if v}
 
     with open(filename, 'w', encoding='utf-8') as outfile:
         json.dump({
             "templates": {k:v for k,v in sorted(templates.items())},
-            "unparsable": sorted(unparsable),
             "redirects": {k:v for k,v in sorted(redirects.items())},
             }, outfile, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
     main()
-#    for k,v in sorted(invoke_count.items(), key=lambda x: (x[1], x[0])):
-#        print(v, k)
