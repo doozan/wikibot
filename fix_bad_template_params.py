@@ -79,6 +79,8 @@ def escape_url(text):
     #site, _, params = text.partition("?")
     #return site + "?" + urllib.parse.quote(params)
 
+
+ALLOWED_MODULES = { "string", "ugly hacks", "italics" }
 class ParamFixer():
 
     def __init__(self, template_data):
@@ -87,7 +89,7 @@ class ParamFixer():
 
         with open(template_data) as f:
             _template_data = json.load(f)
-            self._templates = _template_data["templates"]
+            self._templates = {k:v.get("params", []) for k,v in _template_data["templates"].items() if v["type"] in ["static", "wiki", "mixed"] and not set(v.get("modules", [])) - ALLOWED_MODULES }
             self._redirects = _template_data["redirects"]
             print("LOADED", len(self._templates))
 
