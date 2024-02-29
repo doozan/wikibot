@@ -65,8 +65,10 @@ LIST_QUOTE_WITH_BARE_PASSAGE := $(PYPATH) ./list_quote_with_bare_passage.py
 LIST_SENSE_BYLINES := $(PYPATH) ./list_sense_byline_errors.py
 LIST_BARE_UX := $(PYPATH) ./list_bare_ux.py
 DUMP_RQ_TEMPLATE_PARAMS := $(PYPATH) ./dump_rq_template_params.py
-DUMP_TEMPLATE_PARAMS := $(PYPATH) ./dump_template_params.py
+DUMP_TEMPLATE_PARAMS := $(PYPATH) ./dump_template_data.py
 LIST_BAD_TEMPLATE_PARAMS := $(PYPATH) ./list_bad_template_params.py
+COUNT_TEMPLATE_USE := $(PYPATH) ./count_template_use.py
+MAKE_TEMPLATE_STATS := $(PYPATH) ./make_template_stats.py
 
 
 EXTERNAL := ../..
@@ -141,12 +143,20 @@ $(BUILDDIR)/spa.sentences: $(BUILDDIR)/eng-spa.tsv
 >   tar czvf $@ -C $(BUILDDIR) $*.sentences $*.json
 
 $(BUILDDIR)/rq_template_params.json: $(BUILDDIR)/templates.enwikt.txt.bz2
->   @echo "Making $@..."
+>   echo "Making $@..."
 >   $(DUMP_RQ_TEMPLATE_PARAMS) --wxt $< $@
 
-$(BUILDDIR)/template_params.json: $(BUILDDIR)/templates.enwikt.txt.bz2
+$(BUILDDIR)/template_data_incomplete.json: $(BUILDDIR)/templates.enwikt.txt.bz2
 >   @echo "Making $@..."
 >   $(DUMP_TEMPLATE_PARAMS) --wxt $< $@
+
+$(BUILDDIR)/template_count.tsv: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+>   @echo "Making $@..."
+>   $(COUNT_TEMPLATE_USE) --xml $< > $@
+
+$(BUILDDIR)/template_data.json: $(BUILDDIR)/template_data_incomplete.json $(BUILDDIR)/template_count.tsv
+>   @echo "Making $@..."
+>   $(MAKE_TEMPLATE_STATS) $^ $@ > /dev/null
 
 # Lists
 
@@ -485,10 +495,10 @@ $(LIST)unbalanced_delimiters: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   $(LIST_UNBALANCED_DELIMITERS) $(SAVE) $^
 >   touch $@
 
-$(LIST)quote_with_bare_passage: $(BUILDDIR)/all-en.enwikt.txt.bz2
+$(LIST)quote_with_bare_passage: $(BUILDDIR)/rq_template_params.json $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
->   $(LIST_QUOTE_WITH_BARE_PASSAGE) $(SAVE) $^
+>   $(LIST_QUOTE_WITH_BARE_PASSAGE) $(SAVE) --json $^
 >   touch $@
 
 $(LIST)sense_bylines: $(BUILDDIR)/all-en.enwikt.txt.bz2
@@ -503,7 +513,7 @@ $(LIST)bare_ux: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   $(LIST_BARE_UX) $(SAVE) $^
 >   touch $@
 
-$(LIST)bad_template_params: $(BUILDDIR)/template_params.json $(BUILDDIR)/all-en.enwikt.txt.bz2
+$(LIST)bad_template_params: $(BUILDDIR)/template_data.json $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
 >   $(LIST_BAD_TEMPLATE_PARAMS) $(SAVE) --json $^
@@ -752,7 +762,7 @@ $(FIX)rq_templates: $(BUILDDIR)/rq_template_params.json
 >   $(WIKIFIX) --fix rq_template -search:"insource:/\{quote-/ -insource:/quote-meta/ prefix:Template:RQ:"
 >   $(WIKIFIX) --fix rq_template -search:"insource:/allowparams[ ]*=[ ]*\*/ prefix:Template:RQ:"
 
-$(FIX)template_params: $(BUILDDIR)/template_params.json
+$(FIX)template_params: $(BUILDDIR)/template_data.json
 >   SRC="User:JeffDoozan/lists/template_params/fixes"
 >   FIX="--fix template_params --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=2000
