@@ -191,7 +191,9 @@ class ParamFixer():
         wiki = mwparser.parse(page_text)
         to_replace_str = []
 
+        count = 0
         for t in wiki.ifilter_templates(recursive=True, matches=lambda x: clean_name(x) in self._templates or self._redirects.get(clean_name(x)) in self._templates):
+            count += 1
 
             t_name = clean_name(t)
             # resolve any redirects
@@ -305,7 +307,7 @@ class ParamFixer():
             new_page_text = new_page_text.replace(old_str, new_str)
 
         if summary is None:
-            return self._log
+            return count, self._log
 
         return new_page_text
 
