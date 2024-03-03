@@ -53,7 +53,13 @@ class DraeFixer():
 
     def fix_missing_drae(self, text, title, summary=None):
 
-        text = text.replace("{{R:DRAE", "{{R:es:DRAE")
+        if "{{R:DRAE" in text:
+            text = text.replace("{{R:DRAE", "{{R:es:DRAE")
+
+            if summary is not None:
+                summary.append("/*Spanish*/ renamed R:DRAE to R:esDRAE")
+
+            return text
 
         # Skip single letters
         if len(title) == 1:
@@ -118,7 +124,10 @@ class DraeFixer():
 
     def fix_wrong_drae(self, text, title, summary=None):
 
-        text = text.replace("{{R:DRAE", "{{R:es:DRAE")
+        fixes = []
+        if "{{R:DRAE" in text:
+            fixes.append(("$^", ""))
+            text = text.replace("{{R:DRAE", "{{R:es:DRAE")
 
         entry = sectionparser.parse(text, title)
         if not entry:
@@ -130,11 +139,10 @@ class DraeFixer():
         new_section = str(section)
         templates = list(re.finditer("{{R:es:DRAE(.*?)}}", new_section))
 
-        fixes = []
-
         # Validate existing links
         targets = self.get_targets(text, title)
         for template in templates:
+            template_text = template.group(0)
             target = self.get_template_target(template, title)
             if not target and title in targets:
                 continue
@@ -149,7 +157,7 @@ class DraeFixer():
                                 # If the existing link is to a single word, but the page is a phrase
                                 # and there a matching phrase in drae, replace the link
                                 self.log("drae_link_wrong_target_autofix", title, targets[0])
-                                fixes.append((template, self.make_drae_template(title, targets[0])))
+                                fixes.append((template_text, self.make_drae_template(title, targets[0])))
                         else:
                             self.log("drae_link_custom_target", title, f"is '{target}', should be ('{', '.join(targets)}')")
                             #self.log("drae_link_custom_target", title, "('" + "', '".join(targets) +"')")
@@ -158,7 +166,7 @@ class DraeFixer():
                             self.log("drae_link_wrong_target", title, "('" + "', '".join(targets) +"')")
                         else:
                             self.log("drae_link_wrong_target_autofix", title, targets[0])
-                            fixes.append((template, self.make_drae_template(title, targets[0])))
+                            fixes.append((template_text, self.make_drae_template(title, targets[0])))
                 else:
                     if target in self.drae_links:
                         self.log("drae_link_custom_target", title, f"('{target}')")
@@ -168,8 +176,7 @@ class DraeFixer():
         if not fixes:
             return text
 
-        for old_match, new in fixes:
-            old = old_match.group(0)
+        for old, new in fixes:
             section.content_wikilines = [i.replace(old, new) for i in section.content_wikilines]
 
         if summary is not None:
