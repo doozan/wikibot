@@ -7,57 +7,10 @@ import os
 import re
 import sys
 
-from collections import defaultdict
-
+from collections import defaultdict, namedtuple
 
 # https://www.mediawiki.org/wiki/Help:Magic_words
 MAGIC_WORDS = [ "FULLPAGENAME", "PAGENAME", "BASEPAGENAME", "NAMESPACE", "!", "SUBPAGENAME", "lc:", "fullurl:" ]
-
-
-
-
-def iter_xml(datafile, limit=None, show_progress=False):
-    dump = xmlreader.XmlDump(datafile)
-    parser = dump.parse()
-
-    count = 0
-    for entry in parser:
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        if not entry.title.startswith("Template:"):
-            continue
-
-        yield entry.text, entry.title
-
-def iter_wxt(datafile, limit=None, show_progress=False):
-
-    if not os.path.isfile(datafile):
-        raise FileNotFoundError(f"Cannot open: {datafile}")
-
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
-
-    count = 0
-    for entry in parser:
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-#        if not entry.title in ["Template:syc-decl-noun"]:
-#            continue
-
-        if not entry.title.startswith("Template:"):
-            continue
-
-        yield entry.text, entry.title
 
 def main():
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
@@ -66,8 +19,10 @@ def main():
     parser.add_argument("outfile", help="target for combined json data")
     args = parser.parse_args()
 
+    _counts = namedtuple("counts", [ "uses", "pages" ])
+
     with open(args.tsv) as infile:
-        template_count = {x[0]:int(x[1]) for x in csv.reader(infile, delimiter="\t")}
+        template_count = {x[0]:_counts(int(x[1]), int(x[2])) for x in csv.reader(infile, delimiter="\t")}
 
     with open(args.json) as infile:
         template_data = json.load(infile)
@@ -87,7 +42,8 @@ def main():
     #   detect obvious mixed templates
     #   detect obvious wiki templates
     for template, data in templates.items():
-        data["count"] = template_count.get(template,0)
+        data["count"] = template_count[template].uses if template in template_count else 0
+        data["page_count"] = template_count[template].pages if template in template_count else 0
         if "params" not in data and "templates" not in data:
             modules = data.get("modules", [])
             if not modules:
@@ -152,7 +108,7 @@ def main():
 
 {{| class="wikitable sortable"
 |-
-!Template!!type!!count||modules included||templates invoked""")
+!Template!!type!!count!!pages!!modules included!!templates invoked""")
 
     def print_footer():
         print("|}")
@@ -173,14 +129,13 @@ def main():
     print_header(f">{min_count:,}")
     for template, data in sorted(templates.items(), key=lambda x: (x[1]["count"]*-1, x[0])):
         count = data['count']
-        code = data['count']
         included_templates = sorted(set(get_included_templates(template)))
         included_modules = sorted(set(templates.get(template).get("modules", []) + [m for t in included_templates for m in templates.get(t,{}).get("modules", [])]))
 
         if count < min_count:
             if min_count > 1:
                 prev_min_count = min_count
-                if min_count == 2:
+                if min_count <= 4:
                     break
                 if min_count==1000:
                     min_count = 512
@@ -188,8 +143,6 @@ def main():
                     min_count = int(min_count/2)
                 else:
                     min_count = int(min_count/10)
-                if min_count == 1:
-                    min_count = 2
                 title = f"{min_count:,}-{prev_min_count:,}"
             else:
                 min_count = 0
@@ -200,7 +153,7 @@ def main():
 
         print("|-")
         space = " " if template[0] in "|-+" else ""
-        print(f"|{space}{template}||{data['type']}||{data['count']:,}||{'; '.join(included_modules)}||{'; '.join(included_templates)}")
+        print(f"|{space}{template}||{data['type']}||{data['count']:,}||{data['page_count']:,}||{'; '.join(included_modules)}||{'; '.join(included_templates)}")
 
     print_footer()
 
