@@ -18,18 +18,14 @@ FIX_PATH = None
 class WikiSaver(BaseHandler):
 
     def sort_items(self, items):
-        count = defaultdict(int)
-        page_count = defaultdict(int)
+        self.count = defaultdict(int)
+        self.page_count = defaultdict(int)
         for item in items:
-            count[item.error] += 1
-            page_count[item.page] += 1
+            self.count[item.error] += 1
+            self.page_count[item.page] += 1
 
-        # Don't report unsafe matches
-        items = [i for i in items if i.error != "unsafe_match"]
-
-        # sort autofix sections first so they can be split into other pages
-        # everything else sorted by count of section entries (smallest to largest)
-        return sorted(items, key=lambda x: ("autofix" not in x.error, count[x.error], page_count[x.page]*-1, x.page))
+        # sort autofix sections first so they can be split
+        return sorted(items, key=lambda x: ("autofix" not in x.error, self.count[x.error], self.page_count[x.page]*-1 if "autofix" in x.error else 0, x.page))
 
     def is_new_section(self, item, prev_item):
         return prev_item and prev_item.error != item.error
@@ -49,7 +45,18 @@ class WikiSaver(BaseHandler):
             return FIX_PATH + "/errors"
 
     def format_entry(self, entry, prev_entry):
-        return [f"; [[{entry.page}]]:", entry.details]
+
+        if "autofix" in entry.error:
+            if prev_entry and entry.page == prev_entry.page:
+                return []
+            count = self.page_count[entry.page]
+            return [f": [[{entry.page}]] - {count} fix{'es' if count > 1 else ''}"]
+
+        if entry.error == "unsafe_match" and len(entry.details) > 100:
+            details = re.search(r".*\<BAD\>.*?\</BAD\>.*", entry.details).group(0)
+            return [f"; [[{entry.page}]]:", f"<pre>{details}</pre>"]
+        else:
+            return [f"; [[{entry.page}]]:", f"<pre>{entry.details}</pre>"]
 
     def get_section_header(self, base_path, page_name, section_entries, prev_section_entries, pages):
         res = []
@@ -305,31 +312,10 @@ def main():
 
 
 
-    test_iter_entries = [("""==Dutch==
-[[File:Nederlandsche vogelen (KB) - Streptopelia turtur (010d).jpg|thumb|''Streptopelia turtur'' in ''{{w|Nederlandsche vogelen}}'', 1770-1829]]
+    test_iter_entries = [("""
+""", "test")]
 
-===Etymology===
-Compound of {{compound|nl|zomer|tortel}}.
-
-===Pronunciation===
-* {{IPA|nl|/ˈzoː.mərˌtɔr.təl/}}
-* {{audio|nl|Nl-zomertortel.ogg|Audio}}
-* {{hyphenation|nl|zo|mer|tor|tel}}
-
-===Noun===
-{{nl-noun|f|g2=m|-s|zomertorteltje}}
-
-# {{topics|nl|Columbids}} [[European turtle dove]], ''[[Streptopelia turtur]]''
-#: {{syn|nl|tortel|tortelduif}}
-
-===Further reading===
-* {{pedia|lang=nl}}
-""", "zomertortel")]
-
-#    iter_entries = test_iter_entries
-#    res = process_function((text, "test"))
-#    print(res)
-#    exit()
+    #iter_entries = test_iter_entries
 
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)
