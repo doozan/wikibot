@@ -111,7 +111,7 @@ def process_page(text, title, summary=None, options=None):
 
     # Strip <nowiki>, <math>, <score> and HTML comments
     text = re.sub(r"<\s*nowiki\s*>.*?<\s*/\s*nowiki\s*>", "", text, flags=re.DOTALL)
-    text = re.sub(r"<\s*math\s*>.*?<\s*/\s*math\s*>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<\s*math(\s[^/>]*)?>.*?<\s*/\s*math\s*>", "", text, flags=re.DOTALL)
     text = re.sub(r"<\s*score\s*?(\s[^>]*)?>.*?<\s*/\s*score\s*>", "", text, flags=re.DOTALL)
     text = re.sub("<!--.*?-->", "", text, flags=re.DOTALL)
 
