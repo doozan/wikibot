@@ -19,7 +19,7 @@ def make_taxlink(text, taxlink_data):
     return "{{" + "|".join(template) + "}}"
 
 def cleanup_taxfmt(text):
-    print("cleanup: ", text)
+    print("cleanup: ", [text])
 
     template_list = r"((\{\{\s*(taxfmt|taxlink)\s*[|][^{}]*?\}\}[,; ]*)*)"
     bold_ital_start = r"(?<!')(?:'{5})"
@@ -50,16 +50,38 @@ ALLOWED_TEMPLATES = ["col-auto", "col2", "col3", "col4", "col4", "der2", "der3",
 #ALLOWED_TEMPLATES = []
 MATCH_LINKS=True
 
-def safe_replace(old, new, text):
+def unsafe_replace(old, new, text):
+
+    print(":: UREPLACE", (old, new, text))
+    pre_count = text.count(new)
+    text = text.replace(old, new)
+    post_count = text.count(new)
+    count = post_count - pre_count
+
+    print(":: UREPLACED", (text))
+    return text, count
+
+def safe_replace(old, new, text, **kwargs):
     """ returns new_text, replacement_count """
 
-    assert "⏶" not in text
-    assert "⏶" not in new
-    new_text = sectionparser.utils.wiki_replace(old, "⏶" + new, text, match_templates=ALLOWED_TEMPLATES, match_links=MATCH_LINKS)
-    count = new_text.count("⏶")
-    new_text = new_text.replace("⏶", "")
-    return new_text, count
+    if "match_templates" not in kwargs:
+        kwargs["match_templates"] = ALLOWED_TEMPLATES
 
+    if "match_links" not in kwargs:
+        kwargs["match_links"] = True
+
+    if new != "⏶":
+        print(":: SREPLACE", (old, new, text))
+    pre_count = text.count(new)
+    text = sectionparser.utils.wiki_replace(old, new, text, **kwargs)
+    post_count = text.count(new)
+    count = post_count - pre_count
+    if new != "⏶":
+        print(":: SREPLACED", [text])
+    return text, count
+
+def very_safe_replace(old, new, text):
+    return safe_replace(old, new, text, match_templates=None, match_links=None)
 
 
 class MissingTaxlinkFixer():
@@ -153,19 +175,15 @@ class MissingTaxlinkFixer():
 
         for string_match in string_matches:
 
+            clean_fixes = []   # Fixes that can be applied anywhere with str.replace()
+            careful_fixes = [] # Fixes that can only be applied carefully with wiki_replace()
+            very_careful_fixes = [] # Fixes that can only be applied very carefully with wiki_replace and not matching inside any templates
+            unmatchable_fixes = [] # Fixes that exist in the page that appear inside forbidden parts of the text (inside template names, comments, etc)
+
             target = re.sub(r"['\[\]]", "", string_match)
             taxlink_data = self.taxons[target]
 
-            #pattern = fr"""(?x)
-            #     ('''''|'''|''|\[\[)*    # match formatting or opening double brackets
-            #     {target}
-            #     ('''''|'''|''|\]\])*    # match formatting or closing double brackets
-            #     """
-            pattern = r"('''''|'''|''|\[\[)*" + re.escape(string_match) + r"('''''|'''|''|\]\])*"
-
-            clean_fixes = []   # Fixes that can be applied anywhere with str.replace()
-            careful_fixes = [] # Fixes that can only be applied carefully with wiki_replace()
-            unmatchable_fixes = [] # Fixes that exist in the page that appear inside forbidden parts of the text (inside template names, comments, etc)
+            pattern = r"( |'''''|'''|''|\[\[)*" + re.escape(string_match) + r"( |'''''|'''|''|\]\])*"
 
             # matches may overlap, eg [[cat]] and ''[[cat]]''. Sort matches longest-shortest as an imperfect workaround
             for match in sorted([m.group(0).strip() for m in re.finditer(pattern, page_text)], key=lambda x: (len(x)*-1, x)):
@@ -185,6 +203,9 @@ class MissingTaxlinkFixer():
                         print("USING CLEAN FIXES", clean_fixes)
                         if sum(page_text.count(m) for m in clean_matches) == match_count:
                             continue
+
+                    if match.count(" ") >= 1:
+                        very_careful_fixes.append(target)
 
                     continue
 
@@ -223,7 +244,6 @@ class MissingTaxlinkFixer():
                 if match.startswith("[[") and match.endswith("]]]]") and match.count("[[") == 1:
                     match = match[:-2]
 
-
                 # '''[[Rallus aquaticus]]]]'''
                 if match.startswith("'''") and match.endswith("'''") and match.count("'") == 6:
                     match = match[3:-3]
@@ -232,10 +252,14 @@ class MissingTaxlinkFixer():
                 if match.startswith("'''''") and match.endswith("'''''") and match.count("'") == 10:
                     match = match[3:-3]
 
+                if "'" not in match and "[" not in match and "]" not in match:
+                    continue
+
                 print("trimmed match: ", match)
 
                 # Check that the match will actually be applied before warning about unbalanced items
-                _, has_matches = safe_replace(match, "XXX", page_text)
+                _, has_matches = safe_replace(match, "⏶", page_text)
+
                 if not has_matches:
                     print("no matches")
                     unmatchable_fixes.append(match)
@@ -290,12 +314,12 @@ class MissingTaxlinkFixer():
 
                 careful_fixes.append(match)
 
-
-            if not careful_fixes and not clean_fixes:
+            if not careful_fixes and not clean_fixes and not very_careful_fixes:
                 continue
 
             print("CLEAN", clean_fixes)
             print("CAREFUL", careful_fixes)
+            print("VERY CAREFUL", very_careful_fixes)
 
             for section in wikt.ifilter_sections():
 
@@ -312,33 +336,26 @@ class MissingTaxlinkFixer():
                         continue
 
                 new = make_taxlink(target, taxlink_data)
+                fixes = []
+
                 for old in clean_fixes:
-                    fix = (old, new)
-
-                    print("fixing", fix)
-
-                    for idx, wikiline in enumerate(section.content_wikilines):
-                        new_wikiline = wikiline.replace(old, new)
-                        if new_wikiline == wikiline:
-                            continue
-
-                        new_wikiline = cleanup_taxfmt(new_wikiline)
-                        section.content_wikilines[idx] = new_wikiline
-                        changed = True
-                        if fix not in fixes:
-                            fixes.append(fix)
+                    fixes.append((old, new, unsafe_replace))
 
                 for old in careful_fixes + unmatchable_fixes:
-                    fix = (old, new)
+                    fixes.append((old, new, safe_replace))
+
+                for old in very_careful_fixes:
+                    fixes.append((old, new, very_safe_replace))
+
+                for old, new, fixer in fixes:
 
                     for idx, wikiline in enumerate(section.content_wikilines):
-                        assert "⏶" not in wikiline
-
                         match_count = re.sub(re.escape(old), "⏶", wikiline).count("⏶")
                         if not match_count:
                             continue
 
-                        new_wikiline, change_count = safe_replace(match, new, wikiline)
+                        new_wikiline, change_count = fixer(old, new, wikiline)
+                        print("fixed", change_count, (old, new), fixer)
                         if change_count != match_count:
                             bad = re.sub("(" + re.escape(old) + ")", r"<BAD>\1</BAD>", new_wikiline)
                             self.warn("unsafe_match", page, bad)
@@ -348,20 +365,8 @@ class MissingTaxlinkFixer():
                         if change_count:
                             new_wikiline = cleanup_taxfmt(new_wikiline)
                             section.content_wikilines[idx] = new_wikiline
-                            changed = True
-                            if fix not in fixes:
-                                fixes.append(fix)
+                            self.fix("match", page, "Applied {{taxfmt}} to taxon name")
 
-
-        if fixes:
-            for fix in fixes:
-                old, new = fix
-                #self.fix("match", page, f"replaced {old} with {new}")
-                self.fix("match", page, "Applied {{taxfmt}} to taxon name")
-
-#            details = "<pre>" + "\n".join(f"{old} => {new}" for old, new in fixes) + "</pre>"
-#            self.fix("match", page, details)
-#            print("FIX", page, details)
 
         if summary is None:
             return self._log

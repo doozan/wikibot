@@ -24,7 +24,13 @@ def test_process():
 
     tests = {
         "[[Salvia rosmarinus]]": "{{taxfmt|Salvia rosmarinus|species}}",
-        "[[Salvia]] [[rosmarinus]]": "{{taxfmt|Salvia rosmarinus|species}}",
+        "[[ Salvia rosmarinus ]]": "{{taxfmt|Salvia rosmarinus|species}}",
+        "[[ '' Salvia rosmarinus '' ]]": "{{taxfmt|Salvia rosmarinus|species}}",
+
+        "'''''[[Salvia rosmarinus]]'''''": " {{taxfmt|Salvia rosmarinus|species}}x ",
+        "foo '' [[ '' Salvia rosmarinus '' ]] '' bar": "foo {{taxfmt|Salvia rosmarinus|species}} bar",
+
+         "[[Salvia]] [[rosmarinus]]": "{{taxfmt|Salvia rosmarinus|species}}",
         "''[[Salvia]]'' ''[[rosmarinus]]''": "{{taxfmt|Salvia rosmarinus|species}}",
 
         # don't match yet, but should
@@ -40,7 +46,7 @@ def test_process():
         "[[Salvia rosmarinus]]]": "{{taxfmt|Salvia rosmarinus|species}}]",
         "[[''Salvia rosmarinus'']]": "{{taxfmt|Salvia rosmarinus|species}}",
         "''Salvia rosmarinus''": "{{taxfmt|Salvia rosmarinus|species}}",
-        "'''Salvia rosmarinus'''": "'''{{taxfmt|Salvia rosmarinus|species}}'''",
+        "'''Salvia rosmarinus'''": None,
         "'''''Salvia rosmarinus'''''": "'''{{taxfmt|Salvia rosmarinus|species}}'''",
 
         # Unhandled, first [[ matches as opening of a link named [Salvia rosmarinus
@@ -107,12 +113,19 @@ def test_process():
         "{{suffix|en|Pteridaceae|ous}}": None,
         "{{lb|en|botany}} Belonging to the [[Pteridaceae]].": "{{lb|en|botany}} Belonging to the {{taxfmt|Pteridaceae|family}}."
 
+        # Bare text
+#        "foo Salvia rosamarinus bar": "foo {{taxfmt|Salvia rosamarinus|species}} bar"
+#        # But not in templates
+#        "foo {{test|Salvia rosamarinus}} bar": None,
+#        # or comments
+#        "foo <!-- Salvia rosamarinus --> bar": None,
+
     }
 
     for test, expected in tests.items():
         print("-----", test)
         res = fixer.process(test_base + test, "test", [])
-        print(res[len(expected_base):])
+        print([res[len(expected_base):]])
         if expected is None:
             expected = test
         assert res == expected_base + expected
