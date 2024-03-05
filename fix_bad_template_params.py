@@ -192,7 +192,7 @@ class ParamFixer():
         to_replace_str = []
 
         count = 0
-        for t in wiki.ifilter_templates(recursive=True, matches=lambda x: clean_name(x) in self._templates or self._redirects.get(clean_name(x)) in self._templates):
+        for t in wiki.ifilter_templates(recursive=True, matches=lambda x: self._redirects.get(clean_name(x), clean_name(x)) in self._templates):
             count += 1
 
             t_name = clean_name(t)
@@ -283,7 +283,7 @@ class ParamFixer():
                 self.fix("misnamed_param", page, t, p_name, f"renamed param '{old_name}' to '{new_name}'")
 
             # only remove empty params if all param names look valid
-            if all(len(clean_name(p)) < 12 and re.match(r"([1-9]|[A-Za-z]+([_-][a-zA-Z]+)?[1-9]?)$", clean_name(p)) for p in unused_empty_params):
+            if all(len(clean_name(p)) < 12 and re.match(r"([1-9]|1[0-9]|[A-Za-z]+([_-][a-zA-Z]+)?[1-9]?)$", clean_name(p)) for p in unused_empty_params):
                 for p in unused_empty_params:
                     p_name = clean_name(p)
                     self.fix("bad_param", page, t, p_name, f"removed unused empty param '{p_name}'")
