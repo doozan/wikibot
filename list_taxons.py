@@ -13,6 +13,7 @@ import csv
 from autodooz.fix_missing_taxlinks import MissingTaxlinkFixer
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
+from autodooz.utils import iter_xml, iter_wxt
 
 
 TAXNAME_PAT = "[a-zA-Z0-9()×. -]+"
@@ -106,44 +107,6 @@ class Logger(WikiLogger):
 logger = Logger()
 def log(code, page, details):
     logger.add(code, page, details)
-
-def iter_xml(datafile, limit=None, show_progress=False):
-    from pywikibot import xmlreader
-    dump = xmlreader.XmlDump(datafile)
-    parser = dump.parse()
-
-    count = 0
-    for entry in parser:
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        yield entry.text, entry.title
-
-
-def iter_wxt(datafile, limit=None, show_progress=False):
-
-    if not os.path.isfile(datafile):
-        raise FileNotFoundError(f"Cannot open: {datafile}")
-
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
-
-    count = 0
-    for entry in parser:
-
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        yield entry.text, entry.title
-
 
 fixer = None
 def process(args):
