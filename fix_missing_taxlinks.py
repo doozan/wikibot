@@ -10,7 +10,7 @@ import json
 import urllib
 
 from collections import namedtuple
-_taxlink = namedtuple("_taxlink", [ "label", "i", "no_auto" ])
+_taxlink = namedtuple("_taxlink", [ "name", "rank", "i", "no_auto" ])
 
 def cleanup_taxfmt(text):
     #print("cleanup: ", [text])
@@ -50,11 +50,7 @@ def get_safe_replacements(page_text, target, param=None, match_only_mul=True):
     """ Get matches that can be anywhere on the page, even inside templates, comments, etc """
 
     safe_fixes = []
-
-    safe_fixes += [m for m in [
-        #"''[[" + target + "]]''",  # Not safe, replaces '''[[target]]''' with '[[target]]'
-        "[[''" + target + "'']]",
-        ] if m in page_text]
+    lang_pat = "mul" if match_only_mul else "[a-z_ -]*"
 
     if param:
         safe_fixes += [m for m in [
@@ -63,20 +59,25 @@ def get_safe_replacements(page_text, target, param=None, match_only_mul=True):
             "''[[" + target + "|" + param + "]]''",
             "''[[" + target + "#Translingual|" + param + "]]''",
 
+            # Not safe - will match inside {{head}} where we probably don't want {{taxfmt}}
             #"[[" + target + "|" + param + "]]",
             #"[[" + target + "#Translingual|" + param + "]]",
             ] if m in page_text]
 
-    # TODO allow * in 2= if no_auto is not set
-    lang_pat = "mul" if match_only_mul else "[a-z_ -]*"
-    safe_fixes += sorted(set(m.group(0) for m in re.finditer(r"\{\{(l|ll|m)[|]" + lang_pat + r"[|](\[\[|'')*" + re.escape(target) + r"(''|\]\])*\}\}", page_text)))
-    if param:
         safe_fixes += sorted(set(m.group(0) for m in re.finditer(r"\{\{(l|ll|m)[|]" + lang_pat + r"[|](\[\[|'')*" + re.escape(target) + r"[|]" + re.escape(param) + r"(''|\]\])*\}\}", page_text)))
+
+    else:
+        safe_fixes += [m for m in [
+            #"''[[" + target + "]]''",  # Not safe, replaces '''[[target]]''' with '[[target]]'
+            "[[''" + target + "'']]",
+            ] if m in page_text]
+        safe_fixes += sorted(set(m.group(0) for m in re.finditer(r"\{\{(l|ll|m)[|]" + lang_pat + r"[|](\[\[|'')*" + re.escape(target) + r"(''|\]\])*\}\}", page_text)))
+
+
 
     #print("GET SAFE:", [target, param], safe_fixes)
 
     return safe_fixes
-
 
 
 
@@ -96,7 +97,7 @@ class MissingTaxlinkFixer():
 
         TAXNAME_PAT = "[a-zA-Z0-9()×. -]+"
         with open(taxons) as infile:
-            self.taxons = {x[0]:_taxlink(x[1],x[2],x[3]) for x in csv.reader(infile, delimiter="\t") if re.sub(TAXNAME_PAT, "", x[0]) == ""}
+            self.taxons = {x[0]:(x[1],x[2],x[3]) for x in csv.reader(infile, delimiter="\t") if re.sub(TAXNAME_PAT, "", x[0]) == ""}
 
         print("Loaded", len(self.taxons), "taxons")
         self._trans = str.maketrans({"'": " ", "[": " ", "]": " " })
@@ -112,9 +113,9 @@ class MissingTaxlinkFixer():
 #        print(pattern)
 #        self._regex = re.compile(pattern)
 
-    def make_template(self, text, taxlink_data):
-        template = [self._template_name, text, taxlink_data.label]
-        if taxlink_data.i and taxlink_data.label not in ["genus", "subgenus", "section", "subsection", "species", "subspecies", "subspecies", "form", "variety"]:
+    def make_template(self, taxlink_data):
+        template = [self._template_name, taxlink_data.name, taxlink_data.rank]
+        if taxlink_data.i and taxlink_data.rank not in ["genus", "subgenus", "section", "subsection", "species", "subspecies", "subspecies", "form", "variety"]:
             template.append("i=1")
         return "{{" + "|".join(template) + "}}"
 
@@ -171,6 +172,133 @@ class MissingTaxlinkFixer():
 
         self._log.append((code, page, details))
 
+
+    def get_taxlink_data(self, text):
+        # strip brackets and quotes
+        text = re.sub(r"['\[\]]", "", text)
+        # Condense whitespace
+        text = re.sub(r"\s\s+", " ", text)
+        return _taxlink(text, *self.taxons[text])
+
+    def get_fixes(self, string_match, page_text):
+        safe_fixes = []   # fixes that can be applied anywhere with str.replace()
+        careful_fixes = [] # fixes that can only be applied carefully with wiki_replace()
+        very_careful_fixes = [] # fixes that can only be applied very carefully with wiki_replace and not matching inside any templates
+        unmatchable_fixes = [] # Fixes that exist in the page that appear inside forbidden parts of the text (inside template names, comments, etc)
+
+        unbalanced_brackets = []
+        unbalanced_quotes = []
+
+        taxlink_data = self.get_taxlink_data(string_match)
+        target = taxlink_data.name
+
+        safe_fixes = get_safe_replacements(page_text, target, match_only_mul=taxlink_data.no_auto)
+
+        pattern = r"( |'''''|'''|''|\[\[)*" + re.escape(string_match) + r"( |'''''|'''|''|\]\])*"
+        # matches may overlap, eg [[cat]] and ''[[cat]]''. sort matches longest-shortest as an imperfect workaround
+        for match in sorted([m.group(0).strip() for m in re.finditer(pattern, page_text)], key=lambda x: (len(x)*-1, x)):
+
+            match_unbalanced_brackets = []
+            match_unbalanced_quotes = []
+
+            #print([string_match, match])
+
+            match_count = page_text.count(match)
+
+            if "'" not in match and "[" not in match:
+                continue
+
+            # trim leading and trailing '' and ''' when separated by a space
+            prev = None
+            while prev != match:
+                prev = match
+                match = re.sub("^'+ ", "", match)
+                match = re.sub(" '+$", "", match)
+
+            # ''haliaeetus albicilla'']] as full paramater of [[haliaeetus albicilla|''haliaeetus albicilla'']]
+            if "[" not in match and "]]" in match and match.partition("]")[2].strip("']") == "":
+                param, _, split = match.partition("]")
+                if split.strip("']") == "":
+                    safe_fixes += get_safe_replacements(page_text, target, match, match_only_mul=taxlink_data.no_auto)
+
+            # check for full templates using unstripped match
+            if "[" not in match and "]" not in match:
+                safe_matches = get_safe_replacements(page_text, target, match, match_only_mul=taxlink_data.no_auto)
+                if safe_matches:
+                    safe_fixes += safe_matches
+
+            if match.startswith("''[[") and match.endswith("]]") and match.count("''") == 1:
+                match = match.lstrip("'")
+
+            if match.startswith("[[") and match.endswith("]]''") and match.count("''") == 1:
+                match = match.rstrip("'")
+
+            # [[rallus aquaticus]]'']]
+            if match.startswith("[[") and match.endswith("]]'']]") and match.count("[[") == 1:
+                match = match[:-4]
+
+            # [[rallus aquaticus]]]]
+            if match.startswith("[[") and match.endswith("]]]]") and match.count("[[") == 1:
+                match = match[:-2]
+
+            # '''[[rallus aquaticus]]]]'''
+            if match.startswith("'''") and match.endswith("'''") and match.count("'") == 6:
+                match = match[3:-3]
+
+            # '''''[[rallus aquaticus]]]]'''''
+            if match.startswith("'''''") and match.endswith("'''''") and match.count("'") == 10:
+                match = match[3:-3]
+
+            if "'" not in match and "[" not in match and "]" not in match:
+                continue
+
+            # check for full templates using stripped match
+            if "[" not in match and "]" not in match:
+                safe_matches = get_safe_replacements(page_text, target, match, match_only_mul=taxlink_data.no_auto)
+                if safe_matches:
+                    safe_fixes += safe_matches
+
+            # check that the match will actually be applied before warning about unbalanced items
+            _, has_matches = self.careful_replace(match, "⏶", page_text)
+
+            if not has_matches:
+                unmatchable_fixes.append(match)
+                continue
+
+            # if it starts with "[", it must start with exactly 2 [
+            # [ and ] count must be balanaced
+            if match.count("[") != match.count("]") or match.count("[") % 2:
+                if not taxlink_data.no_auto:
+                    unbalanced_brackets.append(match)
+                continue
+
+            start_count = len(re.match(r"^\[*", match).group(0))
+            end_count = len(re.search(r"\]*$", match).group(0))
+            if start_count != end_count or start_count not in [0,2]:
+                if not taxlink_data.no_auto:
+                    unbalanced_brackets.append(match)
+                continue
+
+            start_count = len(re.match("^'*", match).group(0))
+            end_count = len(re.search("'*$", match).group(0))
+            if start_count != end_count or match.count("'") % 2:
+                if not taxlink_data.no_auto:
+                    unbalanced_quotes.append(match)
+                continue
+
+            # Allow bold in full matches
+            if match.count("'''"):
+                if not taxlink_data.no_auto:
+                    self.warn("has_bold", page, match)
+                continue
+
+            careful_fixes.append(match)
+
+
+        return safe_fixes, careful_fixes, very_careful_fixes, unmatchable_fixes, unbalanced_brackets, unbalanced_quotes
+
+
+
     def process(self, page_text, page, summary=None, options=None):
         # This function runs in two modes: fix and report
         #
@@ -219,193 +347,15 @@ class MissingTaxlinkFixer():
         #print("string matches", string_matches)
 
         for string_match in string_matches:
-
-            safe_fixes = []   # Fixes that can be applied anywhere with str.replace()
-            careful_fixes = [] # Fixes that can only be applied carefully with wiki_replace()
-            very_careful_fixes = [] # Fixes that can only be applied very carefully with wiki_replace and not matching inside any templates
-            unmatchable_fixes = [] # Fixes that exist in the page that appear inside forbidden parts of the text (inside template names, comments, etc)
-
-            unbalanced_brackets = []
-            unbalanced_quotes = []
-
-            target = re.sub(r"['\[\]]", "", string_match)
-            target = re.sub(r"\s\s+", " ", target)
-            taxlink_data = self.taxons[target]
-
-            pattern = r"( |'''''|'''|''|\[\[)*" + re.escape(string_match) + r"( |'''''|'''|''|\]\])*"
-
-            safe_fixes = get_safe_replacements(page_text, target, match_only_mul=taxlink_data.no_auto)
-
-            # matches may overlap, eg [[cat]] and ''[[cat]]''. Sort matches longest-shortest as an imperfect workaround
-            for match in sorted([m.group(0).strip() for m in re.finditer(pattern, page_text)], key=lambda x: (len(x)*-1, x)):
-
-                match_unbalanced_brackets = []
-                match_unbalanced_quotes = []
-
-                #print([string_match, match])
-
-                match_count = page_text.count(match)
-                #print("MATCHA", match, "[" not in match, "]]" in match, [match.partition("]")[2].strip("']")])
-                if "'" not in match and "[" not in match:
-
-                    r"""
-
-                    safe_matches = [m for m in [
-                        "[[''" + target + "|" + param + "'']]",
-                        "[[''" + target + "#Translingual|" + param + "'']]",
-                        "''[[" + target + "|" + param + "]]''",
-                        "''[[" + target + "#Translingual|" + param + "]]''",
-
-                        #"[[" + target + "|" + param + "]]",
-                        #"[[" + target + "#Translingual|" + param + "]]",
-                        ] if m in page_text]
-
-
-                    safe_matches += sorted(set(m.group(0) for m in re.finditer(r"\{\{(l|ll|m)[|][^|{}]*[|]" + re.escape(string_match) + r"\}\}", page_text)))
-                    safe_match = "[[" + string_match + "]]"
-                    if safe_match in page_text:
-                        safe_matches.append(safe_match)
-
-                    #print("X CLEAN FIXES", safe_fixes)
-                    if safe_matches:
-                        safe_fixes += safe_matches
-                    #    print("USING CLEAN FIXES", safe_fixes)
-                        if sum(page_text.count(m) for m in safe_matches) == match_count:
-                            continue
-
-#                    if match.count(" ") >= 1:
-#                        very_careful_fixes.append(target)
-"""
-
-                    continue
-
-                # ''Haliaeetus albicilla'']] as full paramater of [[Haliaeetus albicilla|''Haliaeetus albicilla'']]
-                if "[" not in match and "]]" in match and match.partition("]")[2].strip("']") == "":
-                    param, _, split = match.partition("]")
-                    if split.strip("']") == "":
-
-                        safe_matches = [m for m in [
-                            "[[''" + target + "|" + param + "'']]",
-                            "[[''" + target + "#Translingual|" + param + "'']]",
-                            "''[[" + target + "|" + param + "]]''",
-                            "''[[" + target + "#Translingual|" + param + "]]''",
-
-                            #"[[" + target + "|" + param + "]]",
-                            #"[[" + target + "#Translingual|" + param + "]]",
-                            ] if m in page_text]
-
-                        # Allow a replacement only when it matches the entire parameter
-#                        safe_match = "|" + param + "]]"
-#                        if safe_match in page_text:
-#                            safe_matches.append(param)
-#                            print("XUSING CLEAN FIXES", safe_matches)
-
-                        if safe_matches:
-                            safe_fixes += safe_matches
-                            if sum(page_text.count(m) for m in safe_matches) == match_count:
-                                continue
-
-                # trim leading and trailing '' and ''' when separated by a space
-                prev = None
-                while prev != match:
-                    prev = match
-                    match = re.sub("^'+ ", "", match)
-                    match = re.sub(" '+$", "", match)
-
-                # check for full templates using unstripped match
-                if "[" not in match and "]" not in match:
-                    safe_matches = get_safe_replacements(page_text, target, match, match_only_mul=taxlink_data.no_auto)
-                    #safe_matches  = sorted(set(m.group(0) for m in re.finditer(r"\{\{(l|ll|m)[|]mul[|]" + re.escape(f"{target}|{match}") + r"\}\}", page_text)))
-                    if safe_matches:
-                        safe_fixes += safe_matches
-#                        continue
-
-                if match.startswith("''[[") and match.endswith("]]") and match.count("''") == 1:
-                    match = match.lstrip("'")
-
-                if match.startswith("[[") and match.endswith("]]''") and match.count("''") == 1:
-                    match = match.rstrip("'")
-
-                # [[Rallus aquaticus]]'']]
-                if match.startswith("[[") and match.endswith("]]'']]") and match.count("[[") == 1:
-                    match = match[:-4]
-
-                # [[Rallus aquaticus]]]]
-                if match.startswith("[[") and match.endswith("]]]]") and match.count("[[") == 1:
-                    match = match[:-2]
-
-                # '''[[Rallus aquaticus]]]]'''
-                if match.startswith("'''") and match.endswith("'''") and match.count("'") == 6:
-                    match = match[3:-3]
-
-                # '''''[[Rallus aquaticus]]]]'''''
-                if match.startswith("'''''") and match.endswith("'''''") and match.count("'") == 10:
-                    match = match[3:-3]
-
-                if "'" not in match and "[" not in match and "]" not in match:
-                    continue
-
-                # check for full templates using stripped match
-                if "[" not in match and "]" not in match:
-                    safe_matches = get_safe_replacements(page_text, target, match, match_only_mul=taxlink_data.no_auto)
-                    #safe_matches = sorted(set(m.group(0) for m in re.finditer(r"\{\{(l|ll|m)[|]mul[|]" + re.escape(f"{target}|{match}") + r"\}\}", page_text)))
-                    if safe_matches:
-                        safe_fixes += safe_matches
-#                        continue
-
-                # Check that the match will actually be applied before warning about unbalanced items
-                _, has_matches = self.careful_replace(match, "⏶", page_text)
-
-                if not has_matches:
-                    unmatchable_fixes.append(match)
-                    continue
-
-                # If it starts with "[", it must start with exactly 2 [
-                # [ and ] count must be balanaced
-                if match.count("[") != match.count("]") or match.count("[") % 2:
-                    if not taxlink_data.no_auto:
-                        unbalanced_brackets.append(match)
-                    continue
-
-                start_count = len(re.match(r"^\[*", match).group(0))
-                end_count = len(re.search(r"\]*$", match).group(0))
-                if start_count != end_count or start_count not in [0,2]:
-                    if not taxlink_data.no_auto:
-                        unbalanced_brackets.append(match)
-                    continue
-
-                start_count = len(re.match("^'*", match).group(0))
-                end_count = len(re.search("'*$", match).group(0))
-                if start_count != end_count or match.count("'") % 2:
-
-                    if not taxlink_data.no_auto:
-                        unbalanced_quotes.append(match)
-                    continue
-
-                # Allow bold in full matches
-                if match.count("'''"):
-#                    if "]" not in match:
-#                        safe_matches = [m for m in [
-#                            "{{l|mul|" + target + "|" + match + "}}",
-#                            "{{ll|mul|" + target + "|" + match + "}}",
-#                            "{{m|mul|" + target + "|" + match + "}}"]
-#                            if m in page_text]
-#                        if safe_matches:
-#                            safe_fixes += safe_matches
-#                            continue
-
-                    if not taxlink_data.no_auto:
-                        self.warn("has_bold", page, match)
-                    continue
-
-                careful_fixes.append(match)
-
+            safe_fixes, careful_fixes, very_careful_fixes, unmatchable_fixes, unbalanced_brackets, unbalanced_quotes = self.get_fixes(string_match, page_text)
             if not safe_fixes and not careful_fixes and not very_careful_fixes:
                 continue
 
             #print("SAFE", safe_fixes)
             #print("CAREFUL", careful_fixes)
             #print("VERY CAREFUL", very_careful_fixes)
+
+            taxlink_data = self.get_taxlink_data(string_match)
 
             for section in wikt.ifilter_sections():
 
@@ -421,7 +371,7 @@ class MissingTaxlinkFixer():
                     if section.title == "Etymology":
                         continue
 
-                new = self.make_template(target, taxlink_data)
+                new = self.make_template(taxlink_data)
                 fixes = []
 
                 for old in safe_fixes:
