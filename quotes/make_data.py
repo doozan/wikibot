@@ -94,10 +94,11 @@ def iter_wxt(datafile, limit=None, show_progress=False):
 def extract_quote_templates(params):
 
     article, title = params
-    wikicode = mwparserfromhell.parse(article)
 
     if "{{quote-" not in article and "{{cite-" not in article:
         return
+
+    wikicode = mwparserfromhell.parse(article)
 
     count = {} #defaultdict(lambda: defaultdict(int))
 
