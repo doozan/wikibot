@@ -15,6 +15,7 @@ from collections import defaultdict, namedtuple
 FIX_PATH = "template_params"
 TOTAL_TEMPLATES = 0
 TOTAL_COUNT = 0
+TOTAL_TEMPLATE_WITH_ERRORS = None
 
 class WikiSaver(BaseHandler):
 
@@ -31,8 +32,6 @@ class WikiSaver(BaseHandler):
                 fix_count[item.error] += 1
             else:
                 count[item.template_name] += 1
-
-
 
         def sort_items(x):
 
@@ -89,6 +88,7 @@ class WikiSaver(BaseHandler):
 
         total_items = sum(map(len, page_sections))
         res = [ f"; {total_items:,} template calls using invalid parameters",
+                f"; {TOTAL_TEMPLATES_WITH_ERRORS:,} templates called with invalid parameters",
                 f"; {TOTAL_TEMPLATES:,} unique templates validated",
                 f"; {TOTAL_COUNT:,} total template calls checked",
                 ]
@@ -217,7 +217,7 @@ def process(args):
     return fixer.process(*args)
 
 def main():
-    global fixer, TOTAL_TEMPLATES, TOTAL_COUNT
+    global fixer, TOTAL_TEMPLATES, TOTAL_COUNT, TOTAL_TEMPLATES_WITH_ERRORS
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
     parser.add_argument("wxt", help="Wiktionary extract file")
     parser.add_argument("--json", help="JSON file with template data", required=True)
@@ -241,10 +241,26 @@ def main():
     else:
         iter_items = map(process, iter_entries)
 
+    templates_with_errors = set()
     for count, results in iter_items:
+
         TOTAL_COUNT += count
         for log_values in results:
+            code, page, template_name, *_ = log_values
+            templates_with_errors.add(template_name)
+
             log(*log_values)
+
+    TOTAL_TEMPLATES_WITH_ERRORS = len(templates_with_errors)
+
+    templates_with_errors = defaultdict(int)
+    for i in logger._items:
+        if "autofix" not in i.error:
+            templates_with_errors[i.template_name] += 1
+
+    with open("templates_with_bad_params.tsv", "w") as outfile:
+        for template, count in sorted(templates_with_errors.items(), key=lambda x: (x[1]*-1, x[0])):
+            print(f"{template}\t{count}", file=outfile)
 
     if args.save:
         base_url = f"User:JeffDoozan/lists"
