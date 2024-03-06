@@ -26,6 +26,7 @@ import re
 import sys
 
 from pywikibot import xmlreader
+from autodooz.utils import iter_wxt
 from autodooz.sections import ALL_POS, ALL_LANGS, ALL_LANG_IDS
 from autodooz.wikilog import WikiLogger, BaseHandler
 from autodooz.wikilog_language import WikiByLanguage, FileByLanguage
@@ -350,30 +351,6 @@ def process(args):
                     res.append(("Unexpected text (probably missing headline)", title, lang.title, section.title, line))
                     break
     return res
-
-
-def iter_wxt(datafile, limit=None, show_progress=False):
-
-    if not os.path.isfile(datafile):
-        raise FileNotFoundError(f"Cannot open: {datafile}")
-
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
-
-    count = 0
-    for entry in parser:
-
-        if ":" in entry.title or "/" in entry.title:
-            continue
-
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        yield entry.text, entry.title
 
 
 def main():

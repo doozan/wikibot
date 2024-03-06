@@ -10,6 +10,7 @@ import json
 
 from autodooz.fix_rq_template import RqTemplateFixer
 from autodooz.fix_bad_rq_params import RqParamFixer
+from autodooz.utils import iter_wxt
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 
@@ -92,36 +93,6 @@ def log(code, page, template_name, key, details, template_data=None, bad_data=No
     logger.add(code, page, template_name, key, details, template_data, bad_data)
     if "autofix" not in code:
         bad_templates.add(template_name)
-
-def iter_wxt(datafile, limit=None, show_progress=False):
-
-    if not os.path.isfile(datafile):
-        raise FileNotFoundError(f"Cannot open: {datafile}")
-
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
-
-    count = 0
-    for entry in parser:
-
-#        if entry.title != "abound":
-#            continue
-
-#        if "RQ:Dickens Old Curiosity Shop" not in entry.text:
-#            continue
-
-        #if ":" in entry.title or "/" in entry.title:
-        #    continue
-
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        yield entry.text, entry.title
-
 
 #def dump_template_data(templates_wxt, target_filename):
 #

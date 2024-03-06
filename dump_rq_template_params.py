@@ -8,47 +8,8 @@ import re
 import sys
 
 from autodooz.fix_rq_template import RqTemplateFixer
+from autodooz.utils import iter_wxt, iter_xml
 from pywikibot import xmlreader
-
-def iter_xml(datafile, limit=None, show_progress=False):
-    dump = xmlreader.XmlDump(datafile)
-    parser = dump.parse()
-
-    count = 0
-    for entry in parser:
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        if not entry.title.startswith("Template:RQ"):
-            continue
-
-        yield entry.text, entry.title
-
-def iter_wxt(datafile, limit=None, show_progress=False):
-
-    if not os.path.isfile(datafile):
-        raise FileNotFoundError(f"Cannot open: {datafile}")
-
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
-
-    count = 0
-    for entry in parser:
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        if not entry.title.startswith("Template:RQ:"):
-            continue
-
-        yield entry.text, entry.title
 
 def main():
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
@@ -68,9 +29,9 @@ def main():
         args.j = multiprocessing.cpu_count()-1
 
     if args.wxt:
-        iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
+        iter_entries = iter_wxt(args.wxt, args.limit, args.progress, title_matches=lambda x: x.startswith("Template:RQ")
     else:
-        iter_entries = iter_xml(args.xml, args.limit, args.progress)
+        iter_entries = iter_xml(args.xml, args.limit, args.progress, title_matches=lambda x: x.startswith("Template:RQ")
 
     dump_template_args(iter_entries, args.target)
 

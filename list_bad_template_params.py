@@ -9,6 +9,7 @@ import sys
 import json
 
 from autodooz.fix_bad_template_params import ParamFixer
+from autodooz.utils import iter_wxt
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 
@@ -186,30 +187,6 @@ def log(code, page, template_name, key, details, bad_data=None):
     logger.add(code, page, template_name, key, details, bad_data)
     if "autofix" not in code:
         bad_templates.add(template_name)
-
-def iter_wxt(datafile, limit=None, show_progress=False):
-
-    if not os.path.isfile(datafile):
-        raise FileNotFoundError(f"Cannot open: {datafile}")
-
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
-
-    count = 0
-    for entry in parser:
-
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        #if ":" in entry.title or "/" in entry.title:
-        #    continue
-
-        yield entry.text, entry.title
-
 
 fixer = None
 def process(args):

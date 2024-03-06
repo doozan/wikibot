@@ -9,6 +9,7 @@ import sys
 import json
 
 from autodooz.fix_rq_template import RqTemplateFixer
+from autodooz.utils import iter_wxt
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 
@@ -72,40 +73,10 @@ logger = Logger()
 def log(code, page, details=None):
     logger.add(code, page, details)
 
-def iter_wxt(datafile, limit=None, show_progress=False):
-
-    if not os.path.isfile(datafile):
-        raise FileNotFoundError(f"Cannot open: {datafile}")
-
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
-
-    count = 0
-    for entry in parser:
-
-    #    if entry.title != "Template:RQ:Adam Smith Wealth of Nations":
-    #        continue
-
-        #if ":" in entry.title or "/" in entry.title:
-        #    continue
-
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        yield entry.text, entry.title
-
-
-
 fixer = None
 def process(args):
     # Needed to unpack args until Pool.istarprocess exists
     return fixer.process(*args)
-
-
 
 def main():
     global fixer

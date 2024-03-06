@@ -7,6 +7,7 @@ import re
 import sys
 
 from autodooz.fix_list_to_col import ListToColFixer
+from autodooz.utils import iter_wxt
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 
@@ -73,33 +74,11 @@ logger = Logger()
 def log(error, page, lang_id, details=None):
     logger.add(error, page, lang_id, details)
 
-def iter_wxt(datafile, options, limit=None, show_progress=False):
-
-    if not os.path.isfile(datafile):
-        raise FileNotFoundError(f"Cannot open: {datafile}")
-
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
-
-    count = 0
-    for entry in parser:
-
-        if ":" in entry.title or "/" in entry.title:
-            continue
-
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        yield entry.text, entry.title, None, options
-
 fixer = None
 def process(args):
     # Needed to unpack args until Pool.istarprocess exists
-    return fixer.process(*args)
+    text, title, options = args
+    return fixer.process(text, title, options=options)
 
 def main():
     global fixer
@@ -120,7 +99,7 @@ def main():
         args.j = multiprocessing.cpu_count()-1
 
     options = { "lang_ids": args.lang, "sections": args.section }
-    iter_entries = iter_wxt(args.wxt, options, args.limit, args.progress)
+    iter_entries = iter_wxt(args.wxt, args.limit, args.progress, options)
 
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)
