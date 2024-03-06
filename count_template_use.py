@@ -1,53 +1,26 @@
 #!/usr/bin/python3
 
 import argparse
+import csv
 import multiprocessing
 import os
 import re
 import sys
 
 from collections import defaultdict
-
-def iter_xml(datafile, limit=None, show_progress=False):
-    from pywikibot import xmlreader
-    dump = xmlreader.XmlDump(datafile)
-    parser = dump.parse()
-
-    count = 0
-    for entry in parser:
-        if not count % 100 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        yield entry.text, entry.title
-
-def iter_wxt(datafile, limit=None, show_progress=False):
-
-    if not os.path.isfile(datafile):
-        raise FileNotFoundError(f"Cannot open: {datafile}")
-
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(datafile)
-
-    count = 0
-    for entry in parser:
-        if not count % 1000 and show_progress:
-            print(count, end = '\r', file=sys.stderr)
-
-        if limit and count >= limit:
-            break
-        count += 1
-
-        yield entry.text, entry.title
+from autodooz.utils import iter_xml, iter_wxt
 
 def main():
     parser = argparse.ArgumentParser(description="Dump L2 entries containing {{taxon}}")
+#    parser.add_argument("fixable_templates", help="fixable templates")
     parser.add_argument("--xml", help="XML file to load")
     parser.add_argument("--wxt", help="Wiktionary extract file to load")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
+
+    parser.add_argument("--debug", help="dump individual template count for single page")
+    parser.add_argument("--include", help="Only count templates listed in the given tsv", action='append')
+    parser.add_argument("--exclude", help="Don't count templates listed in the given tsv", action='append')
+
     parser.add_argument("--progress", help="Display progress", action='store_true')
     parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
     args = parser.parse_args()
@@ -70,16 +43,59 @@ def main():
     else:
         iter_items = map(process, iter_entries)
 
-    template_count = defaultdict(int)
+    include = set()
+    if args.include:
+        for filename in args.include:
+            with open(filename) as infile:
+                include |= {x[0] for x in csv.reader(infile, delimiter="\t")}
+
+    exclude = set()
+    if args.exclude:
+        for filename in args.exclude:
+            with open(filename) as infile:
+                exclude |= {x[0] for x in csv.reader(infile, delimiter="\t")}
+
+    page_mode = include or exclude
+
+    template_total = defaultdict(int)
+    template_pages = defaultdict(int)
+
     for results in iter_items:
         if not results:
             continue
 
-        for template, count in results:
-            template_count[template] += 1
+        entry_title, template_count = results
 
-    for template, count in sorted(template_count.items(), key=lambda x: (x[1], x[0])):
-        print(f"{template}\t{count}")
+        page_count = 0
+        for template, count in template_count.items():
+
+            if include:
+                if template not in include \
+                or template.endswith("-lite") \
+                or template.endswith("/args") \
+                or template.startswith("list:") \
+                or template.startswith("R:") \
+                or template in ["tt+", "tt", "see-temp", "t-needed", "w", "taxlink", "vern", "der-bottom"]:
+                    continue
+
+            if exclude and template in exclude:
+                continue
+
+            template_pages[template] += 1
+            template_total[template] += count
+            page_count += count
+
+            if args.debug and entry_title == args.debug:
+                print(f"{template}\t{count}", file=sys.stderr)
+
+        if page_mode:
+            print(f"{entry_title}\t{page_count}")
+
+
+    if not page_mode:
+        for template, count in sorted(template_total.items(), key=lambda x: (x[1], x[0])):
+            page_count = template_pages[template]
+            print(f"{template}\t{count}\t{page_count}")
 
 def process(args):
 
@@ -87,6 +103,12 @@ def process(args):
 
     if entry_title.startswith("Module:"):
         return
+
+#    if entry_title == "Ixora":
+#        print(len(entry_text), file=sys.stderr)
+    #entry_text = re.sub("<!--.*?-->", "", entry_text, flags=re.DOTALL)
+#    if entry_title == "Ixora":
+#        print(len(entry_text), file=sys.stderr)
 
     # Strip {{{vars}}} and {{#commands: from templates
     if entry_title.startswith("Template:"):
@@ -97,16 +119,14 @@ def process(args):
         entry_text = re.sub("{{\s*#[^{}]*", "", entry_text)
 
     template_count = defaultdict(int)
-    for m in re.finditer("{{(.*?)[{<}|]", entry_text, re.DOTALL):
+    for m in re.finditer("{{(.*?)(?=[#{<}|])", entry_text, re.DOTALL):
         if not m.group(1):
             continue
         template_name = re.sub("<!--.*?-->", "", m.group(1)).strip()
         if template_name and "\n" not in template_name:
             template_count[template_name] += 1
 
-
-    return [(template, count) for template, count in template_count.items()]
-
+    return entry_title, template_count
 
 if __name__ == "__main__":
     main()
