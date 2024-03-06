@@ -436,7 +436,7 @@ def main():
 
         print(len(GLOBAL_DUMP["taxons"]), "known taxons...searching for additional signs of life")
 
-        FIX_PATH = "wanted_taxons"
+        FIX_PATH = "missing_taxons"
         process_function = process_wanted_taxons
         post_process_function = store_wanted_taxons
         post_post_process_function = print_wanted_taxons
