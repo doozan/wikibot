@@ -6,7 +6,7 @@ import re
 SPANISH_DATA = "../spanish_data"
 NEWEST = max(f.name for f in os.scandir(SPANISH_DATA) if f.is_dir() and re.match(r"\d\d\d\d-\d\d-\d\d$", f.name))
 NEWEST_DATA = os.path.join(SPANISH_DATA, NEWEST)
-fixer = Fixer(os.path.join(NEWEST_DATA, "taxons.tsv"))
+fixer = Fixer("taxfmt", os.path.join(NEWEST_DATA, "taxons.tsv"), aggressive=True)
 
 
 base = """\
@@ -53,6 +53,7 @@ def test_process():
         "'''Salvia rosmarinus'''": None,
         "'''''Salvia rosmarinus'''''": "'''{{taxfmt|Salvia rosmarinus|species}}'''",
 
+        "{{q|stuff [[Salvia rosmarinus]]}}": "{{q|stuff {{taxfmt|Salvia rosmarinus|species}}}}",
         "{{q|[[Salvia rosmarinus]]}}": "({{taxfmt|Salvia rosmarinus|species}})",
 
         # Unhandled, first [[ matches as opening of a link named [Salvia rosmarinus
@@ -83,9 +84,10 @@ def test_process():
         "{{l|mul|Salvia rosmarinus|''Salvia rosmarinus''}}": "{{taxfmt|Salvia rosmarinus|species}}",
         "{{l|mul|Salvia rosmarinus|''Salvia'' ''rosmarinus''}}": "{{taxfmt|Salvia rosmarinus|species}}",
 
+        # TODO: test that this fails on something with no_auto
         "{{l|anything-goes-here|Salvia rosmarinus}}": "{{taxfmt|Salvia rosmarinus|species}}",
-        "{{l|en|Salvia rosmarinus}}": "{{taxfmt|Salvia rosmarinus|species}}",
-        "{{ll|en|Salvia rosmarinus}}": "{{taxfmt|Salvia rosmarinus|species}}",
+        #"{{l|en|Salvia rosmarinus}}": "{{taxfmt|Salvia rosmarinus|species}}",
+        #"{{ll|en|Salvia rosmarinus}}": "{{taxfmt|Salvia rosmarinus|species}}",
         "{{ll|mul|Salvia rosmarinus}}": "{{taxfmt|Salvia rosmarinus|species}}",
         "{{m|mul|Salvia rosmarinus}}": "{{taxfmt|Salvia rosmarinus|species}}",
         "''{{ll|mul|Salvia rosmarinus}}''": "{{taxfmt|Salvia rosmarinus|species}}",
@@ -97,7 +99,7 @@ def test_process():
 
         # Strip surrounding '' '' on replacements
         "''{{ll|mul|Salvia rosmarinus}}''": "{{taxfmt|Salvia rosmarinus|species}}",
-        "''{{ll|mul|Salvia rosmarinus}}, {{ll|en|Salvia rosmarinus}}''": "{{taxfmt|Salvia rosmarinus|species}}, {{taxfmt|Salvia rosmarinus|species}}",
+        "''{{ll|mul|Salvia rosmarinus}}, {{ll|mul|Salvia rosmarinus}}''": "{{taxfmt|Salvia rosmarinus|species}}, {{taxfmt|Salvia rosmarinus|species}}",
         "'''{{ll|mul|Salvia rosmarinus}}'''": "'''{{taxfmt|Salvia rosmarinus|species}}'''",
         "'''''{{ll|mul|Salvia rosmarinus}}'''''": "'''{{taxfmt|Salvia rosmarinus|species}}'''",
 
@@ -116,6 +118,8 @@ def test_process():
         "{{gloss|test|Salvia rosmarinus|param=test}}": "{{gloss|test|Salvia rosmarinus|param=test}}",
 
 
+        "({{l|mul|Salvia rosmarinus|''Salvia'' ''rosmarinus''}})": "({{taxfmt|Salvia rosmarinus|species}})",
+
         "[[Salvia rosmarinus|Salvia rosmarinus]]": None,
         #"[[Salvia rosmarinus|''Salvia rosmarinus'']]": "{{taxfmt|Salvia rosmarinus|species}}",
         "[[test|''Salvia rosmarinus'']]": None,
@@ -123,6 +127,9 @@ def test_process():
         "[[test|Salvia rosmarinus]]": None,
         #"[[test|test ''Salvia rosmarinus'']]": "[[test|test {{taxfmt|Salvia rosmarinus|species}}]]",
 
+
+
+        "''Salvia rosmarinus'' and ''{{l|mul|Salvia rosmarinus}}''": "{{taxfmt|Salvia rosmarinus|species}} and {{taxfmt|Salvia rosmarinus|species}}",
 
 
 #        "{{suffix|en|Pteridaceae|ous}}": None,
@@ -143,8 +150,8 @@ def test_process():
             expected = test
         res_full = fixer.process(base + test, "test", [])
         res = res_full[len(base):]
-        print(expected)
-        print(res)
+        print("EXPECTED:", expected)
+        print("RECIEVED:", res)
         assert res == expected
 
 def test_nomatch_title():
@@ -165,13 +172,8 @@ def notest_process2():
     test = """\
 ==English==
 
-====Hyponyms====
-{{sense|fruit and vines of genus ''Vitis''}}
-{{col2|en
-|{{vern|river grape}} (''[[Vitis vulpina#Translingual|Vitis vulpina]]'')
-|{{vern|riverside grape}} (''[[Vitis vulpina]]''; {{taxlink|Vitis riparia|species}})
-}}
-
+===xxx===
+# ''Laurus nobilis'' and ''{{l|mul|Laurus nobilis}}''
 """
 
     res = fixer.process(test, "grape", [])
