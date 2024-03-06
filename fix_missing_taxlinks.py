@@ -113,9 +113,9 @@ class MissingTaxlinkFixer():
 #        print(pattern)
 #        self._regex = re.compile(pattern)
 
-    def make_template(self, taxlink_data):
-        template = [self._template_name, taxlink_data.name, taxlink_data.rank]
-        if taxlink_data.i and taxlink_data.rank not in ["genus", "subgenus", "section", "subsection", "species", "subspecies", "subspecies", "form", "variety"]:
+    def make_template(self, taxon_data):
+        template = [self._template_name, taxon_data.name, taxon_data.rank]
+        if taxon_data.i and taxon_data.rank not in ["genus", "subgenus", "section", "subsection", "species", "subspecies", "subspecies", "form", "variety"]:
             template.append("i=1")
         return "{{" + "|".join(template) + "}}"
 
@@ -173,7 +173,7 @@ class MissingTaxlinkFixer():
         self._log.append((code, page, details))
 
 
-    def get_taxlink_data(self, text):
+    def get_taxon_data(self, text):
         # strip brackets and quotes
         text = re.sub(r"['\[\]]", "", text)
         # Condense whitespace
@@ -189,10 +189,10 @@ class MissingTaxlinkFixer():
         unbalanced_brackets = []
         unbalanced_quotes = []
 
-        taxlink_data = self.get_taxlink_data(string_match)
-        target = taxlink_data.name
+        taxon_data = self.get_taxon_data(string_match)
+        target = taxon_data.name
 
-        safe_fixes = get_safe_replacements(page_text, target, match_only_mul=taxlink_data.no_auto)
+        safe_fixes = get_safe_replacements(page_text, target, match_only_mul=taxon_data.no_auto)
 
         pattern = r"( |'''''|'''|''|\[\[)*" + re.escape(string_match) + r"( |'''''|'''|''|\]\])*"
         # matches may overlap, eg [[cat]] and ''[[cat]]''. sort matches longest-shortest as an imperfect workaround
@@ -219,11 +219,11 @@ class MissingTaxlinkFixer():
             if "[" not in match and "]]" in match and match.partition("]")[2].strip("']") == "":
                 param, _, split = match.partition("]")
                 if split.strip("']") == "":
-                    safe_fixes += get_safe_replacements(page_text, target, match, match_only_mul=taxlink_data.no_auto)
+                    safe_fixes += get_safe_replacements(page_text, target, match, match_only_mul=taxon_data.no_auto)
 
             # check for full templates using unstripped match
             if "[" not in match and "]" not in match:
-                safe_matches = get_safe_replacements(page_text, target, match, match_only_mul=taxlink_data.no_auto)
+                safe_matches = get_safe_replacements(page_text, target, match, match_only_mul=taxon_data.no_auto)
                 if safe_matches:
                     safe_fixes += safe_matches
 
@@ -254,7 +254,7 @@ class MissingTaxlinkFixer():
 
             # check for full templates using stripped match
             if "[" not in match and "]" not in match:
-                safe_matches = get_safe_replacements(page_text, target, match, match_only_mul=taxlink_data.no_auto)
+                safe_matches = get_safe_replacements(page_text, target, match, match_only_mul=taxon_data.no_auto)
                 if safe_matches:
                     safe_fixes += safe_matches
 
@@ -268,27 +268,27 @@ class MissingTaxlinkFixer():
             # if it starts with "[", it must start with exactly 2 [
             # [ and ] count must be balanaced
             if match.count("[") != match.count("]") or match.count("[") % 2:
-                if not taxlink_data.no_auto:
+                if not taxon_data.no_auto:
                     unbalanced_brackets.append(match)
                 continue
 
             start_count = len(re.match(r"^\[*", match).group(0))
             end_count = len(re.search(r"\]*$", match).group(0))
             if start_count != end_count or start_count not in [0,2]:
-                if not taxlink_data.no_auto:
+                if not taxon_data.no_auto:
                     unbalanced_brackets.append(match)
                 continue
 
             start_count = len(re.match("^'*", match).group(0))
             end_count = len(re.search("'*$", match).group(0))
             if start_count != end_count or match.count("'") % 2:
-                if not taxlink_data.no_auto:
+                if not taxon_data.no_auto:
                     unbalanced_quotes.append(match)
                 continue
 
             # Allow bold in full matches
             if match.count("'''"):
-                if not taxlink_data.no_auto:
+                if not taxon_data.no_auto:
                     self.warn("has_bold", page, match)
                 continue
 
@@ -355,7 +355,7 @@ class MissingTaxlinkFixer():
             #print("CAREFUL", careful_fixes)
             #print("VERY CAREFUL", very_careful_fixes)
 
-            taxlink_data = self.get_taxlink_data(string_match)
+            taxon_data = self.get_taxon_data(string_match)
 
             for section in wikt.ifilter_sections():
 
@@ -365,13 +365,13 @@ class MissingTaxlinkFixer():
 
                 # Taxlinks flagged no_auto contain text like "Paris" or "Argentina" and should only
                 # replace matches inside Translingual, and not inside Translingual:Etymology
-                if taxlink_data.no_auto:
+                if taxon_data.no_auto:
                     if "Translingual" not in section.path:
                         continue
                     if section.title == "Etymology":
                         continue
 
-                new = self.make_template(taxlink_data)
+                new = self.make_template(taxon_data)
                 fixes = []
 
                 for old in safe_fixes:
