@@ -12,13 +12,13 @@ class BaseHandler():
 
     _site = None # used by pywikbot
 
-    def save(self, items, base_path, **nargs):
+    def save(self, items, base_path, **kwargs):
         """ Save logged items to wiki pages """
 
         # Stash extra params
         # This lets class overrides stash variable information that can be accessed
         # by the the overridden functions
-        self.args = namedtuple('args', nargs.keys())(*nargs.values())
+        self.args = namedtuple('args', kwargs.keys())(*kwargs.values())
 
         items = self.sort_items(items)
         pages = self.make_pages(items)
@@ -66,6 +66,10 @@ class BaseHandler():
         return pages
 
     def save_page(self, page, page_text):
+        if not page_text.strip():
+            print(f"{page} is empty, not saving", file=sys.stderr)
+            return
+
         if not self._site:
             self._site = pywikibot.Site()
         wiki_page = pywikibot.Page(self._site, page)
@@ -121,6 +125,9 @@ class BaseHandler():
     def get_section_header(self, base_path, page_name, section_entries, prev_section_entries, pages):
         return []
 
+    def get_section_footer(self, base_path, page_name, section_entries, prev_section_entries, pages, section_lines):
+        return []
+
     def make_section(self, base_path, page_name, section_entries, prev_section_entries, pages):
         res = self.get_section_header(base_path, page_name, section_entries, prev_section_entries, pages)
 
@@ -128,6 +135,9 @@ class BaseHandler():
         for entry in section_entries:
             res += self.format_entry(entry, prev_entry)
             prev_entry = entry
+
+        res += self.get_section_footer(base_path, page_name, section_entries, prev_section_entries, pages, res)
+
         return res
 
     def format_entry(self, entry, prev_entry):
@@ -207,5 +217,5 @@ class WikiLogger():
         """ Add an item to the log """
         self._items.append(self._paramtype(*item))
 
-    def save(self, dest, handler=BaseHandler, *args, **nargs):
-        handler().save(self._items, dest, *args, **nargs)
+    def save(self, dest, handler=BaseHandler, *args, **kwargs):
+        handler().save(self._items, dest, *args, **kwargs)
