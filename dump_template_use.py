@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--wxt", help="Wiktionary extract file to load")
     parser.add_argument("-t", help="template name", action='append')
     #parser.add_argument("-tx", help="template regex", action='append')
+    parser.add_argument("--wikiline", help="Dump the entire line containing the template", action='store_true')
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
@@ -31,9 +32,9 @@ def main():
         args.j = multiprocessing.cpu_count()-1
 
     if args.wxt:
-        iter_entries = iter_wxt(args.wxt, args.limit, args.progress, args.t)
+        iter_entries = iter_wxt(args.wxt, args.limit, args.progress, args.t, args.wikiline)
     else:
-        iter_entries = iter_xml(args.xml, args.limit, args.progress, args.t)
+        iter_entries = iter_xml(args.xml, args.limit, args.progress, args.t, args.wikiline)
 
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)
@@ -56,7 +57,7 @@ def main():
 
 def process(args):
 
-    entry_text, entry_title, templates = args
+    entry_text, entry_title, templates, dump_wikiline = args
 
     if not any(t in entry_text for t in templates):
         return
@@ -67,12 +68,20 @@ def process(args):
 
     res = []
     for section in wikt.ifilter_sections(recursive=False):
+
         section_str = str(section)
         if not any(t in section_str for t in templates):
-            continue
+            return
 
-        wiki = mwparser.parse(section_str)
-        res += [(entry_title, section.path, str(t)) for t in wiki.ifilter_templates(matches=lambda x: str(x.name) in templates)]
+        if dump_wikiline:
+            for wikiline in section.content_wikilines:
+                wiki = mwparser.parse(section_str)
+                if any(t for t in wiki.ifilter_templates(matches=lambda x: str(x.name) in templates)):
+                    res.append((entry_title, section.path, wikiline))
+        else:
+            wiki = mwparser.parse(section_str)
+            res += [(entry_title, section.path, str(t)) for t in wiki.ifilter_templates(matches=lambda x: str(x.name) in templates)]
+
 
     return res
 
