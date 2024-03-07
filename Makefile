@@ -116,7 +116,7 @@ $(BUILDDIR)/%.pages: $(BUILDDIR)/%.txt.bz2
 >   @echo "Making $@..."
 >   bzcat $< | perl -ne '/^_____([^_]+):[^_]+_____$$/ && print "$$1\n"' > $@.unsorted
 >   sort -u $@.unsorted > $@.sorted
->   $(RM) $@.formonly $@.wiki.base
+>   $(RM) $@.unsorted
 >   mv $@.sorted $@
 
 $(BUILDDIR)/%.lemmas: $(BUILDDIR)/%.data-full
