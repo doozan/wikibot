@@ -69,7 +69,12 @@ DUMP_TEMPLATE_PARAMS := $(PYPATH) ./dump_template_data.py
 LIST_BAD_TEMPLATE_PARAMS := $(PYPATH) ./list_bad_template_params.py
 COUNT_TEMPLATE_USE := $(PYPATH) ./count_template_use.py
 MAKE_TEMPLATE_STATS := $(PYPATH) ./make_template_stats.py
-LIST_TAXONS := $(PYPATH) ./list_taxons.py
+DUMP_TAXONS := $(PYPATH) ./dump_taxons.py
+LIST_LOCAL_TAXONS := $(PYPATH) ./list_local_taxons.py
+LIST_EXTERNAL_TAXONS := $(PYPATH) ./list_external_taxons.py
+LIST_POSSIBLE_TAXONS := $(PYPATH) ./list_possible_taxons.py
+LIST_MISSING_TAXLINKS := $(PYPATH) ./list_missing_taxlinks.py
+DUMP_TEMPLATE_USE := $(PYPATH) ./dump_template_use.py
 
 
 EXTERNAL := ../..
@@ -161,14 +166,35 @@ $(BUILDDIR)/template_data.json: $(BUILDDIR)/template_data_incomplete.json $(BUIL
 
 $(BUILDDIR)/taxons.txt.bz2: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 >   @echo "Making $@..."
->   $(LIST_TAXONS) --print-taxons --xml $< | bzip2 > $@
+>   $(DUMP_TAXONS) --xml $< | bzip2 > $@
 
-$(BUILDDIR)/taxons.tsv: $(BUILDDIR)/taxons.txt.bz2
+$(BUILDDIR)/taxlinks.txt.bz2: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 >   @echo "Making $@..."
->   $(LIST_TAXONS) --print-taxlinks --wxt $< $(SAVE) > $@
+>   $(DUMP_TEMPLATE_USE) -t taxlink --xml $< | bzip2 > $@
 
+$(BUILDDIR)/local_taxons.tsv $(LIST)local_taxons &: $(BUILDDIR)/taxons.txt.bz2
+>   @echo "Making $@..."
+>   $(LIST_LOCAL_TAXONS) --wxt $< $(SAVE) > $@
+
+$(BUILDDIR)/external_taxons.tsv $(LIST)external_taxons &: $(BUILDDIR)/taxlinks.txt.bz2
+>   @echo "Making $@..."
+>   $(LIST_EXTERNAL_TAXONS) --wxt $< $(SAVE) > $@
 
 # Lists
+
+$(LIST)possible_taxons: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv $(BUILDDIR)/all-en.enwikt.pages
+>   @echo "Running $@..."
+
+>   $(LIST_POSSIBLE_TAXONS) --wxt $< --taxons $(BUILDDIR)/local_taxons.tsv --taxons $(BUILDDIR)/external_taxons.tsv --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
+>   touch $@
+
+$(LIST)missing_taxons: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv $(BUILDDIR)/all-en.enwikt.pages
+>   @echo "Running $@..."
+
+>   $(LIST_POSSIBLE_TAXONS) --wxt $< --taxons $(BUILDDIR)/local_taxons.tsv --taxons $(BUILDDIR)/external_taxons.tsv --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
+>   touch $@
+
+
 
 $(LIST)t9n_problems: $(BUILDDIR)/translations.bz2 $(BUILDDIR)/es-en.enwikt.allforms.csv
 >   @echo "Running $@..."
@@ -529,11 +555,10 @@ $(LIST)bad_template_params: $(BUILDDIR)/template_data.json $(BUILDDIR)/all-en.en
 >   $(LIST_BAD_TEMPLATE_PARAMS) $(SAVE) --json $^
 >   touch $@
 
-
-$(LIST)missing_taxlinks: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/taxons.tsv
+$(LIST)missing_taxlinks: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv
 >   @echo "Running $@..."
 
->   $(LIST_TAXONS) --taxons $(BUILDDIR)/taxons.tsv --wxt $<
+>   $(LIST_MISSING_TAXLINKS) --local $(BUILDDIR)/local_taxons.tsv --external $(BUILDDIR)/external_taxons.tsv --wxt $< $(SAVE)
 >   touch $@
 
 
@@ -781,7 +806,7 @@ $(FIX)rq_templates: $(BUILDDIR)/rq_template_params.json
 
 $(FIX)template_params: $(BUILDDIR)/template_data.json
 >   SRC="User:JeffDoozan/lists/template_params/fixes"
->   FIX="--fix template_params --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   FIX="--fix bad_template_params --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=2000
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`

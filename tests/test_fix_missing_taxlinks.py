@@ -6,7 +6,8 @@ import re
 SPANISH_DATA = "../spanish_data"
 NEWEST = max(f.name for f in os.scandir(SPANISH_DATA) if f.is_dir() and re.match(r"\d\d\d\d-\d\d-\d\d$", f.name))
 NEWEST_DATA = os.path.join(SPANISH_DATA, NEWEST)
-fixer = Fixer("taxfmt", os.path.join(NEWEST_DATA, "taxons.tsv"), aggressive=True)
+# TODO: generate sample files for testing instead of using real files
+fixer = Fixer(templates={"taxfmt": os.path.join(NEWEST_DATA, "local_taxons.tsv"), "taxlink": os.path.join(NEWEST_DATA, "external_taxons.tsv")}, aggressive=True)
 
 
 base = """\
