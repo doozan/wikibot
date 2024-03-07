@@ -56,11 +56,11 @@ class MissingTaxlinkFixer():
         self._log = []
 
         if aggressive:
-            self.ALLOWED_TEMPLATES = ["col-auto", "col2", "col3", "col4", "col4", "der2", "der3", "der4", "der5", "ja-r/multi", "ja-r/args", "gl", "gloss", "coi", "syn", "ngd", "cog", "q", "syn of", "synonym of", "qual", "qualifier", "obs form", "obsolete form of", "suffix"]
-            self.MATCH_LINKS=True
+            self.MATCH_INSIDE_TEMPLATES = ["col-auto", "col2", "col3", "col4", "col4", "der2", "der3", "der4", "der5", "ja-r/multi", "ja-r/args", "gl", "gloss", "coi", "syn", "ngd", "cog", "q", "syn of", "synonym of", "qual", "qualifier", "obs form", "obsolete form of", "suffix"]
+            self.MATCH_INSIDE_LINKS=True
         else:
-            self.ALLOWED_TEMPLATES = []
-            self.MATCH_LINKS=False
+            self.MATCH_INSIDE_TEMPLATES = []
+            self.MATCH_INSIDE_LINKS=False
 
         TAXNAME_PAT = "[a-zA-Z0-9()×. -]+"
         self._trans = str.maketrans({"'": " ", "[": " ", "]": " " })
@@ -146,14 +146,14 @@ class MissingTaxlinkFixer():
         #print(":: SAFE_REPLACED", (text))
         return text, count
 
-    def careful_replace(self, old, new, text, **kwargs):
+    def wiki_replace(self, old, new, text, **kwargs):
         """ returns new_text, replacement_count """
 
         if "match_templates" not in kwargs:
-            kwargs["match_templates"] = self.MATCH_TEMPLATES
+            kwargs["match_templates"] = self.MATCH_INSIDE_TEMPLATES
 
         if "match_links" not in kwargs:
-            kwargs["match_links"] = self.MATCH_LINKS
+            kwargs["match_links"] = self.MATCH_INSIDE_LINKS
 
         #if new != "⏶":
         #    print(":: SREPLACE", (old, new, text))
@@ -165,8 +165,8 @@ class MissingTaxlinkFixer():
         #    print(":: SREPLACED", [text])
         return text, count
 
-    def very_careful_replace(self, old, new, text):
-        return self.careful_replace(old, new, text, match_templates=None, match_links=None)
+    def careful_wiki_replace(self, old, new, text):
+        return self.wiki_replace(old, new, text, match_templates=None, match_links=None)
 
     def fix(self, code, page, details):
         #print("FIX", code, page, details)
@@ -198,8 +198,8 @@ class MissingTaxlinkFixer():
 
     def get_fixes(self, template_name, string_match, page_text):
         safe_fixes = []   # fixes that can be applied anywhere with str.replace()
-        careful_fixes = [] # fixes that can only be applied carefully with wiki_replace()
-        very_careful_fixes = [] # fixes that can only be applied very carefully with wiki_replace and not matching inside any templates
+        wiki_fixes = [] # fixes that can only be applied wikily with wiki_replace()
+        careful_wiki_fixes = [] # fixes that can only be applied very wikily with wiki_replace and not matching inside any templates
         unmatchable_fixes = [] # fixes that match elements inside forbidden parts of the text (inside template names, comments, etc)
 
         unbalanced_brackets = []
@@ -275,7 +275,7 @@ class MissingTaxlinkFixer():
                     safe_fixes += safe_matches
 
             # check that the match will actually be applied before warning about unbalanced items
-            _, has_matches = self.careful_replace(match, "⏶", page_text)
+            _, has_matches = self.wiki_replace(match, "⏶", page_text)
 
             if not has_matches:
                 unmatchable_fixes.append(match)
@@ -308,10 +308,10 @@ class MissingTaxlinkFixer():
                     self.warn(f"{template_name}_has_bold", page, match)
                 continue
 
-            careful_fixes.append(match)
+            wiki_fixes.append(match)
 
 
-        return safe_fixes, careful_fixes, very_careful_fixes, unmatchable_fixes, unbalanced_brackets, unbalanced_quotes
+        return safe_fixes, wiki_fixes, careful_wiki_fixes, unmatchable_fixes, unbalanced_brackets, unbalanced_quotes
 
 
     def process_template(self, wikt, page, template_name):
@@ -323,7 +323,7 @@ class MissingTaxlinkFixer():
 
         substring_matches = sorted(set(found for end_ind, found in self.auto[template_name].iter(clean) if found != page), key=lambda x: (len(x)*-1, x))
 
-        # hacky method to remove subsets - removed because the careful matching of balanced [[ and '' obviates the need, but
+        # hacky method to remove subsets - removed because the wiki matching of balanced [[ and '' obviates the need, but
         # ( Capra aegagrus, Capra aegagrus hircus, Capra hircus ) => ( Capra aegagrus hircus, Capra hircus )
         # if that's removed in the future, this should be re-enabled to avoid bad matches
 #        matches = [m for m in all_matches if all(not p.startswith(m) or p == m for p in all_matches)]
@@ -344,13 +344,13 @@ class MissingTaxlinkFixer():
         #print("string matches", string_matches)
 
         for string_match in string_matches:
-            safe_fixes, careful_fixes, very_careful_fixes, unmatchable_fixes, unbalanced_brackets, unbalanced_quotes = self.get_fixes(template_name, string_match, page_text)
-            if not safe_fixes and not careful_fixes and not very_careful_fixes:
+            safe_fixes, wiki_fixes, careful_wiki_fixes, unmatchable_fixes, unbalanced_brackets, unbalanced_quotes = self.get_fixes(template_name, string_match, page_text)
+            if not safe_fixes and not wiki_fixes and not careful_wiki_fixes:
                 continue
 
             #print("SAFE", safe_fixes)
-            #print("CAREFUL", careful_fixes)
-            #print("VERY CAREFUL", very_careful_fixes)
+            #print("WIKI", wiki_fixes)
+            #print("CAREFUL WIKI", careful_wiki_fixes)
 
             taxon_data = self.get_taxon_data(template_name, string_match)
 
@@ -374,11 +374,11 @@ class MissingTaxlinkFixer():
                 for old in safe_fixes:
                     fixes.append((old, new, self.text_replace))
 
-                for old in careful_fixes + unmatchable_fixes:
-                    fixes.append((old, new, self.careful_replace))
+                for old in wiki_fixes + unmatchable_fixes:
+                    fixes.append((old, new, self.wiki_replace))
 
-                for old in very_careful_fixes:
-                    fixes.append((old, new, self.very_careful_replace))
+                for old in careful_wiki_fixes:
+                    fixes.append((old, new, self.careful_wiki_replace))
 
                 for old, new, fixer in fixes:
 
