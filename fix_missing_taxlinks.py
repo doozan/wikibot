@@ -75,8 +75,20 @@ class MissingTaxlinkFixer():
 
             self.template[template_name] = {}
             for filename in taxons:
+                exclude_mode =  filename.strip().startswith("!")
+                if exclude_mode:
+                    filename = filename.lstrip(" !")
+
                 with open(filename) as infile:
-                    self.template[template_name] |= {x[0]:x[1:] for x in csv.reader(infile, delimiter="\t") if re.sub(TAXNAME_PAT, "", x[0]) == ""}
+                    if exclude_mode:
+                        to_remove = {x[0] for x in csv.reader(infile, delimiter="\t")}
+                        pre_len = len(self.template[template_name].keys())
+                        self.template[template_name] = {k:v for k,v in self.template[template_name].items() if k not in to_remove}
+                        post_len = len(self.template[template_name].keys())
+                        if pre_len > post_len:
+                            print(f"Removed {pre_len-post_len} items (!{filename})")
+                    else:
+                        self.template[template_name] |= {x[0]:x[1:] for x in csv.reader(infile, delimiter="\t") if re.sub(TAXNAME_PAT, "", x[0]) == ""}
 
             print("Loaded", len(self.template[template_name]), f"{template_name} taxons")
 
