@@ -199,8 +199,8 @@ class MissingTaxlinkFixer():
                 self._summary.append(msg)
 
     def warn(self, code, page, details=None):
-        #print(code, page, details)
         if self._summary is not None:
+            print(code, page, details)
             return
 
         self._log.append((code, page, details))
@@ -505,6 +505,27 @@ class MissingTaxlinkFixer():
 
             for old, new in fixes:
                 page_text = page_text.replace(old, new)
+
+        # Check for taxlinks that can be converted to taxfmt
+        if "taxlink" in self.template and "taxfmt" in self.template and "taxlink" in page_text:
+            changed = False
+            wiki = mwparser.parse(page_text)
+            for t in wiki.ifilter_templates(matches=lambda x: str(x.name).strip() == "taxlink"):
+                taxon_name = str(t.get(1).value).strip()
+                if taxon_name in self.template["taxfmt"]:
+                    taxon_data = self.get_taxon_data("taxfmt", taxon_name)
+                    rank = str(t.get(2).value).strip()
+                    if rank != taxon_data.rank:
+                        self.warn("rank_mismatch", page, f"{t} doesn't match detected rank '{taxon_data.rank}' on [[{taxon_name}]]")
+                    else:
+                        t.name = "taxfmt"
+                        if t.has("nomul"):
+                            t.remove("nomul")
+                        self.fix("convert_taxlink_to_taxfmt", page, "converted {{taxlink}} to {{taxfmt}}")
+                        changed = True
+
+            if changed:
+                page_text = str(wiki)
 
         wikt = sectionparser.parse(page_text, page)
 

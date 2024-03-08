@@ -157,25 +157,38 @@ def test_process():
 
 def test_nomatch_title():
 
+    # Replacement as usual
     test = "''Salvia rosmarinus''"
+    expected = "{{taxfmt|Salvia rosmarinus|species}}"
+    res_full = fixer.process(base + test, "NOT Salvia rosmarinus", [])
+    res = res_full[len(base):]
+    assert res == expected
+
+
+    # BUT, no replacement for text on the same page
     expected = test
 
     res_full = fixer.process(base + test, "Salvia rosmarinus", [])
     res = res_full[len(base):]
     assert res == expected
 
-    res_full = fixer.process(base + test, "NOT Salvia rosmarinus", [])
+
+def test_convert_taxlink_to_taxfmt():
+
+    # Replacement as usual
+    test = "{{taxlink|Salvia rosmarinus|species}}"
+    expected = "{{taxfmt|Salvia rosmarinus|species}}"
+    res_full = fixer.process(base + test, "test", [])
     res = res_full[len(base):]
-    assert res != expected
+    assert res == expected
 
-def notest_process2():
 
-    test = """\
-==English==
+    # Replacement as usual
+    test = "{{taxlink|Salvia rosmarinus|species|wplink=test|nomul=1|i=1}}"
+    expected = "{{taxfmt|Salvia rosmarinus|species|wplink=test|i=1}}"
 
-===xxx===
-# ''Laurus nobilis'' and ''{{l|mul|Laurus nobilis}}''
-"""
+    res_full = fixer.process(base + test, "test", [])
+    res = res_full[len(base):]
+    assert res == expected
 
-    res = fixer.process(test, "grape", [])
-    assert res == "XX"
+
