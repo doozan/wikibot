@@ -182,19 +182,6 @@ $(BUILDDIR)/external_taxons.tsv $(LIST)external_taxons &: $(BUILDDIR)/taxlinks.t
 
 # Lists
 
-$(LIST)possible_taxons: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv $(BUILDDIR)/all-en.enwikt.pages
->   @echo "Running $@..."
-
->   $(LIST_POSSIBLE_TAXONS) --wxt $< --taxons $(BUILDDIR)/local_taxons.tsv --taxons $(BUILDDIR)/external_taxons.tsv --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
->   touch $@
-
-$(LIST)missing_taxons: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv $(BUILDDIR)/all-en.enwikt.pages
->   @echo "Running $@..."
-
->   $(LIST_POSSIBLE_TAXONS) --wxt $< --taxons $(BUILDDIR)/local_taxons.tsv --taxons $(BUILDDIR)/external_taxons.tsv --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
->   touch $@
-
-
 
 $(LIST)t9n_problems: $(BUILDDIR)/translations.bz2 $(BUILDDIR)/es-en.enwikt.allforms.csv
 >   @echo "Running $@..."
@@ -555,10 +542,28 @@ $(LIST)bad_template_params: $(BUILDDIR)/template_data.json $(BUILDDIR)/all-en.en
 >   $(LIST_BAD_TEMPLATE_PARAMS) $(SAVE) --json $^
 >   touch $@
 
+$(LIST)possible_taxons: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv $(BUILDDIR)/all-en.enwikt.pages
+>   @echo "Running $@..."
+
+>   $(LIST_POSSIBLE_TAXONS) --wxt $< --taxons $(BUILDDIR)/local_taxons.tsv --taxons $(BUILDDIR)/external_taxons.tsv --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
+>   touch $@
+
+$(LIST)missing_taxons: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv $(BUILDDIR)/all-en.enwikt.pages
+>   @echo "Running $@..."
+
+>   $(LIST_POSSIBLE_TAXONS) --wxt $< --taxons $(BUILDDIR)/local_taxons.tsv --taxons $(BUILDDIR)/external_taxons.tsv --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
+>   touch $@
+
 $(LIST)missing_taxlinks: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv
 >   @echo "Running $@..."
 
 >   $(LIST_MISSING_TAXLINKS) --local $(BUILDDIR)/local_taxons.tsv --external $(BUILDDIR)/external_taxons.tsv --wxt $< $(SAVE)
+>   touch $@
+
+$(LIST)taxons_with_redlinks: $(BUILDDIR)/taxons.txt.bz2 $(BUILDDIR)/all-en.enwikt.pages
+>   @echo "Running $@..."
+
+>   $(LIST_TAXONS_WITH_REDLINKS) --wxt $^ --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
 >   touch $@
 
 
