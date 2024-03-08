@@ -124,6 +124,7 @@ def process(args):
     res = []
     for section in wikt.ifilter_sections(recursive=False, matches=lambda x: x.title not in ["Latin", "German"]):
         clean_text = re.sub("<!--.*-->", "", str(section))
+        clean_text = re.sub("\s\s+", " ", clean_text)
 
         TAXNAME = "[A-Z]" + TAXNAME_PAT
         for m in re.finditer(
@@ -151,8 +152,31 @@ def process(args):
             if re.match(r"^(A|An|I|In|The|To|Use|Used|You|On)[ ]", name):
                 continue
 
-            if name not in KNOWN_TAXONS and name not in BLUELINKS:
-                res.append((source, entry_title, name))
+            # filter all uppercase words
+            if name.upper() == name:
+                continue
+
+            # Limit to words with only an inital capital
+            if name.capitalize() != name:
+                continue
+
+            # Only 4 words max
+            if name.count(" ") > 3:
+                continue
+
+            if name in KNOWN_TAXONS:
+                continue
+
+            if name in BLUELINKS:
+                continue
+
+            if source != "image" and section.title == "Translingual":
+                if "taxon" in clean_text:
+                    source = "taxon_" + source
+                else:
+                    source = "translingual_" + source
+
+            res.append((source, entry_title, name))
 
     return res
 
