@@ -58,9 +58,11 @@ class MissingTaxlinkFixer():
         if aggressive:
             self.MATCH_INSIDE_TEMPLATES = ["col-auto", "col2", "col3", "col4", "col4", "der2", "der3", "der4", "der5", "ja-r/multi", "ja-r/args", "gl", "gloss", "coi", "syn", "ngd", "cog", "q", "syn of", "synonym of", "qual", "qualifier", "obs form", "obsolete form of", "suffix"]
             self.MATCH_INSIDE_LINKS=True
+            self.MATCH_INSIDE_SPECIAL_LINKS=True
         else:
             self.MATCH_INSIDE_TEMPLATES = []
             self.MATCH_INSIDE_LINKS=False
+            self.MATCH_INSIDE_SPECIAL_LINKS=False
 
         TAXNAME_PAT = "[a-zA-Z0-9()×. -]+"
         self._trans = str.maketrans({"'": " ", "[": " ", "]": " " })
@@ -155,6 +157,9 @@ class MissingTaxlinkFixer():
         if "match_links" not in kwargs:
             kwargs["match_links"] = self.MATCH_INSIDE_LINKS
 
+        if "match_special_links" not in kwargs:
+            kwargs["match_special_links"] = self.MATCH_INSIDE_SPECIAL_LINKS
+
         #if new != "⏶":
         #    print(":: SREPLACE", (old, new, text))
         pre_count = text.count(new)
@@ -166,7 +171,7 @@ class MissingTaxlinkFixer():
         return text, count
 
     def careful_wiki_replace(self, old, new, text):
-        return self.wiki_replace(old, new, text, match_templates=None, match_links=None)
+        return self.wiki_replace(old, new, text, match_templates=None, match_links=False, match_special_links=False)
 
     def fix(self, code, page, details):
         #print("FIX", code, page, details)
