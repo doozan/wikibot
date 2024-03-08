@@ -98,6 +98,8 @@ def process(args):
         rank = str(t.get(2).value).strip()
         if not taxon or not rank:
             continue
+        if t.has("nomul") and str(t.get("nomul").value) not in ["", "0"]:
+            continue
         has_i = t.has("i") and str(t.get("i").value) not in ["", "0"]
         no_auto = " " not in taxon
         wplink = str(t.get("wplink").value) if t.has("wplink") else ""
