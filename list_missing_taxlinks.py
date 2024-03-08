@@ -150,7 +150,7 @@ def main():
 
     # Add the local files as negative matches for external links (to avoid creating taxlinks for things that should be taxfmt)
     args.external += [f"!{file}" for file in args.local]
-    fixer = MissingTaxlinkFixer(templates={"taxlink": args.external, "taxfmt": args.local}, aggressive=True)
+    fixer = MissingTaxlinkFixer(templates={"taxlink": args.external, "taxfmt": args.local})
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)
         iter_items = pool.imap_unordered(process, iter_entries, 100)

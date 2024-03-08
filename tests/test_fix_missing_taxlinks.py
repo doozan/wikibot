@@ -7,7 +7,12 @@ SPANISH_DATA = "../spanish_data"
 NEWEST = max(f.name for f in os.scandir(SPANISH_DATA) if f.is_dir() and re.match(r"\d\d\d\d-\d\d-\d\d$", f.name))
 NEWEST_DATA = os.path.join(SPANISH_DATA, NEWEST)
 # TODO: generate sample files for testing instead of using real files
-fixer = Fixer(templates={"taxfmt": os.path.join(NEWEST_DATA, "local_taxons.tsv"), "taxlink": os.path.join(NEWEST_DATA, "external_taxons.tsv")}, aggressive=True)
+local = [ os.path.join(NEWEST_DATA, "local_taxons.tsv") ]
+external = [ os.path.join(NEWEST_DATA, "external_taxons.tsv") ]
+external += [f"!{file}" for file in local]
+
+safe_fixer = Fixer(templates={"taxfmt": local, "taxlink": external}, mode="wikitext_only")
+fixer = Fixer(templates={"taxfmt": local, "taxlink": external})
 
 
 base = """\
@@ -17,7 +22,7 @@ base = """\
 # """
 
 
-def test_process():
+def test_fixes():
 
     tests = {
         "[[Salvia rosmarinus]]": "{{taxfmt|Salvia rosmarinus|species}}",
@@ -54,10 +59,6 @@ def test_process():
         "'''Salvia rosmarinus'''": None,
         "'''''Salvia rosmarinus'''''": "'''{{taxfmt|Salvia rosmarinus|species}}'''",
 
-        "{{q|stuff [[Salvia rosmarinus]]}}": "{{q|stuff {{taxfmt|Salvia rosmarinus|species}}}}",
-        "{{q|[[Salvia rosmarinus]]}}": "({{taxfmt|Salvia rosmarinus|species}})",
-
-        # Unhandled, first [[ matches as opening of a link named [Salvia rosmarinus
         "[[[Salvia rosmarinus]]": None,
         "[[[Salvia rosmarinus]]]": None,
 
@@ -68,7 +69,6 @@ def test_process():
 
         "''[[Salvia rosmarinus]], a plant''": "''{{taxfmt|Salvia rosmarinus|species}}, a plant''",
         "''a plant: [[Salvia rosmarinus]]''": "''a plant: {{taxfmt|Salvia rosmarinus|species}}''",
-        "[[Image:pretty.png|a plant: [[Salvia rosmarinus]]]]": "[[Image:pretty.png|a plant: {{taxfmt|Salvia rosmarinus|species}}]]",
 
         # unhandled: Barewords inside links
         "[[Image:pretty.png|a plant: Salvia rosmarinus]]": None,
@@ -104,18 +104,6 @@ def test_process():
         "'''{{ll|mul|Salvia rosmarinus}}'''": "'''{{taxfmt|Salvia rosmarinus|species}}'''",
         "'''''{{ll|mul|Salvia rosmarinus}}'''''": "'''{{taxfmt|Salvia rosmarinus|species}}'''",
 
-        # Replace linked/italacized text within supported templates
-        "{{col3|a plant: [[Salvia rosmarinus]]}}": "{{col3|a plant: {{taxfmt|Salvia rosmarinus|species}}}}",
-        "{{col3|a plant: ''[[Salvia rosmarinus]]''}}": "{{col3|a plant: {{taxfmt|Salvia rosmarinus|species}}}}",
-        "{{col3|a plant: ''Salvia rosmarinus''}}": "{{col3|a plant: {{taxfmt|Salvia rosmarinus|species}}}}",
-
-        # but not bare text
-        "{{col3|a plant: Salvia rosmarinus}}": None,
-
-        # and not inside unsupported templates
-        "{{unsupported|en|a plant: ''Salvia rosmarinus''}}": None,
-
-
         "{{gloss|test|Salvia rosmarinus|param=test}}": "{{gloss|test|Salvia rosmarinus|param=test}}",
 
 
@@ -149,11 +137,55 @@ def test_process():
         print("----", test, "----")
         if expected is None:
             expected = test
+
         res_full = fixer.process(base + test, "test", [])
         res = res_full[len(base):]
         print("EXPECTED:", expected)
         print("RECIEVED:", res)
         assert res == expected
+
+        # The safe fixer should generate the same results for these tests
+        safe_full = safe_fixer.process(base + test, "test", [])
+        assert safe_full == res_full
+
+
+def test_careful_fixes():
+    tests = {
+        # Unhandled, first [[ matches as opening of a link named [Salvia rosmarinus
+        "{{q|stuff [[Salvia rosmarinus]]}}": "{{q|stuff {{taxfmt|Salvia rosmarinus|species}}}}",
+        "{{q|[[Salvia rosmarinus]]}}": "({{taxfmt|Salvia rosmarinus|species}})",
+        "[[Image:pretty.png|a plant: [[Salvia rosmarinus]]]]": "[[Image:pretty.png|a plant: {{taxfmt|Salvia rosmarinus|species}}]]",
+
+        # Replace linked/italacized text within supported templates
+        "{{col3|a plant: [[Salvia rosmarinus]]}}": "{{col3|a plant: {{taxfmt|Salvia rosmarinus|species}}}}",
+        "{{col3|a plant: ''[[Salvia rosmarinus]]''}}": "{{col3|a plant: {{taxfmt|Salvia rosmarinus|species}}}}",
+        "{{col3|a plant: ''Salvia rosmarinus''}}": "{{col3|a plant: {{taxfmt|Salvia rosmarinus|species}}}}",
+
+        # but not bare text
+        "{{col3|a plant: Salvia rosmarinus}}": None,
+
+        # and not inside unsupported templates
+        "{{unsupported|en|a plant: ''Salvia rosmarinus''}}": None,
+    }
+
+    for test, expected in tests.items():
+        print("----", test, "----")
+        if expected is None:
+            expected = test
+
+        res_full = fixer.process(base + test, "test", [])
+        res = res_full[len(base):]
+        print("EXPECTED:", expected)
+        print("RECIEVED:", res)
+        assert res == expected
+
+        # Sanity check: The safe fixer shouldn't make any replacements
+        expected = test
+        safe_full = safe_fixer.process(base + test, "test", [])
+        safe_res = safe_full[len(base):]
+        print("sanity check", [safe_res, expected])
+        assert safe_res == expected
+
 
 def test_nomatch_title():
 
