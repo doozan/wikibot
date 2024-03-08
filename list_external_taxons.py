@@ -45,9 +45,7 @@ class WikiSaver(BaseHandler):
             return FIX_PATH + "/errors"
 
     def format_entry(self, entry, prev_entry):
-        if entry.details:
-            return [f"; [[{entry.page}]]: {entry.details}"]
-        return [f"; [[{entry.page}]]"]
+        return [f": {entry.details}"]
 
     def get_section_header(self, base_path, page_name, section_entries, prev_section_entries, pages):
         res = []
@@ -87,9 +85,9 @@ def log(code, page, details):
 
 def process(args):
 
-    entry_text, entry_title = args
+    entry_text, entry_title_section = args
 
-    entry_title, _, entry_section = entry_title.partition(":")
+    entry_title, _, entry_section = entry_title_section.partition(":")
     wiki = mwparser.parse(entry_text)
 
     taxlinks = []
@@ -121,7 +119,7 @@ def store_taxlinks(args):
     log_results(logitems)
 
     def make_template(name, rank, has_i, wplink, wslink):
-        template = "{{taxlink|" + name + "|" + rank
+        template = "{{tl|taxlink|" + name + "|" + rank
         if has_i:
             template += "|i=1"
         if wplink:
