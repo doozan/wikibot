@@ -23,10 +23,10 @@ class WikiSaver(BaseHandler):
         self.page_count = defaultdict(int)
         for item in items:
             self.count[item.error] += 1
-            self.page_count[item.page] += 1
+            self.page_count[(item.error, item.page)] += 1
 
         # sort autofix sections first so they can be split
-        return sorted(items, key=lambda x: ("autofix" not in x.error, self.count[x.error], self.page_count[x.page]*-1 if "autofix" in x.error else 0, x.page))
+        return sorted(items, key=lambda x: ("autofix" not in x.error, self.count[x.error], self.page_count[(x.error, x.page)]*-1 if "autofix" in x.error else 0, x.page))
 
     def is_new_section(self, item, prev_item):
         return prev_item and prev_item.error != item.error
@@ -50,7 +50,7 @@ class WikiSaver(BaseHandler):
         if "autofix" in entry.error:
             if prev_entry and entry.page == prev_entry.page:
                 return []
-            count = self.page_count[entry.page]
+            count = self.page_count[(entry.error, entry.page)]
             return [f": [[{entry.page}]] - {count} fix{'es' if count > 1 else ''}"]
 
         if entry.page is None:
@@ -148,6 +148,8 @@ def main():
 """, "test")]
         iter_entries = test_iter_entries
 
+    # Add the local files as negative matches for external links (to avoid creating taxlinks for things that should be taxfmt)
+    args.external += [f"!{file}" for file in args.local]
     fixer = MissingTaxlinkFixer(templates={"taxlink": args.external, "taxfmt": args.local}, aggressive=True)
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)
