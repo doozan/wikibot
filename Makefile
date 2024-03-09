@@ -74,6 +74,7 @@ LIST_LOCAL_TAXONS := $(PYPATH) ./list_local_taxons.py
 LIST_EXTERNAL_TAXONS := $(PYPATH) ./list_external_taxons.py
 LIST_POSSIBLE_TAXONS := $(PYPATH) ./list_possible_taxons.py
 LIST_MISSING_TAXLINKS := $(PYPATH) ./list_missing_taxlinks.py
+LIST_TAXONS_WITH_REDLINKS := $(PYPATH) ./list_taxons_with_redlinks.py
 DUMP_TEMPLATE_USE := $(PYPATH) ./dump_template_use.py
 
 
@@ -548,12 +549,6 @@ $(LIST)possible_taxons: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxo
 >   $(LIST_POSSIBLE_TAXONS) --wxt $< --taxons $(BUILDDIR)/local_taxons.tsv --taxons $(BUILDDIR)/external_taxons.tsv --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
 >   touch $@
 
-$(LIST)missing_taxons: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv $(BUILDDIR)/all-en.enwikt.pages
->   @echo "Running $@..."
-
->   $(LIST_POSSIBLE_TAXONS) --wxt $< --taxons $(BUILDDIR)/local_taxons.tsv --taxons $(BUILDDIR)/external_taxons.tsv --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
->   touch $@
-
 $(LIST)missing_taxlinks: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv
 >   @echo "Running $@..."
 
@@ -563,7 +558,7 @@ $(LIST)missing_taxlinks: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_tax
 $(LIST)taxons_with_redlinks: $(BUILDDIR)/taxons.txt.bz2 $(BUILDDIR)/all-en.enwikt.pages
 >   @echo "Running $@..."
 
->   $(LIST_TAXONS_WITH_REDLINKS) --wxt $^ --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
+>   $(LIST_TAXONS_WITH_REDLINKS) --wxt $< --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
 >   touch $@
 
 
@@ -819,6 +814,19 @@ $(FIX)template_params: $(BUILDDIR)/template_data.json
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
+
+$(FIX)missing_taxlinks: $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv
+>   SRC="User:JeffDoozan/lists/missing_taxlink/fixes"
+>   FIX="--fix missing_taxlinks --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   MAX=200000
+
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(WIKIFIX) -links:$$SRC $$FIX
+>   echo $$LINKS > $@
+
+
 
 lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_lemmas fr_missing_tlfi pt_with_synonyms mismatched_headlines quote_with_bare_passage sense_bylines bare_ux unbalanced_delimiters section_header_errors section_level_errors section_order_errors t9n_problems convert_list_to_col bad_template_params es_missing_forms section_stats missing_taxlinks) # slower stuff last
 
