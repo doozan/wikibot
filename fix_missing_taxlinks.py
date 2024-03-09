@@ -62,21 +62,34 @@ class MissingTaxlinkFixer():
         },
     }
 
-    def __init__(self, templates=None, mode="default"):
+    def __init__(self, local, external=None, profile="default", rename_local_taxlinks=False):
         self._summary = None
         self._log = []
 
-        self._default_wiki_replace_mode = mode
+        self._rename_local_taxlinks = rename_local_taxlinks
+        self._default_wiki_replace_mode = "disabled" if profile == "paranoid" else profile
 
         TAXNAME_PAT = "[a-zA-Z0-9()×. -]+"
         self._trans = str.maketrans({"'": " ", "[": " ", "]": " " })
 
+
+        templates = {}
+
+        if isinstance(local, str):
+            local = [local]
+        templates["taxfmt"] = local
+
+        if external:
+            assert len(local)
+            if isinstance(external, str):
+                external = [external]
+            templates["taxlink"] = external + ["!" + t for t in local]
+
+        print(templates)
+
         self.template = {}
         self.auto = {}
         for template_name, taxons in templates.items():
-            if isinstance(taxons, str):
-                taxons = [taxons]
-
             self.template[template_name] = {}
             for filename in taxons:
                 exclude_mode =  filename.strip().startswith("!")
@@ -133,7 +146,7 @@ class MissingTaxlinkFixer():
         text = re.sub(pat, r"(\1)", text)
 
         # convert {{q|{{taxlink}}}} to ({{taxlink}}"
-        pat = r"\{\{\s*q\s*[|]\s*" + template_list + r"\s*}}"
+        pat = r"\{\{\s*(?:q|qual|qualifier|i)\s*[|]\s*" + template_list + r"\s*}}"
         text = re.sub(pat, r"(\1)", text)
 
         return text
@@ -166,6 +179,9 @@ class MissingTaxlinkFixer():
 
     def wiki_replace(self, old, new, text, mode=None):
         """ returns new_text, replacement_count """
+
+        if self._default_wiki_replace_mode == "disabled":
+            return text, 0
 
         if mode is None:
             mode = self._default_wiki_replace_mode
@@ -507,10 +523,13 @@ class MissingTaxlinkFixer():
                 page_text = page_text.replace(old, new)
 
         # Check for taxlinks that can be converted to taxfmt
-        if "taxlink" in self.template and "taxfmt" in self.template and "taxlink" in page_text:
+        if self._rename_local_taxlinks and "taxlink" in self.template and "taxfmt" in self.template and "taxlink" in page_text:
             changed = False
             wiki = mwparser.parse(page_text)
             for t in wiki.ifilter_templates(matches=lambda x: str(x.name).strip() == "taxlink"):
+                # don't replace links with nomul= set
+                if t.has("nomul") and str(t.get("nomul").value).strip() not in ["", "0"]:
+                    continue
                 taxon_name = str(t.get(1).value).strip()
                 if taxon_name in self.template["taxfmt"]:
                     taxon_data = self.get_taxon_data("taxfmt", taxon_name)

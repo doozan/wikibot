@@ -11,8 +11,8 @@ local = [ os.path.join(NEWEST_DATA, "local_taxons.tsv") ]
 external = [ os.path.join(NEWEST_DATA, "external_taxons.tsv") ]
 external += [f"!{file}" for file in local]
 
-safe_fixer = Fixer(templates={"taxfmt": local, "taxlink": external}, mode="wikitext_only")
-fixer = Fixer(templates={"taxfmt": local, "taxlink": external})
+safe_fixer = Fixer(local=local, external=external, profile="wikitext_only")
+fixer = Fixer(local=local, external=external, rename_local_taxlinks=True)
 
 
 base = """\
@@ -207,17 +207,30 @@ def test_nomatch_title():
 
 def test_convert_taxlink_to_taxfmt():
 
-    # Replacement as usual
-    test = "{{taxlink|Salvia rosmarinus|species}}"
-    expected = "{{taxfmt|Salvia rosmarinus|species}}"
-    res_full = fixer.process(base + test, "test", [])
-    res = res_full[len(base):]
-    assert res == expected
+    tests = {
+            # Rename taxlinks with local sources
+            "{{taxlink|Salvia rosmarinus|species}}": "{{taxfmt|Salvia rosmarinus|species}}",
+
+            # Preserve params
+            "{{taxlink|Salvia rosmarinus|species|wplink=test|i=1}}": "{{taxfmt|Salvia rosmarinus|species|wplink=test|i=1}}",
+
+            # Don't rename if mul=1
+            "{{taxlink|Salvia rosmarinus|species|wplink=test|nomul=1|i=1}}": None,
+    }
+
+    for test, expected in tests.items():
+        print("----", test, "----")
+        if expected is None:
+            expected = test
+
+        res_full = fixer.process(base + test, "test", [])
+        res = res_full[len(base):]
+        print("EXPECTED:", expected)
+        print("RECIEVED:", res)
+        assert res == expected
 
 
-    # Replacement as usual
-    test = "{{taxlink|Salvia rosmarinus|species|wplink=test|nomul=1|i=1}}"
-    expected = "{{taxfmt|Salvia rosmarinus|species|wplink=test|i=1}}"
+    # DON'T  Preserve params
 
     res_full = fixer.process(base + test, "test", [])
     res = res_full[len(base):]
