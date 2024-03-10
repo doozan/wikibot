@@ -307,7 +307,7 @@ def check_balanced(text):
             return f"mismatched {a} and {b}"
 
 
-Fix = namedtuple("Fix", ["path", "pos", "old", "new", "type"])
+Fix = namedtuple("Fix", ["path", "pos", "old", "new", "type", "post_save_callback"])
 def load_fixes(oldFile, newFile):
     """ returns a list of Fix objects """
     errors = set()
@@ -366,7 +366,7 @@ def load_fixes(oldFile, newFile):
             print(f"ERROR: {title}: fix contains failsafe text '{FAILSAFE_TEXT}': '{entry}' ", file=sys.stderr)
 
         pos = parse_position(position)
-        fix = Fix(path, pos, old[title], entry, fix_type)
+        fix = Fix(path, pos, old[title], entry, fix_type, None)
 
         if pos.section_max:
             raise ValueError("indexed sections not yet supported")
@@ -711,14 +711,14 @@ class AutoDooz(
             if choice == 'a':
                 self.opt.always = True
             if choice == 'y':
-                self.save(self.current_page, original_text, new_text, summary,
+                self.save(self.current_page, original_text, new_text, summary, patches,
                           show_diff=False, asynchronous=True, minor=True)
 
             # choice must be 'N'
             break
 
         if self.opt.always and new_text != original_text:
-            self.save(self.current_page, original_text, new_text, summary,
+            self.save(self.current_page, original_text, new_text, summary, patches,
                       show_diff=False, asynchronous=False, minor=True)
 
         self.count += 1
@@ -726,7 +726,7 @@ class AutoDooz(
             print("fix limit reached, exiting", file=sys.stderr)
             exit()
 
-    def save(self, page, oldtext, newtext, summary, **kwargs):
+    def save(self, page, oldtext, newtext, summary, patches, **kwargs):
         """Save the given page."""
 
         if not summary:
@@ -737,6 +737,12 @@ class AutoDooz(
         self.userPut(page, oldtext, newtext,
                      summary=summary,
                      ignore_save_related_errors=True, **kwargs)
+
+        # Run post_save_callback for any patches applied
+        for patch in patches:
+            match, fix = patch
+            if fix.post_save_callback:
+                fix.post_save_callback(page, oldtext, newtext, summary)
 
         log.log_fix(page, oldtext, newtext, summary)
 
@@ -778,13 +784,13 @@ def init_fixes(requested_fixes, config):
 #                setattr(args, key, fix[key])
 
         for search, replacement in fix.get('pre-fixes', []):
-            pre_fixes.append(Fix(None, None, search, replacement, fix['mode']))
+            pre_fixes.append(Fix(None, None, search, replacement, fix['mode'], None))
 
         for search, replacement in fix['fixes']:
-            fixes.append(Fix(None, None, search, replacement, fix['mode']))
+            fixes.append(Fix(None, None, search, replacement, fix['mode'], fix.get("post_save_callback", None)))
 
         for search, replacement in fix.get('post-fixes', []):
-            post_fixes.append(Fix(None, None, search, replacement, fix['mode']))
+            post_fixes.append(Fix(None, None, search, replacement, fix['mode'], None))
 
     return pre_fixes, fixes, post_fixes
 
@@ -931,7 +937,7 @@ def main():
             for search in args.search:
                 if not args.regex and "*" in search:
                     print(f"Warning: search term '{search}' contains wildcard, but --regex not supplied, matching as literal string", file=sys.stderr)
-                generated_fixes.append(Fix(None, None, search, replacement, mode))
+                generated_fixes.append(Fix(None, None, search, replacement, mode, None))
 
         else:
             if len(args.match)%2 != 0:
@@ -941,7 +947,7 @@ def main():
             for i in range(0,len(args.match),2):
                 search = args.match[i]
                 replacement = args.match[i+1]
-                generated_fixes.append(Fix(None, None, search, replacement, mode))
+                generated_fixes.append(Fix(None, None, search, replacement, mode, None))
 
         if fixes:
             # Probably fine, but no reason to make things more complicated
