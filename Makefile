@@ -65,7 +65,8 @@ LIST_QUOTE_WITH_BARE_PASSAGE := $(PYPATH) ./list_quote_with_bare_passage.py
 LIST_SENSE_BYLINES := $(PYPATH) ./list_sense_byline_errors.py
 LIST_BARE_UX := $(PYPATH) ./list_bare_ux.py
 DUMP_RQ_TEMPLATE_PARAMS := $(PYPATH) ./dump_rq_template_params.py
-DUMP_TEMPLATE_PARAMS := $(PYPATH) ./dump_template_data.py
+DUMP_TEMPLATE_DATA := $(PYPATH) ./dump_template_data.py
+DUMP_MODULE_DATA := $(PYPATH) ./dump_module_data.py
 LIST_BAD_TEMPLATE_PARAMS := $(PYPATH) ./list_bad_template_params.py
 COUNT_TEMPLATE_USE := $(PYPATH) ./count_template_use.py
 MAKE_TEMPLATE_STATS := $(PYPATH) ./make_template_stats.py
@@ -153,17 +154,17 @@ $(BUILDDIR)/rq_template_params.json: $(BUILDDIR)/templates.enwikt.txt.bz2
 >   echo "Making $@..."
 >   $(DUMP_RQ_TEMPLATE_PARAMS) --wxt $< $@
 
-$(BUILDDIR)/template_data_incomplete.json: $(BUILDDIR)/templates.enwikt.txt.bz2
+$(BUILDDIR)/template_data.json: $(BUILDDIR)/templates.enwikt.txt.bz2
 >   @echo "Making $@..."
->   $(DUMP_TEMPLATE_PARAMS) --wxt $< $@
+>   $(DUMP_TEMPLATE_DATA) --wxt $< $@
+
+$(BUILDDIR)/module_data.json: $(BUILDDIR)/modules.enwikt.txt.bz2
+>   @echo "Making $@..."
+>   $(DUMP_MODULE_DATA) --wxt $< $@
 
 $(BUILDDIR)/template_count.tsv: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 >   @echo "Making $@..."
 >   $(COUNT_TEMPLATE_USE) --xml $< > $@
-
-$(BUILDDIR)/template_data.json: $(BUILDDIR)/template_data_incomplete.json $(BUILDDIR)/template_count.tsv
->   @echo "Making $@..."
->   $(MAKE_TEMPLATE_STATS) $^ $@ > /dev/null
 
 $(BUILDDIR)/taxons.txt.bz2: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 >   @echo "Making $@..."
@@ -560,6 +561,7 @@ $(LIST)taxons_with_redlinks: $(BUILDDIR)/taxons.txt.bz2 $(BUILDDIR)/all-en.enwik
 
 >   $(LIST_TAXONS_WITH_REDLINKS) --wxt $< --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
 >   touch $@
+
 
 
 # Fixes

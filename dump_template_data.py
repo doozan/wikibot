@@ -7,10 +7,8 @@ import os
 import re
 import sys
 
-from autodooz.fix_rq_template import RqTemplateFixer
 from autodooz.utils import iter_wxt, iter_xml
 from collections import defaultdict
-from pywikibot import xmlreader
 
 
 # https://www.mediawiki.org/wiki/Help:Magic_words
@@ -54,7 +52,6 @@ def get_included_text(text):
     return text
 
 
-fixer = None
 def get_template_stats(args):
 
     entry_text, entry_title = args
@@ -113,8 +110,6 @@ def get_template_stats(args):
 
 
 def dump_template_args(iter_entries, filename):
-    global fixer
-    fixer = RqTemplateFixer(None)
     iter_items = map(get_template_stats, iter_entries)
 
     templates = {}
@@ -133,11 +128,73 @@ def dump_template_args(iter_entries, filename):
             ("modules", used_modules),
         ] if v}
 
+
+    lua_templates = set()
+    mixed_templates = set()
+    wiki_templates = set()
+    static_templates = set()
+    maybe_mixed_templates = set()
+
+    # First pass:
+    #   add counts
+    #   detect all Lua template
+    #   detect all static templates
+    #   detect obvious mixed templates
+    #   detect obvious wiki templates
+    for template, data in templates.items():
+        if "params" not in data and "templates" not in data:
+            mods = data.get("modules", [])
+            if not mods:
+                static_templates.add(template)
+            elif len(data.get("modules", [])) == 1:
+                lua_templates.add(template)
+            else:
+                mixed_templates.add(template)
+
+        elif "templates" in data and "modules" in data:
+            mixed_templates.add(template)
+
+        elif "templates" not in data:
+
+            if "modules" not in data:
+                wiki_templates.add(template)
+            else:
+                mixed_templates.add(template)
+
+        else:
+            maybe_mixed_templates.add(template)
+
+    # multiple passess, detect mixed templates that call other mixed templates
+    found = True
+    while found:
+        found = set()
+        for template in maybe_mixed_templates:
+            for i in templates[template]["templates"]:
+                i = redirects.get(i, i)
+                if i in mixed_templates:
+                    found.add(template)
+
+        for template in found:
+            mixed_templates.add(template)
+            maybe_mixed_templates.remove(template)
+
+    wiki_templates |= maybe_mixed_templates
+
+    for flag, items in [
+        ("lua", lua_templates),
+        ("mixed", mixed_templates),
+        ("wiki", wiki_templates),
+        ("static", static_templates),
+    ]:
+        for template in items:
+            templates[template]["type"] = flag
+
+
     with open(filename, 'w', encoding='utf-8') as outfile:
         json.dump({
-            "templates": {k:v for k,v in sorted(templates.items())},
-            "redirects": {k:v for k,v in sorted(redirects.items())},
-            }, outfile, ensure_ascii=False, indent=4)
+            "templates": templates,
+            "redirects": redirects,
+            }, outfile, ensure_ascii=False, indent=4, sort_keys=True)
 
 if __name__ == "__main__":
     main()

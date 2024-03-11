@@ -14,89 +14,61 @@ MAGIC_WORDS = [ "FULLPAGENAME", "PAGENAME", "BASEPAGENAME", "NAMESPACE", "!", "S
 
 def main():
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
-    parser.add_argument("json", help="template data")
-    parser.add_argument("tsv", help="template count")
-    parser.add_argument("outfile", help="target for combined json data")
+    parser.add_argument("--count", help="template count", required=True)
+    parser.add_argument("--modules", help="module data", required=True)
+    parser.add_argument("--templates", help="template data", required=True)
     args = parser.parse_args()
 
     _counts = namedtuple("counts", [ "uses", "pages" ])
 
-    with open(args.tsv) as infile:
+    with open(args.count) as infile:
         template_count = {x[0]:_counts(int(x[1]), int(x[2])) for x in csv.reader(infile, delimiter="\t")}
 
-    with open(args.json) as infile:
+    with open(args.templates) as infile:
         template_data = json.load(infile)
         templates = template_data["templates"]
         redirects = template_data["redirects"]
 
-    lua_templates = set()
-    mixed_templates = set()
-    wiki_templates = set()
-    static_templates = set()
-    maybe_mixed_templates = set()
+    with open(args.modules) as infile:
+        module_data = json.load(infile)
+        modules = module_data["modules"]
+        module_redirects = module_data["redirects"]
 
-    # First pass:
-    #   add counts
-    #   detect all Lua template
-    #   detect all static templates
-    #   detect obvious mixed templates
-    #   detect obvious wiki templates
-    for template, data in templates.items():
-        data["count"] = template_count[template].uses if template in template_count else 0
-        data["page_count"] = template_count[template].pages if template in template_count else 0
-        if "params" not in data and "templates" not in data:
-            modules = data.get("modules", [])
-            if not modules:
-                static_templates.add(template)
-            elif len(data.get("modules", [])) == 1:
-                lua_templates.add(template)
+    for template, template_data in templates.items():
+        template_data["count"] = template_count[template].uses if template in template_count else 0
+        template_data["page_count"] = template_count[template].pages if template in template_count else 0
+
+
+    for template_name, template_data in templates.items():
+        if template_data["type"] == "lua":
+            template_modules = template_data["modules"]
+            assert len(template_modules) == 1
+            module_name = template_modules[0]
+            if module_name not in modules:
+                template_data["checks_params"] = ""
+                continue
+            module_data = modules[module_name]
+            module_data["is_template_module"] = 1
+
+            if "parameters" in module_data.get("modules", []):
+                checks_params = "Y"
+            elif "parameters" in module_data.get("submodules", []):
+                checks_params = "?"
             else:
-                mixed_templates.add(template)
+                checks_params = "N"
 
-        elif "templates" in data and "modules" in data:
-            mixed_templates.add(template)
-
-        elif "templates" not in data:
-
-            if "modules" not in data:
-                wiki_templates.add(template)
+        elif template_data["type"] == "mixed":
+            mods = template_data.get("modules", [])
+            if "parameters" in mods:
+                checks_params = "Y"
+            elif any("parameters" in modules.get(m, {}).get("submodules", []) for m in mods):
+                checks_params = "?"
             else:
-                mixed_templates.add(template)
+                checks_params = "N"
 
         else:
-            maybe_mixed_templates.add(template)
-
-    # multiple passess, detect mixed templates that call other mixed templates
-    found = True
-    while found:
-        found = set()
-        for template in maybe_mixed_templates:
-            for i in templates[template]["templates"]:
-                i = redirects.get(i, i)
-                if i in mixed_templates:
-                    found.add(template)
-
-        for template in found:
-            mixed_templates.add(template)
-            maybe_mixed_templates.remove(template)
-
-    wiki_templates |= maybe_mixed_templates
-
-    for flag, items in [
-        ("lua", lua_templates),
-        ("mixed", mixed_templates),
-        ("wiki", wiki_templates),
-        ("static", static_templates),
-    ]:
-        for template in items:
-            templates[template]["type"] = flag
-
-    with open(args.outfile, 'w', encoding='utf-8') as outfile:
-        json.dump({
-            "templates": templates,
-            "redirects": redirects,
-            }, outfile, ensure_ascii=False, indent=4)
-
+            checks_params = ""
+        template_data["checks_params"] = checks_params
 
 
     def print_header(range):
@@ -108,7 +80,7 @@ def main():
 
 {{| class="wikitable sortable"
 |-
-!Template!!type!!count!!pages!!modules included!!templates invoked""")
+!Template!!type!!count!!pages!!x!!modules included!!templates invoked""")
 
     def print_footer():
         print("|}")
@@ -153,7 +125,7 @@ def main():
 
         print("|-")
         space = " " if template[0] in "|-+" else ""
-        print(f"|{space}{template}||{data['type']}||{data['count']:,}||{data['page_count']:,}||{'; '.join(included_modules)}||{'; '.join(included_templates)}")
+        print(f"|{space}{template}||{data['type']}||{data['count']:,}||{data['page_count']:,}||{data['checks_params']}||{'; '.join(included_modules)}||{'; '.join(included_templates)}")
 
     print_footer()
 
