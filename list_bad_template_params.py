@@ -9,7 +9,7 @@ import sys
 import json
 
 from autodooz.fix_bad_template_params import ParamFixer
-from autodooz.utils import iter_wxt
+from autodooz.utils import iter_wxt, iter_xml
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 
@@ -76,7 +76,7 @@ class WikiSaver(BaseHandler):
         data = data.replace("\n", "<br>")
         data = data.replace("|", "&vert;").replace("{", "&lbrace;").replace("[", "&lbrack;").replace("://", "<nowiki/>://")
 
-        details = entry.details if entry.details else f"bad param '{entry.key}'"
+        details = f"bad param '{entry.key}'"
 
         if "misnamed" in entry.error:
             return [f"{details} on [[{entry.page}]]"]
@@ -182,11 +182,8 @@ class Logger(WikiLogger):
     _paramtype = namedtuple("params", [ "error", "page", "template_name", "key", "details", "bad_data" ])
 
 logger = Logger()
-bad_templates = set()
 def log(code, page, template_name, key, details, bad_data=None):
     logger.add(code, page, template_name, key, details, bad_data)
-    if "autofix" not in code:
-        bad_templates.add(template_name)
 
 fixer = None
 def process(args):
@@ -196,8 +193,11 @@ def process(args):
 def main():
     global fixer, TOTAL_TEMPLATES, TOTAL_COUNT, TOTAL_TEMPLATES_WITH_ERRORS
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
-    parser.add_argument("wxt", help="Wiktionary extract file")
+
+    parser.add_argument("--xml", help="XML file to load")
+    parser.add_argument("--wxt", help="Wiktionary extract file to load")
     parser.add_argument("--json", help="JSON file with template data", required=True)
+    parser.add_argument("--dump-json", help="Output json file with all bad template calls")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
@@ -207,10 +207,17 @@ def main():
     if not args.j:
         args.j = multiprocessing.cpu_count()-1
 
+    if (not args.xml and not args.wxt) or (args.xml and args.wxt):
+        print("use either --xml or --wxt")
+        exit(1)
+
+    if args.wxt:
+        iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
+    else:
+        iter_entries = iter_xml(args.xml, args.limit, args.progress)
+
     fixer = ParamFixer(args.json)
     TOTAL_TEMPLATES = len(fixer._templates)
-
-    iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
 
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)
@@ -218,26 +225,36 @@ def main():
     else:
         iter_items = map(process, iter_entries)
 
+    with open(args.json) as f:
+        _template_data = json.load(f)
+        redirects = _template_data["redirects"]
+
     templates_with_errors = set()
     for count, results in iter_items:
 
         TOTAL_COUNT += count
         for log_values in results:
-            code, page, template_name, *_ = log_values
-            templates_with_errors.add(template_name)
+            code, page, template_name, *args = log_values
 
-            log(*log_values)
+            template_target = redirects.get(template_name, template_name)
+            templates_with_errors.add(template_target)
+
+            log(code, page, template_target, *args)
 
     TOTAL_TEMPLATES_WITH_ERRORS = len(templates_with_errors)
 
-    templates_with_errors = defaultdict(int)
-    for i in logger._items:
-        if "autofix" not in i.error:
-            templates_with_errors[i.template_name] += 1
+    if args.dump_json:
+        templates_with_errors = defaultdict(lambda: defaultdict(list))
+        for i in logger._items:
+            if "autofix" not in i.error:
+                templates_with_errors[i.template_name][i.page].append(i.details)
 
-    with open("templates_with_bad_params.tsv", "w") as outfile:
-        for template, count in sorted(templates_with_errors.items(), key=lambda x: (x[1]*-1, x[0])):
-            print(f"{template}\t{count}", file=outfile)
+        with open(args.dump_json, "w") as outfile:
+            json.dump({"templates": templates_with_errors}, outfile, ensure_ascii=False, indent=4)
+
+#        with open("templates_with_bad_params.tsv", "w") as outfile:
+#            for template, count in sorted(templates_with_errors.items(), key=lambda x: (x[1]*-1, x[0])):
+#                print(f"{template}\t{count}", file=outfile)
 
     if args.save:
         base_url = f"User:JeffDoozan/lists"
