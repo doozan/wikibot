@@ -69,14 +69,8 @@ def main():
         page_count = 0
         for template, count in template_count.items():
 
-            if include:
-                if template not in include \
-                or template.endswith("-lite") \
-                or template.endswith("/args") \
-                or template.startswith("list:") \
-                or template.startswith("R:") \
-                or template in ["tt+", "tt", "see-temp", "t-needed", "w", "taxlink", "vern", "der-bottom"]:
-                    continue
+            if include and template not in include:
+                continue
 
             if exclude and template in exclude:
                 continue
