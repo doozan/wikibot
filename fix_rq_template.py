@@ -46,7 +46,7 @@ def escape_pound_braces(text):
 
 def escape_magic(text):
     #escapes {{magic:foo|bar}}
-    m = re.search("\{\{[a-z]+:", text)
+    m = re.search(r"\{\{[a-z]+:", text)
     while m:
         depth = 0
         start = m.start()
@@ -63,7 +63,7 @@ def escape_magic(text):
             text = text[:start] + "⎨⎨" + text[start+2:end-2] + "⎬⎬" + text[end:]
             text = escape_sections(text, [(start+2,end-2)], escape_braces=False)
 
-        m = re.search("\{\{[a-z]+:", text)
+        m = re.search(r"\{\{[a-z]+:", text)
 
     return text
 
@@ -75,7 +75,7 @@ def escape_triple_braces(text):
         end = 0
         for m in re.finditer(r"(\{|\})", text[start:]):
 
-            # This isn't pefect and could glitch if there are single bracket, however, it passes
+            # This isn't pefect and could glitch if there are single braces, however, it passes
             # {{{a|
             #    {{if#:
             #       {{test|}}}}
@@ -84,10 +84,19 @@ def escape_triple_braces(text):
                 depth += 1
             if m.group(0) == "}":
                 depth -= 1
-                if depth == 0:
-                    end = start + m.end()
-                    break
+                if depth <= 0:
+                    possible_end = start + m.end()
+                    if text[possible_end-3:possible_end] == "}}}":
+                        end = possible_end
+                        break
+                    else:
+                        # TODO: log this for manual review
+                        pass
         if end:
+            assert text[start:start+3] == "{{{"
+            assert text[end-3:end] == "}}}"
+
+            text = text[:start] + "⎨⎨⎨" + text[start+3:end-3] + "⎬⎬⎬" + text[end:]
             text = text[:start] + "⎨⎨⎨" + text[start+3:end-3] + "⎬⎬⎬" + text[end:]
             text = escape_sections(text, [(start+3,end-3)], escape_braces=False)
         else:
@@ -97,6 +106,7 @@ def escape_triple_braces(text):
 
 
 def escape_square_braces(text):
+    sections = []
     while "[" in text:
         depth = 0
         start = text.index("[")
@@ -110,15 +120,15 @@ def escape_square_braces(text):
                     end = start + m.end()
                     break
         if end:
-            text = escape_sections(text, [(start,end)])
+            sections.append((start,end))
         else:
             break
 
-    return text
+    return escape_sections(text, [(start,end)])
 
 
-_tr_orig = "[]|<>/"
-_tr_alt = "⎣⎦⌇≺≻⌿"
+_tr_orig = "[]|<>/="
+_tr_alt = "⎣⎦⌇≺≻⌿≈"
 
 _tr_orig_with_braces = "{}" + _tr_orig
 _tr_alt_with_braces = "⎨⎬" + _tr_alt
@@ -129,6 +139,9 @@ _tr_with_braces = str.maketrans(_tr_orig_with_braces, _tr_alt_with_braces)
 _tr_unescape = str.maketrans(_tr_alt_with_braces, _tr_orig_with_braces)
 
 def escape_sections(text, sections, escape_braces=True):
+
+    # TODO: Option to escape_pipes_inside_braces, should be False for escape_triple and friends
+
     tr = _tr_with_braces if escape_braces else _tr
     for start, end in sections:
         #print("escaping", escape_braces, [text[start:end]])
