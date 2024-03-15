@@ -55,9 +55,16 @@ class MissingTaxlinkFixer():
     _wiki_replace_mode = {
         "wikitext_only": {
         },
+        "wikitext_and_links": {
+            "match_special_links": True,
+        },
+        "safest_templates": {
+            "match_templates": ["col-auto", "col2", "col3", "col4", "col4", "der2", "der3", "der4", "der5", "q", "i", "qual", "qualifier"],
+            "match_special_links": True,
+        },
+
         "default": {
             "match_templates": ["col-auto", "col2", "col3", "col4", "col4", "der2", "der3", "der4", "der5", "ja-r/multi", "ja-r/args", "gl", "gloss", "coi", "syn", "ngd", "cog", "q", "syn of", "synonym of", "qual", "qualifier", "obs form", "obsolete form of", "suffix"],
-            "match_links": True,
             "match_special_links": True,
         },
     }
@@ -216,7 +223,7 @@ class MissingTaxlinkFixer():
 
     def warn(self, code, page, details=None):
         if self._summary is not None:
-            print(code, page, details)
+            #print(code, page, details)
             return
 
         self._log.append((code, page, details))
