@@ -8,27 +8,14 @@ import json
 import urllib
 
 
+from autodooz.fix_rq_template import escape, unescape
+
 
 IGNORE_TEMPLATES = [
 ]
 
 IGNORE_PER_TEMPLATE = {
-    "taxlink": [ "noshow" ],
 }
-
-RENAME = {
-#    "access": "accessdate",
-#    "access date": "accessdate",
-#    "access_date": "accessdate",
-#    "access-date": "accessdate",
-#    "archive": "archivedate",
-#    "archive date": "archivedate",
-#    "archive_date": "archivedate",
-#    "archive-date": "archivedate",
-#    "author-link": "authorlink",
-#    "author-link2": "authorlink2",
-}
-
 
 REMOVE_PER_TEMPLATE = {
     "az-variant": [ "r", "l" ],
@@ -40,6 +27,15 @@ REMOVE_PER_TEMPLATE = {
     "en-letter": [ "1", "upper", "lower" ],
     "vern": [ "pedia" ],
     "R:tr:TDK": [ "lang" ],
+    "ws header": [ "lang" ],
+    "Navbox": [ "listalign", "lisalign", "listclass" ],
+    "BCE": [ "nodots" ],
+    "B.C.E.": [ "dots" ],
+    "CE": [ "nodots" ],
+    "C.E.": [ "dots" ],
+    "Latn-def-lite": [ "nocap" ],
+    "list helper 2": [ "lang" ],
+
 #    "cite-book": [ "accessyear", "accessmonth" ],
 #    "R:TDK": ["lang"],
 #    "RQ:Browne Hydriotaphia": { "3": "passage" },
@@ -48,8 +44,12 @@ REMOVE_PER_TEMPLATE = {
 }
 
 RENAME_PER_TEMPLATE = {
+
+    # prefixing a parameter name with "=" allows renaming valid parameters, chose "=" because it can't possibly occurn in a valid param name
     "az-variant": { "=c": "1", "=a": "2" },
-#    "cite-web": { "titel": "title" }
+    "cite-web": { "titel": "title", "website": "site", "urn": "url", "tilte": "title" },
+    "cite-book": { "titel": "title" },
+    "cite-journal": { "vol": "volume", "place": "location" },
 #    "RQ:Browne Hydriotaphia": { "3": "passage" },
 #    "RQ:Maupassant Short Stories": {"story": "chapter"},
 #    "RQ:Hooker Laws": {"section": "chapter"}
@@ -63,11 +63,11 @@ RENAME_REDIRECTS = {
 
 
 def clean_name(obj):
-    text = re.sub(r"<!--.*?-->", "", str(obj.name), flags=re.DOTALL)
+    text = re.sub(r"<!--.*?-->", "", unescape(str(obj.name)), flags=re.DOTALL)
     return text.strip()
 
 def clean_value(obj):
-    text = re.sub(r"<!--.*?-->", "", str(obj.value), flags=re.DOTALL)
+    text = re.sub(r"<!--.*?-->", "", unescape(str(obj.value)), flags=re.DOTALL)
     return text.strip()
 
 def escape_url(text):
@@ -135,7 +135,10 @@ class ParamFixer():
 
         bad_params = []
         for p in template.params:
-            if clean_name(p) in keys:
+            p_name = clean_name(p)
+            if p_name == "":
+                p_name = "1"
+            if p_name in keys:
                 bad_params.append(p)
 
         assert len(bad_params) == len(keys)
@@ -156,23 +159,27 @@ class ParamFixer():
 
 
 
-    def warn(self, code, page, template, keys, details=None):
+    def warn(self, code, page, template, keys):
 
         if self._summary is not None:
-            print(code, page, clean_name(template), keys, details)
+            print(code, page, clean_name(template), keys)
             return
 
         if isinstance(keys, str):
             keys = [keys]
 
+        template_str = unescape(str(template))
+        #template_str = str(template)
+
         self.highlight_bad_params(template, keys)
 
         # fix for numbered parameters that become named parameters
-        bad_text = str(template).replace("<BAD>=", "<BAD>")
+        bad_text = unescape(str(template).replace("<BAD>=", "<BAD>"))
+        #bad_text = str(template).replace("<BAD>=", "<BAD>")
         key_str = ", ".join(keys)
 
         #print("WARN", (code, page, clean_name(template), key, details))
-        self._log.append((code, page, clean_name(template), key_str, details, bad_text))
+        self._log.append((code, page, clean_name(template), key_str, template_str, bad_text))
 
     def process(self, page_text, page, summary=None, options=None):
         # This function runs in two modes: fix and report
@@ -187,6 +194,22 @@ class ParamFixer():
 
         self._summary = summary
         self._log = []
+
+        if "{{" not in page_text:
+            return page_text if summary is not None else []
+
+        if "{{{" in page_text or "{{#" in page_text:
+            # Don't treat pages that already contain the 'escape' characters
+            if unescape(page_text) != page_text:
+                print(page, "uses escape char")
+                # TODO: Log these, or use better escape chars
+                # as of 2024-03-01, only happens on a handful of pages, all discussions that start Wiktionary: plus "Template:R:cu:Sin:psal"
+                if summary is None:
+                    return 0, self._log
+                return page_text
+            page_text = escape(page_text)
+
+
 
         wiki = mwparser.parse(page_text)
         to_replace_str = []
@@ -210,6 +233,20 @@ class ParamFixer():
             if t_name in IGNORE_TEMPLATES:
                 continue
 
+#            if t_name == "cite-book":
+#                if t.has("lang") or t.has(1) and re.match(r"^([a-z][a-z]|[a-z][a-z][a-z])$", str(t.get(1).value)):
+#                    pass
+#                elif "{{lang" in str(t):
+#                    pass
+#                elif "English:" in page:
+#                    pass
+#                else:
+#                    tid = "X" #page.split(":")[-1].rstrip("_")
+#                    if t.has("title"):
+#                        tid += "::" + str(t.get("title").value)
+#                    self.fix("missing_lang", page, t, "lang", f"missing lang :: {tid}")
+
+
             allowed = self._templates[t_name]
             bad_params = []
             to_rename = []
@@ -218,6 +255,8 @@ class ParamFixer():
             for p in t.params:
                 p_name = clean_name(p)
                 p_value = clean_value(p)
+                if p_name == "":  # {{code|=foo}} is the same as {{code|1=foo}}, used to allow constructs like {{code|=foo=bar}}
+                    p_name = "1"
 
                 # Allow forcefully renaming/removing recognized params
                 if p_name in allowed:
@@ -225,6 +264,8 @@ class ParamFixer():
                     forced_p_name = "=" + p_name
                     if RENAME_PER_TEMPLATE.get(t_name, {}).get(forced_p_name):
                         new_name = RENAME_PER_TEMPLATE[t_name][forced_p_name]
+                        if t.has(new_name):
+                            continue
                         to_rename.append((p, new_name))
 
                     elif forced_p_name in REMOVE_PER_TEMPLATE.get(t_name, []):
@@ -232,7 +273,6 @@ class ParamFixer():
 
                 # Handle unrecognized parameters
                 else:
-
                     # Handle case mismatch
                     case_mismatch = [p for p in allowed if p.lower() == p_name.lower()]
                     if case_mismatch and len(case_mismatch) == 1:
@@ -249,7 +289,6 @@ class ParamFixer():
                         to_remove.append(p)
 
                     elif not p_value:
-
                         # An empty numbered param N is only safe to remove if all other params >N are unhandled and empty
                         # use str(x.value).strip() instead of clean_name(x) to avoid removing params that contain only comments
                         if p_name.isdigit() and any(clean_name(x).isdigit() and int(clean_name(x)) > int(p_name) and (clean_name(x) in allowed or str(x.value).strip()) for x in t.params):
@@ -258,12 +297,10 @@ class ParamFixer():
 
                         unused_empty_params.append(p)
 
-#                    elif RENAME.get(p_name, None) in allowed:
-#                        new_name = RENAME[p_name]
-#                        to_rename.append((p, new_name))
-
                     elif RENAME_PER_TEMPLATE.get(t_name, {}).get(p_name):
                         new_name = RENAME_PER_TEMPLATE[t_name][p_name]
+                        if t.has(new_name):
+                            continue
                         to_rename.append((p, new_name))
 
 #                    elif p_name in ["url", "format", "year", "chapter", "book", "author", "title", "pageurl", "edition"]:
@@ -309,5 +346,5 @@ class ParamFixer():
         if summary is None:
             return count, self._log
 
-        return new_page_text
+        return unescape(new_page_text)
 
