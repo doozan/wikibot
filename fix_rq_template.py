@@ -22,7 +22,10 @@ def unescape(text):
     return text.translate(_tr_unescape)
 
 def escape_pound_braces(text):
-    while "{{#" in text:
+    prev_start = -1
+    start = 0
+    while "{{#" in text and start != prev_start:
+        prev_start = start
         depth = 0
         start = text.index("{{#")
         end = 0
@@ -47,7 +50,11 @@ def escape_pound_braces(text):
 def escape_magic(text):
     #escapes {{magic:foo|bar}}
     m = re.search(r"\{\{[a-z]+:", text)
-    while m:
+
+    prev_start = -1
+    start = 0
+    while m and prev_start != start:
+        prev_start = start
         depth = 0
         start = m.start()
         end = 0
@@ -69,7 +76,10 @@ def escape_magic(text):
 
 
 def escape_triple_braces(text):
-    while "{{{" in text:
+    prev_start = -1
+    start = 0
+    while "{{{" in text and start != prev_start:
+        prev_start = start
         depth = 0
         start = text.index("{{{")
         end = 0
@@ -107,7 +117,11 @@ def escape_triple_braces(text):
 
 def escape_square_braces(text):
     sections = []
-    while "[" in text:
+
+    prev_start = -1
+    start = 0
+    while "[" in text and start != prev_start:
+        prev_start = start
         depth = 0
         start = text.index("[")
         end = 0
@@ -261,7 +275,11 @@ class RqTemplateFixer():
         syns = []
         pattern = r"^\s*⎨⎨⎨\s*([a-zA-Z0-9 _-]+)\s*⌇?\s*(.*?)\s*⎬⎬⎬\s*$"
         m = re.match(pattern, text)
-        while m:
+
+        prev_start = -1
+        start = 0
+        while m and prev_start != start:
+            prev_start = start
             syns.append(m.group(1).strip())
             text = m.group(2)
             m = re.match(pattern, text)
