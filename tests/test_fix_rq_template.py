@@ -72,7 +72,7 @@ def test_escape():
     print(res)
     assert res == expected
 
-def test_jane():
+def test_escape2():
 
 #    text     = "{{#ifexpr:{{#if:{{num|{{{letter|}}}{{{2|}}}}}|{{{letter|{{{2|}}}}}}|{{R2A|{{{letter|{{{2|}}}}}}}}}}<43|I|II}}"
 #    expected = "⎨⎨#ifexpr:⎨⎨#if:{{num⌇⎨⎨⎨letter⌇⎬⎬⎬⎨⎨⎨2⌇⎬⎬⎬}}⌇⎨⎨⎨letter⌇⎨⎨⎨2⌇⎬⎬⎬⎬⎬⎬⌇{{R2A⌇⎨⎨⎨letter⌇⎨⎨⎨2⌇⎬⎬⎬⎬⎬⎬}}⎬⎬≺43⌇I⌇II⎬⎬"
@@ -137,6 +137,19 @@ def test_jane():
       ⎬⎬
   ⎬⎬/mode/1up
 """
+    res = escape(text)
+    print(res)
+    assert res == expected
+
+
+    text     = """{{subst:ko new/pron/table|{{subst:ko new/pron/analysis|f|{{{7|}}}}}}}"""
+    expected = """⎨⎨subst:ko new⌿pron⌿table⌇⎨⎨subst:ko new⌿pron⌿analysis⌇f⌇⎨⎨⎨7⌇⎬⎬⎬⎬⎬⎬⎬"""
+    res = escape(text)
+    print(res)
+    assert res == expected
+
+    text     = """{{subst:ko new/pron/table|{{subst:ko new/pron/analysis|f|{{{7|}}}}}"""
+    expected = """{{subst:ko new/pron/table|⎨⎨subst:ko new⌿pron⌿analysis⌇f⌇⎨⎨⎨7⌇⎬⎬⎬⎬⎬"""
     res = escape(text)
     print(res)
     assert res == expected

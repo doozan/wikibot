@@ -27,7 +27,7 @@ def escape_pound_braces(text):
     while "{{#" in text and start != prev_start:
         prev_start = start
         depth = 0
-        start = text.index("{{#")
+        start = text.rindex("{{#")
         end = 0
         for m in re.finditer(r"(\{\{|\}\})", text[start:]):
             if m.group(0) == "{{":
@@ -49,7 +49,8 @@ def escape_pound_braces(text):
 
 def escape_magic(text):
     #escapes {{magic:foo|bar}}
-    m = re.search(r"\{\{[a-z]+:", text)
+    # use negative lookahead to get rightmost match
+    m = re.search(r"\{\{[a-z]+:(?!.*\{\{[a-z]+:)", text)
 
     prev_start = -1
     start = 0
@@ -70,7 +71,8 @@ def escape_magic(text):
             text = text[:start] + "⎨⎨" + text[start+2:end-2] + "⎬⎬" + text[end:]
             text = escape_sections(text, [(start+2,end-2)], escape_braces=False)
 
-        m = re.search(r"\{\{[a-z]+:", text)
+        # use negative lookahead to get rightmost match
+        m = re.search(r"\{\{[a-z]+:(?!.*\{\{[a-z]+:)", text)
 
     return text
 
@@ -81,7 +83,7 @@ def escape_triple_braces(text):
     while "{{{" in text and start != prev_start:
         prev_start = start
         depth = 0
-        start = text.index("{{{")
+        start = text.rindex("{{{")
         end = 0
         for m in re.finditer(r"(\{|\})", text[start:]):
 
@@ -123,7 +125,7 @@ def escape_square_braces(text):
     while "[" in text and start != prev_start:
         prev_start = start
         depth = 0
-        start = text.index("[")
+        start = text.rindex("[")
         end = 0
         for m in re.finditer(r"(\[|\])", text[start:]):
             if m.group(0) == "[":
