@@ -190,12 +190,29 @@ def process(args):
     # Needed to unpack args until Pool.istarprocess exists
     return fixer.process(*args)
 
+def iter_bad_calls(filename, limit=None, show_progress=False, *extra, title_matches=None, text_matches=None):
+    count = 0
+    with open(filename) as infile:
+        data = json.load(infile)
+        for template, pages in data["templates"].items():
+            for page, bad_calls in pages.items():
+
+                if not count % 1000 and show_progress:
+                    print(count, end = '\r', file=sys.stderr)
+
+                if limit and count >= limit:
+                    break
+                count += 1
+
+                yield "\n".join(b[1] for b in bad_calls), page
+
 def main():
     global fixer, TOTAL_TEMPLATES, TOTAL_COUNT, TOTAL_TEMPLATES_WITH_ERRORS
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
 
     parser.add_argument("--xml", help="XML file to load")
     parser.add_argument("--wxt", help="Wiktionary extract file to load")
+    parser.add_argument("--bad-calls", help="JSON file with bad calls, previously created with --dump-json")
     parser.add_argument("--json", help="JSON file with template data", required=True)
     parser.add_argument("--dump-json", help="Output json file with all bad template calls")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
@@ -207,14 +224,22 @@ def main():
     if not args.j:
         args.j = multiprocessing.cpu_count()-1
 
-    if (not args.xml and not args.wxt) or (args.xml and args.wxt):
-        print("use either --xml or --wxt")
+    if sum(1 for a in [args.xml, args.wxt, args.bad_calls] if a) != 1:
+        print("use either --xml or --wxt or --bad-calls")
         exit(1)
 
     if args.wxt:
         iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
-    else:
+    elif args.xml:
         iter_entries = iter_xml(args.xml, args.limit, args.progress)
+    else:
+        iter_entries = iter_bad_calls(args.bad_calls, args.limit, args.progress)
+
+
+    test_entries = [("""
+{{code|=0}}
+""", "test")]
+    #iter_entries = test_entries
 
     fixer = ParamFixer(args.json)
     TOTAL_TEMPLATES = len(fixer._templates)
@@ -230,16 +255,20 @@ def main():
         redirects = _template_data["redirects"]
 
     templates_with_errors = set()
-    for count, results in iter_items:
+    for res in iter_items:
+        if not res:
+            continue
+
+        count, results = res
 
         TOTAL_COUNT += count
         for log_values in results:
-            code, page, template_name, *args = log_values
+            code, page, template_name, *other_args = log_values
 
             template_target = redirects.get(template_name, template_name)
             templates_with_errors.add(template_target)
 
-            log(code, page, template_target, *args)
+            log(code, page, template_target, *other_args)
 
     TOTAL_TEMPLATES_WITH_ERRORS = len(templates_with_errors)
 
@@ -247,10 +276,10 @@ def main():
         templates_with_errors = defaultdict(lambda: defaultdict(list))
         for i in logger._items:
             if "autofix" not in i.error:
-                templates_with_errors[i.template_name][i.page].append(i.details)
+                templates_with_errors[i.template_name][i.page].append((i.key, i.details))
 
         with open(args.dump_json, "w") as outfile:
-            json.dump({"templates": templates_with_errors}, outfile, ensure_ascii=False, indent=4)
+            json.dump({"templates": templates_with_errors}, outfile, ensure_ascii=False, indent=4, sort_keys=True)
 
 #        with open("templates_with_bad_params.tsv", "w") as outfile:
 #            for template, count in sorted(templates_with_errors.items(), key=lambda x: (x[1]*-1, x[0])):
