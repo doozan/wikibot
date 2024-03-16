@@ -657,3 +657,80 @@ wikifix['missing_taxlinks'] = {
     "post-fixes": [(sectionparser_cleanup, None)],
 }
 
+
+def add_param_checking(text, title, summary, options):
+    if not title.startswith("Template:"):
+        print("Skipping, does not start Template:")
+        return text
+
+    if title.endswith("-lite") \
+        or title.endswith("/args") \
+        or title.startswith("list:") \
+        or title.startswith("R:") \
+        or title in ["tt+", "tt", "see-temp", "t-needed", "w", "taxlink", "vern", "der-bottom"]:
+            print("Skipping, excluded title", title)
+            return text
+
+    if "#invoke" in text:
+        print("Skipping, uses #invoke")
+        return text
+
+    summary.append("Added parameter checking")
+    return "{{#invoke:checkparams|warn}}<!-- Validate template parameters\n-->" + text
+
+
+_site = None
+def save_page(entry_text, entry_title, commit_message):
+    global _site
+    if not _site:
+        _site = pywikibot.Site()
+
+    #wiki_page = pywikibot.Page(_site, entry_title)
+    #wiki_page.text = entry_text
+    print(f"saving {entry_title}", file=sys.stderr)
+    #wiki_page.save("commit message")
+
+def add_param_tracking_category(page_obj, *args):
+    title = page_obj.title()
+    page = f"Category:Pages using bad params when calling {title}"
+    save_page("{{auto cat}}", page, "Created tracking category")
+
+_existing_lang_cats = set()
+from enwiktionary_parser.languages.all_ids import ALL_LANG_IDS
+def add_template_lang_category(page_obj, *args):
+    global _site
+    if not _site:
+        _site = pywikibot.Site()
+
+    def get_lang_name(template_name):
+        template_name = template_name.removeprefix("Template:")
+        possible_lang_id = re.match("^([a-z][a-z][a-z]?-[a-z]{3})-", template_name)
+        lang_name = None
+        if possible_lang_id:
+            lang_name = LANG_ID_TO_NAME.get(possible_lang_id.group(1))
+        if not lang_name:
+            possible_lang_id = re.match("^([a-z][a-z][a-z]?)-", template_name)
+        if possible_lang_id:
+            lang_name = ALL_LANG_IDS.get(possible_lang_id.group(1))
+        if not lang_name:
+            lang_name = "general use"
+        return lang_name
+
+    title = page_obj.title()
+    lang_name = get_lang_name(title)
+    if lang_name in _existing_lang_cats:
+        return
+
+    page = f"Category:Pages using bad params when calling {lang_name} templates"
+    save_page("{{auto cat}}", page, "Created tracking category")
+    _existing_lang_cats.add(lang_name)
+
+def add_param_tracking_categories(page_obj, *args):
+    add_template_lang_category(page_obj)
+    add_param_tracking_category(page_obj)
+
+wikifix['add_param_checking'] = {
+    'mode': 'function',
+    "fixes": [(add_param_checking, None)],
+    'post_save_callback': add_param_tracking_categories
+}
