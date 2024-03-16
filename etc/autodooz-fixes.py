@@ -416,7 +416,7 @@ def fix_quote_with_bare_passage(text, title, summary, options):
 wikifix['quote_with_bare_passage'] = {
     'mode': 'function',
     "pre-fixes": [(sectionparser_cleanup, None)],
-    "fixes": [(fix_quote_with_bare_passage, {"template_data": "templates.json"})],
+    "fixes": [(fix_quote_with_bare_passage, {"template_data": os.path.join(NEWEST_DATA, "rq_template_params.json")})],
     "post-fixes": [(ele_cleanup, None)],
 }
 
@@ -553,6 +553,5 @@ def fix_bad_template_params(text, title, summary, options):
 
 wikifix['bad_template_params'] = {
     'mode': 'function',
-    "fixes": [(fix_bad_template_params, {"template_data": os.path.join(NEWEST_DATA, "template_params.json")})],
-    "post-fixes": [(sectionparser_cleanup, None)],
+    "fixes": [(fix_bad_template_params, {"template_data": os.path.join(NEWEST_DATA, "template_data.json")})],
 }
