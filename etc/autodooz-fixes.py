@@ -555,3 +555,89 @@ wikifix['bad_template_params'] = {
     'mode': 'function',
     "fixes": [(fix_bad_template_params, {"template_data": os.path.join(NEWEST_DATA, "template_data.json")})],
 }
+
+def fix_unbalanced_delim(entry_text, entry_title, summary, options):
+
+    print("SCANNING", entry_title)
+
+    if "==Navajo==" in entry_text:
+        return entry_text
+
+    #delims = [("[", "]")]
+    delims = [("]", "[")]
+    #delims = [("{", "}")]
+    #delims = [("}", "{")]
+
+    # Strip <nowiki>, <math>, <score> and HTML comments
+#    text = re.sub(r"<\s*nowiki\s*>.*?<\s*/\s*nowiki\s*>", "", entry_text, flags=re.DOTALL)
+#    text = re.sub(r"<\s*math\s*>.*?<\s*/\s*math\s*>", "", text, flags=re.DOTALL)
+#    text = re.sub(r"<\s*score\s*?(\s[^>]*)?>.*?<\s*/\s*score\s*>", "", text, flags=re.DOTALL)
+#    text = re.sub("<!--.*?-->", "", text, flags=re.DOTALL)
+
+
+    text = entry_text
+    entry = sectionparser.parse(entry_text, entry_title)
+    if not entry:
+        print("no entry", entry_title)
+        return entry_text
+
+    for section in entry.filter_sections():
+        text = section.content_text
+        for opener, closer in delims:
+            open_count = text.count(opener)
+            close_count = text.count(closer)
+            if open_count != close_count:
+                print("mismatched count", section.title, open_count, close_count)
+
+            if close_count and open_count == close_count - 1:
+
+                print("checking lines")
+
+                for idx, wikiline in enumerate(section.content_wikilines):
+                    open_count = wikiline.count(opener)
+                    close_count = wikiline.count(closer)
+                    if close_count and open_count == close_count - 1:
+                    #if open_count>1 and close_count == open_count + 1 and "&#91;" not in wikiline:
+                    #if open_count>1 and close_count == open_count + 1 and "&#91;" not in wikiline:
+                    #if close_count%2 and open_count == close_count + 1:
+                        print("mismatched count", wikiline, open_count, close_count)
+
+                        #new_wikiline = re.sub("(.*)" + re.escape(closer), r"\1" + closer*2, wikiline)
+
+                        if opener*3 not in wikiline and opener*2 in wikiline and closer*3 in wikiline and closer*4 not in wikiline:
+                            new_wikiline = wikiline.replace(closer*3, closer*2)
+
+                        elif "]]" + closer in wikiline and "]]" + closer*2 not in wikiline:
+                            new_wikiline = wikiline.replace("]]" + closer, "]]")
+
+                        elif "}}" + closer in wikiline and "}}" + closer*2 not in wikiline:
+                            new_wikiline = wikiline.replace("}}" + closer, "}}")
+
+                        elif " " + closer in wikiline and " " + closer*2 not in wikiline:
+                            new_wikiline = wikiline.replace(" " + closer, " ")
+
+                        elif "|" + closer in wikiline and "|" + closer*2 not in wikiline:
+                            new_wikiline = wikiline.replace("|" + closer, "|")
+
+                        elif closer + "|" in wikiline and closer*2 + "|" not in wikiline:
+                            new_wikiline = wikiline.replace(closer + "|", "|")
+
+                        else:
+                            continue
+
+
+                        section.content_wikilines[idx] = new_wikiline
+                        #summary.append(f"added missing {closer} (manually reviewed)")
+                        summary.append(f"removed stray {closer} (manually reviewed)")
+
+    if not summary:
+        return entry_text
+
+    return str(entry)
+
+wikifix['unbalanced_delim'] = {
+    'mode': 'function',
+    "fixes": [(fix_unbalanced_delim, None)],
+}
+
+
