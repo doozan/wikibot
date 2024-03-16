@@ -1,6 +1,9 @@
 import re
 import sys
 
+# I=missing_taxlink_fixes; FIX=missing_taxlinks; parallel -a $I --pipe-part -j 12 "cat > $I.split-{#}; ./scripts/wikifix --fix $FIX -file:$I.split-{#} --always; rm $I.split-{#}"
+
+
 wikifix = {}
 
 """
