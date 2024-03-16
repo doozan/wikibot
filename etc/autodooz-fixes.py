@@ -640,4 +640,20 @@ wikifix['unbalanced_delim'] = {
     "fixes": [(fix_unbalanced_delim, None)],
 }
 
+from autodooz.fix_missing_taxlinks import MissingTaxlinkFixer
+def fix_missing_taxlinks(text, title, summary, options):
+    fixer = get_fixer(MissingTaxlinkFixer, **options)
+    return fixer.process(text, title, summary, options)
+
+wikifix['missing_taxlinks'] = {
+    'mode': 'function',
+    #"fixes": [( fix_missing_taxlinks, {"local": os.path.join(NEWEST_DATA, "local_taxons.tsv"), "external": os.path.join(NEWEST_DATA, "external_taxons.tsv"), "profile": "paranoid"} )],
+    #"fixes": [( fix_missing_taxlinks, {"local": os.path.join(NEWEST_DATA, "local_taxons.tsv"), "external": os.path.join(NEWEST_DATA, "external_taxons.tsv"), "profile": "wikitext_only"} )],
+    #"fixes": [( fix_missing_taxlinks, {"local": os.path.join(NEWEST_DATA, "local_taxons.tsv"), "external": os.path.join(NEWEST_DATA, "external_taxons.tsv"), "profile": "wikitext_and_special_links"} )],
+    #"fixes": [( fix_missing_taxlinks, {"local": os.path.join(NEWEST_DATA, "local_taxons.tsv"), "external": os.path.join(NEWEST_DATA, "external_taxons.tsv"), "profile": "wikitext_and_links"} )],
+    #"fixes": [( fix_missing_taxlinks, {"local": os.path.join(NEWEST_DATA, "local_taxons.tsv"), "external": os.path.join(NEWEST_DATA, "external_taxons.tsv"), "profile": "safest_templates"} )],
+    #"fixes": [( fix_missing_taxlinks, {"local": os.path.join(NEWEST_DATA, "local_taxons.tsv"), "external": os.path.join(NEWEST_DATA, "external_taxons.tsv"), "rename_local_taxlinks": True} )],
+    "fixes": [( fix_missing_taxlinks, {"local": os.path.join(NEWEST_DATA, "local_taxons.tsv"), "external": os.path.join(NEWEST_DATA, "external_taxons.tsv")} )],
+    "post-fixes": [(sectionparser_cleanup, None)],
+}
 
