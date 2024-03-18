@@ -144,7 +144,7 @@ def escape_square_braces(text):
 
 
 _tr_orig = "[]|<>/="
-_tr_alt = "⎣⎦⌇≺≻⌿≈"
+_tr_alt = "⎣⎦⌇≺≻⌿⎓"
 
 _tr_orig_with_braces = "{}" + _tr_orig
 _tr_alt_with_braces = "⎨⎬" + _tr_alt
