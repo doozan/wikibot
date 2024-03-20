@@ -576,7 +576,11 @@ $(LIST)def_template_in_ety: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/redire
 
 $(LIST)template_stats: $(BUILDDIR)/template_data.json $(BUILDDIR)/template_count.tsv $(BUILDDIR)/module_data.json
 >   @echo "Making $@..."
->   $(MAKE_TEMPLATE_STATS) --templates $(BUILDDIR)/template_data.json --count $(BUILDDIR)/template_count.tsv --modules $(BUILDDIR)/module_data.json > $@
+>   DEST="User:JeffDoozan/lists/templates"
+>   $(MAKE_TEMPLATE_STATS) --templates $(BUILDDIR)/template_data.json --count $(BUILDDIR)/template_count.tsv --modules $(BUILDDIR)/module_data.json > $@.wiki
+
+>   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
+>   mv $@.wiki $@
 
 
 # Fixes
