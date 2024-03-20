@@ -734,3 +734,20 @@ wikifix['add_param_checking'] = {
     "fixes": [(add_param_checking, None)],
     'post_save_callback': add_param_tracking_categories
 }
+
+
+
+
+
+
+from autodooz.fix_bad_template_brackets import BracketFixer
+def fix_bad_template_brackets(text, title, summary, options):
+    fixer = get_fixer(BracketFixer, **options)
+    return fixer.process(text, title, summary, options)
+
+wikifix['bad_template_brackets'] = {
+    'mode': 'function',
+    "fixes": [(fix_bad_template_brackets, {})],
+    "post-fixes": [(sectionparser_cleanup, None)],
+}
+
