@@ -839,9 +839,17 @@ $(FIX)missing_taxlinks: $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons
 >   echo $$LINKS > $@
 
 
+# Lists that run in less that 30 minutes on single core
+fast_lists: $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_tlfi pt_with_synonyms)
 
-lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_lemmas fr_missing_tlfi pt_with_synonyms mismatched_headlines quote_with_bare_passage sense_bylines bare_ux unbalanced_delimiters section_header_errors section_level_errors section_order_errors def_template_in_ety local_taxons external_taxons possible_taxons taxons_with_redlinks missing_taxlinks t9n_problems convert_list_to_col es_missing_forms section_stats missing_taxlinks) # slower stuff last
-otherlists: $(patsubst %,$(LIST)%,bad_template_params)
+# Lists that take more than 30 minutes on single core
+slow_lists: $(patsubst %,$(LIST)%, section_header_errors section_level_errors section_order_errors sense_bylines unbalanced_delimiters missing_taxlinks t9n_problems convert_list_to_col es_missing_forms fr_missing_lemmas def_template_in_ety quote_with_bare_passage bare_ux )
+
+# not used with a corresponding "fix"
+slow_lists_no_fixes: $(patsubst %,$(LIST)%, local_taxons external_taxons possible_taxons taxons_with_redlinks section_stats )
+
+lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz fast_lists slow_lists slow_lists_no_fixes
+otherlists: $(patsubst %,$(LIST)%,bad_template_params) # bare_quotes
 
 # Fixes that are safe to run automatically and without supervision
 autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col quote_with_bare_passage sense_bylines bare_ux punc_refs rq_templates)
