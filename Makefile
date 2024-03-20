@@ -539,10 +539,10 @@ $(LIST)bare_ux: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   $(LIST_BARE_UX) $(SAVE) $^
 >   touch $@
 
-$(LIST)bad_template_params $(BUILDDIR)/bad_template_calls.json &: $(BUILDDIR)/template_data.json $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+$(LIST)bad_template_params: $(BUILDDIR)/template_data.json $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
->   $(LIST_BAD_TEMPLATE_PARAMS) $(SAVE) --json $< --xml $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2 --dump-json $(BUILDDIR)/bad_template_calls.json
+>   $(LIST_BAD_TEMPLATE_PARAMS) $(SAVE) --json $^
 >   touch $@
 
 $(LIST)possible_taxons: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv $(BUILDDIR)/all-en.enwikt.pages
@@ -568,10 +568,10 @@ $(BUILDDIR)/def_templates.tsv:
 
 >   $(DUMP_CAT) --subcats "Definition templates" > $@
 
-$(LIST)def_template_in_ety: $(BUILDDIR)/all-en.enwikt.txt.bz2
+$(LIST)def_template_in_ety: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/redirects.tsv $(BUILDDIR)/def_templates.tsv
 >   @echo "Running $@..."
 
->   $(LIST_DEF_TEMPLATE_IN_ETY) $< $(SAVE)
+>   $(LIST_DEF_TEMPLATE_IN_ETY) $< --redirects $(word 2,$^) --templates $(word 3,$^) $(SAVE)
 >   touch $@
 
 $(LIST)template_stats: $(BUILDDIR)/template_data.json $(BUILDDIR)/template_count.tsv $(BUILDDIR)/module_data.json

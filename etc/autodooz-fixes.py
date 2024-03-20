@@ -773,3 +773,51 @@ wikifix['bad_template_brackets'] = {
     "post-fixes": [(sectionparser_cleanup, None)],
 }
 
+
+from autodooz.fix_template import fix_templates
+
+ETY_DEF_TEMPLATES = [
+    ("causative of", "causative"),
+    ("clipping of", "clipping"),
+    ("initialism of", "initialism"),
+    ("contraction of", "contraction"),
+    ("acronym of", "acronym"),
+    ("ellipsis of", "ellipsis"),
+    ("syncopic form of", "syncopic form"),
+    ("apocopic form of", "apocopic form"),
+    ("aphetic form of", "aphetic form"),
+]
+
+wikifix['ety_templates'] = {
+    'mode': 'function',
+    "fixes": [(fix_templates,
+        [
+            {
+                "section":"Etymology",
+                "templates":
+                    [  {"template":{
+                        "name": def_name,
+                        },
+                        "changes":[
+                          {"action":["rename_template",ety_name],"summary":f"renamed to '{ety_name}' inside Etymology section"},
+                        ]}
+                        for def_name, ety_name in ETY_DEF_TEMPLATES
+                    ]
+            },
+            {
+                "section":"Etymology",
+                "templates":
+                    [  {"template":{
+                        "name": ety_name,
+                        "regex": """^[^=?,;:.!"']+$""",
+                        "context_regex": "{{TMPL}}$",
+                        },
+                        "changes":[
+                          {"action":["regex_sub", "{{TMPL}}$", "{{TMPL}}."],"summary":f"appended ."},
+                        ]}
+                        for def_name, ety_name in ETY_DEF_TEMPLATES
+                    ]
+            },
+        ]
+    )]
+}
