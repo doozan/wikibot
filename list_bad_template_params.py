@@ -195,6 +195,9 @@ def iter_bad_calls(filename, limit=None, show_progress=False, *extra, title_matc
     with open(filename) as infile:
         data = json.load(infile)
         for template, pages in data["templates"].items():
+            if template == "el-link-2":
+                continue
+
             for page, bad_calls in pages.items():
 
                 if not count % 1000 and show_progress:
@@ -204,7 +207,12 @@ def iter_bad_calls(filename, limit=None, show_progress=False, *extra, title_matc
                     break
                 count += 1
 
-                yield "\n".join(b[1] for b in bad_calls), page
+                res = []
+                unique_calls = sorted(set(b[1] for b in bad_calls))
+
+                yield "\n".join(unique_calls), page
+
+
 
 def main():
     global fixer, TOTAL_TEMPLATES, TOTAL_COUNT, TOTAL_TEMPLATES_WITH_ERRORS

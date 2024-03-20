@@ -1,3 +1,4 @@
+import copy
 import enwiktionary_sectionparser as sectionparser
 import re
 import multiprocessing
@@ -7,7 +8,7 @@ import mwparserfromhell as mwparser
 import json
 import urllib
 
-
+from Levenshtein import distance
 from autodooz.fix_rq_template import escape, unescape
 
 
@@ -35,8 +36,9 @@ REMOVE_PER_TEMPLATE = {
     "C.E.": [ "dots" ],
     "Latn-def-lite": [ "nocap" ],
     "list helper 2": [ "lang" ],
+    "R:ine:IEW": ["vol"],
 
-#    "cite-book": [ "accessyear", "accessmonth" ],
+    "cite-book": [ "editor-link", "editor2-link", "format", "accessyear", "url-status", "url-access", "doi-access", "type", "indent", "other", "asin", "work", "via", "ref", "website", "prefix", "lastauthoramp", "s2cid", "i2" ],
 #    "R:TDK": ["lang"],
 #    "RQ:Browne Hydriotaphia": { "3": "passage" },
 #    "RQ:Maupassant Short Stories": {"story": "chapter"},
@@ -47,8 +49,22 @@ RENAME_PER_TEMPLATE = {
 
     # prefixing a parameter name with "=" allows renaming valid parameters, chose "=" because it can't possibly occurn in a valid param name
     "az-variant": { "=c": "1", "=a": "2" },
-    "cite-web": { "titel": "title", "website": "site", "urn": "url", "tilte": "title" },
-    "cite-book": { "titel": "title" },
+    #"cite-web": { "titel": "title", "website": "site", "urn": "url", "tilte": "title" },
+    "cite-book": { "titel": "title", "place": "location", "city": "location", "first1": "first", "last1": "last", "author1": "author", "titel": "title", "pag": "page", "pge": "page", "edietor": "editor",
+        "editor1": "editor",
+        "archive-url": "archiveurl", "archive-date": "archivedate", "vol": "volume", "author-link": "authorlink", "p": "page", "publihser": "publisher", "edietor": "editor",
+        "contributor": "author",
+        "authorlink1": "authorlink",
+        "authorurl": "authorlink",
+        "contributors": "authors", "access_date": "accessdate",
+        "coauthor": "author2",
+        #"orig-date": "origdate",
+        "publication-date": "date_published",
+        "publication-place": "location",
+        "OCoLC": "OCLC",
+        "sbn": "isbn",
+        "ed": "editor",
+        "=trans": "translator", "=access-date": "accessdate", "=link": "pageurl", "head": "entry", "booklink": "url", "=book-link": "url", "=quote": "text"},
     "cite-journal": { "vol": "volume", "place": "location" },
 #    "RQ:Browne Hydriotaphia": { "3": "passage" },
 #    "RQ:Maupassant Short Stories": {"story": "chapter"},
@@ -71,10 +87,10 @@ def clean_value(obj):
     return text.strip()
 
 def escape_url(text):
-    if "?" not in text:
-        return text
+    #if "?" not in text:
+    #    return text
 
-    return urllib.parse.quote(text, safe=':/?&;+%')
+    return urllib.parse.quote(text, safe=':/?&;+%#,. ')
 
     #site, _, params = text.partition("?")
     #return site + "?" + urllib.parse.quote(params)
@@ -98,13 +114,17 @@ class ParamFixer():
                 print(f"WARNING: RENAME_PER_TEMPLATE: {template}: is not a supported template name, ignoring")
                 continue
 
+            to_remove = []
             for old_name, new_name in replacements.items():
                 if old_name in self._templates[template]:
                     print(f"WARNING: RENAME_PER_TEMPLATE: {template}: param {old_name} is a supported param name and will NOT be renamed")
-                    del replacements[old_name]
+                    to_remove.append(old_name)
                 elif new_name not in self._templates[template]:
                     print(f"WARNING: RENAME_PER_TEMPLATE: {template}: param {new_name} is NOT a supported param name and will be ignored")
-                    del replacements[old_name]
+                    to_remove.append(old_name)
+
+            for old_name in to_remove:
+                del replacements[old_name]
 
 
     def fix(self, code, page, template, keys, details):
@@ -168,18 +188,20 @@ class ParamFixer():
         if isinstance(keys, str):
             keys = [keys]
 
-        template_str = unescape(str(template))
+        template_copy = copy.deepcopy(template)
+
+        template_str = unescape(str(template_copy))
         #template_str = str(template)
 
-        self.highlight_bad_params(template, keys)
+        self.highlight_bad_params(template_copy, keys)
 
         # fix for numbered parameters that become named parameters
-        bad_text = unescape(str(template).replace("<BAD>=", "<BAD>"))
+        bad_text = unescape(str(template_copy).replace("<BAD>=", "<BAD>"))
         #bad_text = str(template).replace("<BAD>=", "<BAD>")
         key_str = ", ".join(keys)
 
         #print("WARN", (code, page, clean_name(template), key, details))
-        self._log.append((code, page, clean_name(template), key_str, template_str, bad_text))
+        self._log.append((code, page, clean_name(template_copy), key_str, template_str, bad_text))
 
     def process(self, page_text, page, summary=None, options=None):
         # This function runs in two modes: fix and report
@@ -207,16 +229,17 @@ class ParamFixer():
                 if summary is None:
                     return 0, self._log
                 return page_text
-            page_text = escape(page_text)
-
-
+            page_text = escape(page_text, escape_comments=False)
 
         wiki = mwparser.parse(page_text)
         to_replace_str = []
 
         count = 0
+        #print("scanning", page)
+        #print([clean_name(x) for x in wiki.ifilter_templates()])
         for t in wiki.ifilter_templates(recursive=True, matches=lambda x: self._redirects.get(clean_name(x), clean_name(x)) in self._templates):
             count += 1
+            #print("scanning", t)
 
             t_name = clean_name(t)
             # resolve any redirects
@@ -251,15 +274,162 @@ class ParamFixer():
             bad_params = []
             to_rename = []
             to_remove = []
+            fixed_editors = False
+            fixed_translators = False
             unused_empty_params = []
+            can_remove_empty_positional = False
             for p in t.params:
                 p_name = clean_name(p)
                 p_value = clean_value(p)
                 if p_name == "":  # {{code|=foo}} is the same as {{code|1=foo}}, used to allow constructs like {{code|=foo=bar}}
                     p_name = "1"
 
-                # Allow forcefully renaming/removing recognized params
+
+                if t_name == "cite-book" and p_name == "script-title":
+                    if t.has("title"):
+                        title_param = t.get("title")
+                        to_rename.append((title_param, "trans-title"))
+                    to_rename.append((p, "title"))
+                    continue
+
+                if t_name == "cite-book" and p_name == "title" and t.has("script-title"):
+                    continue
+
+
+                if t_name == "cite-book" and p_name in ["orig-year", "original year"]:
+                    if t.has("year"):
+                        year_param = t.get("year")
+                        print((clean_value(year_param), p_value))
+                        #assert int(clean_value(year_param)) > int(p_value)
+                        to_rename.append((year_param, "year_published"))
+                    to_rename.append((p, "year"))
+                    continue
+
+                if t_name == "cite-book" and p_name == "year" and t.has("orig-year"):
+                    continue
+
+                if t_name in ["cite-book", "cite-journal", "cite-web"] and str(p.value).replace("<!--", "").replace("-->", "").strip() == "" and not p_name.isdigit():
+                    to_remove.append(p)
+                    continue
+
+                if t_name == "cite-book" and p_name.startswith("editor") and "-" in p_name:
+                    if fixed_editors:
+                        to_remove.append(p)
+                        continue
+
+                    editors = []
+                    for x in ["", "1", "2", "3", "4"]:
+                        name = ""
+                        if t.has(f"editor{x}-last"):
+                            name = str(t.get(f"editor{x}-last").value).strip()
+
+                        if t.has(f"editor{x}-first"):
+                            if not name:
+                                print("BAD", t)
+                                editors = []
+                                break
+                            name += ", " + str(t.get(f"editor{x}-first").value).strip()
+
+                        if t.has(f"editor{x}-middle"):
+                            assert ", " in name
+                            name += " " + str(t.get(f"editor{x}-middle").value).strip()
+
+
+                        if name:
+                            #print("NAME MATCH1", name)
+                            editors.append(name)
+
+                        if x == "":
+                            continue
+
+                        name = ""
+                        if t.has(f"editor-last{x}"):
+                            name = str(t.get(f"editor-last{x}").value).strip()
+                        if t.has(f"editor-first{x}"):
+                            if not name:
+                                #print("BAD first name without last name", t)
+                                editors = []
+                                break
+                            name += ", " + str(t.get(f"editor-first{x}").value).strip()
+                        if t.has(f"editor-middle{x}"):
+                            assert ", " in name
+                            name += " " + str(t.get(f"editor-middle{x}").value).strip()
+
+                        if name:
+                            #print("name match2", name)
+                            editors.append(name)
+
+                    if editors:
+                        p.value = "; ".join(editors)
+                        to_rename.append((p, "editor"))
+                        fixed_editors = True
+                        #print("fix", p_name, p.value)
+                        self.fix("editors", page, t, p_name, f"merged various editor params into 'editor='")
+                        continue
+
+                if t_name == "cite-book" and p_name.startswith("translator") and "-" in p_name:
+                    if fixed_translators:
+                        to_remove.append(p)
+                        continue
+
+                    translators = []
+                    for x in ["", "1", "2", "3", "4"]:
+                        name = ""
+                        if t.has(f"tranlator{x}-last"):
+                            name = str(t.get(f"translator{x}-last").value).strip()
+
+                        if t.has(f"translator{x}-first"):
+                            if not name:
+                                #print("BAD", t)
+                                translators = []
+                                break
+                            name += ", " + str(t.get(f"translator{x}-first").value).strip()
+
+                        if t.has(f"translator{x}-middle"):
+                            assert ", " in name
+                            name += " " + str(t.get(f"translator{x}-middle").value).strip()
+
+
+                        if name:
+                            #print("NAME MATCH1", name)
+                            translators.append(name)
+
+                        if x == "":
+                            continue
+
+                        name = ""
+                        if t.has(f"translator-last{x}"):
+                            name = str(t.get(f"translator-last{x}").value).strip()
+                        if t.has(f"translator-first{x}"):
+                            if not name:
+                                #print("BAD first name without last name", t)
+                                translators = []
+                                break
+                            name += ", " + str(t.get(f"translator-first{x}").value).strip()
+                        if t.has(f"translator-middle{x}"):
+                            assert ", " in name
+                            name += " " + str(t.get(f"translator-middle{x}").value).strip()
+
+                        if name:
+                            #print("name match2", name)
+                            translators.append(name)
+
+                    if translators:
+                        p.value = "; ".join(translators)
+                        to_rename.append((p, "translator"))
+                        fixed_translators = True
+                        #print("fix", p_name, p.value)
+                        self.fix("translators", page, t, p_name, f"merged various translator params into 'tranlator='")
+                        continue
+
+
+                # allow forcefully renaming/removing recognized params
                 if p_name in allowed:
+
+                    # Remove empty positional params
+                    if can_remove_empty_positional and p_name.isdigit() and not p_value and not any(clean_name(x).isdigit() and int(clean_name(x)) > int(p_name) and str(x.value).strip() for x in t.params):
+                        unused_empty_params.append(p)
+                        continue
 
                     forced_p_name = "=" + p_name
                     if RENAME_PER_TEMPLATE.get(t_name, {}).get(forced_p_name):
@@ -273,14 +443,39 @@ class ParamFixer():
 
                 # Handle unrecognized parameters
                 else:
+
+                    if any(c in p_name for c in """{}[]"'"""):
+                        print("unparsable", page, t, p_name)
+                        self.warn("unparsable", page, t, p_name)
+                        continue
+
+                    if t_name == "cite-book" and p_name == "titel" and p_value == "Archived copy":
+                        to_remove.append(p)
+
                     # Handle case mismatch
                     case_mismatch = [p for p in allowed if p.lower() == p_name.lower()]
-                    if case_mismatch and len(case_mismatch) == 1:
+                    if len(case_mismatch) == 1:
                         new_name = case_mismatch[0]
                         to_rename.append((p, new_name))
+                        continue
+
+                    # Handle unneeded "-"
+                    sep_mismatch = [p for p in allowed if p == p_name.replace("-", "")]
+                    if len(sep_mismatch) == 1:
+                        new_name = sep_mismatch[0]
+                        to_rename.append((p, new_name))
+                        continue
+
+                    # Handle typos
+#                    typos = [p for p in allowed if p.isalpha() and p_name.isalpha() and (p.endswith("s") == p_name.endswith("s")) and len(p_name) >= 5 and distance(p, p_name) <= 1 ]
+#                    if len(typos) == 1:
+#                        new_name = typos[0]
+#                        if not t.has(new_name) and not any(p_name.startswith(x) for x in ["no", "fpl"]) and not p_name in ["absnote", "volumes", "isbn"]:
+#                            to_rename.append((p, new_name))
+#                            continue
 
                     # handle positional params with urls containing "="
-                    elif re.match("http[s]?://", p_name) and clean_value(p) and " " not in clean_value(p):
+                    if re.match("http[s]?://", p_name) and clean_value(p) and " " not in clean_value(p):
                         old_str = str(p.name) + "=" + clean_value(p)
                         new_str = escape_url(old_str.strip())
                         to_replace_str.append((t, old_str, new_str))
@@ -291,10 +486,12 @@ class ParamFixer():
                     elif not p_value:
                         # An empty numbered param N is only safe to remove if all other params >N are unhandled and empty
                         # use str(x.value).strip() instead of clean_name(x) to avoid removing params that contain only comments
-                        if p_name.isdigit() and any(clean_name(x).isdigit() and int(clean_name(x)) > int(p_name) and (clean_name(x) in allowed or str(x.value).strip()) for x in t.params):
+                        #if p_name.isdigit() and any(clean_name(x).isdigit() and int(clean_name(x)) > int(p_name) and (clean_name(x) in allowed or str(x.value).strip()) for x in t.params):
+                        if p_name.isdigit() and any(clean_name(x).isdigit() and int(clean_name(x)) > int(p_name) and str(x.value).strip() for x in t.params):
                             self.warn("bad_pos_param", page, t, p_name)
                             continue
 
+                        can_remove_empty_positional = True
                         unused_empty_params.append(p)
 
                     elif RENAME_PER_TEMPLATE.get(t_name, {}).get(p_name):
@@ -303,6 +500,7 @@ class ParamFixer():
                             continue
                         to_rename.append((p, new_name))
 
+
 #                    elif p_name in ["url", "format", "year", "chapter", "book", "author", "title", "pageurl", "edition"]:
 #                        self.fix("bad_param", page, t, p_name, f"removed unused param '{p_name}'")
 #                        t.remove(p)
@@ -310,20 +508,25 @@ class ParamFixer():
                     elif p_name in IGNORE_PER_TEMPLATE.get(t_name, []):
                         continue
 
+
+
+
                     else:
+                        #print("BAD", t_name, p_name, p_value)
                         bad_params.append(p_name)
 
             for p, new_name in to_rename:
                 old_name = clean_name(p)
                 p.name = new_name
                 p.showkey = not p.name.isdigit()
-                self.fix("misnamed_param", page, t, p_name, f"renamed param '{old_name}' to '{new_name}'")
+                if not fixed_editors and not fixed_translators:
+                    self.fix("misnamed_param", page, t, p_name, f"renamed param '{old_name}' to '{new_name}'")
 
             # only remove empty params if all param names look valid
             if all(len(clean_name(p)) < 12 and re.match(r"([1-9]|1[0-9]|[A-Za-z]+([_-][a-zA-Z]+)?[1-9]?)$", clean_name(p)) for p in unused_empty_params):
                 for p in unused_empty_params:
                     p_name = clean_name(p)
-                    self.fix("bad_param", page, t, p_name, f"removed unused empty param '{p_name}'")
+                    self.fix("bad_param", page, t, p_name, f"removed empty param '{p_name}'")
                     t.remove(p)
             else:
                 bad_params += [clean_name(p) for p in unused_empty_params]
@@ -331,8 +534,13 @@ class ParamFixer():
             if to_remove:
                 for p in to_remove:
                     p_name = clean_name(p)
-                    self.fix("bad_param", page, t, p_name, f"removed unused param '{p_name}'")
                     t.remove(p)
+
+                if not fixed_editors and not fixed_translators:
+                    if len(to_remove) == 1:
+                        self.fix("bad_param", page, t, p_name, f"removed unused param '{p_name}'")
+                    else:
+                        self.fix("bad_param", page, t, p_name, f"""removed unused params '{"', '".join(clean_name(p) for p in to_remove)}'""")
 
             if bad_params:
                 self.warn("bad_param", page, t, bad_params)
