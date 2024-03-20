@@ -62,7 +62,7 @@ def get_allowed_params(args):
     if m:
         return entry_title, {"|REDIR|": m.group(2).strip()}
 
-    ALLOWED_INVOKE = [ "string", "ugly hacks", "italics" ]
+    ALLOWED_INVOKE = [ "string", "ugly hacks", "italics", "checkparams" ]
     invokes = [m.group(1).strip() for m in re.finditer("#invoke:(.*?)[|}]", entry_text, re.DOTALL)]
     for i in invokes:
         invoke_count[i] += 1
