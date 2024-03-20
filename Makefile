@@ -77,6 +77,7 @@ LIST_POSSIBLE_TAXONS := $(PYPATH) ./list_possible_taxons.py
 LIST_MISSING_TAXLINKS := $(PYPATH) ./list_missing_taxlinks.py
 LIST_TAXONS_WITH_REDLINKS := $(PYPATH) ./list_taxons_with_redlinks.py
 DUMP_TEMPLATE_USE := $(PYPATH) ./dump_template_use.py
+LIST_DEF_TEMPLATE_IN_ETY := $(PYPATH) ./list_def_template_in_ety.py
 
 
 EXTERNAL := ../..
@@ -562,6 +563,15 @@ $(LIST)taxons_with_redlinks: $(BUILDDIR)/taxons.txt.bz2 $(BUILDDIR)/all-en.enwik
 >   $(LIST_TAXONS_WITH_REDLINKS) --wxt $< --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
 >   touch $@
 
+$(LIST)def_template_in_ety: $(BUILDDIR)/all-en.enwikt.txt.bz2
+>   @echo "Running $@..."
+
+>   $(LIST_DEF_TEMPLATE_IN_ETY) $< $(SAVE)
+>   touch $@
+
+$(LIST)template_stats: $(BUILDDIR)/template_data.json $(BUILDDIR)/template_count.tsv $(BUILDDIR)/module_data.json
+>   @echo "Making $@..."
+>   $(MAKE_TEMPLATE_STATS) --templates $(BUILDDIR)/template_data.json --count $(BUILDDIR)/template_count.tsv --modules $(BUILDDIR)/module_data.json > $@
 
 
 # Fixes
