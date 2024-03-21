@@ -58,9 +58,8 @@ def get_allowed_params(args):
     entry_title = entry_title.removeprefix("Template:")
     entry_text = get_included_text(entry_text)
 
-    m = re.match(r"^\s*#REDIRECT[:]?\s*\[\[\s*([:]?T(?:emplate)?:(.*?))\s*\]\]", entry_text, re.IGNORECASE)
-    if m:
-        return entry_title, {"|REDIR|": m.group(2).strip()}
+    if re.match(r"^\s*#REDIRECT", entry_text, re.IGNORECASE):
+        return
 
     ALLOWED_INVOKE = [ "string", "ugly hacks", "italics", "checkparams" ]
     invokes = [m.group(1).strip() for m in re.finditer("#invoke:(.*?)[|}]", entry_text, re.DOTALL)]
@@ -86,14 +85,10 @@ def dump_template_args(iter_entries, filename):
 
     templates = {}
     unparsable = set()
-    redirects = {}
     for res in iter_items:
         entry_title, allowed_params = res
         if allowed_params is None:
             unparsable.add(entry_title)
-        elif "|REDIR|" in allowed_params:
-            target = allowed_params["|REDIR|"]
-            redirects[entry_title] = target
         else:
             templates[entry_title] = allowed_params
 
@@ -101,7 +96,6 @@ def dump_template_args(iter_entries, filename):
         json.dump({
             "templates": {k:v for k,v in sorted(templates.items())},
             "unparsable": sorted(unparsable),
-            "redirects": {k:v for k,v in sorted(redirects.items())},
             }, outfile, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
