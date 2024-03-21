@@ -1,4 +1,5 @@
 import copy
+import csv
 import enwiktionary_sectionparser as sectionparser
 import re
 import multiprocessing
@@ -99,15 +100,18 @@ def escape_url(text):
 ALLOWED_MODULES = { "string", "ugly hacks", "italics" }
 class ParamFixer():
 
-    def __init__(self, template_data):
+    def __init__(self, template_data, redirects):
         self._summary = None
         self._log = []
 
         with open(template_data) as f:
             _template_data = json.load(f)
             self._templates = {k:v.get("params", []) for k,v in _template_data["templates"].items() if v["type"] in ["static", "wiki", "mixed"] and not set(v.get("modules", [])) - ALLOWED_MODULES }
-            self._redirects = _template_data["redirects"]
-            print("LOADED", len(self._templates))
+            print("LOADED", len(self._templates), "templates")
+
+        with open(redirects) as infile:
+            self._redirects = {x[0]:x[1] for x in csv.reader(infile, delimiter="\t") if x[0].startswith("Template:")}
+            print("LOADED", len(self._redirects), "redirects")
 
         for template, replacements in RENAME_PER_TEMPLATE.items():
             if template not in self._templates:

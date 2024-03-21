@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
+import csv
 import mwparserfromhell as mwparser
 import multiprocessing
 import os
@@ -220,8 +221,9 @@ def main():
 
     parser.add_argument("--xml", help="XML file to load")
     parser.add_argument("--wxt", help="Wiktionary extract file to load")
+    parser.add_argument("--templates", help="JSON file with template data", required=True)
+    parser.add_argument("--redirects", help="TSV file with redirects", required=True)
     parser.add_argument("--bad-calls", help="JSON file with bad calls, previously created with --dump-json")
-    parser.add_argument("--json", help="JSON file with template data", required=True)
     parser.add_argument("--dump-json", help="Output json file with all bad template calls")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
@@ -249,7 +251,7 @@ def main():
 """, "test")]
     #iter_entries = test_entries
 
-    fixer = ParamFixer(args.json)
+    fixer = ParamFixer(args.templates, args.redirects)
     TOTAL_TEMPLATES = len(fixer._templates)
 
     if args.j > 1:
@@ -258,9 +260,9 @@ def main():
     else:
         iter_items = map(process, iter_entries)
 
-    with open(args.json) as f:
-        _template_data = json.load(f)
-        redirects = _template_data["redirects"]
+
+    with open(args.redirects) as infile:
+        redirects = {x[0]:x[1] for x in csv.reader(infile, delimiter="\t") if x[0].startswith("Template:")}
 
     templates_with_errors = set()
     for res in iter_items:
