@@ -47,7 +47,9 @@ class QuoteFixer():
         self._log = []
 
         with open(template_data) as infile:
-            self._templates = json.load(infile)
+            _template_data = json.load(infile)
+            self._templates = {k for k,v in _template_data["templates"].items() if k.startswith("RQ:") and \
+                    ("passage" in v.get("params",[]) or "quote" in v.get("modules", [])) }
 
     def fix(self, code, section, details):
         # When running tests, section will be empty
@@ -138,7 +140,7 @@ class QuoteFixer():
                         continue
 
                 # For templates that don't support passage=, use {{quote}}
-                if template_name in self._templates or template_name in QUOTE_TEMPLATES or template_name != "Q":
+                if template_name in self._templates or template_name in QUOTE_TEMPLATES and template_name != "Q":
 
                     # {{Q}} uses param names that don't match {{quote-*}} and {{RQ:*}} templates
                     ALT_PARAM_NAMES = {
