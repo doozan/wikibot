@@ -64,7 +64,6 @@ LIST_UNBALANCED_DELIMITERS := $(PYPATH) ./list_unbalanced_delimiters.py
 LIST_QUOTE_WITH_BARE_PASSAGE := $(PYPATH) ./list_quote_with_bare_passage.py
 LIST_SENSE_BYLINES := $(PYPATH) ./list_sense_byline_errors.py
 LIST_BARE_UX := $(PYPATH) ./list_bare_ux.py
-DUMP_RQ_TEMPLATE_PARAMS := $(PYPATH) ./dump_rq_template_params.py
 DUMP_TEMPLATE_DATA := $(PYPATH) ./dump_template_data.py
 DUMP_MODULE_DATA := $(PYPATH) ./dump_module_data.py
 LIST_BAD_TEMPLATE_PARAMS := $(PYPATH) ./list_bad_template_params.py
@@ -150,10 +149,6 @@ $(BUILDDIR)/spa.sentences: $(BUILDDIR)/eng-spa.tsv
 /var/local/wikt/%.sentences.tgz: $(BUILDDIR)/%.sentences $(BUILDDIR)/%.json
 >   @echo "Making $@..."
 >   tar czvf $@ -C $(BUILDDIR) $*.sentences $*.json
-
-$(BUILDDIR)/rq_template_params.json: $(BUILDDIR)/templates.enwikt.txt.bz2
->   echo "Making $@..."
->   $(DUMP_RQ_TEMPLATE_PARAMS) --wxt $< $@
 
 $(BUILDDIR)/template_data.json: $(BUILDDIR)/templates.enwikt.txt.bz2
 >   @echo "Making $@..."
@@ -521,7 +516,7 @@ $(LIST)unbalanced_delimiters: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   $(LIST_UNBALANCED_DELIMITERS) $(SAVE) $^
 >   touch $@
 
-$(LIST)quote_with_bare_passage: $(BUILDDIR)/rq_template_params.json $(BUILDDIR)/all-en.enwikt.txt.bz2
+$(LIST)quote_with_bare_passage: $(BUILDDIR)/template_data.json $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
 >   $(LIST_QUOTE_WITH_BARE_PASSAGE) $(SAVE) --json $^
@@ -852,7 +847,7 @@ lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz fast
 otherlists: $(patsubst %,$(LIST)%,bad_template_params) # bare_quotes
 
 # Fixes that are safe to run automatically and without supervision
-autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col quote_with_bare_passage sense_bylines bare_ux punc_refs rq_templates)
+autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col quote_with_bare_passage sense_bylines bare_ux punc_refs)
 
 # Fixes that may make mistakes and need human supervision
 otherfixes: $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form template_params)
