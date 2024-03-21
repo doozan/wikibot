@@ -78,6 +78,7 @@ LIST_TAXONS_WITH_REDLINKS := $(PYPATH) ./list_taxons_with_redlinks.py
 DUMP_TEMPLATE_USE := $(PYPATH) ./dump_template_use.py
 LIST_DEF_TEMPLATE_IN_ETY := $(PYPATH) ./list_def_template_in_ety.py
 DUMP_REDIRECTS := $(PYPATH) ./dump_redirects.py
+DUMP_CAT := $(PYPATH) ./dump_cat.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
@@ -561,6 +562,11 @@ $(LIST)taxons_with_redlinks: $(BUILDDIR)/taxons.txt.bz2 $(BUILDDIR)/all-en.enwik
 
 >   $(LIST_TAXONS_WITH_REDLINKS) --wxt $< --bluelinks $(BUILDDIR)/all-en.enwikt.pages $(SAVE) --date $(DATETAG_PRETTY)
 >   touch $@
+
+$(BUILDDIR)/def_templates.tsv:
+>   @echo "Running $@..."
+
+>   $(DUMP_CAT) --subcats "Definition templates" > $@
 
 $(LIST)def_template_in_ety: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
