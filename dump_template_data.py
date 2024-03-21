@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
+import csv
 import json
 import multiprocessing
 import os
@@ -20,6 +21,7 @@ def main():
     parser.add_argument("target", help="target filename")
     parser.add_argument("--xml", help="XML file to load")
     parser.add_argument("--wxt", help="Wiktionary extract file to load")
+    parser.add_argument("--redirects", help="redirects.tsv")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
@@ -37,7 +39,10 @@ def main():
     else:
         iter_entries = iter_xml(args.xml, args.limit, args.progress, title_matches=lambda x: x.startswith("Template:"))
 
-    dump_template_args(iter_entries, args.target)
+    with open(args.redirects) as infile:
+        redirects = {x[0].removeprefix("Template:"):x[1].removeprefix("Template:") for x in csv.reader(infile, delimiter="\t") if x[0].startswith("Template:")}
+
+    dump_template_args(iter_entries, redirects, args.target)
 
 
 def get_included_text(text):
@@ -60,9 +65,8 @@ def get_template_stats(args):
 
     entry_text = re.sub("{{\s*(" + "|".join(MW_COMMANDS) + ")\s*:", "", entry_text, flags=re.IGNORECASE)
 
-    m = re.match(r"^\s*#REDIRECT[:]?\s*\[\[\s*([:]?T(?:emplate)?:(.*?))\s*\]\]", entry_text, re.IGNORECASE)
-    if m:
-        return entry_title, "redirect", m.group(2).strip()
+    if re.match(r"^\s*#REDIRECT", entry_text, re.IGNORECASE):
+        return
 
     used_modules = sorted(set(m.group(1).strip() for m in re.finditer("#invoke:(.*?)[|}]", entry_text, re.DOTALL)))
 
@@ -109,19 +113,15 @@ def get_template_stats(args):
     return entry_title, template_type, used_modules, used_templates, used_params
 
 
-def dump_template_args(iter_entries, filename):
+def dump_template_args(iter_entries, redirects, filename):
     iter_items = map(get_template_stats, iter_entries)
 
     templates = {}
     unparsable = set()
-    redirects = {}
     for res in iter_items:
-        template, template_type, *extra = res
-        if template_type == "redirect":
-            redirects[template] = extra[0]
+        if not res:
             continue
-
-        used_modules, used_templates, used_params = extra
+        template, template_type, used_modules, used_templates, used_params = res
         templates[template] = {k:v for k,v in [
             ("params", used_params),
             ("templates", used_templates),
@@ -193,7 +193,6 @@ def dump_template_args(iter_entries, filename):
     with open(filename, 'w', encoding='utf-8') as outfile:
         json.dump({
             "templates": templates,
-            "redirects": redirects,
             }, outfile, ensure_ascii=False, indent=4, sort_keys=True)
 
 if __name__ == "__main__":

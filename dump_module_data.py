@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
+import csv
 import json
 import multiprocessing
 import re
@@ -13,6 +14,7 @@ def main():
     parser.add_argument("target", help="target filename")
     parser.add_argument("--xml", help="XML file to load")
     parser.add_argument("--wxt", help="Wiktionary extract file to load")
+    parser.add_argument("--redirects", help="redirects.tsv")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
@@ -30,7 +32,10 @@ def main():
     else:
         iter_entries = iter_xml(args.xml, args.limit, args.progress, title_matches=lambda x: x.startswith("Module:"))
 
-    dump_module_data(iter_entries, args.target)
+    with open(args.redirects) as infile:
+        redirects = {x[0].removeprefix("Module:"):x[1].removeprefix("Module:") for x in csv.reader(infile, delimiter="\t") if x[0].startswith("Module:")}
+
+    dump_module_data(iter_entries, redirects, args.target)
 
 
 def get_module_stats(args):
@@ -38,9 +43,8 @@ def get_module_stats(args):
     entry_text, entry_title = args
     entry_title = entry_title.removeprefix("Module:")
 
-    m = re.match(r"^\s*#REDIRECT[:]?\s*\[\[\s*([:]?M(?:odule)?:(.*?))\s*\]\]", entry_text, re.IGNORECASE)
-    if m:
-        return entry_title, "redirect", m.group(2).strip()
+    if re.match(r"^\s*#REDIRECT", entry_text, re.IGNORECASE):
+        return
 
     wiki_calls = "expandTemplate", "callParserFunction", "preprocess", "newParserValue", "newTemplateParserValue"
     used_wiki_calls = [f for f in wiki_calls if f in entry_text]
@@ -59,19 +63,16 @@ def get_module_stats(args):
 
     return entry_title, "module", used_modules, used_wiki_calls
 
-def dump_module_data(iter_entries, filename):
+def dump_module_data(iter_entries, redirects, filename):
     iter_items = map(get_module_stats, iter_entries)
 
 
     modules = {}
-    redirects = {}
     for res in iter_items:
-        module, module_type, *extra = res
-        if module_type == "redirect":
-            redirects[module] = extra[0]
+        if not res:
             continue
 
-        used_modules, used_wiki_calls = extra
+        module, module_type, used_modules, used_wiki_calls = res
         modules[module] = {k:v for k,v in [
             ("modules", used_modules),
             ("funcions", used_wiki_calls),
@@ -125,7 +126,6 @@ def dump_module_data(iter_entries, filename):
     with open(filename, 'w', encoding='utf-8') as outfile:
         json.dump({
             "modules": modules,
-            "redirects": redirects,
             }, outfile, ensure_ascii=False, indent=4, sort_keys=True)
 
 if __name__ == "__main__":

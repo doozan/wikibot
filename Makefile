@@ -151,13 +151,13 @@ $(BUILDDIR)/spa.sentences: $(BUILDDIR)/eng-spa.tsv
 >   @echo "Making $@..."
 >   tar czvf $@ -C $(BUILDDIR) $*.sentences $*.json
 
-$(BUILDDIR)/template_data.json: $(BUILDDIR)/templates.enwikt.txt.bz2
+$(BUILDDIR)/template_data.json: $(BUILDDIR)/templates.enwikt.txt.bz2 $(BUILDDIR)/redirects.tsv
 >   @echo "Making $@..."
->   $(DUMP_TEMPLATE_DATA) --wxt $< $@
+>   $(DUMP_TEMPLATE_DATA) --wxt $< $@ --redirects $(word 2,$^)
 
-$(BUILDDIR)/module_data.json: $(BUILDDIR)/modules.enwikt.txt.bz2
+$(BUILDDIR)/module_data.json: $(BUILDDIR)/modules.enwikt.txt.bz2 $(BUILDDIR)/redirects.tsv
 >   @echo "Making $@..."
->   $(DUMP_MODULE_DATA) --wxt $< $@
+>   $(DUMP_MODULE_DATA) --wxt $< $@ --redirects $(word 2,$^)
 
 $(BUILDDIR)/template_count.tsv: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 >   @echo "Making $@..."
