@@ -77,7 +77,7 @@ LIST_MISSING_TAXLINKS := $(PYPATH) ./list_missing_taxlinks.py
 LIST_TAXONS_WITH_REDLINKS := $(PYPATH) ./list_taxons_with_redlinks.py
 DUMP_TEMPLATE_USE := $(PYPATH) ./dump_template_use.py
 LIST_DEF_TEMPLATE_IN_ETY := $(PYPATH) ./list_def_template_in_ety.py
-
+DUMP_REDIRECTS := $(PYPATH) ./dump_redirects.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
@@ -177,6 +177,10 @@ $(BUILDDIR)/local_taxons.tsv $(LIST)local_taxons &: $(BUILDDIR)/taxons.txt.bz2
 $(BUILDDIR)/external_taxons.tsv $(LIST)external_taxons &: $(BUILDDIR)/taxlinks.txt.bz2
 >   @echo "Making $@..."
 >   $(LIST_EXTERNAL_TAXONS) --wxt $< $(SAVE) > $@
+
+$(BUILDDIR)/redirects.tsv: $(BUILDDIR)/redirects.enwikt.txt.bz2
+>   @echo "Making $@..."
+>   $(DUMP_REDIRECTS) --wxt $< > $@
 
 # Lists
 
