@@ -9,14 +9,12 @@ import sys
 
 from collections import defaultdict, namedtuple
 
-# https://www.mediawiki.org/wiki/Help:Magic_words
-MAGIC_WORDS = [ "FULLPAGENAME", "PAGENAME", "BASEPAGENAME", "NAMESPACE", "!", "SUBPAGENAME", "lc:", "fullurl:" ]
-
 def main():
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
-    parser.add_argument("--count", help="template count", required=True)
+    parser.add_argument("--count", help="TSV with template count", required=True)
     parser.add_argument("--modules", help="module data", required=True)
-    parser.add_argument("--templates", help="template data", required=True)
+    parser.add_argument("--templates", help="JSON with template data", required=True)
+    parser.add_argument("--redirects", help="TSV with redirect data", required=True)
     args = parser.parse_args()
 
     _counts = namedtuple("counts", [ "uses", "pages" ])
@@ -27,12 +25,16 @@ def main():
     with open(args.templates) as infile:
         template_data = json.load(infile)
         templates = template_data["templates"]
-        redirects = template_data["redirects"]
+
+    with open(args.redirects) as infile:
+        redirects = {x[0].removeprefix("Template:"):x[1].removeprefix("Template:") for x in csv.reader(infile, delimiter="\t") if x[0].startswith("Template:")}
 
     with open(args.modules) as infile:
         module_data = json.load(infile)
         modules = module_data["modules"]
-        module_redirects = module_data["redirects"]
+
+    with open(args.redirects) as infile:
+        module_redirects = {x[0].removeprefix("Module:"):x[1].removeprefix("Module:") for x in csv.reader(infile, delimiter="\t") if x[0].startswith("Module:")}
 
     for template, template_data in templates.items():
         template_data["count"] = template_count[template].uses if template in template_count else 0

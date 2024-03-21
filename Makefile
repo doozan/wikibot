@@ -574,10 +574,10 @@ $(LIST)def_template_in_ety: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/redire
 >   $(LIST_DEF_TEMPLATE_IN_ETY) $< --redirects $(word 2,$^) --templates $(word 3,$^) $(SAVE)
 >   touch $@
 
-$(LIST)template_stats: $(BUILDDIR)/template_data.json $(BUILDDIR)/template_count.tsv $(BUILDDIR)/module_data.json
+$(LIST)template_stats: $(BUILDDIR)/template_data.json $(BUILDDIR)/template_count.tsv $(BUILDDIR)/module_data.json $(BUILDDIR)/redirects.tsv
 >   @echo "Making $@..."
 >   DEST="User:JeffDoozan/lists/templates"
->   $(MAKE_TEMPLATE_STATS) --templates $(BUILDDIR)/template_data.json --count $(BUILDDIR)/template_count.tsv --modules $(BUILDDIR)/module_data.json > $@.wiki
+>   $(MAKE_TEMPLATE_STATS) --templates $< --count $(word 2,$^) --modules $(word 3,$^) --redirects $(word 4,$^) > $@.wiki
 
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
 >   mv $@.wiki $@
