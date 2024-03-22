@@ -15,12 +15,13 @@ def main():
 #    parser.add_argument("fixable_templates", help="fixable templates")
     parser.add_argument("--xml", help="XML file to load")
     parser.add_argument("--wxt", help="Wiktionary extract file to load")
-    parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
+    parser.add_argument("--redirects", help="TSV with redirect data", required=True)
 
     parser.add_argument("--debug", help="dump individual template count for single page")
     parser.add_argument("--include", help="Only count templates listed in the given tsv", action='append')
     parser.add_argument("--exclude", help="Don't count templates listed in the given tsv", action='append')
 
+    parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
     args = parser.parse_args()
@@ -42,6 +43,9 @@ def main():
         iter_items = pool.imap_unordered(process, iter_entries, 10000)
     else:
         iter_items = map(process, iter_entries)
+
+    with open(args.redirects) as infile:
+        redirects = {x[0].removeprefix("Template:"):x[1].removeprefix("Template:") for x in csv.reader(infile, delimiter="\t") if x[0].startswith("Template:")}
 
     include = set()
     if args.include:
@@ -68,6 +72,8 @@ def main():
 
         page_count = 0
         for template, count in template_count.items():
+
+            template = redirects.get(template, template)
 
             if include and template not in include:
                 continue

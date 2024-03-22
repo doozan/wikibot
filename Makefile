@@ -159,9 +159,9 @@ $(BUILDDIR)/module_data.json: $(BUILDDIR)/modules.enwikt.txt.bz2 $(BUILDDIR)/red
 >   @echo "Making $@..."
 >   $(DUMP_MODULE_DATA) --wxt $< $@ --redirects $(word 2,$^)
 
-$(BUILDDIR)/template_count.tsv: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
+$(BUILDDIR)/template_count.tsv: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2 $(BUILDDIR)/redirects.tsv
 >   @echo "Making $@..."
->   $(COUNT_TEMPLATE_USE) --xml $< > $@
+>   $(COUNT_TEMPLATE_USE) --xml $< --redirects $(word 2,$^) > $@
 
 $(BUILDDIR)/taxons.txt.bz2: $(BUILDDIR)/enwiktionary-$(DATETAG)-pages-articles.xml.bz2
 >   @echo "Making $@..."
