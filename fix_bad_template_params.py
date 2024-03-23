@@ -97,7 +97,7 @@ def escape_url(text):
     #return site + "?" + urllib.parse.quote(params)
 
 
-ALLOWED_MODULES = { "string", "ugly hacks", "italics" }
+ALLOWED_MODULES = { "string", "ugly hacks", "italics", "checkparams" }
 class ParamFixer():
 
     def __init__(self, template_data, redirects):
@@ -155,7 +155,9 @@ class ParamFixer():
             if msg not in self._summary:
                 self._summary.append(msg)
 
-    def highlight_bad_params(self, template, keys):
+    def highlight_bad_params(self, template_orig, keys):
+
+        template = copy.deepcopy(template_orig)
 
         bad_params = []
         for p in template.params:
@@ -169,18 +171,14 @@ class ParamFixer():
 
         for p in bad_params:
             if not p.showkey:
-                p.name = "<BAD>"
+                p.name = "<BAD_POS>"
                 p.showkey = True
             else:
                 p.name = "<BAD>" + str(p.name)
 
             p.value = str(p.value) + "</BAD>"
 
-#        m = re.search("[|]\s*" + re.escape(str(template.get(key))), str(template))
-#        if not m:
-#            raise ValueError("no match")
-#        bad_data = m.group(0)
-
+        return str(template).replace("<BAD_POS>=", "<BAD>")
 
 
     def warn(self, code, page, template, keys):
@@ -192,20 +190,15 @@ class ParamFixer():
         if isinstance(keys, str):
             keys = [keys]
 
-        template_copy = copy.deepcopy(template)
+        try:
+            bad_text = self.highlight_bad_params(template, keys)
+        except Exception as e:
+            raise ValueError("mismatch", code, page, template, keys)
 
-        template_str = unescape(str(template_copy))
-        #template_str = str(template)
-
-        self.highlight_bad_params(template_copy, keys)
-
-        # fix for numbered parameters that become named parameters
-        bad_text = unescape(str(template_copy).replace("<BAD>=", "<BAD>"))
-        #bad_text = str(template).replace("<BAD>=", "<BAD>")
         key_str = ", ".join(keys)
 
         #print("WARN", (code, page, clean_name(template), key, details))
-        self._log.append((code, page, clean_name(template_copy), key_str, template_str, bad_text))
+        self._log.append((code, page, clean_name(template), key_str, str(template), bad_text))
 
     def process(self, page_text, page, summary=None, options=None):
         # This function runs in two modes: fix and report
@@ -274,7 +267,7 @@ class ParamFixer():
 #                    self.fix("missing_lang", page, t, "lang", f"missing lang :: {tid}")
 
 
-            allowed = self._templates[t_name]
+            allowed = self._templates.get(t_name, [])
             bad_params = []
             to_rename = []
             to_remove = []
@@ -303,7 +296,7 @@ class ParamFixer():
                 if t_name == "cite-book" and p_name in ["orig-year", "original year"]:
                     if t.has("year"):
                         year_param = t.get("year")
-                        print((clean_value(year_param), p_value))
+                        #print((clean_value(year_param), p_value))
                         #assert int(clean_value(year_param)) > int(p_value)
                         to_rename.append((year_param, "year_published"))
                     to_rename.append((p, "year"))
@@ -329,7 +322,7 @@ class ParamFixer():
 
                         if t.has(f"editor{x}-first"):
                             if not name:
-                                print("BAD", t)
+                                #print("BAD", t)
                                 editors = []
                                 break
                             name += ", " + str(t.get(f"editor{x}-first").value).strip()
@@ -447,9 +440,8 @@ class ParamFixer():
 
                 # Handle unrecognized parameters
                 else:
-
                     if any(c in p_name for c in """{}[]"'"""):
-                        print("unparsable", page, t, p_name)
+                        print("unparsable", page, p_name[:100])
                         self.warn("unparsable", page, t, p_name)
                         continue
 
@@ -491,11 +483,12 @@ class ParamFixer():
                         # An empty numbered param N is only safe to remove if all other params >N are unhandled and empty
                         # use str(x.value).strip() instead of clean_name(x) to avoid removing params that contain only comments
                         #if p_name.isdigit() and any(clean_name(x).isdigit() and int(clean_name(x)) > int(p_name) and (clean_name(x) in allowed or str(x.value).strip()) for x in t.params):
-                        if p_name.isdigit() and any(clean_name(x).isdigit() and int(clean_name(x)) > int(p_name) and str(x.value).strip() for x in t.params):
-                            self.warn("bad_pos_param", page, t, p_name)
-                            continue
+                        if p_name.isdigit():
+                            if any(clean_name(x).isdigit() and int(clean_name(x)) > int(p_name) and str(x.value).strip() for x in t.params):
+                                self.warn("bad_pos_param", page, t, p_name)
+                                continue
+                            can_remove_empty_positional = True
 
-                        can_remove_empty_positional = True
                         unused_empty_params.append(p)
 
                     elif RENAME_PER_TEMPLATE.get(t_name, {}).get(p_name):
@@ -530,7 +523,7 @@ class ParamFixer():
             if all(len(clean_name(p)) < 12 and re.match(r"([1-9]|1[0-9]|[A-Za-z]+([_-][a-zA-Z]+)?[1-9]?)$", clean_name(p)) for p in unused_empty_params):
                 for p in unused_empty_params:
                     p_name = clean_name(p)
-                    self.fix("bad_param", page, t, p_name, f"removed empty param '{p_name}'")
+                    self.fix("empty_param", page, t, p_name, f"removed empty param '{p_name}'")
                     t.remove(p)
             else:
                 bad_params += [clean_name(p) for p in unused_empty_params]
