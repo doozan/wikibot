@@ -165,10 +165,12 @@ def escape_sections(text, sections, escape_braces=True):
         #print("escaped ", escape_braces, [text[start:end]])
     return text
 
-def escape(text, escape_comments=True):
+def escape(text, escape_comments=True, escape_nowiki=True):
     matches = [(m.start(), m.end()) for m in re.finditer(r"<\s*noinclude\s*>.*?<\s*/\s*noinclude\s*>", text, re.DOTALL)]
     if escape_comments:
         matches += [(m.start(), m.end()) for m in re.finditer(r"<!--.*?-->", text, re.DOTALL)]
+    if escape_nowiki:
+        matches = [(m.start(), m.end()) for m in re.finditer(r"<\s*nowiki\s*>.*?<\s*/\s*nowiki\s*>", text, re.DOTALL)]
     text = escape_sections(text, matches)
 
     # it's important to escape triple before pound so that "}}}}}}" counts as two triple closes and not three double closes
