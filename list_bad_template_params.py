@@ -79,7 +79,7 @@ class WikiSaver(BaseHandler):
 
         details = f"bad param '{entry.key}'"
 
-        if "misnamed" in entry.error:
+        if "misnamed" in entry.error or any(entry.page.startswith(prefix) for prefix in ["Template:"]):
             return [f"{details} on [[{entry.page}]]"]
         else:
             return [f"{details} on [[{entry.page}]]", f": {data}"]
@@ -98,6 +98,8 @@ class WikiSaver(BaseHandler):
         param_count = defaultdict(int)
         for section_entries in page_sections:
             for i in section_entries:
+                if i.error != "bad_param":
+                    continue
                 for k in i.key.split(", "):
                     if k.isdigit():
                         continue
@@ -137,6 +139,8 @@ class WikiSaver(BaseHandler):
 
         param_count = defaultdict(int)
         for i in section_entries:
+            if i.error != "bad_param":
+                continue
             if not i.key:
                 continue
             for k in i.key.split(", "):
@@ -189,7 +193,12 @@ def log(code, page, template_name, key, details, bad_data=None):
 fixer = None
 def process(args):
     # Needed to unpack args until Pool.istarprocess exists
-    return fixer.process(*args)
+    try:
+        return fixer.process(*args)
+    except Exception as e:
+        page_text, page_title, *_ = args
+        print("Failed processing", page_title)
+        raise e
 
 def iter_bad_calls(filename, limit=None, show_progress=False, *extra, title_matches=None, text_matches=None):
     count = 0
