@@ -214,6 +214,13 @@ class ParamFixer():
         self._summary = summary
         self._log = []
 
+        #Thread:User talk:CodeCat/Wiktionary:Foreign Word of the Day/2012/October 13/reply (2)
+        if page.startswith("Thread:"):
+            return page_text if summary is not None else []
+
+        if page in ["Appendix:Greek verbs/Ξ2", "Ἰωάννα", "Wiktionary:Grease pit/2007/April", "Template:ko-basic-verb2", "Template:ko-basic-embed", "Template:bg-decl-noun-old", "Template:outdent", "Wiktionary:Grease pit/2012/October"]:
+            return page_text if summary is not None else []
+
         if "{{" not in page_text:
             return page_text if summary is not None else []
 
