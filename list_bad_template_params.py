@@ -19,59 +19,33 @@ TOTAL_TEMPLATES = 0
 TOTAL_COUNT = 0
 TOTAL_TEMPLATE_WITH_ERRORS = None
 
-class WikiSaver(BaseHandler):
+class WikiSaverBadParams(BaseHandler):
 
     def sort_items(self, items):
 
         # Filter bad pos params
-        items = [i for i in items if i.error != "bad_pos_param"]
+        items = [i for i in items if i.error == "bad_param"]
 
         print("SORTING", len(items))
         fix_count = defaultdict(int)
         count = defaultdict(int)
         for item in items:
-            if "autofix" in item.error:
-                fix_count[item.error] += 1
-            else:
-                count[item.template_name] += 1
-
-        def sort_items(x):
-
-            # fixes are sorted above everything, by error code
-            if "autofix" in x.error:
-                return 0, fix_count[x.error]*-1, x.error, x.page, x.template_name, x.key
-
-            # errors are sorted by template name
-            return 1, count[x.template_name]*-1, x.template_name, x.key, x.page
+            count[item.template_name] += 1
 
         # sort autofix sections first so they can be split into other pages
         # everything else sorted by count of section entries (smallest to largest)
-        return sorted(items, key=sort_items)
+        return sorted(items, key=lambda x: (count[x.template_name]*-1, x.template_name, x.key, x.page))
 
     def is_new_section(self, item, prev_item):
-        if prev_item and prev_item.error.startswith("autofix"):
-            return prev_item and prev_item.error != item.error
-
         return prev_item and prev_item.template_name != item.template_name
 
     def is_new_page(self, page_sections, section_entries):
-        res = page_sections and (page_sections[-1][-1].error.startswith("autofix") != section_entries[0].error.startswith("autofix"))
-        if res:
-            print("NEW PAGE")
-        return page_sections and (page_sections[-1][-1].error.startswith("autofix") != section_entries[0].error.startswith("autofix"))
+        return False
 
     def page_name(self, page_sections, prev):
-        if "autofix" in page_sections[0][0].error:
-            return FIX_PATH + "/fixes"
-        else:
-            return FIX_PATH + "/errors"
+        return FIX_PATH + "/errors"
 
     def format_entry(self, entry, prev_entry):
-
-        # if it's a fix, just print the pagename
-        if "autofix" in entry.error:
-            return [f": [[{entry.page}]] {entry.details}"]
-
 
         data = entry.bad_data.replace("<BAD>", '<span style="color:red">').replace("</BAD>", '</span>')
         data = data.replace("\n", "<br>")
@@ -79,14 +53,12 @@ class WikiSaver(BaseHandler):
 
         details = f"bad param '{entry.key}'"
 
-        if "misnamed" in entry.error or any(entry.page.startswith(prefix) for prefix in ["Template:"]):
+        if any(entry.page.startswith(prefix) for prefix in ["Template:"]):
             return [f"{details} on [[{entry.page}]]"]
-        else:
-            return [f"{details} on [[{entry.page}]]", f": {data}"]
+
+        return [f"{details} on [[{entry.page}]]", f": {data}"]
 
     def page_header(self, base_path, page_name, page_sections, pages):
-        if not page_name.endswith("/errors"):
-            return []
 
         total_items = sum(map(len, page_sections))
         res = [ f"; {total_items:,} template calls using invalid parameters",
@@ -123,11 +95,6 @@ class WikiSaver(BaseHandler):
         item = section_entries[0]
         count = len(section_entries)
 
-        if page_name.endswith("/fixes"):
-            res.append(f"==={item.error}===")
-            res.append(f"; {count} page{'s' if count>1 else ''}")
-            return res
-
         if prev_section_entries and len(prev_section_entries) >= 2 and len(section_entries) < 2:
             res.append("")
             res.append("===Other templates===")
@@ -139,8 +106,6 @@ class WikiSaver(BaseHandler):
 
         param_count = defaultdict(int)
         for i in section_entries:
-            if i.error != "bad_param":
-                continue
             if not i.key:
                 continue
             for k in i.key.split(", "):
@@ -149,10 +114,6 @@ class WikiSaver(BaseHandler):
         if prev_section_entries:
             res.append("")
         res.append(f"===[[Template:{item.template_name}|{item.template_name}]]===")
-
-        if not page_name.endswith("/errors"):
-            res.append(f"; {count} page{'s' if count>1 else ''}")
-            return res
 
         summary = ""
 
@@ -171,6 +132,79 @@ class WikiSaver(BaseHandler):
 
         return res
 
+
+class WikiSaver(BaseHandler):
+
+    def sort_items(self, items):
+
+        # Filter bad pos params
+        items = [i for i in items if i.error != "bad_param" and i.error != "bad_pos_param"]
+
+        print("SORTING", len(items))
+        fix_count = defaultdict(int)
+        count = defaultdict(int)
+        for item in items:
+            count[item.error] += 1
+
+        # sort autofix sections first so they can be split into other pages
+        # everything else sorted by count of section entries (smallest to largest)
+        return sorted(items, key=lambda x: ("autofix" not in x.error, count[x.error], x.error, x.page))
+
+    def is_new_section(self, item, prev_item):
+        return prev_item and prev_item.error != item.error
+
+    def is_new_page(self, page_sections, section_entries):
+        return page_sections and (page_sections[-1][-1].error.startswith("autofix") != section_entries[0].error.startswith("autofix"))
+
+    def page_name(self, page_sections, prev):
+        assert FIX_PATH
+
+        if not page_sections or not page_sections[0]:
+            return FIX_PATH + "/noerrors"
+
+        if "autofix" in page_sections[0][0].error:
+            return FIX_PATH + "/fixes"
+        else:
+            return FIX_PATH + "/other_errors"
+
+    def format_entry(self, entry, prev_entry):
+
+        if entry.error == "unparsable":
+            return [f": [[{entry.page}]]"]
+
+        if entry.error == "template_namespace":
+            return [f"; [[{entry.page}]]: {entry.template_name}"]
+
+        if "autofix" in entry.error:
+            return [f"; [[{entry.page}]]: {entry.details}"]
+
+        return [f": [[{entry.page}]]\n{entry.details}"]
+
+    def get_section_header(self, base_path, page_name, section_entries, prev_section_entries, pages):
+        res = []
+        if not section_entries:
+            return res
+
+        item = section_entries[0]
+        count = len(section_entries)
+
+        if prev_section_entries:
+            res.append("")
+        res.append(f"==={item.error}===")
+        res.append(f"; {count} item{'s' if count>1 else ''}")
+        return res
+
+
+class FileSaverBadParams(WikiSaverBadParams):
+
+    def save_page(self, dest, page_text):
+        dest = dest.lstrip("/").replace("/", "_")
+        with open(dest, "w") as outfile:
+            outfile.write(page_text)
+            print("saved", dest)
+
+    def save(self, *args, **nargs):
+        super().save(*args, **nargs, commit_message=None)
 
 class FileSaver(WikiSaver):
 
@@ -232,6 +266,7 @@ def main():
     parser.add_argument("--wxt", help="Wiktionary extract file to load")
     parser.add_argument("--templates", help="JSON file with template data", required=True)
     parser.add_argument("--redirects", help="TSV file with redirects", required=True)
+    parser.add_argument("--allpages", help="TXT file with allpages", default=None)
     parser.add_argument("--bad-calls", help="JSON file with bad calls, previously created with --dump-json")
     parser.add_argument("--dump-json", help="Output json file with all bad template calls")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
@@ -260,7 +295,7 @@ def main():
 """, "test")]
     #iter_entries = test_entries
 
-    fixer = ParamFixer(args.templates, args.redirects)
+    fixer = ParamFixer(args.templates, args.redirects, args.allpages)
     TOTAL_TEMPLATES = len(fixer._templates)
 
     if args.j > 1:
@@ -307,9 +342,11 @@ def main():
     if args.save:
         base_url = f"User:JeffDoozan/lists"
         logger.save(base_url, WikiSaver, commit_message=args.save)
+        logger.save(base_url, WikiSaverBadParams, commit_message=args.save)
     else:
         dest = ""
         logger.save(dest, FileSaver)
+        logger.save(dest, FileSaverBadParams)
 
 if __name__ == "__main__":
     main()

@@ -100,17 +100,23 @@ def escape_url(text):
 ALLOWED_MODULES = { "string", "ugly hacks", "italics", "checkparams" }
 class ParamFixer():
 
-    def __init__(self, template_data, redirects):
+    def __init__(self, template_data, redirects, allpages=None):
         self._summary = None
         self._log = []
+
+        self._allpages = None
+        if allpages:
+            with open(allpages) as f:
+                self._allpages = set(l.strip() for l in f)
 
         with open(template_data) as f:
             _template_data = json.load(f)
             self._templates = {k:v.get("params", []) for k,v in _template_data["templates"].items() if v["type"] in ["static", "wiki", "mixed"] and not set(v.get("modules", [])) - ALLOWED_MODULES }
+#            self._templates |= {k:[] for k in ["suffix", "der", "der2", "der3", "der4", "rel2", "rel3", "rel4", "col-auto", "inflection of", "mention", "link", "taxon"] }
             print("LOADED", len(self._templates), "templates")
 
         with open(redirects) as infile:
-            self._redirects = {x[0]:x[1] for x in csv.reader(infile, delimiter="\t") if x[0].startswith("Template:")}
+            self._redirects = {x[0].removeprefix("Template:"):x[1].removeprefix("Template:") for x in csv.reader(infile, delimiter="\t") if x[0].startswith("Template:")}
             print("LOADED", len(self._redirects), "redirects")
 
         for template, replacements in RENAME_PER_TEMPLATE.items():
@@ -181,7 +187,7 @@ class ParamFixer():
         return str(template).replace("<BAD_POS>=", "<BAD>")
 
 
-    def warn(self, code, page, template, keys):
+    def warn(self, code, page, template, keys=None):
 
         if self._summary is not None:
             print(code, page, clean_name(template), keys)
@@ -190,15 +196,19 @@ class ParamFixer():
         if isinstance(keys, str):
             keys = [keys]
 
-        try:
-            bad_text = self.highlight_bad_params(template, keys)
-        except Exception as e:
-            raise ValueError("mismatch", code, page, template, keys)
-
-        key_str = ", ".join(keys)
+        if isinstance(keys, list):
+            key_str = ", ".join(keys)
+            try:
+                bad_text = unescape(self.highlight_bad_params(template, keys))
+            except Exception as e:
+                raise ValueError("mismatch", code, page, template, keys)
+        else:
+            assert keys == None
+            key_str = keys
+            bad_text = None
 
         #print("WARN", (code, page, clean_name(template), key, details))
-        self._log.append((code, page, clean_name(template), key_str, str(template), bad_text))
+        self._log.append((code, page, clean_name(template), key_str, unescape(str(template)), bad_text))
 
     def process(self, page_text, page, summary=None, options=None):
         # This function runs in two modes: fix and report
@@ -241,13 +251,39 @@ class ParamFixer():
         count = 0
         #print("scanning", page)
         #print([clean_name(x) for x in wiki.ifilter_templates()])
-        for t in wiki.ifilter_templates(recursive=True, matches=lambda x: self._redirects.get(clean_name(x), clean_name(x)) in self._templates):
-            count += 1
-            #print("scanning", t)
+
+        for t in wiki.ifilter_templates(recursive=True):
 
             t_name = clean_name(t)
+            if t_name in ["PAGENAME", "=", "!", "CURRENTYEAR", "SUBPAGENAME", "SUBJECTSPACE", "BASEPAGENAME", "NAMESPACE"]:
+                continue
+
+            if t_name.startswith("Template:"):
+                self.warn("template_namespace", page, t)
+                t_name = t_name.removeprefix("Template:")
+            elif t_name.startswith("T:"):
+                self.warn("template_namespace", page, t)
+                t_name = t_name.removeprefix("T:")
+
+            t_name = t_name.replace("_", " ")
+
+            if any(c in t_name for c in "{}"):
+                self.warn("unparsable_template_name", page, t)
+                continue
+
+            if self._allpages and "Template:" + t_name not in self._allpages:
+                self.warn("template_redlink", page, t)
+                continue
+
             # resolve any redirects
             new_name = self._redirects.get(t_name, t_name)
+
+            # Limit processing to templates with detected params
+            if not new_name in self._templates:
+                continue
+
+            count += 1
+            #print("scanning", t)
 
             # Rename redirects to use direct template name
             if new_name != t_name:
