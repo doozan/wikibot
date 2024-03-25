@@ -53,11 +53,11 @@ def test_escape():
 |chapterurl     = ⎨⎨#if:⎨⎨⎨page⌇⎬⎬⎬⎨⎨⎨pageref⌇⎬⎬⎬⎨⎨⎨2⌇⎬⎬⎬
     ⌇≺!--Do nothing--≻
     ⌇ ⎨⎨fullurl:s:en:White Fang⌿⎨⎨#switch:⎨⎨⎨part⌇1⎬⎬⎬
-        ⌇ 1 ≈ ⎨⎨⎨chapter⌇⎨⎨⎨1⌇⎬⎬⎬⎬⎬⎬
-        ⌇ 2 ≈ ⎨⎨#expr:⎨⎨⎨chapter⌇⎬⎬⎬+3⎬⎬
-        ⌇ 3 ≈ ⎨⎨#expr:⎨⎨⎨chapter⌇⎨⎨⎨1⌇⎬⎬⎬⎬⎬⎬+8⎬⎬
-        ⌇ 4 ≈ ⎨⎨#expr:⎨⎨⎨chapter⌇⎨⎨⎨1⌇⎬⎬⎬⎬⎬⎬+14⎬⎬
-        ⌇ 5 ≈ ⎨⎨#expr:⎨⎨⎨chapter⌇⎨⎨⎨1⌇⎬⎬⎬⎬⎬⎬+20⎬⎬
+        ⌇ 1 ⎓ ⎨⎨⎨chapter⌇⎨⎨⎨1⌇⎬⎬⎬⎬⎬⎬
+        ⌇ 2 ⎓ ⎨⎨#expr:⎨⎨⎨chapter⌇⎬⎬⎬+3⎬⎬
+        ⌇ 3 ⎓ ⎨⎨#expr:⎨⎨⎨chapter⌇⎨⎨⎨1⌇⎬⎬⎬⎬⎬⎬+8⎬⎬
+        ⌇ 4 ⎓ ⎨⎨#expr:⎨⎨⎨chapter⌇⎨⎨⎨1⌇⎬⎬⎬⎬⎬⎬+14⎬⎬
+        ⌇ 5 ⎓ ⎨⎨#expr:⎨⎨⎨chapter⌇⎨⎨⎨1⌇⎬⎬⎬⎬⎬⎬+20⎬⎬
      ⎬⎬⎬⎬
  ⎬⎬
 """
@@ -74,24 +74,33 @@ def test_escape():
 
 def test_escape2():
 
-#    text     = "{{#ifexpr:{{#if:{{num|{{{letter|}}}{{{2|}}}}}|{{{letter|{{{2|}}}}}}|{{R2A|{{{letter|{{{2|}}}}}}}}}}<43|I|II}}"
-#    expected = "⎨⎨#ifexpr:⎨⎨#if:{{num⌇⎨⎨⎨letter⌇⎬⎬⎬⎨⎨⎨2⌇⎬⎬⎬}}⌇⎨⎨⎨letter⌇⎨⎨⎨2⌇⎬⎬⎬⎬⎬⎬⌇{{R2A⌇⎨⎨⎨letter⌇⎨⎨⎨2⌇⎬⎬⎬⎬⎬⎬}}⎬⎬≺43⌇I⌇II⎬⎬"
-#    res = escape(text)
-#    print(res)
-#    assert res == expected
+
+    text     = "{{#ifexpr:{{#if:{{num|{{{letter|}}}{{{2|}}}}}|{{{letter|{{{2|}}}}}}|{{R2A|{{{letter|{{{2|}}}}}}}}}}<43|I|II}}"
+    expected = "⎨⎨#ifexpr:⎨⎨#if:{{num|⎨⎨⎨letter⌇⎬⎬⎬⎨⎨⎨2⌇⎬⎬⎬}}⌇⎨⎨⎨letter⌇⎨⎨⎨2⌇⎬⎬⎬⎬⎬⎬⌇{{R2A|⎨⎨⎨letter⌇⎨⎨⎨2⌇⎬⎬⎬⎬⎬⎬}}⎬⎬≺43⌇I⌇II⎬⎬"
+    res = escape(text)
+    print(res)
+    assert res == expected
+
+
+    text     = "{{{a|{{foo|bar}}}}}"
+    expected = "⎨⎨⎨a⌇{{foo|bar}}⎬⎬⎬"
+    res = escape(text)
+    print(res)
+    assert res == expected
+
 
 
     text = """
 {{{1|
   {{#if:|
-    {{R2A|}}}}
+    {{R2A|x}}}}
 }}}
 """
 
     expected = """
 ⎨⎨⎨1⌇
   ⎨⎨#if:⌇
-    {{R2A⌇}}⎬⎬
+    {{R2A|x}}⎬⎬
 ⎬⎬⎬
 """
     res = escape(text)
@@ -99,7 +108,7 @@ def test_escape2():
     assert res == expected
 
     text = """
-|pageurl        = https://archive.org/details/lettersofjaneaus0{{#switch:{{uc:{{{volume|}}}{{{1|
+{{#switch:{{uc:{{{volume|}}}{{{1|
     {{#if:{{{letter|}}}{{{2|}}}
         | {{#ifexpr:{{#if:{{num|{{{letter|}}}{{{2|}}}}}|{{{letter|{{{2|}}}}}}|{{R2A|{{{letter|{{{2|}}}}}}}}}}<43|I|II}}
       }}
@@ -119,17 +128,17 @@ def test_escape2():
 """
 
     expected = """
-|pageurl        = https://archive.org/details/lettersofjaneaus0⎨⎨#switch:⎨⎨uc:⎨⎨⎨volume⌇⎬⎬⎬⎨⎨⎨1⌇
+⎨⎨#switch:⎨⎨uc:⎨⎨⎨volume⌇⎬⎬⎬⎨⎨⎨1⌇
     ⎨⎨#if:⎨⎨⎨letter⌇⎬⎬⎬⎨⎨⎨2⌇⎬⎬⎬
-        ⌇ ⎨⎨#ifexpr:⎨⎨#if:{{num⌇⎨⎨⎨letter⌇⎬⎬⎬⎨⎨⎨2⌇⎬⎬⎬}}⌇⎨⎨⎨letter⌇⎨⎨⎨2⌇⎬⎬⎬⎬⎬⎬⌇{{R2A⌇⎨⎨⎨letter⌇⎨⎨⎨2⌇⎬⎬⎬⎬⎬⎬}}⎬⎬≺43⌇I⌇II⎬⎬
+        ⌇ ⎨⎨#ifexpr:⎨⎨#if:{{num|⎨⎨⎨letter⌇⎬⎬⎬⎨⎨⎨2⌇⎬⎬⎬}}⌇⎨⎨⎨letter⌇⎨⎨⎨2⌇⎬⎬⎬⎬⎬⎬⌇{{R2A|⎨⎨⎨letter⌇⎨⎨⎨2⌇⎬⎬⎬⎬⎬⎬}}⎬⎬≺43⌇I⌇II⎬⎬
       ⎬⎬
   ⎬⎬⎬⎬⎬
-    ⌇ I ≈ 1aust⌿page⌿⎨⎨#ifexpr:{{num⌇⎨⎨⎨page⌇⎬⎬⎬⎨⎨⎨pageref⌇⎬⎬⎬⎨⎨⎨4⌇⎬⎬⎬}}
+    ⌇ I ⎓ 1aust⌿page⌿⎨⎨#ifexpr:{{num|⎨⎨⎨page⌇⎬⎬⎬⎨⎨⎨pageref⌇⎬⎬⎬⎨⎨⎨4⌇⎬⎬⎬}}
         ⌇ ⎨⎨#ifeq:⎨⎨⎨page⌇⎬⎬⎬⎨⎨⎨pageref⌇⎬⎬⎬⎨⎨⎨4⌇⎬⎬⎬⌇1
             ⌇ n20
             ⌇ ⎨⎨⎨page⌇⎨⎨⎨pageref⌇⎨⎨⎨4⌇⎬⎬⎬⎬⎬⎬⎬⎬⎬
           ⎬⎬
-        ⌇ n⎨⎨#expr:{{R2A⌇⎨⎨⎨page⌇⎨⎨⎨pageref⌇⎨⎨⎨4⌇⎬⎬⎬⎬⎬⎬⎬⎬⎬}}+3⎬⎬
+        ⌇ n⎨⎨#expr:{{R2A|⎨⎨⎨page⌇⎨⎨⎨pageref⌇⎨⎨⎨4⌇⎬⎬⎬⎬⎬⎬⎬⎬⎬}}+3⎬⎬
       ⎬⎬
     ⌇ 2aust⌿page⌿⎨⎨#ifeq:⎨⎨⎨page⌇⎬⎬⎬⎨⎨⎨pageref⌇⎬⎬⎬⎨⎨⎨4⌇⎬⎬⎬⌇1
         ⌇ n14
@@ -154,12 +163,46 @@ def test_escape2():
     print(res)
     assert res == expected
 
+    text     = """cat={{#if:1||{{template|foo}}}}"""
+    expected = """cat=⎨⎨#if:1⌇⌇{{template|foo}}⎬⎬"""
+    res = escape(text)
+    print(res)
+    assert res == expected
+
+    text = """
+{{myv-noun-table<!--
+-->|x={{{x|}}}<!--
+-->|type=back-vowel stem ({{m|myv|ума|tr=-}}) type<!--
+
+-->|1a={{PAGENAME}}<!--
+-->|2a={{#if:{{{sg|}}}||{{PAGENAME}}т}}<!--
+-->|3a={{PAGENAME}}нь<!--
+-->|5a={{PAGENAME}}нень<!--
+-->|7a={{PAGENAME}}до<!--
+-->|9a={{PAGENAME}}со<!--
+-->|11a={{PAGENAME}}сто<!--
+-->|13a={{PAGENAME}}с<!--
+-->|15a={{PAGENAME}}ва<!--
+-->|17a={{PAGENAME}}шка<!--
+-->|19a={{PAGENAME}}кс<!--
+-->|21a={{PAGENAME}}втомо<!--
+-->|cat={{#if:{{{nocat|}}}||{{catlangname|myv|uma-type nominals}}}}<!--
+
+-->}}<!--
+"""
+    expected = """cat=⎨⎨#if:1⌇⌇{{template|foo}}⎬⎬"""
+    res = escape(text)
+    print(res)
+    assert res == expected
+
+
 
 
 def test_get_synonyms():
 
     text = " {{{4|{{{ passage | {{{text}}}}}}}}} "
     text= escape(text)
+    print(text)
     assert fixer.get_synonyms(text) == ["4", "passage", "text"]
 
     text = " {{{4|{{{ passage | {{{text|}}}}}}}}} "
@@ -188,6 +231,20 @@ def test_get_synonyms():
 
 
 def test_fix_escape_triple_braces():
+
+    text     = "{{{a|{{{b}}}}}}"
+    expected = "⎨⎨⎨a⌇⎨⎨⎨b⎬⎬⎬⎬⎬⎬"
+    res = escape(text)
+    print(res)
+    assert res == expected
+
+    # unclosed }}}
+    text     = "{{{a|{{{b}}}}}"
+    expected = "{{{a|⎨⎨⎨b⎬⎬⎬}}"
+    res = escape(text)
+    print(res)
+    assert res == expected
+
     assert escape_triple_braces("test {{{a|}}} {{{b|}}} {{{c|{{{d|}}}}}}") == 'test ⎨⎨⎨a⌇⎬⎬⎬ ⎨⎨⎨b⌇⎬⎬⎬ ⎨⎨⎨c⌇⎨⎨⎨d⌇⎬⎬⎬⎬⎬⎬'
 
     assert escape_triple_braces("{{#if:{{{document|}}}|&#32;{{{document}}.}}}") == "{{#if:⎨⎨⎨document⌇⎬⎬⎬|&#32;⎨⎨⎨document}}.⎬⎬⎬"

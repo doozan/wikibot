@@ -21,100 +21,101 @@ def clean_value(t, key):
 def unescape(text):
     return text.translate(_tr_unescape)
 
-def escape_pound_braces(text):
-    prev_start = -1
-    start = 0
-    while "{{#" in text and start != prev_start:
-        prev_start = start
-        depth = 0
-        start = text.rindex("{{#")
-        end = 0
-        for m in re.finditer(r"(\{\{|\}\})", text[start:]):
-            if m.group(0) == "{{":
-                depth += 1
-            if m.group(0) == "}}":
-                depth -= 1
-                if depth == 0:
-                    end = start+m.end()
-                    break
-        if end:
-            #print("ESCAPE POUND", "⎨⎨" + text[start+2:end-2] + "⎬⎬")
-            text = text[:start] + "⎨⎨" + text[start+2:end-2] + "⎬⎬" + text[end:]
-            text = escape_sections(text, [(start+2,end-2)], escape_braces=False)
-        else:
-            break
 
-    return text
+def _get_escapable(text, triple_close=False):
 
+    # bracketed text inside of a pound brace should not be escaped
+    # {{#if:{{{A}}}|do this|do {{THAT|OTHER|THING}} }}
+    escapable = []
+    escape_start = 0
+    depth = 1
+
+    for m in re.finditer(r"(\{\{|\}\})", text):
+        if m.group(0) == "{{":
+            if depth == 1:
+                escapable.append((escape_start, m.start()))
+            depth += 1
+        if m.group(0) == "}}":
+            depth -= 1
+            if depth == 1:
+                escape_start = m.end()
+            if depth <= 0:
+                if triple_close:
+                    if m.end() < len(text) and text[m.end()] == "}":
+                        escapable.append((escape_start, m.end()+1))
+                        break
+                    else:
+                        depth = 1
+                        continue
+
+                escapable.append((escape_start, m.end()))
+                break
+
+    # unclosed template, don't escape
+    if depth:
+        escapable = []
+
+    return escapable
 
 def escape_magic(text):
     #escapes {{magic:foo|bar}}
     # use negative lookahead to get rightmost match
     m = re.search(r"\{\{[a-z]+:(?!.*\{\{[a-z]+:)", text)
 
-    prev_start = -1
-    start = 0
-    while m and prev_start != start:
-        prev_start = start
-        depth = 0
-        start = m.start()
-        end = 0
-        for m in re.finditer(r"(\{\{|\}\})", text[start:]):
-            if m.group(0) == "{{":
-                depth += 1
-            if m.group(0) == "}}":
-                depth -= 1
-                if depth == 0:
-                    end = start+m.end()
-                    break
-        if end:
+    prev_offset = -1
+    offset = 0
+    while m and prev_offset != offset:
+        prev_offset = offset
+        offset = m.end()
+
+        escapable = [(start+offset, end+offset) for start, end in _get_escapable(text[offset:])]
+        if escapable:
+            text = escape_sections(text, escapable, escape_braces=False)
+            start = m.start()
+            end = escapable[-1][1]
             text = text[:start] + "⎨⎨" + text[start+2:end-2] + "⎬⎬" + text[end:]
-            text = escape_sections(text, [(start+2,end-2)], escape_braces=False)
 
         # use negative lookahead to get rightmost match
         m = re.search(r"\{\{[a-z]+:(?!.*\{\{[a-z]+:)", text)
 
     return text
 
+def escape_pound_braces(text):
+    prev_offset = -1
+    offset = 0
+    while "{{#" in text and offset != prev_offset:
+        prev_offset = offset
+        offset = text.rindex("{{#") + 3
 
-def escape_triple_braces(text):
-    prev_start = -1
-    start = 0
-    while "{{{" in text and start != prev_start:
-        prev_start = start
-        depth = 0
-        start = text.rindex("{{{")
-        end = 0
-        for m in re.finditer(r"(\{|\})", text[start:]):
-
-            # This isn't pefect and could glitch if there are single braces, however, it passes
-            # {{{a|
-            #    {{if#:
-            #       {{test|}}}}
-            # }}}
-            if m.group(0) == "{":
-                depth += 1
-            if m.group(0) == "}":
-                depth -= 1
-                if depth <= 0:
-                    possible_end = start + m.end()
-                    if text[possible_end-3:possible_end] == "}}}":
-                        end = possible_end
-                        break
-                    else:
-                        # TODO: log this for manual review
-                        pass
-        if end:
-            assert text[start:start+3] == "{{{"
-            assert text[end-3:end] == "}}}"
-
-            text = text[:start] + "⎨⎨⎨" + text[start+3:end-3] + "⎬⎬⎬" + text[end:]
-            text = text[:start] + "⎨⎨⎨" + text[start+3:end-3] + "⎬⎬⎬" + text[end:]
-            text = escape_sections(text, [(start+3,end-3)], escape_braces=False)
-        else:
-            break
+        escapable = [(start+offset, end+offset) for start, end in _get_escapable(text[offset:])]
+        if escapable:
+            text = escape_sections(text, escapable, escape_braces=False)
+            start = offset-3
+            end = escapable[-1][1]
+            text = text[:start] + "⎨⎨" + text[start+2:end-2] + "⎬⎬" + text[end:]
 
     return text
+
+
+
+def escape_triple_braces(text):
+
+    prev_offset = -1
+    offset = 0
+    while "{{{" in text and offset != prev_offset:
+        prev_offset = offset
+        offset = text.rindex("{{{") + 3
+
+        escapable = [(start+offset, end+offset) for start, end in _get_escapable(text[offset:], triple_close=True)]
+
+        if escapable:
+            text = escape_sections(text, escapable, escape_braces=False)
+            start = offset-3
+            end = escapable[-1][1]
+            text = text[:start] + "⎨⎨⎨" + text[start+3:end-3] + "⎬⎬⎬" + text[end:]
+
+    return text
+
 
 
 def escape_square_braces(text):
@@ -281,10 +282,7 @@ class RqTemplateFixer():
         pattern = r"^\s*⎨⎨⎨\s*([a-zA-Z0-9 _-]+)\s*⌇?\s*(.*?)\s*⎬⎬⎬\s*$"
         m = re.match(pattern, text)
 
-        prev_start = -1
-        start = 0
-        while m and prev_start != start:
-            prev_start = start
+        while m:
             syns.append(m.group(1).strip())
             text = m.group(2)
             m = re.match(pattern, text)
