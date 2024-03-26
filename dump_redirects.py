@@ -10,45 +10,7 @@ import re
 import sys
 
 import enwiktionary_sectionparser as sectionparser
-from autodooz.utils import iter_xml, iter_wxt
-
-namespaces = {
-    "Talk": ["talk"],
-    "User": ["user"],
-    "User talk": ["user talk"],
-    "Wiktionary": ["wt", "wiktionary"],
-    "Wiktionary talk": ["wiktionary talk"],
-    "File": ["file", "image"],
-    "File talk": ["file talk", "image talk"],
-    "Mediawiki": ["mediawiki"],
-    "Template": ["t", "template"],
-    "Template talk": ["template talk"],
-    "Help": ["help"],
-    "Help talk": ["help talk"],
-    "Category": ["cat", "c", "category"],
-    "Category talk": ["category talk"],
-    "Thread": ["thread"],
-    "Thread talk": ["thread talk"],
-    "Summary": ["summary"],
-    "Summary talk": ["summary talk"],
-    "Appendix": ["ap", "appendix"],
-    "Appendix talk": ["appendix talk"],
-    "Rhymes": ["rhymes"],
-    "Rhymes talk": ["rhymes talk"],
-    "Transwiki": ["transwiki"],
-    "Transwiki talk": ["transwiki talk"],
-    "Thesaurus": ["ws", "thesaurus", "wikisaurus"],
-    "Thesaurus talk": ["thesaurus talk", "wikisaurus talk"],
-    "Citations": ["citations"],
-    "Citations talk": ["citations talk"],
-    "Sign gloss": ["sign gloss"],
-    "Sign gloss talk": ["sign gloss talk"],
-    "Reconstruction": ["rc", "reconstruction"],
-    "Reconstruction talk": ["reconstruction talk"],
-    "Module": ["mod", "module"],
-    "Module talk": ["module talk"],
-}
-ns_aliases = [alias for aliases in namespaces.values() for alias in aliases]
+from autodooz.utils import iter_xml, iter_wxt, split_namespace
 
 def process(args):
     entry_text, entry_title = args
@@ -59,15 +21,7 @@ def process(args):
         return
 
     target = m.group(1)
-    if ":" in target:
-        m = re.match("([:]?(" + "|".join(ns_aliases) + ")):", target, re.IGNORECASE)
-        if m:
-            old = m.group(1)
-            alias = old.lstrip(":").lower()
-            new = [k for k,v in namespaces.items() if alias in v]
-            assert len(new) == 1
-            new = new[0]
-            target = new + target.removeprefix(old)
+    namespace, target = split_namespace(target)
 
     return entry_title, target
 
