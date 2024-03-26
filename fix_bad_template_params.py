@@ -10,7 +10,7 @@ import json
 import urllib
 
 from Levenshtein import distance
-from autodooz.fix_rq_template import escape, unescape
+from autodooz.escape_template import escape, unescape
 
 
 IGNORE_TEMPLATES = [
