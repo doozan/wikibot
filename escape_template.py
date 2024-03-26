@@ -11,6 +11,31 @@ _tr_with_braces = str.maketrans(_tr_orig_with_braces, _tr_alt_with_braces)
 
 _tr_unescape = str.maketrans(_tr_alt_with_braces, _tr_orig_with_braces)
 
+def escape(text, escape_comments=True, escape_nowiki=True):
+    """
+    Escapes items that can't be properly parsed by mwparserfromhell on template pages:
+        variables:  {{{foo|{{{bar}}}}}}
+        logic: {{#if|statements}}
+        magic commands: {{uc:test|blah}}
+    """
+
+    matches = [(m.start(), m.end()) for m in re.finditer(r"<\s*noinclude\s*>.*?<\s*/\s*noinclude\s*>", text, re.DOTALL)]
+    if escape_comments:
+        matches += [(m.start(), m.end()) for m in re.finditer(r"<!--.*?-->", text, re.DOTALL)]
+    if escape_nowiki:
+        matches = [(m.start(), m.end()) for m in re.finditer(r"<\s*nowiki\s*>.*?<\s*/\s*nowiki\s*>", text, re.DOTALL)]
+    text = escape_sections(text, matches)
+
+    # it's important to escape triple before pound so that "}}}}}}" counts as two triple closes and not three double closes
+    text = escape_triple_braces(text)
+    text = escape_pound_braces(text)
+    text = escape_magic(text)
+
+    pattern = r"<(\s*[/]?\s*(nowiki|noinclude|includeonly)\s*[/]?\s*)>"
+    matches = [(m.start(), m.end()) for m in re.finditer(pattern, text, re.DOTALL)]
+    text = escape_sections(text, matches)
+
+    return text
 
 def unescape(text):
     return text.translate(_tr_unescape)
@@ -110,33 +135,6 @@ def escape_triple_braces(text):
     return text
 
 
-
-def escape_square_braces(text):
-    sections = []
-
-    prev_start = -1
-    start = 0
-    while "[" in text and start != prev_start:
-        prev_start = start
-        depth = 0
-        start = text.rindex("[")
-        end = 0
-        for m in re.finditer(r"(\[|\])", text[start:]):
-            if m.group(0) == "[":
-                depth += 1
-            if m.group(0) == "]":
-                depth -= 1
-                if depth == 0:
-                    end = start + m.end()
-                    break
-        if end:
-            sections.append((start,end))
-        else:
-            break
-
-    return escape_sections(text, [(start,end)])
-
-
 def escape_sections(text, sections, escape_braces=True):
 
     # TODO: Option to escape_pipes_inside_braces, should be False for escape_triple and friends
@@ -148,21 +146,3 @@ def escape_sections(text, sections, escape_braces=True):
         #print("escaped ", escape_braces, [text[start:end]])
     return text
 
-def escape(text, escape_comments=True, escape_nowiki=True):
-    matches = [(m.start(), m.end()) for m in re.finditer(r"<\s*noinclude\s*>.*?<\s*/\s*noinclude\s*>", text, re.DOTALL)]
-    if escape_comments:
-        matches += [(m.start(), m.end()) for m in re.finditer(r"<!--.*?-->", text, re.DOTALL)]
-    if escape_nowiki:
-        matches = [(m.start(), m.end()) for m in re.finditer(r"<\s*nowiki\s*>.*?<\s*/\s*nowiki\s*>", text, re.DOTALL)]
-    text = escape_sections(text, matches)
-
-    # it's important to escape triple before pound so that "}}}}}}" counts as two triple closes and not three double closes
-    text = escape_triple_braces(text)
-    text = escape_pound_braces(text)
-    text = escape_magic(text)
-
-    pattern = r"<(\s*[/]?\s*(nowiki|noinclude|includeonly)\s*[/]?\s*)>"
-    matches = [(m.start(), m.end()) for m in re.finditer(pattern, text, re.DOTALL)]
-    text = escape_sections(text, matches)
-
-    return text
