@@ -64,6 +64,10 @@ def main():
     template_total = defaultdict(int)
     template_pages = defaultdict(int)
 
+
+    stderr_writer = csv.writer(sys.stdout, delimiter='\t', lineterminator='\n')
+    stdout_writer = csv.writer(sys.stdout, delimiter='\t', lineterminator='\n')
+
     for results in iter_items:
         if not results:
             continue
@@ -72,6 +76,12 @@ def main():
 
         page_count = 0
         for template, count in template_count.items():
+
+            if template.startswith("Template:"):
+                template = template.removeprefix("Template:")
+            elif template.startswith("T:"):
+                template = template.removeprefix("T:")
+            template = template.replace("_", " ")
 
             template = redirects.get(template, template)
 
@@ -86,10 +96,10 @@ def main():
             page_count += count
 
             if args.debug and entry_title == args.debug:
-                print(f"{template}\t{count}", file=sys.stderr)
+                stderr_writer.writerow([template,count])
 
         if page_mode:
-            print(f"{entry_title}\t{page_count}")
+            stdout_writer.writerow([entry_title, page_count])
 
 
     if not page_mode:
