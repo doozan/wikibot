@@ -8,13 +8,9 @@ import os
 import re
 import sys
 
+from autodooz.magic_words import MAGIC_WORDS, MAGIC_COMMANDS
 from autodooz.utils import iter_wxt, iter_xml
 from collections import defaultdict
-
-
-# https://www.mediawiki.org/wiki/Help:Magic_words
-MAGIC_WORDS = [ "FULLPAGENAME", "PAGENAME", "BASEPAGENAME", "NAMESPACE", "!", "SUBPAGENAME", "SUBJECTSPACE", "TALKPAGENAME"  ]
-MW_COMMANDS = MAGIC_WORDS + ["subst", "safesubst", "uc", "lc", "padleft", "padright", "ns", "urlencode", "fullurl", "localurl", "ucfirst"]
 
 def main():
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
@@ -63,7 +59,7 @@ def get_template_stats(args):
     entry_title = entry_title.removeprefix("Template:")
     entry_text = get_included_text(entry_text)
 
-    entry_text = re.sub("{{\s*(" + "|".join(MW_COMMANDS) + ")\s*:", "", entry_text, flags=re.IGNORECASE)
+    entry_text = re.sub("{{\s*(" + "|".join(MAGIC_COMMANDS) + ")\s*:", "", entry_text, flags=re.IGNORECASE)
 
     if re.match(r"^\s*#REDIRECT", entry_text, re.IGNORECASE):
         return

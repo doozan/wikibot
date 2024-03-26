@@ -8,13 +8,11 @@ import re
 import sys
 
 from autodooz.fix_rq_template import RqTemplateFixer
+from autodooz.magic_words import MAGIC_WORDS
 from autodooz.utils import iter_wxt, iter_xml
 from collections import defaultdict
 from pywikibot import xmlreader
 
-
-# https://www.mediawiki.org/wiki/Help:Magic_words
-MAGIC_WORDS = [ "FULLPAGENAME", "PAGENAME", "BASEPAGENAME", "NAMESPACE", "!" ]
 
 def main():
     parser = argparse.ArgumentParser(description="Find errors in sense lists")

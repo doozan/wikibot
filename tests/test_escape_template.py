@@ -168,7 +168,7 @@ def test_escape2():
     assert res == expected
 
 
-def test_fix_escape_triple_braces():
+def test_escape_triple_braces():
 
     text     = "{{{a|{{{b}}}}}}"
     expected = "⎨⎨⎨a⌇⎨⎨⎨b⎬⎬⎬⎬⎬⎬"
@@ -187,4 +187,16 @@ def test_fix_escape_triple_braces():
 
     assert escape_triple_braces("{{#if:{{{document|}}}|&#32;{{{document}}.}}}") == "{{#if:⎨⎨⎨document⌇⎬⎬⎬|&#32;⎨⎨⎨document}}.⎬⎬⎬"
 
+def test_escape_magic():
 
+    text     = """{{subst:foo|bar|baz}}"""
+    expected = """⎨⎨subst:foo⌇bar⌇baz⎬⎬"""
+    res = escape_magic(text)
+    print(res)
+    assert res == expected
+
+    text     = """{{R:foo|bar|baz}}"""
+    expected = """{{R:foo|bar|baz}}"""
+    res = escape_magic(text)
+    print(res)
+    assert res == expected

@@ -1,4 +1,5 @@
 import re
+from autodooz.magic_words import MAGIC_WORDS, MAGIC_COMMANDS
 
 _tr_orig = "[]|<>/="
 _tr_alt = "⎣⎦⌇≺≻⌿⎓"
@@ -78,11 +79,16 @@ def _get_escapable(text, triple_close=False):
 def escape_magic(text):
     #escapes {{magic:foo|bar}}
     # use negative lookahead to get rightmost match
-    m = re.search(r"\{\{[a-z]+:(?!.*\{\{[a-z]+:)", text)
+    m = re.search(r"\{\{\s*([a-z]+):(?!.*\{\{\s*[a-z]+:)", text)
 
     prev_offset = -1
     offset = 0
     while m and prev_offset != offset:
+
+        command = m.group(1)
+        if command not in MAGIC_COMMANDS:
+            continue
+
         prev_offset = offset
         offset = m.end()
 
@@ -94,7 +100,7 @@ def escape_magic(text):
             text = text[:start] + "⎨⎨" + text[start+2:end-2] + "⎬⎬" + text[end:]
 
         # use negative lookahead to get rightmost match
-        m = re.search(r"\{\{[a-z]+:(?!.*\{\{[a-z]+:)", text)
+        m = re.search(r"\{\{\s*([a-z]+):(?!.*\{\{\s*[a-z]+:)", text)
 
     return text
 
