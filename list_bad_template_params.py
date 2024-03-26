@@ -269,6 +269,7 @@ def main():
     parser.add_argument("--allpages", help="TXT file with allpages", default=None)
     parser.add_argument("--bad-calls", help="JSON file with bad calls, previously created with --dump-json")
     parser.add_argument("--dump-json", help="Output json file with all bad template calls")
+    parser.add_argument("--dump-bad-param-only", help="Only dump calls with bad_param to json", action='store_true')
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
@@ -329,8 +330,9 @@ def main():
     if args.dump_json:
         templates_with_errors = defaultdict(lambda: defaultdict(list))
         for i in logger._items:
-            if "autofix" not in i.error:
-                templates_with_errors[i.template_name][i.page].append((i.key, i.details))
+            if args.dump_bad_param_only and i.error != "bad_param":
+                continue
+            templates_with_errors[i.template_name][i.page].append((i.key, i.details))
 
         with open(args.dump_json, "w") as outfile:
             json.dump({"templates": templates_with_errors}, outfile, ensure_ascii=False, indent=4, sort_keys=True)
