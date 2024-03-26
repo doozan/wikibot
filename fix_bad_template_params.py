@@ -19,6 +19,8 @@ IGNORE_TEMPLATES = [
 IGNORE_PER_TEMPLATE = {
 }
 
+REMOVE_GLOBAL = [ "lang" ]
+
 REMOVE_PER_TEMPLATE = {
     "az-variant": [ "r", "l" ],
     "en-symbol": [ "1" ],
@@ -78,6 +80,14 @@ RENAME_REDIRECTS = {
     "R:tr:TDK"
 }
 
+def normalize_template_name(template_name):
+    template_name = template_name.replace("_", " ")
+
+    for prefix in ["T:", "Template:"]:
+        if template_name.startswith(prefix):
+            return template_name.removeprefix(prefix)
+
+    return template_name
 
 def clean_name(obj):
     text = re.sub(r"<!--.*?-->", "", unescape(str(obj.name)), flags=re.DOTALL)
@@ -207,8 +217,11 @@ class ParamFixer():
             key_str = keys
             bad_text = None
 
+        t_name = clean_name(template)
+        t_name = normalize_template_name(t_name)
+
         #print("WARN", (code, page, clean_name(template), key, details))
-        self._log.append((code, page, clean_name(template), key_str, unescape(str(template)), bad_text))
+        self._log.append((code, page, t_name, key_str, unescape(str(template)), bad_text))
 
     def process(self, page_text, page, summary=None, options=None):
         # This function runs in two modes: fix and report
@@ -258,14 +271,15 @@ class ParamFixer():
             if t_name in ["PAGENAME", "=", "!", "CURRENTYEAR", "SUBPAGENAME", "SUBJECTSPACE", "BASEPAGENAME", "NAMESPACE"]:
                 continue
 
-            if t_name.startswith("Template:"):
-                self.warn("template_namespace", page, t)
-                t_name = t_name.removeprefix("Template:")
-            elif t_name.startswith("T:"):
-                self.warn("template_namespace", page, t)
-                t_name = t_name.removeprefix("T:")
+            t_normal = normalize_template_name(t_name)
+            if t_normal != t_name and self._allpages and "Template:" + t_normal in self._allpages:
+                if ":" not in t_normal:
+                    print(page, t_name, f"renamed template to {t_normal}")
+                    self.fix("normalized", page, t, None, f"normalized template name to {t_normal}")
+                    t.name = str(t.name).replace(t_name, t_normal)
+                    continue
 
-            t_name = t_name.replace("_", " ")
+            t_name = t_normal
 
             if any(c in t_name for c in "{}"):
                 self.warn("unparsable_template_name", page, t)
