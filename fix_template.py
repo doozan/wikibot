@@ -3,6 +3,8 @@ import mwparserfromhell as mwparser
 import re
 from collections import defaultdict
 
+# TODO: support redirects/aliases
+
 def get_page_fixes(page, all_fixes):
     return [f for f in all_fixes if f.get("title", "*") in [page, "*"]]
 
@@ -43,19 +45,20 @@ def get_template_changes(template, wiki_context, fixes):
 
             context_pattern = tmpl.get("context_regex")
             if context_pattern:
-                assert "{{TMPL}}" in context_pattern
+                #assert "{{TMPL}}" in context_pattern
 
                 orig_name = str(template.name)
                 template.name = "AUTODOOZ_MATCH"
                 context_pattern = context_pattern.replace("{{TMPL}}", re.escape(str(template)))
-                context_match = re.search(context_pattern, str(wiki_context), flags=re.MULTILINE)
+                context_match = re.search(context_pattern, str(wiki_context), flags=re.DOTALL)
                 template.name = orig_name
 
                 if not context_match:
                     continue
+                return match["changes"]
 
             pattern = tmpl.get("regex")
-            if pattern and pattern == "*" or re.search(pattern, str(template).strip()):
+            if pattern and (pattern == "*" or re.search(pattern, str(template).strip())):
                 return match["changes"]
 
             # exact match by parameter comparison
@@ -182,10 +185,10 @@ def fix_templates(entry_text, entry_title, summary, all_fixes):
         new_text = str(entry)
 
     else:
-        wiki = mwparser.parse(page_text)
+        wiki = mwparser.parse(entry_text)
         for t in wiki.ifilter_templates():
 
-            changes = get_template_changes(t, wiki, section_fixes)
+            changes = get_template_changes(t, wiki, page_fixes)
             if not changes:
                 continue
 
