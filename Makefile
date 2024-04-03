@@ -788,7 +788,7 @@ $(FIX)%_list_to_col:
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-$(FIX)quote_with_bare_passage:
+$(FIX)quote_with_bare_passage: $(BUILDDIR)/template_data.json
 >   SRC="User:JeffDoozan/lists/quote_with_bare_passage/fixes"
 >   FIX="--fix quote_with_bare_passage --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=2000
@@ -824,10 +824,12 @@ $(FIX)bare_ux:
 $(FIX)punc_refs:
 >   $(WIKIFIX) --fix punc_refs -namespace:0 -search:"insource:/ref[ \n]*>[ ]*[,.;]/"
 >   $(WIKIFIX) --fix punc_refs -namespace:0 -search:"insource:/\<ref[^>]*\/[ ]*\>[ ]*[.,;]/"
+>   date > $@
 
 $(FIX)rq_templates: $(BUILDDIR)/rq_template_params.json
 >   $(WIKIFIX) --fix rq_template -search:"insource:/\{quote-/ -insource:/quote-meta/ prefix:Template:RQ:"
 >   $(WIKIFIX) --fix rq_template -search:"insource:/allowparams[ ]*=[ ]*\*/ prefix:Template:RQ:"
+>   date > $@
 
 $(FIX)template_params: $(BUILDDIR)/template_data.json
 >   SRC="User:JeffDoozan/lists/template_params/fixes"
@@ -843,7 +845,7 @@ $(FIX)template_params: $(BUILDDIR)/template_data.json
 $(FIX)missing_taxlinks: $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons.tsv
 >   SRC="User:JeffDoozan/lists/missing_taxlink/fixes"
 >   FIX="--fix missing_taxlinks --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=200000
+>   MAX=2000
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
