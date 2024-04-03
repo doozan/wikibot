@@ -109,6 +109,10 @@ $(BUILDDIR)/%.json: force
 >   @echo "Subcontracting $@..."
 >   $(MAKE) -C $(SPANISH_DATA) $(@:$(SPANISH_DATA)/%=%)
 
+$(BUILDDIR)/%.bz2: force
+>   @echo "Subcontracting $@..."
+>   $(MAKE) -C $(SPANISH_DATA) $(@:$(SPANISH_DATA)/%=%)
+
 force: ;
 # force used per https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 
