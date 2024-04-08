@@ -85,12 +85,12 @@ def escape_magic(text):
     offset = 0
     while m and prev_offset != offset:
 
+        prev_offset = offset
+        offset = m.end()
+
         command = m.group(1)
         if command not in MAGIC_COMMANDS:
             continue
-
-        prev_offset = offset
-        offset = m.end()
 
         escapable = [(start+offset, end+offset) for start, end in _get_escapable(text[offset:])]
         if escapable:
@@ -107,16 +107,21 @@ def escape_magic(text):
 def escape_pound_braces(text):
     prev_offset = -1
     offset = 0
-    while "{{#" in text and offset != prev_offset:
+    # use negative lookahead to get rightmost match
+    m = re.search(r"\{\{\s*#(?!.*\{\{\s*#)", text)
+    while m:
         prev_offset = offset
-        offset = text.rindex("{{#") + 3
+        offset = m.end()
 
         escapable = [(start+offset, end+offset) for start, end in _get_escapable(text[offset:])]
         if escapable:
             text = escape_sections(text, escapable, escape_braces=False)
-            start = offset-3
+            start = m.start()
             end = escapable[-1][1]
             text = text[:start] + "⎨⎨" + text[start+2:end-2] + "⎬⎬" + text[end:]
+
+        # use negative lookahead to get rightmost match
+        m = re.search(r"\{\{\s*#(?!.*\{\{\s*#)", text)
 
     return text
 

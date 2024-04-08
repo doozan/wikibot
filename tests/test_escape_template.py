@@ -1,4 +1,4 @@
-from autodooz.escape_template import escape, unescape, escape_triple_braces, escape_pound_braces, escape_magic
+from autodooz.escape_template import escape, unescape, escape_triple_braces, escape_pound_braces, escape_magic, _get_escapable
 
 def test_escape():
 
@@ -12,6 +12,13 @@ def test_escape():
     res = escape(text)
     print(res)
     assert res == expected
+
+    text = " {{ #ifeq:{{{version|}}}|Hg }} "
+    expected = " ⎨⎨ #ifeq:⎨⎨⎨version⌇⎬⎬⎬⌇Hg ⎬⎬ "
+    res = escape(text)
+    print(res)
+    assert res == expected
+
 
     text = """
 |section        = {{#ifeq:{{{version|}}}|Hg
@@ -68,6 +75,7 @@ def test_escape():
     res = escape(text)
     print(res)
     assert res == expected
+
 
 
 def test_escape2():
