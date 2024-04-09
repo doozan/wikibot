@@ -43,6 +43,12 @@ def iter_wxt(filename, limit=None, show_progress=False, *extra, title_matches=No
             break
         count += 1
 
+        if title_matches and not title_matches(entry.title):
+            continue
+
+        if text_matches and not text_matches(entry.text):
+            continue
+
         yield entry.text, entry.title, *extra
 
 
