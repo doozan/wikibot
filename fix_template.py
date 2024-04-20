@@ -98,6 +98,14 @@ def apply_template_changes(t, changes, summary):
             if not t.has(key):
                 t.add(key, value)
 
+        elif action == "rename_param":
+            assert len(values) == 2
+            old, new = values
+            if t.has(old):
+                assert not t.has(new)
+                k = t.get(old)
+                k.name = str(k.name).replace(old, new)
+
         elif action == "regex_sub":
             # "regex_sub" is processed later
             continue
