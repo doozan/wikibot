@@ -31,15 +31,19 @@ def main():
 
     p_total =  gp_cat.categoryinfo["subcats"]
     for p_idx, p_cat in enumerate(gp_cat.subcategories(), 1):
+#        p_cat = pywikibot.Category(site, 'Category:Pages using bad params when calling Greek templates')
         c_total =  p_cat.categoryinfo["subcats"]
         for c_idx, c_cat in enumerate(p_cat.subcategories(), 1):
             count += 1
-            c_cat_is_empty = not any(p for p in c_cat.articles() if "Talk:" not in p.title() and "User:" not in p.title())
+            c_cat_is_empty = not any(c_cat.subcategories()) and not any(p for p in c_cat.articles() if "Talk:" not in p.title() and "User:" not in p.title())
             print(f"{count} {p_idx}/{p_total} {c_idx}/{c_total} ({len(empty_cats)} empty)", end = '\r', file=sys.stderr)
             if c_cat_is_empty:
                 print("empty:", list(c_cat.articles()), c_cat.title())
                 empty_cats.append(c_cat.title())
-                template_name = re.search("^Category:Pages using bad params when calling (Template:.*)", c_cat.title()).group(1)
+                m = re.search("^Category:Pages using bad params when calling (Template:.*)", c_cat.title())
+                if not m:
+                    continue
+                template_name = m.group(1)
                 if not replace_warn_with_error(template_name):
                     print(f"Unable to auto-fix {template_name}")
                     continue
