@@ -1,5 +1,7 @@
 # Standalone magic words / variables
 MAGIC_WORDS = [
+"!",
+"=",
 
 "CURRENTYEAR",
 "CURRENTMONTH",

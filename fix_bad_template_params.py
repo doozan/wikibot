@@ -11,7 +11,7 @@ import urllib
 
 from Levenshtein import distance
 from autodooz.escape_template import escape, unescape
-
+from autodooz.magic_words import MAGIC_WORDS, MAGIC_COMMANDS
 
 IGNORE_TEMPLATES = [
 ]
@@ -268,24 +268,46 @@ class ParamFixer():
         for t in wiki.ifilter_templates(recursive=True):
 
             t_name = clean_name(t)
-            if t_name in ["PAGENAME", "=", "!", "CURRENTYEAR", "SUBPAGENAME", "SUBJECTSPACE", "BASEPAGENAME", "NAMESPACE"]:
+            if t_name in MAGIC_WORDS or t_name.partition(":")[0] in MAGIC_COMMANDS:
                 continue
 
+            t_name = re.sub(r"<\s*[/]?\s*noinclude\s*>", "", t_name)
+            t_name = re.sub(r"<\s*[/]?\s*includeonly\s*>", "", t_name)
+
             t_normal = normalize_template_name(t_name)
-            if t_normal != t_name and self._allpages and "Template:" + t_normal in self._allpages:
-                if ":" not in t_normal:
-                    print(page, t_name, f"renamed template to {t_normal}")
-                    self.fix("normalized", page, t, None, f"normalized template name to {t_normal}")
-                    t.name = str(t.name).replace(t_name, t_normal)
-                    continue
+            if t_normal != t_name and self._allpages:
+                if "Template:" + t_normal in self._allpages:
+                    # Allow Template: prefix when it's used to force transclusion of one page over another
+                    if ":" in t_normal and t_normal in self._allpages:
+                        self.warn("forced_transclusion", page, t)
+
+                    # Allow Template:User:template because otherwise creating User:template will change the templates
+                    elif t_normal.startswith("User:"):
+                        self.warn("preferred_transclusion", page, t)
+
+                    #if ":" in t_normal:
+                    #    self.warn("abnormal", page, t)
+                    #if ":" not in t_normal:
+                    else:
+                        self.fix("normalized", page, t, None, f"normalized template name to {t_normal}")
+                        t.name = str(t.name).replace(t_name, t_normal)
 
             t_name = t_normal
 
-            if any(c in t_name for c in "{}"):
-                self.warn("unparsable_template_name", page, t)
-                continue
-
             if self._allpages and "Template:" + t_name not in self._allpages:
+
+                if any(c in t_name for c in """()'";="""):
+                    self.warn("probably_not_template", page, t)
+                    continue
+
+                if "{{{" in t_name and t_name.count("{{{") == t_name.count("}}}"):
+                    self.warn("variable_template_name", page, t)
+                    continue
+
+                if any(c in t_name for c in "{}"):
+                    self.warn("unparsable_template_name", page, t)
+                    continue
+
                 self.warn("template_redlink", page, t)
                 continue
 
@@ -332,12 +354,20 @@ class ParamFixer():
             fixed_translators = False
             unused_empty_params = []
             can_remove_empty_positional = False
+            seen_params = []
+            dup_params = []
             for p in t.params:
                 p_name = clean_name(p)
                 p_value = clean_value(p)
                 if p_name == "":  # {{code|=foo}} is the same as {{code|1=foo}}, used to allow constructs like {{code|=foo=bar}}
                     p_name = "1"
 
+                #if p_name in seen_params:
+                #    dup_params.append(p_name)
+                #else:
+                #    seen_params.append(p_name)
+                #
+                """
 
                 if t_name == "cite-book" and p_name == "script-title":
                     if t.has("title"):
@@ -475,6 +505,7 @@ class ParamFixer():
                         #print("fix", p_name, p.value)
                         self.fix("translators", page, t, p_name, f"merged various translator params into 'tranlator='")
                         continue
+                """
 
 
                 # allow forcefully renaming/removing recognized params
@@ -498,12 +529,22 @@ class ParamFixer():
                 # Handle unrecognized parameters
                 else:
                     if any(c in p_name for c in """{}[]"'"""):
-                        print("unparsable", page, p_name[:100])
                         self.warn("unparsable", page, t, p_name)
+                        continue
+
+                    # strip 1= from el-noun-form when it doesn't look like a gender
+                    if t_name == "el-noun-form" and p_name == "2" and re.search("[^mfn\s\-]", p_value):
+                        #to_remove.append(p)
+                        continue
+
+                    # strip 1= from el-adj-form when it doesn't look like a form= value
+                    if t_name == "el-adj-form" and p_name == "1" and not re.match("^(pos|comp|sup|comsup)$", p_value):
+                        #to_remove.append(p)
                         continue
 
                     if t_name == "cite-book" and p_name == "titel" and p_value == "Archived copy":
                         to_remove.append(p)
+                        continue
 
                     # Handle case mismatch
                     case_mismatch = [p for p in allowed if p.lower() == p_name.lower()]
@@ -520,12 +561,12 @@ class ParamFixer():
                         continue
 
                     # Handle typos
-#                    typos = [p for p in allowed if p.isalpha() and p_name.isalpha() and (p.endswith("s") == p_name.endswith("s")) and len(p_name) >= 5 and distance(p, p_name) <= 1 ]
-#                    if len(typos) == 1:
-#                        new_name = typos[0]
-#                        if not t.has(new_name) and not any(p_name.startswith(x) for x in ["no", "fpl"]) and not p_name in ["absnote", "volumes", "isbn"]:
-#                            to_rename.append((p, new_name))
-#                            continue
+                    #typos = [p for p in allowed if p.isalpha() and p_name.isalpha() and (p.endswith("s") == p_name.endswith("s")) and len(p_name) >= 4 and distance(p, p_name) <= 1 ]
+                    #if len(typos) == 1:
+                    #    new_name = typos[0]
+                    #    if not t.has(new_name) and not any(p_name.startswith(x) for x in ["no", "fpl"]) and not p_name in ["absnote", "volumes", "isbn"]:
+                    #        to_rename.append((p, new_name))
+                    #        continue
 
                     # handle positional params with urls containing "="
                     if re.match("http[s]?://", p_name) and clean_value(p) and " " not in clean_value(p):
@@ -534,6 +575,9 @@ class ParamFixer():
                         to_replace_str.append((t, old_str, new_str))
 
                     elif p_name in REMOVE_PER_TEMPLATE.get(t_name, []):
+                        to_remove.append(p)
+
+                    elif p_name in REMOVE_GLOBAL:
                         to_remove.append(p)
 
                     elif not p_value:
@@ -562,12 +606,32 @@ class ParamFixer():
                     elif p_name in IGNORE_PER_TEMPLATE.get(t_name, []):
                         continue
 
-
-
-
                     else:
                         #print("BAD", t_name, p_name, p_value)
                         bad_params.append(p_name)
+
+            unresolved_dup_params = []
+            for p_name in sorted(set(dup_params)):
+                dups = [p for p in t.params if clean_name(p) == p_name or clean_name(p) == "" and p_name == "1"]
+#                if p_name == "trans-title":
+#                    t.get("title").value = str(t.get("title").value) + "<tr:" + str(dups[0].value) + ">"
+#                    t.remove(dups[0])
+#                    self.fix("dup_param", page, t, p_name, f"converted param into translit modifier")
+#                    continue
+                vals = set( clean_value(p) for p in dups )
+                if False: # len(vals) > 1:
+                    unresolved_dup_params.append(p_name)
+                else:
+                    for p in dups[1:]:
+                        t.remove(p)
+                    self.fix("dup_param", page, t, p_name, f"removed duplicate param '{p_name}'")
+
+#            print("SEEN", seen_params)
+#            print("DUPS", dup_params)
+#            print("UDUPS", unresolved_dup_params)
+
+            if unresolved_dup_params:
+                self.warn("dup_param", page, t, sorted(unresolved_dup_params))
 
             for p, new_name in to_rename:
                 old_name = clean_name(p)
