@@ -105,11 +105,12 @@ def escape_magic(text):
     return text
 
 def escape_pound_braces(text):
-    prev_offset = -1
-    offset = 0
     # use negative lookahead to get rightmost match
     m = re.search(r"\{\{\s*#(?!.*\{\{\s*#)", text)
-    while m:
+
+    prev_offset = -1
+    offset = 0
+    while m and prev_offset != offset:
         prev_offset = offset
         offset = m.end()
 
