@@ -121,8 +121,9 @@ class WikiSaverBadParams(BaseHandler):
         SUMMARY_LEN=10
 
         # Don't truncate some templates
-        if item.template_name in ["taxlink"]:
-            SUMMARY_CUTOFF = count + 1
+        expanded_langs = [ "el" ]
+        if any(item.template_name.startswith(f"{lang}-") or f":{lang}:" in item.template_name for lang in expanded_langs):
+            SUMMARY_CUTOFF =  100
 
         if count > SUMMARY_CUTOFF:
             summary = "(unhandled params: " + ", ".join(f"'{k}':{v}" for k,v in sorted(param_count.items(), key=lambda x: (x[1]*-1, x[0]))) + ")"
@@ -172,7 +173,7 @@ class WikiSaver(BaseHandler):
         if entry.error == "unparsable":
             return [f": [[{entry.page}]]"]
 
-        if entry.error == "template_namespace":
+        if entry.error in ["variable_template_name", "unparsable_template_name", "probably_not_template", "template_namespace"]:
             return [f"; [[{entry.page}]]: {entry.template_name}"]
 
         if "autofix" in entry.error:
@@ -234,7 +235,7 @@ def process(args):
         print("Failed processing", page_title)
         raise e
 
-def iter_bad_calls(filename, limit=None, show_progress=False, *extra, title_matches=None, text_matches=None):
+def iter_json(filename, limit=None, show_progress=False, *extra, title_matches=None, text_matches=None):
     count = 0
     with open(filename) as infile:
         data = json.load(infile)
@@ -264,10 +265,10 @@ def main():
 
     parser.add_argument("--xml", help="XML file to load")
     parser.add_argument("--wxt", help="Wiktionary extract file to load")
+    parser.add_argument("--json", help="JSON file with bad calls, previously created with --dump-json")
     parser.add_argument("--templates", help="JSON file with template data", required=True)
     parser.add_argument("--redirects", help="TSV file with redirects", required=True)
     parser.add_argument("--allpages", help="TXT file with allpages", default=None)
-    parser.add_argument("--bad-calls", help="JSON file with bad calls, previously created with --dump-json")
     parser.add_argument("--dump-json", help="Output json file with all bad template calls")
     parser.add_argument("--dump-bad-param-only", help="Only dump calls with bad_param to json", action='store_true')
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
@@ -279,8 +280,8 @@ def main():
     if not args.j:
         args.j = multiprocessing.cpu_count()-1
 
-    if sum(1 for a in [args.xml, args.wxt, args.bad_calls] if a) != 1:
-        print("use either --xml or --wxt or --bad-calls")
+    if sum(1 for a in [args.xml, args.wxt, args.json] if a) != 1:
+        print("use either --xml or --wxt or --json")
         exit(1)
 
     if args.wxt:
@@ -288,7 +289,7 @@ def main():
     elif args.xml:
         iter_entries = iter_xml(args.xml, args.limit, args.progress)
     else:
-        iter_entries = iter_bad_calls(args.bad_calls, args.limit, args.progress)
+        iter_entries = iter_json(args.json, args.limit, args.progress)
 
 
     test_entries = [("""
