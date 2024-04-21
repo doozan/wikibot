@@ -92,6 +92,9 @@ def process(args):
 
     taxlinks = []
     for t in wiki.ifilter_templates(recursive=True, matches=lambda x: str(x.name).strip() == "taxlink"):
+        if not (t.has(1) and t.has(2)):
+            print("missing params", entry_title_section, t, file=sys.stderr)
+            continue
         taxon = str(t.get(1).value).strip()
         rank = str(t.get(2).value).strip()
         if not taxon or not rank:
