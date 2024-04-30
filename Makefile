@@ -308,7 +308,7 @@ $(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.allforms.csv
 >   $(GETIGNORE) "$$DEST" > $@.ignore
 >
 >   $(LIST_MISSING_DRAE) \
->       --min-use 4000 \
+>       --min-use 3500 \
 >       --wikt $(BUILDDIR)/es-en.enwikt.allforms.csv \
 >       --drae $(DRAEDATA)/drae.allforms.csv \
 >       --drae-links $(DRAEDATA)/drae.links \
