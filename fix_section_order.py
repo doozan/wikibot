@@ -84,9 +84,15 @@ class SectionOrderFixer:
         self.page_title = "test"
 
     @staticmethod
-    def strip_accents(s):
-       return ''.join(c for c in unicodedata.normalize('NFD', s)
+    def normalize_lang(s):
+
+        # strip diacritics
+        res = ''.join(c for c in unicodedata.normalize('NFD', s)
                       if unicodedata.category(c) != 'Mn')
+
+        # remove ' marks
+        # replace hypens with spaces
+        return res.replace("'", "").replace("-", " ")
 
     @classmethod
     def get_language_key(cls, title):
@@ -97,7 +103,7 @@ class SectionOrderFixer:
         elif title == "English":
             return (1, title)
 
-        return (2, cls.strip_accents(title))
+        return (2, cls.normalize_lang(title))
 
     def sort_l2(self, entry):
 

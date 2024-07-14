@@ -9,6 +9,7 @@ def test_sort_languages():
 ==Translingual==
 ==Spanish==
 ==English==
+=='Are'are==
 ==Aisi==
 ==Estonian==
 ==Finnish==
@@ -25,6 +26,8 @@ def test_sort_languages():
 ==English==
 
 ==Aisi==
+
+=='Are'are==
 
 ==Estonian==
 
