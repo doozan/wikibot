@@ -853,6 +853,12 @@ $(FIX)missing_taxlinks: $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
+$(BUILDDIR)/.update_langs:
+>   @echo "Updating languages"
+>   cd ../enwiktionary_parser
+>   git pull
+>   date > $@
+
 
 # Lists that run in less that 30 minutes on single core
 fast_lists: $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_tlfi pt_with_synonyms)
@@ -866,7 +872,7 @@ slow_lists_no_fixes: $(patsubst %,$(LIST)%, local_taxons external_taxons possibl
 lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz fast_lists slow_lists slow_lists_no_fixes
 
 # Fixes that are safe to run automatically and without supervision
-autofixes: $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col quote_with_bare_passage sense_bylines bare_ux punc_refs)
+autofixes: $(BUILDDIR)/.update_langs $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col quote_with_bare_passage sense_bylines bare_ux punc_refs)
 
 # Fixes that may make mistakes and need human supervision
 otherfixes: $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form template_params missing_taxlinks)
