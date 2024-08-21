@@ -28,6 +28,16 @@ def test_basic():
     assert str(res) == expected_text
 
 
+    # Translation is mandatory for non-english terms
+    test = [
+       "#: ''the ux line must be completely italacized, have a '''bold''' word, and not contain wikilinks''",
+    ]
+    text = header + "\n".join(test)
+    res = fixer.process(text, "test", [], [])
+    assert str(res) == text
+
+
+
     test = [
        "#: ''the ux line must be completely italacized, have a '''bold''' word, and not contain [[wikilinks]]''",
        "#:: And the translation must have a '''bold''' word, start with a capital and end with punctuation."
@@ -111,6 +121,42 @@ def test_basic():
     res = fixer.process(text, "test", [], [])
     assert str(res) == expected_text
 
+def test_english():
+
+    header = """\
+==English==
+
+===Noun===
+{{en-head}}
+
+# [[sense]]
+"""
+
+    test = [
+       "#: ''The ux line must be completely italacized, have a '''bold''' word, and not contain wikilinks, and be formatted as a sentence.''",
+    ]
+    expected = [
+       "#: {{ux|en|The ux line must be completely italacized, have a '''bold''' word, and not contain wikilinks, and be formatted as a sentence.}}",
+    ]
+    text = header + "\n".join(test)
+    expected_text = header + "\n".join(expected)
+    res = fixer.process(text, "test", [], [])
+    assert str(res) == expected_text
+
+
+    test = [
+       "#: ''The ux line must be completely italacized, have a '''bold''' word, and not contain wikilinks, and be formatted as a sentence. This does not end with a punctuation mark''",
+    ]
+    text = header + "\n".join(test)
+    res = fixer.process(text, "test", [], [])
+    assert str(res) == text
+
+    test = [
+       "#: ''this does not start with a capital. The ux line must be completely italacized, have a '''bold''' word, and not contain wikilinks, and be formatted as a sentence.''",
+    ]
+    text = header + "\n".join(test)
+    res = fixer.process(text, "test", [], [])
+    assert str(res) == text
 
 
 def test_vada():
@@ -144,7 +190,7 @@ def test_geometri():
 #:: By modifying the [[parallel postulate]] of [[w:Euclid|Euclid]], [[w:Nikolai Ivanovich Lobachevsky|Lobachevsky]] defined a new kind of geometry.
 # a [[geometry]], a [[shape]]; an item's relative [[spatial]] [[attribute]]s
 #: ''När ett nytt ämne med en annan '''geometri''' ska bearbetas, utarbetas ett nytt NC-program.''
-#:: When a new object with a different geometry is to be manufactured, a new CNC program is developed.\
+#:: When a new object with a different geometry is to be manufactured, a new CNC program is developed.
 """
 
     expected = """
@@ -163,3 +209,4 @@ def test_geometri():
 
     res = fixer.process(text, "test", [], [])
     assert str(res) == expected
+

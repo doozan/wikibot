@@ -61,9 +61,9 @@ class BareUxFixer():
 
         for section in entry.ifilter_sections(matches=lambda x: x.title in ALL_POS):
 
-            # Only operate on non-english entries
+            # Only operate on valid languages
             lang_id = ALL_LANGS.get(section._topmost.title)
-            if not lang_id or lang_id == "en":
+            if not lang_id:
                 continue
 
             pos = sectionparser.parse_pos(section)
@@ -128,9 +128,12 @@ class BareUxFixer():
                 if len(fixable_items) != len(bare_ux_items):
                     if len(bare_ux_items) > 1:
                         self.warn("unfixable_multi_ux", section, item.name, str(sense))
+#                    else:
+#                        self.warn("unfixable", section, item.name, str(sense))
                     continue
 
-                if len(bare_ux_items) > 1:
+                # Limit to English, to avoid splitting badly formatted ux+translation into ux+ux
+                if len(bare_ux_items) > 1 and lang_id != "en":
                     self.warn("multi_bare_ux", section, "", str(sense))
                     continue
 
@@ -181,6 +184,9 @@ class BareUxFixer():
                     if translation and "://" in translation:
                         self.warn("url_in_ux_translation", section, item.name, translation)
                         continue
+
+                    if "=" in passage:
+                        passage = "2=" + passage
 
                     new_wikiline = item.prefix + " {{ux|" + lang_id + "|" + passage
                     if translation:
