@@ -85,3 +85,61 @@ expected = """
 #: {{ux|The square was filled with booths, with vendors offering their '''wares'''.}}
 """
 
+
+def test_add_missing_rfdef():
+
+    # No change normal def
+    text = """\
+==English==
+
+===Noun===
+{{head|en|noun}}
+
+# def
+"""
+
+    expected = text
+
+    summary = []
+    res = fixer.process(text, "page", summary)
+    assert res == expected
+
+
+
+
+    # Add missing rfdef
+    text = """\
+==English==
+
+===Noun===
+{{head|en|noun}}
+"""
+
+    expected = """\
+==English==
+
+===Noun===
+{{head|en|noun}}
+
+# {{rfdef|en}}\
+"""
+
+    summary = []
+    res = fixer.process(text, "page", summary)
+    assert res == expected
+
+
+
+    # Don't add rfdef for templates that generate def lines
+    text = """\
+==Arabic==
+
+===Noun===
+{{ar-verb form|ألفى<IV>}}
+"""
+
+    expected = text
+
+    summary = []
+    res = fixer.process(text, "page", summary)
+    assert res == expected
