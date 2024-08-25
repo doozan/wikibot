@@ -1186,3 +1186,150 @@ def test_fix_anagrams():
 #    print(res)
 
     assert res == result
+
+def test_remove_ety_counter():
+
+    text = """\
+==English==
+
+===Etymology 1===
+blah
+
+====Adjective====
+# blah
+"""
+
+    result = """\
+==English==
+
+===Etymology===
+blah
+
+===Adjective===
+# blah\
+"""
+
+    summary = []
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
+    print(res)
+
+    assert res == result
+
+
+
+    text = """\
+==English==
+
+===Etymology 1.1===
+blah
+
+====Adjective====
+# blah
+"""
+
+    result = """\
+==English==
+
+===Etymology===
+blah
+
+===Adjective===
+# blah\
+"""
+
+    summary = []
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
+    print(res)
+
+    assert res == result
+
+
+
+def test_fix_ety_counter():
+
+    text = """\
+==English==
+
+===Etymology 2===
+abc
+
+====Adjective====
+# abc
+
+===Etymology 1===
+zyx
+
+====Adjective====
+# zyx\
+"""
+
+    result = """\
+==English==
+
+===Etymology 1===
+abc
+
+====Adjective====
+# abc
+
+===Etymology 2===
+zyx
+
+====Adjective====
+# zyx\
+"""
+
+    summary = []
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
+    print(res)
+
+    assert res == result
+
+
+def test_skip_complex_ety_counter():
+
+    text = """\
+==English==
+
+===Etymology 1.1===
+abc
+
+====Adjective====
+# abc
+
+===Etymology 1.2===
+zyx
+
+====Adjective====
+# zyx\
+"""
+
+    result = """\
+==English==
+
+===Etymology 1.1===
+abc
+
+====Adjective====
+# abc
+
+===Etymology 1.2===
+zyx
+
+====Adjective====
+# zyx\
+"""
+
+    summary = []
+    fixer = SectionLevelFixer()
+    res = fixer.process(text, "test", summary)
+    print(res)
+
+    assert res == result
+
+
+
+

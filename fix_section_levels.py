@@ -128,6 +128,13 @@ class SectionLevelFixer():
                 section.count = None
 
         elif len(sections) > 1:
+
+            # Verify that all section counters are simple integers (avoid breaking stuff like Etymology 1.2)
+            for section in sections:
+                if section.count and not section.count.isdigit():
+                    self.warn("complex_counter", section.path)
+                    return
+
             for count, section in enumerate(sections, 1):
                 count = str(count)
                 if section.count != count:
