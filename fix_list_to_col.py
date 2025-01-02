@@ -7,7 +7,7 @@ import re
 from autodooz.sections import ALL_LANGS, ALL_LANG_IDS
 from enwiktionary_parser.utils import nest_aware_resplit
 
-""" Converts bulleted lists of {{l}} items into {{col-auto}} lists """
+""" Converts bulleted lists of {{l}} items into {{col}} lists """
 
 class ListToColFixer():
 
@@ -52,8 +52,8 @@ class ListToColFixer():
 
         new_lines = self.process_lines(lang_id, old_lines, section, page)
         if new_lines and new_lines != old_lines:
-            if "\n".join(old_lines).count("col-auto") < "\n".join(new_lines).count("col-auto"):
-                self.fix("list_to_col", section, "converted to {{col-auto}}")
+            if "\n".join(old_lines).count("col") < "\n".join(new_lines).count("col"):
+                self.fix("list_to_col", section, "converted to {{col}}")
 
             section.content_wikilines = new_lines
             return True
@@ -86,7 +86,7 @@ class ListToColFixer():
             return pre + post
 
         # Convert existing column templates
-        if re.match(r"\{\{(\s*(col-auto|(rel|col|der)[2345])\s*($|\|))", lines[0]):
+        if re.match(r"\{\{(\s*(col[-auto]?|(rel|col|der)[2345])\s*($|\|))", lines[0]):
             new_lines = self.convert_list_templates(lang_id, lines, section, page)
 
         # Convert any exist {{top}}, {{rel-N}} or {{der-N}} lists
@@ -113,7 +113,7 @@ class ListToColFixer():
 
     def convert_list_templates(self, lang_id, lines, section, page):
         """
-        Converts {{derX}} {{relX}} and {{colX}} templates to {{col-auto}}
+        Converts {{derX}} {{relX}} and {{colX}} templates to {{col}}
         returns None if no templates were converted
         """
 
@@ -129,11 +129,11 @@ class ListToColFixer():
             wikicode = mwparserfromhell.parse(data)
             template = None
             for template in wikicode.filter_templates():
-                if not re.match("col-auto|(rel|col|der)[2345]$", template.name.strip()):
+                if not re.match("col[-auto]?|(rel|col|der)[2345]$", template.name.strip()):
                     self.warn("unhandled_list_template", section, str(template))
                     return
 
-                if template.name.strip() != "col-auto":
+                if template.name.strip() != "col":
                     changed = True
 
                 params = {}
@@ -159,8 +159,8 @@ class ListToColFixer():
                             items.append(item)
                             if item != old_item:
                                 changed = True
-                                if template.name.strip() == "col-auto":
-                                    self.fix("update_col_params", section, "{{col-auto}} adjusted item formatting")
+                                if template.name.strip() == "col":
+                                    self.fix("update_col_params", section, "{{col}} adjusted item formatting")
                         else:
                             self.fix("remove_duplicate", section, 'removed duplicate item "' + item + '"' )
                             changed = True
@@ -203,12 +203,12 @@ class ListToColFixer():
 
     def convert_lines_to_template(self, lang_id, lines, section, page):
         """
-        converts a list of bulleted {{l}} items to {{col-auto}}:
+        converts a list of bulleted {{l}} items to {{col}}:
         * {{l|es|one}}
         * {{l|es|two}} {{g|m}}
         * {{l|es|three}}
         ==
-        {{col-auto|es|one|{{l|es|two|g=m}}|three}}
+        {{col|es|one|{{l|es|two|g=m}}|three}}
         """
 
         items = []
@@ -246,7 +246,7 @@ class ListToColFixer():
 
         named_params = "|" + "|".join(f"{k}={v}" for k,v in params.items()) if params else ""
 
-        return "{{col-auto|" + lang_id + named_params + br + "|" + f"{br}|".join(items) + br + "}}"
+        return "{{col|" + lang_id + named_params + br + "|" + f"{br}|".join(items) + br + "}}"
 
     def convert_top_templates(self, lang_id, lines, section, page):
         """
@@ -264,8 +264,8 @@ class ListToColFixer():
         * [[d3]]
         {{der-bottom}}
         ==
-        {{col-auto|pl|r1|r2|r3}}
-        {{col-auto|pl|d1|d2|d3}}
+        {{col|pl|r1|r2|r3}}
+        {{col|pl|d1|d2|d3}}
         """
 
         new_lines = []
@@ -317,12 +317,12 @@ class ListToColFixer():
 
     def convert_titled_lists_to_templates(self, lang_id, lines, section, page):
         """
-        Converts single-line, bulleted, titled, lists into {{col-auto}}
+        Converts single-line, bulleted, titled, lists into {{col}}
         * {{q|adjectives}} {{l|pl|a1}}, {{l|pl|a2}}, {{l|pl|a3}}
         * {{q|nouns}} {{l|pl|n1}}, {{l|pl|n2}}, {{l|pl|n3}}
         ==
-        {{col-auto|pl|title=adjectives|a1|a2|a3}}
-        {{col-auto|pl|title=nouns|n1|n2|n3}}
+        {{col|pl|title=adjectives|a1|a2|a3}}
+        {{col|pl|title=nouns|n1|n2|n3}}
         """
 
         new_lines = []
@@ -369,10 +369,10 @@ class ListToColFixer():
 
     def line_to_template(self, lang_id, line, section, page, label_required=False):
         """
-        Converts a single-line, bulleted, titled, list into {{col-auto}}
+        Converts a single-line, bulleted, titled, list into {{col}}
         * {{q|adjectives}} {{l|pl|a1}}, {{l|pl|a2}}, {{l|pl|a3}}
         ==
-        {{col-auto|pl|title=adjectives|a1|a2|a3}}
+        {{col|pl|title=adjectives|a1|a2|a3}}
 
         Returns None if a line does not match expected input
         """
@@ -560,7 +560,7 @@ class ListToColFixer():
 
             for section in l2.ifilter_sections(matches=lambda x: x.title in options["sections"]):
                 if self.process_section(section, title):
-                    self.fix("list_to_col", section, "converted to {{col-auto}}")
+                    self.fix("list_to_col", section, "converted to {{col}}")
                     entry_changed = True
 
         if summary is None:

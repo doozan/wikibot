@@ -4,14 +4,14 @@ fixer = ListToColFixer()
 def test_line_to_template():
 
     tests = {
-        ("* {{q|test}} {{l|cs|one}}, {{l|cs|two}}", "{{col-auto|cs|title=test|one|two}}"),
-#        ("* {{q|test}} {{l|cs|one}}; ,,;,  {{l|cs|two}}, ", "{{col-auto|cs|title=test|one|two}}"),
-        ("* {{q|test}} {{l|cs|one}}, {{l|cs|two}}, {{l|cs|one}}", "{{col-auto|cs|title=test|one|two}}"),
+        ("* {{q|test}} {{l|cs|one}}, {{l|cs|two}}", "{{col|cs|title=test|one|two}}"),
+#        ("* {{q|test}} {{l|cs|one}}; ,,;,  {{l|cs|two}}, ", "{{col|cs|title=test|one|two}}"),
+        ("* {{q|test}} {{l|cs|one}}, {{l|cs|two}}, {{l|cs|one}}", "{{col|cs|title=test|one|two}}"),
         ("* {{q|test}} {{l|cs|one}}, {{l|cs|two}}, three", None),
         ("*: {{q|test}} {{l|cs|one}}, {{l|cs|two}}", None),
         ("# {{q|test}} {{l|cs|one}}, {{l|cs|two}}", None),
         ("* {{q|test}} {{l|cs|one}}, {{XX|cs|two}}", None),
-        ("* {{l|cs|one}}, {{l|cs|two}}", "{{col-auto|cs|one|two}}"),
+        ("* {{l|cs|one}}, {{l|cs|two}}", "{{col|cs|one|two}}"),
         ("* {{q|test}}", None),
     }
 
@@ -30,8 +30,8 @@ def test_convert_titled_lists_to_templates():
         "* {{q|nouns}} {{l|cs|n1}}, {{l|cs|n2}}, {{l|cs|n3}}",
     ]
     expected = [
-        "{{col-auto|cs|title=adjectives|a1|a2, a2;2|a3}}",
-        "{{col-auto|cs|title=nouns|n1|n2|n3}}",
+        "{{col|cs|title=adjectives|a1|a2, a2;2|a3}}",
+        "{{col|cs|title=nouns|n1|n2|n3}}",
     ]
 
     res = fixer.convert_titled_lists_to_templates("cs", lines, None, None)
@@ -60,9 +60,9 @@ def test_convert_top_templates():
         "{{bottom}}",
         ]
     expected = [
-        "{{col-auto|cs|r1|r2}}",
-        "{{col-auto|cs|d1|d2}}",
-        "{{col-auto|cs|t1|t2}}",
+        "{{col|cs|r1|r2}}",
+        "{{col|cs|d1|d2}}",
+        "{{col|cs|t1|t2}}",
     ]
 
     res = fixer.convert_top_templates("cs", lines, None, None)
@@ -82,7 +82,7 @@ def test_process_lines():
         "* [[a4]]",
     ]
     expected = [
-        "{{col-auto|cs|a1|a2|a3|a4}}",
+        "{{col|cs|a1|a2|a3|a4}}",
     ]
 
     assert fixer.process_lines("cs", lines) == expected
@@ -92,7 +92,7 @@ def test_process_lines():
         "* [[a4|a4alt]]",  # Links with | should produce alt
     ]
     expected =  ["""\
-{{col-auto|cs
+{{col|cs
 |a1
 |a4<alt:a4alt>
 }}"""]
@@ -104,7 +104,7 @@ def test_process_lines():
         "* {{l|cs|a3}} {{g|f}}",
     ]
     expected = [
-        """{{col-auto|cs
+        """{{col|cs
 |a1
 |a2<g:m>
 |a3<g:f>
@@ -142,7 +142,7 @@ def test_process_lines():
         "* {{l|cs|a3}}",
     ]
     expected = [
-        """{{col-auto|cs
+        """{{col|cs
 |a1<alt:param2>
 |a2
 |a3
@@ -161,9 +161,9 @@ def test_process_lines():
     ]
     expected = [
         "* See {{l|xx|blah}}",
-        "{{col-auto|cs|c1|c2|c3}}",
-        "{{col-auto|cs|d1|d2|d3}}",
-        "{{col-auto|cs|r1|r2|r3}}",
+        "{{col|cs|c1|c2|c3}}",
+        "{{col|cs|d1|d2|d3}}",
+        "{{col|cs|r1|r2|r3}}",
         "* See {{l|xx|blah}}",
     ]
     assert fixer.process_lines("cs", lines) == expected
@@ -186,7 +186,7 @@ def test_process_lines():
         "|c3}}",
     ]
     expected = [
-        "{{col-auto|cs|c1|c2|c3}}",
+        "{{col|cs|c1|c2|c3}}",
     ]
     assert fixer.process_lines("cs", lines) == expected
 
@@ -197,7 +197,7 @@ def test_process_lines():
         "* {{l|cs|a3}}",
     ]
     expected = [
-        "{{col-auto|cs|a1|a2|a3}}",
+        "{{col|cs|a1|a2|a3}}",
     ]
 
     res = fixer.process_lines("cs", lines)
@@ -210,7 +210,7 @@ def test_process_lines():
         "* {{l|cs|a1}}, {{l|cs|a2}}, {{l|cs|a3}}",
     ]
     expected = [
-        "{{col-auto|cs|a1|a2|a3}}",
+        "{{col|cs|a1|a2|a3}}",
     ]
 
     res = fixer.process_lines("cs", lines)
@@ -226,7 +226,7 @@ def test_process_lines():
     ]
     expected = [
         """\
-{{col-auto|cs
+{{col|cs
 |barbechar<pos:v>
 |barbechera<g:f>
 |en barbecho
@@ -239,11 +239,11 @@ def test_process_lines():
 
 
     lines = [
-        "{{col-auto|es|{{l|es|Juanita}} {{q|diminutive}}}}"
+        "{{col|es|{{l|es|Juanita}} {{q|diminutive}}}}"
     ]
     expected = [
         """\
-{{col-auto|cs
+{{col|cs
 |Juanita<qq:diminutive>
 }}"""]
 
@@ -258,7 +258,7 @@ def test_process_lines():
         "* {{l|en|Cl}}",
         "* {{l|en|ClG}}",
     ]
-    expected = [ "{{col-auto|en|*|V*|Cl|ClG}}" ]
+    expected = [ "{{col|en|*|V*|Cl|ClG}}" ]
     res = fixer.process_lines("en", lines)
     print(res)
     assert res == expected
