@@ -23,14 +23,27 @@ class BaseHandler():
         items = self.sort_items(items)
         pages = self.make_pages(items)
 
+        index_saved = False
+        index_lines = self.make_index(base_path, pages)
+        index_dest = getattr(self.args, "index_url", base_path)
+
         for page_name, page_sections in pages.items():
             page_lines = self.make_page(base_path, page_name, page_sections, pages)
-            self.save_page(base_path+"/"+page_name, "\n".join(page_lines))
+            dest = base_path + "/" + page_name
+            # save index on the first page if no index_dest specified
+            if index_lines and not index_dest and not index_saved:
+                index_dest = dest
+            # Merge the index if it should be part of the page
+            if index_lines and index_dest == dest:
+                page_lines = index_lines + page_lines
+                index_saved = True
+            self.save_page(dest, "\n".join(page_lines))
 
-        index_lines = self.make_index(base_path, page_name, pages)
-        if index_lines:
-            index_url = getattr(self.args, "index_url", base_path)
-            self.save_page(index_url, "\n".join(index_lines))
+        if not index_saved and index_lines and index_dest:
+            self.save_page(index_dest, "\n".join(index_lines))
+            index_saved = True
+
+        assert bool(index_lines) == index_saved
 
     def make_pages(self, items):
 
@@ -159,9 +172,9 @@ class BaseHandler():
         """ Returns a list of rows to be added to the index """
         return []
 
-    def make_index(self, base_path, page_name, pages):
+    def make_index(self, base_path, pages):
         """ Returns a list of strings to be used as the index page """
-        index_items = self.make_index_items(base_path, page_name, pages)
+        index_items = self.make_index_items(base_path, pages)
         if not index_items:
             return []
 
@@ -171,7 +184,7 @@ class BaseHandler():
 
         return self.make_wiki_table(index_items, extra_class="sortable", headers=index_header, footers=index_footer)
 
-    def make_index_items(self, base_path, page_name, pages):
+    def make_index_items(self, base_path, pages):
         index_items = []
         prev_section_entries = None
         for page_name, page_sections in pages.items():
