@@ -21,6 +21,16 @@ def get_inline_ux(text):
 def is_inline_ux(text):
     return get_inline_ux(text)
 
+def strip_wikilinks(text):
+    if not text:
+        return text
+    return re.sub(r"\[\[(?:[^\[\]]*[|])?(.*?)\]\]", r"\1", text)
+
+def strip_templates(text):
+    if not text:
+        return text
+    return re.sub(r"{{[^{]*}}", "", text)
+
 class BareUxFixer():
 
     def __init__(self):
@@ -188,11 +198,13 @@ class BareUxFixer():
 #                        if not translation and " - " in passage:
 #                            passage, translation =  passage.split(" - ")
 
-                    if "|" in passage:
+                    passage_no_links = strip_templates(strip_wikilinks(passage))
+                    if "|" in passage_no_links:
                         self.warn("pipe_in_ux_passage", section, item.name, passage)
                         continue
 
-                    if translation and "|" in translation:
+                    tr_no_links = strip_templates(strip_wikilinks(translation))
+                    if translation and "|" in tr_no_links:
                         self.warn("pipe_in_ux_translation", section, item.name, translation)
                         continue
 
