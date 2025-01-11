@@ -14,6 +14,7 @@ class BylineFixer():
 
     TYPE_TO_STYLE = { k: ":" for k in SORTABLE } | {
         "bare_ux": ":",
+        "bare_uxi": ":",
         "quote": "*",
         "rfquote": ":",
         "bare_quote": "*",
@@ -70,7 +71,7 @@ class BylineFixer():
         entry_changed = False
 
         # Skip this particular disaster
-        if page.partition("#")[0] in ["уж"]:
+        if page.partition("#")[0] in ["уж", "だはんで", "-et", "-ttaa"]:
             return [] if summary is None else page_text
 
         entry = sectionparser.parse(page_text, page)
@@ -118,7 +119,7 @@ class BylineFixer():
                     # Special handling for garbage templates
                     if ("ru-" in pos.headlines[-1] and "-alt" in pos.headlines[-1]) or \
                        ("ar-" in pos.headlines[-1] and ("-inf-" in pos.headlines[-1] or "-coll-" in pos.headlines[-1])) or \
-                       any(x in pos.headlines[-1] for x in ["ar-root", "ja-see", "zh-see", "ar-verb form"]):
+                       any(x in pos.headlines[-1] for x in ["ar-root", "ja-see", "zh-see", "ar-verb form", "ar-verb-form"]):
                             continue
 
                     lang_id = ALL_LANGS.get(section._topmost.title)
@@ -180,6 +181,10 @@ class BylineFixer():
                         self.warn("unparsable_sense_list", section, "", text)
                     continue
 
+            failed = self.fix_stray_formatting(pos.senses, section)
+            if failed:
+                continue
+
             failed = self.fix_sense_list_levels(pos.senses, section)
             if failed:
                 continue
@@ -198,6 +203,7 @@ class BylineFixer():
                 continue
 
             new_pos_text = str(pos)
+            #if old_pos_text != new_pos_text or pos.changelog:  # include whitespace-only changes
             if old_pos_text != new_pos_text:
                 if pos.changelog:
                     self.fix("posparser", section, "", pos.changelog)
@@ -214,6 +220,19 @@ class BylineFixer():
             return str(entry)
 
         return page_text
+
+
+
+    def fix_stray_formatting(self, sense_list, section):
+        """ Returns None on success, non-zero on error """
+
+        for idx, sense in enumerate(sense_list, 1):
+            if sense.data and sense.data[0] in ":*#":
+                self.warn("duplicate_formatting", section, f"sense{idx}", f"{sense.prefix} {sense.data}")
+
+#            if hasattr(sense, "_children"):
+            self.fix_stray_formatting(sense._children, section)
+
 
     def fix_sense_list_order(self, sense_list, section):
         """ Returns None on success, non-zero on error """
