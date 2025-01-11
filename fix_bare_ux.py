@@ -6,11 +6,20 @@ from autodooz.sections import ALL_POS, ALL_LANGS
 
 def is_sentence(text):
     return bool(re.match(r"^\W*[A-Z].*[.?!]\W*$", text))
+    #return text.count(" ") > 5 and not any(c in text for c in "-=—,;") and text.strip("'")[0] in "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 
 def is_italic(text):
     # Returns True if entire string is enclosed in '' italic wikimarkup
     ital = "(?<!')(?:'{2}|'{5})(?!')"
     return re.match(fr"{ital}.*{ital}$", text) and not re.search(ital, text[2:-2])
+
+def get_inline_ux(text):
+    m = re.match(r"{{lang[|].*?[|]([^|{}]+)}} — ([A-Za-z\"',;.?! ]+)$", text)
+    if m:
+        return m.group(1), m.group(2)
+
+def is_inline_ux(text):
+    return get_inline_ux(text)
 
 class BareUxFixer():
 
@@ -76,6 +85,7 @@ class BareUxFixer():
 
                 fixable_items = []
                 bare_ux_items = [c for c in sense._children if c._type == "bare_ux"]
+                bare_uxi_items = [c for c in sense._children if c._type == "bare_uxi"]
 
 
 #                # TODO: Manual review - if there are exactly 2 bare_ux_items and neither have children
@@ -111,7 +121,6 @@ class BareUxFixer():
 
                         fixable_items.append(item)
                     else:
-
                         # Has translation, probably a good UX
                         if item._children:
                             assert len(item._children) == 1
@@ -119,11 +128,11 @@ class BareUxFixer():
 
                         # No translation, make sure the passage looks like a sentence
                         else:
-                            if not is_sentence(passage):
+                            if is_sentence(passage):
+                                fixable_items.append(item)
+                            else:
                                 #self.warn("nonenglish_passage_not_sentence", section, item.name, passage)
                                 continue
-                            fixable_items.append(item)
-
 
                 if len(fixable_items) != len(bare_ux_items):
                     if len(bare_ux_items) > 1:
@@ -141,33 +150,43 @@ class BareUxFixer():
                     self.warn("bare_ux_with_unhandled_siblings", section, "", str(sense))
                     continue
 
+                fixable_items += bare_uxi_items
+
                 all_fixable_ux += fixable_items
 
             to_remove = []
             for item in all_fixable_ux:
                 for idx, wikiline in enumerate(section.content_wikilines):
                     to_remove_if_changed = []
-                    if str(item.data) not in str(wikiline):
+                    passage = str(item.data)
+                    if passage not in str(wikiline):
                         continue
 
-                    assert is_italic(item.data)
-                    passage = item.data[2:-2].strip()
+                    if not item._children and is_inline_ux(passage):
+                        template_name = "uxi"
+                        passage, translation = get_inline_ux(passage)
 
-                    translation = None
-                    if item._children:
-                        assert len(item._children) == 1
-                        translation = item._children[0].data
+                    else:
+                        template_name = "ux"
 
-                        if is_italic(translation.strip()):
-                            translation = translation.strip()[2:-2].strip()
+                        assert is_italic(item.data)
+                        passage = item.data[2:-2].strip()
 
-                        assert translation
+                        translation = None
+                        if item._children:
+                            assert len(item._children) == 1
+                            translation = item._children[0].data
 
-                        to_remove_if_changed.append(idx+1)
+                            if is_italic(translation.strip()):
+                                translation = translation.strip()[2:-2].strip()
 
-#                    # NOTE: Manual fix
-#                    if not translation and " - " in passage:
-#                        passage, translation =  passage.split(" - ")
+                            assert translation
+
+                            to_remove_if_changed.append(idx+1)
+
+#                        # NOTE: Manual fix
+#                        if not translation and " - " in passage:
+#                            passage, translation =  passage.split(" - ")
 
                     if "|" in passage:
                         self.warn("pipe_in_ux_passage", section, item.name, passage)
@@ -188,7 +207,7 @@ class BareUxFixer():
                     if "=" in passage:
                         passage = "2=" + passage
 
-                    new_wikiline = item.prefix + " {{ux|" + lang_id + "|" + passage
+                    new_wikiline = item.prefix + " {{" + template_name + "|" + lang_id + "|" + passage
                     if translation:
                         if len(translation) > 80 or len(passage) > 80:
                             new_wikiline += "\n|t=" + translation

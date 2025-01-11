@@ -210,3 +210,42 @@ def test_geometri():
     res = fixer.process(text, "test", [], [])
     assert str(res) == expected
 
+
+def test_inline_ux():
+
+    text = """
+==Adyghe==
+
+===Pronunciation===
+* {{IPA|ady|[aːɕʁʷəm]}}
+
+===Adverb===
+{{ady-adv}}
+
+# [[that time]]
+#: {{lang|ady|'''Ащгъум''' укъысэджэшъутэгъ}} — '''That time''' you could called me.
+# [[then]]
+#: {{lang|ady|'''Ащгъум''' сыд тышӏэта?}} — '''Then''' what we gonna do?
+#: {{lang|ady|'''ащгъум''' нэкӏо уиунэ тгъакӏу}} — '''Then''' let's go to your house.
+"""
+
+    expected = """
+==Adyghe==
+
+===Pronunciation===
+* {{IPA|ady|[aːɕʁʷəm]}}
+
+===Adverb===
+{{ady-adv}}
+
+# [[that time]]
+#: {{uxi|ady|'''Ащгъум''' укъысэджэшъутэгъ|'''That time''' you could called me.}}
+# [[then]]
+#: {{uxi|ady|'''Ащгъум''' сыд тышӏэта?|'''Then''' what we gonna do?}}
+#: {{uxi|ady|'''ащгъум''' нэкӏо уиунэ тгъакӏу|'''Then''' let's go to your house.}}\
+"""
+
+    res = fixer.process(text, "test", [], [])
+    assert str(res) == expected
+
+
