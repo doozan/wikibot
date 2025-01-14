@@ -79,6 +79,7 @@ DUMP_TEMPLATE_USE := $(PYPATH) ./dump_template_use.py
 LIST_DEF_TEMPLATE_IN_ETY := $(PYPATH) ./list_def_template_in_ety.py
 DUMP_REDIRECTS := $(PYPATH) ./dump_redirects.py
 DUMP_CAT := $(PYPATH) ./dump_cat.py
+LIST_MISSING_HEADERS := $(PYPATH) ./list_missing_headers.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
@@ -586,6 +587,11 @@ $(LIST)template_stats: $(BUILDDIR)/template_data.json $(BUILDDIR)/template_count
 >   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
 >   mv $@.wiki $@
 
+$(LIST)missing_headers: $(BUILDDIR)/all-en.enwikt.txt.bz2
+>   @echo "Running $@..."
+
+>   $(LIST_MISSING_HEADERS) --wxt $< $(SAVE)
+>   touch $@
 
 # Fixes
 $(FIX)fr_missing_tlfi:
@@ -853,6 +859,17 @@ $(FIX)missing_taxlinks: $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
+$(FIX)missing_headers:
+>   SRC="User:JeffDoozan/lists/missing_headers/fixes"
+>   FIX="--fix missing_headers --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   MAX=200
+
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(WIKIFIX) -links:$$SRC $$FIX
+>   echo $$LINKS > $@
+
 $(BUILDDIR)/.update_langs:
 >   @echo "Updating languages"
 >   ./scripts/scrape_languages.py > lang_ids.py
@@ -862,7 +879,7 @@ $(BUILDDIR)/.update_langs:
 fast_lists: $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_tlfi pt_with_synonyms)
 
 # Lists that take more than 30 minutes on single core
-slow_lists: $(patsubst %,$(LIST)%, section_header_errors section_level_errors section_order_errors sense_bylines unbalanced_delimiters missing_taxlinks t9n_problems convert_list_to_col es_missing_forms fr_missing_lemmas def_template_in_ety quote_with_bare_passage bare_ux )
+slow_lists: $(patsubst %,$(LIST)%, section_header_errors section_level_errors section_order_errors sense_bylines unbalanced_delimiters missing_taxlinks t9n_problems convert_list_to_col es_missing_forms fr_missing_lemmas def_template_in_ety quote_with_bare_passage bare_ux missing_headers )
 
 # not used with a corresponding "fix"
 slow_lists_no_fixes: $(patsubst %,$(LIST)%, local_taxons external_taxons possible_taxons taxons_with_redlinks section_stats )
@@ -870,7 +887,7 @@ slow_lists_no_fixes: $(patsubst %,$(LIST)%, local_taxons external_taxons possibl
 lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz fast_lists slow_lists slow_lists_no_fixes
 
 # Fixes that are safe to run automatically and without supervision
-autofixes: $(BUILDDIR)/.update_langs $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col quote_with_bare_passage sense_bylines bare_ux punc_refs)
+autofixes: $(BUILDDIR)/.update_langs $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col quote_with_bare_passage sense_bylines bare_ux punc_refs missing_headers)
 
 # Fixes that may make mistakes and need human supervision
 otherfixes: $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form template_params missing_taxlinks)

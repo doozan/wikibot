@@ -76,7 +76,7 @@ POS_TEMPLATES = {
     "preposition": ["-prep"],
     "prepositional phrase": ["-pp", "-prep phrase", "-prepositional phrase"],
     "pronoun": ["-pron", "-prpr", "-ppron", "-personal pronoun"],
-    "proper noun": ["-prop", "ro-name", "-noun", "-plural proper noun", "-prpn", "-proper noun", "-given name"],
+    "proper noun": ["-prop", "ro-name", "-noun", "-plural proper noun", "-prpn", "-proper noun", "-given name", "taxoninfl"],
     "proverb": ["-proverb", "-phrase", "-prov"],
     "romanization": ["-rom", "cmn-pinyin", "yue-jyut", "-tr"],
     "transliteration": ["-tr"],
@@ -177,7 +177,7 @@ IGNORE_TEMPLATES = {
     'ko-hanjatab', 'ko-regional', 'ko-yin form of', 'ko-yang form of', 'ku-regional', 'mul-number',
     'multiple images', 'no entry', 'number box', 'ordinalbox', 'phrasebook', 'picdic', 'place', 'rfc',
     'rfd', 'rfdef', 'rfi', 'rfm', 'rfm', 'rfq', 'rfquote', 'rfref', 'rfv', 'root',
-    'seecites', 'slim-wikipedia', 'stroke order', 'swp', 'taxlink', 'taxon', 'taxoninfl',
+    'seecites', 'slim-wikipedia', 'stroke order', 'swp', 'taxlink', 'taxon',
     'tea room', 'vi-readings', 'wiki', 'wikibooks', 'wikipedia', 'wikiquote', 'wikisource',
     'wikispecies', 'wikiversity', 'wikiversity lecture', 'wikivoyage', 'wp', 'zodiac'
 }
@@ -236,13 +236,13 @@ def is_pre_header(line):
         if template and template.lower() in IGNORE_TEMPLATES:
             return True
 
-def is_header(section, line):
+def is_header(line):
 
     template = get_template_name(line)
     if not template:
         return False
 
-    if template in { "head", "head-lite", "diacritic" }:
+    if template in { "head", "head-lite", "diacritic", "taxoninfl" }:
         return True
 
     template = template.lower()
@@ -262,6 +262,30 @@ def is_header(section, line):
             return True
 
     return False
+
+def header_matches(line, section):
+    pos_templates = POS_TEMPLATES.get(section.title.lower(), [section.title.lower()])
+    pos_line_matches = POS_LINE_MATCHES.get(section.title.lower(), [])
+    pos_headwords = POS_HEADWORDS.get(section.title.lower(), [section.title.lower()])
+
+    # We only need to match the template name, the parameters are unimportant
+    template = get_template_name(line).lower()
+
+    # if this is a head-like template, check that a matching word appears on the headword line
+    if template in HEAD_TEMPLATES:
+        if any(pos for pos in pos_headwords if pos in line):
+            return True
+        if any(alt for alt in GLOBAL_HEADWORDS if alt in line):
+            return True
+
+    # Verify that template matches the allowed pos templates
+    elif any(pos in template for pos in pos_templates):
+        return True
+
+    if any(match in line for match in pos_line_matches):
+        return True
+
+
 
 def get_template_lang_id(line):
 
@@ -303,9 +327,6 @@ def process(args):
 
         for section in lang.ifilter_sections(matches=lambda x: x.title in ALL_POS and x.title not in IGNORE_POS):
 
-            pos_templates = POS_TEMPLATES.get(section.title.lower(), [section.title.lower()])
-            pos_line_matches = POS_LINE_MATCHES.get(section.title.lower(), [])
-            pos_headwords = POS_HEADWORDS.get(section.title.lower(), [section.title.lower()])
             for line in section.content_wikilines:
                 # Skip wiki stuff that might be in the way of a template
                 line = line.lstrip(" *#:")
@@ -316,7 +337,7 @@ def process(args):
 
                 # Find the first template
                 if line.startswith("{{"):
-                    if not is_header(section, line):
+                    if not is_header(line):
                         res.append(("Missing headline", title, lang.title, section.title, line))
                         break
 
@@ -327,21 +348,7 @@ def process(args):
                         res.append(("lang-mismatch", title, lang.title, section.title, line))
                         break
 
-                    # We only need to match the template name, the parameters are unimportant
-                    template = get_template_name(line).lower()
-
-                    # if this is a head-like template, check that a matching word appears on the headword line
-                    if template in HEAD_TEMPLATES:
-                        if any(pos for pos in pos_headwords if pos in line):
-                            break
-                        if any(alt for alt in GLOBAL_HEADWORDS if alt in line):
-                            break
-
-                    # Verify that template matches the allowed pos templates
-                    elif any(pos in template for pos in pos_templates):
-                        break
-
-                    if any(match in line for match in pos_line_matches):
+                    if header_matches(line, section):
                         break
 
                     res.append(("Mismatched templates", title, lang.title, section.title, line))
