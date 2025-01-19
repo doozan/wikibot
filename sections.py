@@ -34,7 +34,7 @@ WT_POS = {
     "Classifier": "classifier",
     "Clitic": "clitic",
     "Conjunction": "conj",
-    "Contraction": "concentration",
+    "Contraction": "contraction",
     "Counter": "counter",
     "Determiner": "determiner",
     "Ideophone": "ideophone",
