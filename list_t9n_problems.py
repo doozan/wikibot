@@ -24,7 +24,7 @@ import os
 import re
 import sys
 from autodooz.fix_t9n import T9nFixer
-from autodooz.sections import ALL_LANGS, ALL_LANG_IDS
+from autodooz.sections import ALL_LANGS, ALL_LANG_IDS, ALL_POS
 from autodooz.wikilog import WikiLogger, BaseHandler
 from autodooz.wikilog_language import WikiByLanguage as BaseWikiByLanguage
 from enwiktionary_translations import TranslationTable, TranslationLine, UNKNOWN_LANGS, LANG_PARENTS
@@ -32,7 +32,6 @@ from enwiktionary_translations.language_aliases import language_aliases as LANG_
 from enwiktionary_wordlist.all_forms import AllForms
 from enwiktionary_wordlist.wikiextract import WikiExtract
 from collections import namedtuple
-from enwiktionary_parser.sections.pos import ALL_POS
 
 stats = {
     "total_tables": 0,
