@@ -6,8 +6,6 @@ import sys
 
 from autodooz.sections import ALL_LANGS
 from autodooz.fix_bare_quotes import wikilines_to_quote_params, UNHANDLED_UX_TEMPLATES
-from enwiktionary_parser.utils import nest_aware_contains
-NESTS = (("[[", "]]"), ("{{", "}}"))
 
 # index of "passage" when using numbered parameters
 POSITION_PARAM = {
