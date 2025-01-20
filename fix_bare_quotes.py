@@ -5,13 +5,11 @@ import sys
 
 from autodooz.sections import ALL_LANGS
 from collections import namedtuple
-from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit, nest_aware_contains
+from enwiktionary_sectionparser.utils import wiki_contains
 from autodooz.quotes.parser import QuoteParser, LINK
 from .quotes.name_labeler import NameLabeler
 from .quotes.names import *
 from enwiktionary_sectionparser.posparser import BARE_QUOTE_LINE_RX
-
-NESTS = (("[[", "]]"), ("{{", "}}"))
 
 # Templates that can appear inside a passage
 ALLOWED_PASSAGE_TEMPLATES = {"...", "sic", "smallcaps", "w", "l", "lang"}
@@ -116,15 +114,15 @@ def get_passage_params(passage_wikilines, translation_wikilines, warn, handle_ux
             return
         res["translation"] = translation
 
-    if nest_aware_contains("|", res["passage"], NESTS):
+    if wiki_contains("|", res["passage"]):
         warn("pipe_in_passage", res["passage"])
         return
 
-    if nest_aware_contains("|", res.get("translation", ""), NESTS):
+    if wiki_contains("|", res.get("translation", "")):
         warn("pipe_in_translation", res["translation"])
         return
 
-    if nest_aware_contains("|", res.get("transliteration", ""), NESTS):
+    if wiki_contains("|", res.get("transliteration", "")):
         warn("pipe_in_translit", res["transliteration"])
         return
 
@@ -360,11 +358,7 @@ class QuoteFixer():
 
         passage, _, translation = passage.partition("|t=")
 
-        # This fails on "{{a|b}} {{c|d" - where there is no closing bracket it still
-        # detects the second "|" as being inside a bracket
-        # As a temporary workaround, also fail if count("{{") > count("}}")
-        if nest_aware_contains("|", passage, NESTS) or \
-                passage.count("{{") > passage.count("}}"):
+        if wiki_contains("|", passage):
             if section:
                 self.warn("pipe_in_passage", section, passage)
             return
@@ -409,6 +403,7 @@ class QuoteFixer():
                 self.warn("unparsable_line", section, wikiline)
                 if passage_params:
                     template_line = self.get_quote_template(prefix, section, passage_params)
+                    # Only convert bare passages to {{quote}} for languages that benefit from having translations
                     if not template_line or "|mul|" in template_line or "|en|" in template_line:
                         continue
                     new_wikiline = wikiline + "\n" + template_line
@@ -440,7 +435,7 @@ class QuoteFixer():
             self.warn("english_has_translation", section, passage_params)
             return
 
-        ORDERED_PARAMS = ["passage", "translation", "transliteration"]
+        ORDERED_PARAMS = ["passage", "transliteration", "translation"]
         for k in ORDERED_PARAMS:
             if passage_params.get(k):
                 if k == "passage":
@@ -477,7 +472,7 @@ class QuoteFixer():
             self.warn("english_has_translation", section, passage_params)
             return
 
-        ORDERED_PARAMS = ["passage", "translation", "transliteration"]
+        ORDERED_PARAMS = ["passage", "transliteration", "translation"]
         for k in ORDERED_PARAMS:
             if passage_params.get(k):
                 new_wikiline.append(f"|{k}={passage_params[k]}")
@@ -500,7 +495,7 @@ class QuoteFixer():
         #    return False
 
         for k,v in params.items():
-            if nest_aware_contains("|", v, NESTS):
+            if wiki_contains("|", v):
                 # TODO: self.warn()
                 self.dprint("pipe_in_value", k, v, params)
                 return False

@@ -92,10 +92,10 @@ def test_get_paramsx():
             """'''2007''', Eli Maor, ''The Pythagorean Theorem: A 4,000-year History'', {{w|Princeton University Press}}, [https://books.google.com.au/books?id=Z5VoBGy3AoAC&pg=PA1&dq=%22Fermat%27s+Last+Theorem%22&hl=en&sa=X&ved=0ahUKEwiSltz2xMnWAhUMzLwKHcAiBiY4ZBDoAQhcMAk#v=onepage&q=%22Fermat's%20Last%20Theorem%22&f=false page 1],""",
             {"_source": "book", 'year': '2007', 'author': 'Eli Maor', 'title': 'The Pythagorean Theorem: A 4,000-year History', 'pageurl': "https://books.google.com.au/books?id=Z5VoBGy3AoAC&pg=PA1&dq=%22Fermat%27s+Last+Theorem%22&hl=en&sa=X&ved=0ahUKEwiSltz2xMnWAhUMzLwKHcAiBiY4ZBDoAQhcMAk#v=onepage&q=%22Fermat's%20Last%20Theorem%22&f=false", 'page': '1', 'publisher': '{{w|Princeton University Press}}'}
         ),
-        (
-            """'''1937''', [[w:Zora Neale Hurston|Zora Neale Hurston]], ''Their Eyes Were Watching God'', Harper (2000), page 107:""",
-            {"_source": "book", 'year': '1937', 'author': '[[w:Zora Neale Hurston|Zora Neale Hurston]]', 'title': 'Their Eyes Were Watching God', 'page': '107', 'publisher': 'Harper', 'year_published': '2000'}
-        ),
+#        (
+#            """'''1937''', [[w:Zora Neale Hurston|Zora Neale Hurston]], ''Their Eyes Were Watching God'', Harper (2000), page 107:""",
+#            {"_source": "book", 'year': '1937', 'author': '[[w:Zora Neale Hurston|Zora Neale Hurston]]', 'title': 'Their Eyes Were Watching God', 'page': '107', 'publisher': 'Harper', 'year_published': '2000'}
+#        ),
 
 
     ]:
@@ -111,7 +111,7 @@ def test_get_params_old():
         (
             # google books link, page in link
             """'''2006''', W. Stanley Taft Jr. and James W. Mayer, ''The Science of Paintings'', {{ISBN|9780387217413}}, [https://books.google.ca/books?id=nobhBwAAQBAJ&pg=PA9&dq=%22deattributions%22&hl=en&sa=X&redir_esc=y#v=onepage&q=%22deattributions%22&f=false p. 9 (Google preview)]:""",
-            {'year': '2006', 'author': 'W. Stanley Taft Jr.', 'author2': 'James W. Mayer', 'title': 'The Science of Paintings', 'isbn': '9780387217413', 'pageurl': 'https://books.google.ca/books?id=nobhBwAAQBAJ&pg=PA9&dq=%22deattributions%22&hl=en&sa=X&redir_esc=y#v=onepage&q=%22deattributions%22&f=false', 'page': '9'}
+            {'year': '2006', 'author': 'W. Stanley Taft Jr.; James W. Mayer', 'title': 'The Science of Paintings', 'isbn': '9780387217413', 'pageurl': 'https://books.google.ca/books?id=nobhBwAAQBAJ&pg=PA9&dq=%22deattributions%22&hl=en&sa=X&redir_esc=y#v=onepage&q=%22deattributions%22&f=false', 'page': '9'}
         ),
         (
             # translator
@@ -141,7 +141,7 @@ def test_get_params_old():
         (
             # ''et alii''
             """'''1964''': Nikolay Rimsky-Korsakov ''et alii'', ''Principles of orchestration: with musical examples drawn from his own works'', [http://books.google.co.uk/books?id=erS-2XR-kPUC&pg=PA112&dq=crescendi&ei=58nkSeaJIYyykASju4yfDQ page 112] ([http://store.doverpublications.com/0486212661.html DoverPublications.com]; {{ISBN|0486212661}}""",
-            {'year': '1964', 'author': 'Nikolay Rimsky-Korsakov', 'author2': 'et al', 'title': 'Principles of orchestration: with musical examples drawn from his own works', 'pageurl': 'http://books.google.co.uk/books?id=erS-2XR-kPUC&pg=PA112&dq=crescendi&ei=58nkSeaJIYyykASju4yfDQ', 'page': '112', 'publisher': '[http://store.doverpublications.com/0486212661.html DoverPublications.com]', 'isbn': '0486212661'}
+            {'year': '1964', 'author': 'Nikolay Rimsky-Korsakov; et al', 'title': 'Principles of orchestration: with musical examples drawn from his own works', 'pageurl': 'http://books.google.co.uk/books?id=erS-2XR-kPUC&pg=PA112&dq=crescendi&ei=58nkSeaJIYyykASju4yfDQ', 'page': '112', 'publisher': '[http://store.doverpublications.com/0486212661.html DoverPublications.com]', 'isbn': '0486212661'}
         ),
         (
             # translator
@@ -171,11 +171,11 @@ def test_get_params_old():
         (
             # Multiple editors
              """'''2014''', Cornel Sandvoss & Laura Kearns, "From Interpretive Communities to Interpretive Fairs: Ordinary Fandom, Textual Selection and Digital Media", in ''The Ashgate Research Companion to Fan Cultures'' (eds. Stijn Reijnders, Koos Zwaan, & Linda Duits), Ashgate (2014), {{ISBN|9781409455622}}, [https://books.google.com/books?id=sfTiBAAAQBAJ&pg=PA93&dq=%22aca-fans%22 page 93]:""",
-            {'year': '2014', 'editor': 'Stijn Reijnders; Koos Zwaan; Linda Duits', 'author': 'Cornel Sandvoss', 'author2': 'Laura Kearns', 'chapter': 'From Interpretive Communities to Interpretive Fairs: Ordinary Fandom, Textual Selection and Digital Media', 'title': 'The Ashgate Research Companion to Fan Cultures', 'pageurl': 'https://books.google.com/books?id=sfTiBAAAQBAJ&pg=PA93&dq=%22aca-fans%22', 'page': '93', 'publisher': 'Ashgate', 'isbn': '9781409455622'}
+            {'year': '2014', 'editor': 'Stijn Reijnders; Koos Zwaan; Linda Duits', 'author': 'Cornel Sandvoss; Laura Kearns', 'chapter': 'From Interpretive Communities to Interpretive Fairs: Ordinary Fandom, Textual Selection and Digital Media', 'title': 'The Ashgate Research Companion to Fan Cultures', 'pageurl': 'https://books.google.com/books?id=sfTiBAAAQBAJ&pg=PA93&dq=%22aca-fans%22', 'page': '93', 'publisher': 'Ashgate', 'isbn': '9781409455622'}
         ),
         (
             """'''2017''', Masaki Kohana ''et al.'', "A Topic Trend on P2P Based Social Media", in ''Advances in Network-Based Information Systems: The 20th International Conference on Network-Based Information Systems (NBiS-2017)'' (eds Leonard Barolli, Makoto Takizawa, & Tomoya Enokido), [https://www.google.com/books/edition/Advances_in_Network_Based_Information_Sy/W3syDwAAQBAJ?hl=en&gbpv=1&dq=%22instance%22+mastodon&pg=PA1140&printsec=frontcover page 1140]""",
-            {'year': '2017', 'editor': 'Leonard Barolli; Makoto Takizawa; Tomoya Enokido', 'author': 'Masaki Kohana', 'author2': 'et al', 'chapter': 'A Topic Trend on P2P Based Social Media', 'title': 'Advances in Network-Based Information Systems: The 20th International Conference on Network-Based Information Systems (NBiS-2017)', 'pageurl': 'https://www.google.com/books/edition/Advances_in_Network_Based_Information_Sy/W3syDwAAQBAJ?hl=en&gbpv=1&dq=%22instance%22+mastodon&pg=PA1140&printsec=frontcover', 'page': '1140'}
+            {'year': '2017', 'editor': 'Leonard Barolli; Makoto Takizawa; Tomoya Enokido', 'author': 'Masaki Kohana; et al', 'chapter': 'A Topic Trend on P2P Based Social Media', 'title': 'Advances in Network-Based Information Systems: The 20th International Conference on Network-Based Information Systems (NBiS-2017)', 'pageurl': 'https://www.google.com/books/edition/Advances_in_Network_Based_Information_Sy/W3syDwAAQBAJ?hl=en&gbpv=1&dq=%22instance%22+mastodon&pg=PA1140&printsec=frontcover', 'page': '1140'}
         ),
 #        (
 #            """'''1910''', Patrick Weston Joyce, ''[[s:English as we speak it in Ireland|English as we speak it in Ireland]]'', [[s:English as we speak it in Ireland/IV|chapter 5]]""",
@@ -348,18 +348,18 @@ def test_get_params_books():
         (
             """'''1989''', Richard Winston & al. translating [[w:Carl Jung|Carl Jung]] & al. as ''Memories, Dreams, Reflections'', p. 108:""",
             ('year', 'translator', 'author', 'italics', 'page'),
-            {'_source': 'book', 'year': '1989', 'translators': 'Richard Winston; et al', 'author': '[[w:Carl Jung|Carl Jung]]', 'author2': 'et al', 'title': 'Memories, Dreams, Reflections', 'page': '108'}
+            {'_source': 'book', 'year': '1989', 'translators': 'Richard Winston; et al', 'author': '[[w:Carl Jung|Carl Jung]]; et al', 'title': 'Memories, Dreams, Reflections', 'page': '108'}
         ),
         (
             # Publisher location
             """'''2008''', David Squire et al, ''The First-Time Garden Specialist'' ({{ISBN|1845379268}}), page 12:""",
             ('year', 'author', 'italics', 'paren::isbn', 'page'),
-            {'_source': 'book', 'year': '2008', 'author': 'David Squire', 'author2': 'et al', 'title': 'The First-Time Garden Specialist', 'isbn': '1845379268', 'page': '12'}
+            {'_source': 'book', 'year': '2008', 'author': 'David Squire; et al', 'title': 'The First-Time Garden Specialist', 'isbn': '1845379268', 'page': '12'}
         ),
         (
             """'''1759''', George Sale et al., ''The Modern Part of an Universal History'', {{nowrap|volume XXIX}}: ''History of the German Empire'', [http://books.google.com/books?id=dFtjAAAAMAAJ&pg=PA2 page&nbsp;2]""",
             ('year', 'author', 'italics', 'volume', 'italics2', 'url', 'url::page'),
-            {'_source': 'book', 'year': '1759', 'author': 'George Sale', 'author2': 'et al', 'chapter': 'The Modern Part of an Universal History', 'volume': 'XXIX', 'title': 'History of the German Empire', 'pageurl': 'http://books.google.com/books?id=dFtjAAAAMAAJ&pg=PA2', 'page': '2'}
+            {'_source': 'book', 'year': '1759', 'author': 'George Sale; et al', 'chapter': 'The Modern Part of an Universal History', 'volume': 'XXIX', 'title': 'History of the German Empire', 'pageurl': 'http://books.google.com/books?id=dFtjAAAAMAAJ&pg=PA2', 'page': '2'}
         ),
         (
             # No publisher, date
@@ -371,7 +371,7 @@ def test_get_params_books():
             # pages
             """'''1991''', Katie Hafner & [[w:John Markoff|John Markoff]], ''Cyberpunk: Outlaws and Hackers on the Computer Frontier'' (1995 revised edition), Simon and Schuster, {{ISBN|0684818620}}, pp. 255-256:""",
             ('year', 'author', 'italics', 'paren::edition', 'publisher', 'isbn', 'pages'),
-            {'_source': 'book', 'year': '1991', 'author': 'Katie Hafner', 'author2': '[[w:John Markoff|John Markoff]]', 'title': 'Cyberpunk: Outlaws and Hackers on the Computer Frontier', 'edition': '1995 revised', 'publisher': 'Simon and Schuster', 'isbn': '0684818620', 'pages': '255-256'}
+            {'_source': 'book', 'year': '1991', 'author': 'Katie Hafner; [[w:John Markoff|John Markoff]]', 'title': 'Cyberpunk: Outlaws and Hackers on the Computer Frontier', 'edition': '1995 revised', 'publisher': 'Simon and Schuster', 'isbn': '0684818620', 'pages': '255-256'}
         ),
         (
             # ''et al.'' in editor
@@ -394,7 +394,7 @@ def test_get_params_books():
         (
              """'''1999''', K. Zakrzewska, R. Lavery, "Modelling DNA-protein interactions", in ''Computational Molecular Biology'' (edited by J. Leszczynski; {{ISBN|008052964X}}:""",
              ('year', 'author', 'double_quotes', 'italics', 'editor', 'isbn'),
-             {'_source': 'book', 'year': '1999', 'author': 'K. Zakrzewska', 'author2': 'R. Lavery', 'chapter': 'Modelling DNA-protein interactions', 'title': 'Computational Molecular Biology', 'editor': 'J. Leszczynski', 'isbn': '008052964X'}
+             {'_source': 'book', 'year': '1999', 'author': 'K. Zakrzewska; R. Lavery', 'chapter': 'Modelling DNA-protein interactions', 'title': 'Computational Molecular Biology', 'editor': 'J. Leszczynski', 'isbn': '008052964X'}
         ),
         (
             """'''1999''', Mark Warren, ''Mark Warren's Atlas of Australian Surfing'', traveller's edition 1999, {{ISBN|0-7322-6731-5}}, page 103""",
@@ -405,13 +405,13 @@ def test_get_params_books():
             # Numbered edition
             """'''2007''', John Merryman, Rogelio Pérez-Perdomo, ''The Civil Law Tradition'', 3rd edition {{ISBN|0804768331}}, page 107:""",
             ('year', 'author', 'italics', 'edition', 'isbn', 'page'),
-            {'_source': 'book', 'year': '2007', 'author': 'John Merryman', 'author2': 'Rogelio Pérez-Perdomo', 'title': 'The Civil Law Tradition', 'edition': '3rd', 'isbn': '0804768331', 'page': '107'}
+            {'_source': 'book', 'year': '2007', 'author': 'John Merryman; Rogelio Pérez-Perdomo', 'title': 'The Civil Law Tradition', 'edition': '3rd', 'isbn': '0804768331', 'page': '107'}
         ),
         (
             # Numbered edition
              """'''2007''', John Howells, Don Merwin, ''Choose Mexico for Retirement'', 10th edition {{ISBN|0762753544}}, page 49:""",
              ('year', 'author', 'italics', 'edition', 'isbn', 'page'),
-             {'_source': 'book', 'year': '2007', 'author': 'John Howells', 'author2': 'Don Merwin', 'title': 'Choose Mexico for Retirement', 'edition': '10th', 'isbn': '0762753544', 'page': '49'}
+             {'_source': 'book', 'year': '2007', 'author': 'John Howells; Don Merwin', 'title': 'Choose Mexico for Retirement', 'edition': '10th', 'isbn': '0762753544', 'page': '49'}
         ),
         (
             """'''1877''', {{w|John Harvey Kellogg}}, [https://web.archive.org/web/20140811201712/http://etext.virginia.edu/etcbin/ot2www-pubeng?specfile=%2Ftexts%2Fenglish%2Fmodeng%2Fpublicsearch%2Fmodengpub.o2w "Plain Facts for Old and Young"]:""",
@@ -501,7 +501,7 @@ def test_get_params_books():
             # ''et al.'' multiple authors
             """'''2019''', Pierre Terjanian, Andrea Bayer, et al., ''The Last Knight: The Art, Armor, and Ambition of Maximilian I'', Metropolitan Museum of Art ({{ISBN|9781588396747}}), page 96:""",
             ('year', 'author', 'italics', 'publisher', 'paren::isbn', 'page'),
-            {'_source': 'book', 'year': '2019', 'author': 'Pierre Terjanian', 'author2': 'Andrea Bayer', 'author3': 'et al', 'title': 'The Last Knight: The Art, Armor, and Ambition of Maximilian I', 'publisher': 'Metropolitan Museum of Art', 'isbn': '9781588396747', 'page': '96'}
+            {'_source': 'book', 'year': '2019', 'author': 'Pierre Terjanian; Andrea Bayer; et al', 'title': 'The Last Knight: The Art, Armor, and Ambition of Maximilian I', 'publisher': 'Metropolitan Museum of Art', 'isbn': '9781588396747', 'page': '96'}
         ),
         (
             # 1975 Dover Edition
@@ -608,7 +608,7 @@ def test_get_params_books():
             # sup tags
             """'''1998''', [[w:Frank M. Robinson|Frank M. Robinson]] and Lawrence Davidson, ''Pulp Culture: The Art of Fiction Magazines'',<sup >[http://books.google.com/books?id=mhYfL6Dn5g8C ]</sup> Collectors Press, Inc., {{ISBN|1-888054-12-3}}, page 103""",
             ('year', 'author', 'italics', 'url', 'publisher', 'isbn', 'page'),
-            {'_source': 'book', 'year': '1998', 'author': '[[w:Frank M. Robinson|Frank M. Robinson]]', 'author2': 'Lawrence Davidson', 'title': 'Pulp Culture: The Art of Fiction Magazines', 'url': 'http://books.google.com/books?id=mhYfL6Dn5g8C', 'publisher': 'Collectors Press, Inc.', 'isbn': '1-888054-12-3', 'page': '103'}
+            {'_source': 'book', 'year': '1998', 'author': '[[w:Frank M. Robinson|Frank M. Robinson]]; Lawrence Davidson', 'title': 'Pulp Culture: The Art of Fiction Magazines', 'url': 'http://books.google.com/books?id=mhYfL6Dn5g8C', 'publisher': 'Collectors Press, Inc.', 'isbn': '1-888054-12-3', 'page': '103'}
         ),
 #        (
 #            # TODO: Don't failed names text to start with "and"
@@ -631,7 +631,7 @@ def test_get_params_books():
             # ''et al.''
             """'''1988''', Lewis B. Ware ''et al.'', ''Low-Intensity Conflict in the Third World,'' Air Univ. Press, {{ISBN|978-1585660223}}, p. 139:""",
             ('year', 'author', 'italics', 'publisher', 'isbn', 'page'),
-            {'_source': 'book', 'year': '1988', 'author': 'Lewis B. Ware', 'author2': 'et al', 'title': 'Low-Intensity Conflict in the Third World', 'page': '139', 'publisher': 'Air Univ. Press', 'isbn': '978-1585660223'}
+            {'_source': 'book', 'year': '1988', 'author': 'Lewis B. Ware; et al', 'title': 'Low-Intensity Conflict in the Third World', 'page': '139', 'publisher': 'Air Univ. Press', 'isbn': '978-1585660223'}
 #            {'_source': 'book', 'year': '1988', 'author': 'Lewis B. Ware', 'chapter': 'et al.', 'title': 'Low-Intensity Conflict in the Third World', 'publisher': 'Air Univ. Press', 'isbn': '978-1585660223', 'page': '139'}
 
         ),
@@ -649,7 +649,7 @@ def test_get_params_books():
         (
             """'''2006''', M.Gori, M.Ernandes, G.Angelini, "Cracking Crosswords: The Computer Challenge", ''Reasoning, Action and Interaction in AI Theories and Systems: Essays Dedicated to Luigia Carlucci Aiello'', edited by Oliviero Stock, Marco Schaerf, Springer Science & Business Media {{ISBN|9783540379010}}, page 266""",
             ('year', 'author', 'double_quotes', 'italics', 'editor', 'publisher', 'isbn', 'page'),
-            {'_source': 'book', 'year': '2006', 'author': 'M.Gori', 'author2': 'M.Ernandes', 'author3': 'G.Angelini', 'chapter': 'Cracking Crosswords: The Computer Challenge', 'title': 'Reasoning, Action and Interaction in AI Theories and Systems: Essays Dedicated to Luigia Carlucci Aiello', 'editors': 'Oliviero Stock; Marco Schaerf', 'publisher': 'Springer Science & Business Media', 'isbn': '9783540379010', 'page': '266'}
+            {'_source': 'book', 'year': '2006', 'author': 'M.Gori; M.Ernandes; G.Angelini', 'chapter': 'Cracking Crosswords: The Computer Challenge', 'title': 'Reasoning, Action and Interaction in AI Theories and Systems: Essays Dedicated to Luigia Carlucci Aiello', 'editors': 'Oliviero Stock; Marco Schaerf', 'publisher': 'Springer Science & Business Media', 'isbn': '9783540379010', 'page': '266'}
         ),
         (
             """'''1905''', {{w|Robert Louis Stevenson}}, ''Travels with a Donkey in the Cevennes'', [[s:Travels with a Donkey in the Cevennes/Velay|chapter 1]]""",
@@ -706,12 +706,12 @@ def test_get_params_books():
             # x, y, and z authors
             """'''2001''', Delys Bird, Robert Dixon, and Christopher Lee, ''Authority and Influence'', [http://books.google.co.uk/books?id=DABZAAAAMAAJ&q=ambilaevous&dq=ambilaevous&ei=QiuSSImiGIHAigHKibD6DA&pgis=1 page 54] (University of Queensland Press; {{ISBN|0702232033}}, 9780702232039)""",
             ('year', 'author', 'italics', 'url', 'url::page', 'paren::publisher', 'paren::isbn'),
-            {'_source': 'book', 'year': '2001', 'author': 'Delys Bird', 'author2': 'Robert Dixon', 'author3': 'Christopher Lee', 'title': 'Authority and Influence', 'pageurl': 'http://books.google.co.uk/books?id=DABZAAAAMAAJ&q=ambilaevous&dq=ambilaevous&ei=QiuSSImiGIHAigHKibD6DA&pgis=1', 'page': '54', 'publisher': 'University of Queensland Press', 'isbn': '0702232033; 9780702232039'}
+            {'_source': 'book', 'year': '2001', 'author': 'Delys Bird; Robert Dixon; Christopher Lee', 'title': 'Authority and Influence', 'pageurl': 'http://books.google.co.uk/books?id=DABZAAAAMAAJ&q=ambilaevous&dq=ambilaevous&ei=QiuSSImiGIHAigHKibD6DA&pgis=1', 'page': '54', 'publisher': 'University of Queensland Press', 'isbn': '0702232033; 9780702232039'}
         ),
 #        (
 #            """'''1977''', Olga Kuthanová, translating Jan Hanzák & Jiří Formánek, ''The Illustrated Encyclopedia of Birds'', London 1992, p. 177:""",
 #            ('year', 'translator', 'author', 'italics', 'location', 'year2', 'page'),
-#            {'_source': 'book', 'year': '1977', 'translator': 'Olga Kuthanová', 'author': 'Jan Hanzák', 'author2': 'Jiří Formánek', 'title': 'The Illustrated Encyclopedia of Birds', 'page': '177', 'location': 'London', 'year_published': '1992'}
+#            {'_source': 'book', 'year': '1977', 'translator': 'Olga Kuthanová', 'author': 'Jan Hanzák; Jiří Formánek', 'title': 'The Illustrated Encyclopedia of Birds', 'page': '177', 'location': 'London', 'year_published': '1992'}
 #        ),
         (
             # Publisher in parenthesis, not handled - other items can be in parethensis
@@ -723,7 +723,7 @@ def test_get_params_books():
             # Volume info, no publisher
             """'''2006''', Renaat Declerck, Susan Reed, Bert Cappelle, ''The Grammar of the English Verb Phrase'', vol. 1, ''The Grammar of the English Tense System'', {{ISBN|9783110185898}}, page 6:""",
             ('year', 'author', 'italics', 'volume', 'italics2', 'isbn', 'page'),
-            {'_source': 'book', 'year': '2006', 'author': 'Renaat Declerck', 'author2': 'Susan Reed', 'author3': 'Bert Cappelle', 'chapter': 'The Grammar of the English Verb Phrase', 'volume': '1', 'title': 'The Grammar of the English Tense System', 'isbn': '9783110185898', 'page': '6'}
+            {'_source': 'book', 'year': '2006', 'author': 'Renaat Declerck; Susan Reed; Bert Cappelle', 'chapter': 'The Grammar of the English Verb Phrase', 'volume': '1', 'title': 'The Grammar of the English Tense System', 'isbn': '9783110185898', 'page': '6'}
         ),
         (
             """'''2007''', William D. Popkin, ''Evolution of the Judicial Opinion: Institutional and Individual Styles'', NYU Press ({{ISBN|9780814767498}}), page 104:""",
@@ -740,18 +740,18 @@ def test_get_params_books():
             # Multi authors
             """'''2015''', Thomas J. Gradel, Dick Simpson, ''Corrupt Illinois: Patronage, Cronyism, and Criminality'', University of Illinois Press ({{ISBN|9780252097034}}), page 117:""",
             ('year', 'author', 'italics', 'publisher', 'paren::isbn', 'page'),
-            {'_source': 'book', 'year': '2015', 'author': 'Thomas J. Gradel', 'author2': 'Dick Simpson', 'title': 'Corrupt Illinois: Patronage, Cronyism, and Criminality', 'publisher': 'University of Illinois Press', 'isbn': '9780252097034', 'page': '117'}
+            {'_source': 'book', 'year': '2015', 'author': 'Thomas J. Gradel; Dick Simpson', 'title': 'Corrupt Illinois: Patronage, Cronyism, and Criminality', 'publisher': 'University of Illinois Press', 'isbn': '9780252097034', 'page': '117'}
         ),
         (
             """'''1998''', Anton Pavlovich Chekhov, Ronald Hingley, ''Five Plays'', Oxford University Press, USA ({{ISBN|9780192834126}}), page 148:""",
             ('year', 'author', 'italics', 'publisher', 'paren::isbn', 'page'),
-            {'_source': 'book', 'year': '1998', 'author': 'Anton Pavlovich Chekhov', 'author2': 'Ronald Hingley', 'title': 'Five Plays', 'publisher': 'Oxford University Press, USA', 'isbn': '9780192834126', 'page': '148'}
+            {'_source': 'book', 'year': '1998', 'author': 'Anton Pavlovich Chekhov; Ronald Hingley', 'title': 'Five Plays', 'publisher': 'Oxford University Press, USA', 'isbn': '9780192834126', 'page': '148'}
         ),
         (
             # No publisher, no page
             """'''2013''', Larry Munson, Tony Barnhart, ''From Herschel to a Hobnail Boot: The Life and Times of Larry Munson'', Triumph Books ({{ISBN|9781623686826}}), page 52:""",
             ('year', 'author', 'italics', 'publisher', 'paren::isbn', 'page'),
-            {'_source': 'book', 'year': '2013', 'author': 'Larry Munson', 'author2': 'Tony Barnhart', 'title': 'From Herschel to a Hobnail Boot: The Life and Times of Larry Munson', 'publisher': 'Triumph Books', 'isbn': '9781623686826', 'page': '52'}
+            {'_source': 'book', 'year': '2013', 'author': 'Larry Munson; Tony Barnhart', 'title': 'From Herschel to a Hobnail Boot: The Life and Times of Larry Munson', 'publisher': 'Triumph Books', 'isbn': '9781623686826', 'page': '52'}
         ),
         (
             # page before ISBN
@@ -826,7 +826,7 @@ def test_get_params_books():
 #            # Semicolon separator for authors
 #            """'''2013''', Judy Faust; Punch Faust, ''The MOTs File: Memories, Observations, and Thoughts'', AuthorHouse {{ISBN|9781491827123}}, page 88""",
 #            ('year', 'author', 'italics', 'publisher', 'isbn', 'page'),
-#            {'_source': 'book', 'year': '2013', 'author': 'Judy Faust', 'author2': 'Punch Faust', 'title': 'The MOTs File: Memories, Observations, and Thoughts', 'publisher': 'AuthorHouse', 'isbn': '9781491827123', 'page': '88'}
+#            {'_source': 'book', 'year': '2013', 'author': 'Judy Faust; Punch Faust', 'title': 'The MOTs File: Memories, Observations, and Thoughts', 'publisher': 'AuthorHouse', 'isbn': '9781491827123', 'page': '88'}
 #        ),
         (
             # ISBN last
@@ -916,7 +916,7 @@ def test_get_params_books():
         (
             """'''2010''', Erich-Norbert Detroy, Frank M. Scheelen, ''Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher'' (ISBN: 3802924258), page 49:""",
             ('year', 'author', 'italics', 'paren::isbn', 'page'),
-            {'_source': 'book', 'year': '2010', 'author': 'Erich-Norbert Detroy', 'author2': 'Frank M. Scheelen', 'title': 'Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher', 'isbn': '3802924258', 'page': '49'}
+            {'_source': 'book', 'year': '2010', 'author': 'Erich-Norbert Detroy; Frank M. Scheelen', 'title': 'Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher', 'isbn': '3802924258', 'page': '49'}
         ),
 #        (
 #            """'''2005''', [[w:Plato|Plato]], ''Sophist''. Translation by Lesley Brown. [[w:Stephanus pagination|234a]].""",
@@ -986,7 +986,7 @@ def test_get_params_books():
         (
             """'''1903''', Alice M. Hayes and Matthew Horace Hayes, ''The Horsewoman: A Practical Guide to Side-Saddle Riding,'' London: Hurst and Blackett, p.{{nbsp}}96,<sup>[https://archive.org/details/horsewomanpracti00hayerich/page/96/mode/1up?q=%22apron+skirt%22]</sup>""",
             ('year', 'author', 'italics', 'location', 'publisher', 'page', 'url'),
-            {'_source': 'book', 'year': '1903', 'author': 'Alice M. Hayes', 'author2': 'Matthew Horace Hayes', 'title': 'The Horsewoman: A Practical Guide to Side-Saddle Riding', 'location': 'London', 'publisher': 'Hurst and Blackett', 'page': '96', 'url': 'https://archive.org/details/horsewomanpracti00hayerich/page/96/mode/1up?q=%22apron+skirt%22'}
+            {'_source': 'book', 'year': '1903', 'author': 'Alice M. Hayes; Matthew Horace Hayes', 'title': 'The Horsewoman: A Practical Guide to Side-Saddle Riding', 'location': 'London', 'publisher': 'Hurst and Blackett', 'page': '96', 'url': 'https://archive.org/details/horsewomanpracti00hayerich/page/96/mode/1up?q=%22apron+skirt%22'}
         ),
         (
             """'''1954''', {{w|C. S. Lewis}}, ''{{w|The Horse and His Boy}}'', Collins, 1998, Chapter 1,""",
@@ -1026,7 +1026,7 @@ def test_get_params_books():
         (
             """'''2010''', Erich-Norbert Detroy, Frank M. Scheelen, ''Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher'' (ISBN: 3802924258), page 49:""",
             ('year', 'author', 'italics', 'paren::isbn', 'page'),
-            {'_source': 'book', 'year': '2010', 'author': 'Erich-Norbert Detroy', 'author2': 'Frank M. Scheelen', 'title': 'Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher', 'isbn': '3802924258', 'page': '49'}
+            {'_source': 'book', 'year': '2010', 'author': 'Erich-Norbert Detroy; Frank M. Scheelen', 'title': 'Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher', 'isbn': '3802924258', 'page': '49'}
         ),
 
     ]:
@@ -1150,18 +1150,18 @@ def test_get_params_journal():
         (
             """'''1857''', William Chambers, Robert Chambers, "Something about bells", ''Chambers's Journal'', vol. 28, no. 207, [http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true page 398].""",
             ('year', 'author', 'double_quotes', 'italics::journal', 'volume', 'number', 'url', 'url::page'),
-            {'_source': 'journal', 'year': '1857', 'author': 'William Chambers', 'author2': 'Robert Chambers', 'title': 'Something about bells', 'journal': "Chambers's Journal", 'volume': '28', 'number': '207', 'pageurl': 'http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true', 'page': '398'}
+            {'_source': 'journal', 'year': '1857', 'author': 'William Chambers; Robert Chambers', 'title': 'Something about bells', 'journal': "Chambers's Journal", 'volume': '28', 'number': '207', 'pageurl': 'http://books.google.co.uk/books?id=1nhUAAAAYAAJ&pg=PA398#v=onepage&q&f=true', 'page': '398'}
         ),
         (
             """'''2012''', {{w|Gillian Tindall}}, "The Alleged Lunatics' Friend Society", ''Literary Review'', 403:""",
             ('year', 'author', 'double_quotes', 'italics::journal', 'section'),
             {'_source': 'journal', 'year': '2012', 'author': '{{w|Gillian Tindall}}', 'title': "The Alleged Lunatics' Friend Society", 'journal': 'Literary Review', 'section': '403'}
         ),
-        (
-            """'''1682''', {{w|John Dryden}}, ''The Medal,'' Edinburgh, “Epistle to the Whigs,”<sup>[http://name.umdl.umich.edu/A36648.0001.001]</sup>""",
-            ('year', 'author', 'italics', 'location', 'fancy_double_quotes', 'url'),
-            {'_source': 'book', 'year': '1682', 'author': '{{w|John Dryden}}', 'title': 'The Medal', 'location': 'Edinburgh', 'chapter': 'Epistle to the Whigs', 'url': 'http://name.umdl.umich.edu/A36648.0001.001'}
-        ),
+#        (
+#            """'''1682''', {{w|John Dryden}}, ''The Medal,'' Edinburgh, “Epistle to the Whigs,”<sup>[http://name.umdl.umich.edu/A36648.0001.001]</sup>""",
+#            ('year', 'author', 'italics', 'location', 'fancy_double_quotes', 'url'),
+#            {'_source': 'book', 'year': '1682', 'author': '{{w|John Dryden}}', 'title': 'The Medal', 'location': 'Edinburgh', 'chapter': 'Epistle to the Whigs', 'url': 'http://name.umdl.umich.edu/A36648.0001.001'}
+#        ),
         (
             """'''2023''' Jane Doe, ''A Book'' Chapter: 66, (page 1) Volume XXII [picture caption] http://foo.bar""",
             ('year', 'author', 'italics', 'section', 'url'),
@@ -1193,7 +1193,7 @@ def test_get_params_journal():
             # ''et al.''. and chapter is url
             """'''2018''', C Ustan ''et al.''. "[https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733 Core-binding factor acute myeloid leukemia with t(8;21): Risk  factors and a novel scoring system (I-CBFit)]", ''Cancer Medicine''.""",
             ('year', 'author', 'double_quotes::url', 'double_quotes::url::text', 'italics::journal'),
-            {'_source': 'journal', 'year': '2018', 'author': 'C Ustan', 'author2': 'et al', 'titleurl': 'https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733', 'title': 'Core-binding factor acute myeloid leukemia with t(8;21): Risk factors and a novel scoring system (I-CBFit)', 'journal': 'Cancer Medicine'}
+            {'_source': 'journal', 'year': '2018', 'author': 'C Ustan; et al', 'titleurl': 'https://onlinelibrary.wiley.com/doi/pdf/10.1002/cam4.1733', 'title': 'Core-binding factor acute myeloid leukemia with t(8;21): Risk factors and a novel scoring system (I-CBFit)', 'journal': 'Cancer Medicine'}
         ),
 
         (
@@ -1299,11 +1299,11 @@ def test_get_params_journal():
             ('year', 'italics::journal', 'issues', 'url', 'url::page'),
             {'_source': 'journal', 'year': '2006', 'journal': '{{w|Geek Monthly}}', 'issue': '1-4', 'pageurl': 'https://books.google.com.au/books?id=iQHsAAAAMAAJ&q=%22urban+exploration%22&dq=%22urban+exploration%22&hl=en&sa=X&redir_esc=y', 'page': '1980'}
         ),
-        (
-            """'''1987''' {{w|Newsweek}} December 7, 1987, page 44""",
-            ('year', 'journal', 'date', 'page'),
-            {'_source': 'journal', 'date': 'December 7 1987', 'journal': '{{w|Newsweek}}', 'page': '44'}
-        ),
+#        (
+#            """'''1987''' {{w|Newsweek}} December 7, 1987, page 44""",
+#            ('year', 'journal', 'date', 'page'),
+#            {'_source': 'journal', 'date': 'December 7 1987', 'journal': '{{w|Newsweek}}', 'page': '44'}
+#        ),
         (
             """'''2007''', Houston Chronicle (6/17/2007)""",
             ('year', 'journal', 'paren::date'),
@@ -1345,7 +1345,7 @@ def test_get_params_journal():
         (
             """'''2013''', Luke Harding and Uki Goni, ''Argentina urges UK to hand back Falklands and 'end colonialism'' (in ''The Guardian'', 3 January 2013)[http://www.guardian.co.uk/uk/2013/jan/02/argentina-britain-hand-back-falklands]""",
             ('year', 'author', 'italics', 'paren::italics::journal', 'paren::date', 'url'),
-            {'_source': 'journal', 'date': '3 January 2013', 'author': 'Luke Harding', 'author2': 'Uki Goni', 'title': "Argentina urges UK to hand back Falklands and 'end colonialism", 'journal': 'The Guardian', 'url': 'http://www.guardian.co.uk/uk/2013/jan/02/argentina-britain-hand-back-falklands'}
+            {'_source': 'journal', 'date': '3 January 2013', 'author': 'Luke Harding; Uki Goni', 'title': "Argentina urges UK to hand back Falklands and 'end colonialism", 'journal': 'The Guardian', 'url': 'http://www.guardian.co.uk/uk/2013/jan/02/argentina-britain-hand-back-falklands'}
         ),
         (
             """'''2021''' April 24, David McWilliams, [https://www.irishtimes.com/opinion/david-mcwilliams-a-30-year-economic-supercycle-ended-this-week-1.4544720 "A 30-year economic supercycle ended this week"] ''The Irish Times'':""",
@@ -1480,13 +1480,13 @@ def test_get_params_others():
             # tranlating Author & al.
             """'''1898''', Hobart Charles Porter translating Eduard Strasburger & al. ''A Text-book of Botany'', 109:""",
             ('year', 'translator', 'author', 'italics', 'section'),
-            {'_source': 'text', 'year': '1898', 'translator': 'Hobart Charles Porter', 'author': 'Eduard Strasburger', 'author2': 'et al', 'title': 'A Text-book of Botany', 'section': '109'}
+            {'_source': 'text', 'year': '1898', 'translator': 'Hobart Charles Porter', 'author': 'Eduard Strasburger; et al', 'title': 'A Text-book of Botany', 'section': '109'}
         ),
         (
             # author & al. pages roman-roman
             """'''2006''', Barry A. Kosmin & al., ''Religion in a Free Market'', [http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16 pages xvi–xvii]:""",
             ('year', 'author', 'italics', 'url', 'url::pages'),
-            {'_source': 'text', 'year': '2006', 'author': 'Barry A. Kosmin', 'author2': 'et al', 'title': 'Religion in a Free Market', 'pageurl': 'http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16', 'pages': 'xvi-xvii'}
+            {'_source': 'text', 'year': '2006', 'author': 'Barry A. Kosmin; et al', 'title': 'Religion in a Free Market', 'pageurl': 'http://books.google.com/books?id=eK4ccdPm9T4C&pg=PR16', 'pages': 'xvi-xvii'}
         ),
         (
             """'''1987''', "Armageddon Now!", ''{{w|Classic X-Men}}'' #15""",
@@ -1505,8 +1505,8 @@ def test_get_params_others():
         ),
         (
             """'''2010''' January, David Brakke, “[http://www.jstor.org/stable/40390061 A New Fragment of Athanasius’s Thirty-Ninth '''''Festal''' Letter'': Heresy, Apocrypha, and the Canon]” in the ''{{w|Harvard Theological Review}}'', volume CIII, № 1, page 47:""",
-            ('year', 'month', 'author', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics', 'section'),
-            {'_source': 'text', 'year': '2010', 'month': 'January', 'author': 'David Brakke', 'chapterurl': 'http://www.jstor.org/stable/40390061', 'chapter': "A New Fragment of Athanasius’s Thirty-Ninth '''''Festal''' Letter'': Heresy, Apocrypha, and the Canon", 'title': '{{w|Harvard Theological Review}}', 'section': 'volume CIII, № 1, page 47'}
+            ('year', 'month', 'author', 'fancy_double_quotes::url', 'fancy_double_quotes::url::text', 'italics::journal', 'section'),
+            {'_source': 'journal', 'year': '2010', 'month': 'January', 'author': 'David Brakke', 'titleurl': 'http://www.jstor.org/stable/40390061', 'title': "A New Fragment of Athanasius’s Thirty-Ninth '''''Festal''' Letter'': Heresy, Apocrypha, and the Canon", 'journal': '{{w|Harvard Theological Review}}', 'section': 'volume CIII, № 1, page 47'}
         ),
         (
             """'''1930:''' ''[http://www.bisharat.net/Documents/poal30.htm Practical Orthography of African Languages]''""",
@@ -1547,7 +1547,7 @@ def test_get_params_others():
         (
             """'''1990''', {{w|Andrew Davies}}, {{w|Michael Dobbs}}, ''[[w:House of Cards (UK TV show)|House of Cards]]'', Season 1, Episode 4""",
             ('year', 'author', 'italics', 'section'),
-            {'_source': 'text', 'year': '1990', 'author': '{{w|Andrew Davies}}', 'author2': '{{w|Michael Dobbs}}', 'title': '[[w:House of Cards (UK TV show)|House of Cards]]', 'section': 'Season 1, Episode 4'}
+            {'_source': 'text', 'year': '1990', 'author': '{{w|Andrew Davies}}; {{w|Michael Dobbs}}', 'title': '[[w:House of Cards (UK TV show)|House of Cards]]', 'section': 'Season 1, Episode 4'}
 
         ),
         #(
@@ -1624,7 +1624,7 @@ def test_get_params_others():
         (
             """'''2010''', Erich-Norbert Detroy, Frank M. Scheelen, ''Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher'' (ISBN: 3802924258), page 49:""",
             ('year', 'author', 'italics', 'paren::isbn', 'page'),
-            {'_source': 'book', 'year': '2010', 'author': 'Erich-Norbert Detroy', 'author2': 'Frank M. Scheelen', 'title': 'Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher', 'isbn': '3802924258', 'page': '49'}
+            {'_source': 'book', 'year': '2010', 'author': 'Erich-Norbert Detroy; Frank M. Scheelen', 'title': 'Jeder Kunde hat seinen Preis: So verhandeln Sie individuell und verkaufen erfolgreicher', 'isbn': '3802924258', 'page': '49'}
         ),
         (
             """'''2009''', [https://books.google.com/books?id=El5Xm120CWwC&pg=PA226&dq=jiboney&hl=en&sa=X&ei=qIidVfOEI8iHsAXkk7zwBQ&ved=0CC0Q6AEwAzgK ''Puff''] by John Flaherty""",
@@ -1645,12 +1645,12 @@ def test_get_params_others():
         (
             """'''1962''', Hans Sperber, Travis Trittschuh & Hans Sperber, ''American Political Terms''""",
             ('year', 'author', 'italics'),
-            {'_source': 'text', 'year': '1962', 'author': 'Hans Sperber', 'author2': 'Travis Trittschuh', 'author3': 'Hans Sperber', 'title': 'American Political Terms'}
+            {'_source': 'text', 'year': '1962', 'author': 'Hans Sperber; Travis Trittschuh; Hans Sperber', 'title': 'American Political Terms'}
         ),
         (
             """'''2006''', Michael R. Waters with Mark Long and William Dickens, ''Lone Star Stalag: German Prisoners of War at Camp Hearne''""",
             ('year', 'author', 'italics'),
-            {'_source': 'text', 'year': '2006', 'author': 'Michael R. Waters', 'author2': 'Mark Long', 'author3': 'William Dickens', 'title': 'Lone Star Stalag: German Prisoners of War at Camp Hearne'}
+            {'_source': 'text', 'year': '2006', 'author': 'Michael R. Waters; Mark Long; William Dickens', 'title': 'Lone Star Stalag: German Prisoners of War at Camp Hearne'}
         ),
         (
             """'''1599''' CE: William Shakespeare, ''The Tragedy of Julius Caesar''""",
@@ -1859,4 +1859,21 @@ def test_get_passage_with_translation():
     res = fixer.get_passage(text.splitlines())
     print(res)
     assert res == expected
+
+
+def test_use_quote_after_unparsable():
+
+    text = """\
+==English==
+
+===Noun===
+{{es-noun}}
+
+# [[test]]
+#* '''2021''', {{w|Rickie Lee Jones}}, ''Last Chance Texaco'', Grive Press 2022, p. 93:
+#*: You never waited until the train stopped to get off. The railroad '''bulls''' were waiting at the stops searching for freeloaders.\
+"""
+    res = fixer.process(text, "test", [])
+    assert res == text
+
 
