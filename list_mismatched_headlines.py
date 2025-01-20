@@ -117,6 +117,7 @@ POS_HEADWORDS = {
 
 # Templates that act like {{head}} and will contain keywords parameters to define the POS
 HEAD_TEMPLATES = [
+    "h",
     "head",
     "head-lite",
 
@@ -242,7 +243,7 @@ def is_header(line):
     if not template:
         return False
 
-    if template in { "head", "head-lite", "diacritic", "taxoninfl" }:
+    if template in { "h", "head", "head-lite", "diacritic", "taxoninfl" }:
         return True
 
     template = template.lower()
@@ -305,7 +306,7 @@ def get_template_lang_id(line):
             return splits[0]
 
     # The first paramater of HEAD-like template is the language code
-    elif template in [ "head", "head-lite", "diacritic" ] :
+    elif template in [ "h", "head", "head-lite", "diacritic" ] :
         res = re.match(r"{{\s*" + template + r"\s*\|\s*(.*?)\s*\|", line)
         if res:
             return res.group(1)
