@@ -1,4 +1,4 @@
-from enwiktionary_parser.languages.all_ids import ALL_LANG_IDS, ALL_LANGS, ALT_LANGS
+from .lang_ids import ALL_LANG_IDS, ALL_LANGS, ALT_LANGS
 
 # Sections that must be numbered when they appear more than once at the same level
 #

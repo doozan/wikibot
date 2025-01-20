@@ -4,7 +4,7 @@ import enwiktionary_sectionparser as sectionparser
 import mwparserfromhell
 import re
 
-from enwiktionary_parser.languages.all_ids import ALL_LANG_IDS, ALL_LANGS
+from autodooz.sections import ALL_LANG_IDS, ALL_LANGS
 from enwiktionary_sectionparser.utils import wiki_resplit
 
 """ Converts bulleted lists of {{l}} items into {{col}} lists """

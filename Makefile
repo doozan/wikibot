@@ -855,10 +855,8 @@ $(FIX)missing_taxlinks: $(BUILDDIR)/local_taxons.tsv $(BUILDDIR)/external_taxons
 
 $(BUILDDIR)/.update_langs:
 >   @echo "Updating languages"
->   cd ../enwiktionary_parser
->   git pull
+>   ./scripts/scrape_languages.py > lang_ids.py
 >   date > $@
-
 
 # Lists that run in less that 30 minutes on single core
 fast_lists: $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_tlfi pt_with_synonyms)
