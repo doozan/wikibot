@@ -157,7 +157,7 @@ class MoveSubsectionsRunner():
         target = None
         for section in entry.ifilter_sections(recursive=True, matches=lambda x: x.title in ALL_POS):
 
-            if not re.search("^\s*{{head\|es\|(past participle|[^|]* form)", section.content_text):
+            if not re.search(r"^\s*{{head\|es\|(past participle|[^|]* form)", section.content_text):
                 target = section
                 continue
 
