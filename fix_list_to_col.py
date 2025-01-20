@@ -5,7 +5,7 @@ import mwparserfromhell
 import re
 
 from enwiktionary_parser.languages.all_ids import ALL_LANG_IDS, ALL_LANGS
-from enwiktionary_parser.utils import nest_aware_resplit
+from enwiktionary_sectionparser.utils import wiki_resplit
 
 """ Converts bulleted lists of {{l}} items into {{col}} lists """
 
@@ -401,7 +401,7 @@ class ListToColFixer():
         """ Returns None if all items could not be parsed """
 
         items = []
-        for text, _ in nest_aware_resplit("[,;]", line, [("{{", "}}")]):
+        for text in wiki_resplit("[,;]", line):
             item = self.get_item(lang_id, text, section, page)
             if not item:
                 return
