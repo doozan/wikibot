@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# Copyright (c) 2022 Jeff Doozan
+# Copyright (c) 2022-2025 Jeff Doozan
 #
 # This is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@ from collections import defaultdict, namedtuple
 import re
 import sys
 
-from enwiktionary_parser.utils import wiki_finditer
+from enwiktionary_sectionparser.utils import wiki_finditer
 
 Match = namedtuple("Match", ["path", "path_index", "match_index", "start", "end"])
 
@@ -129,11 +129,11 @@ def get_matches(title, full_text, re_match, re_not, match_context, no_path, dota
     if needs_sections:
         pattern = "^==+.*?==+"
         # TODO: can probably drop re.MULTILINE here
-        for m in wiki_finditer(pattern, full_text, re.MULTILINE, ignore_comments=False, ignore_nowiki=True, ignore_templates=True):
+        for m in wiki_finditer(pattern, full_text, re.MULTILINE, match_nowiki=True, match_ref=True, match_math=True, match_pre=True, match_table=True, match_templates=True, match_links=True, match_special_links=True):
             found_sections.append((m.group(0), m.start()))
 
     pattern = re_match
-    for m in wiki_finditer(pattern, full_text, re.MULTILINE, ignore_comments=False, ignore_nowiki=True, ignore_templates=True):
+    for m in wiki_finditer(pattern, full_text, re.MULTILINE, match_nowiki=True, match_ref=True, match_math=True, match_pre=True, match_table=True, match_templates=True, match_links=True, match_special_links=True):
 
         start = m.start()
         end = m.end()
