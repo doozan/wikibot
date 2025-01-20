@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# Copyright (c) 2021 Jeff Doozan
+# Copyright (c) 2021-2025 Jeff Doozan
 #
 # This is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ import sys
 from autodooz.sections import ALL_LANGS, ALL_LANG_IDS
 from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation, UNKNOWN_LANGS, LANG_PARENTS
 from enwiktionary_wordlist.all_forms import AllForms
-from enwiktionary_parser.utils import nest_aware_resplit, nest_aware_split
+from autodooz.utils import nest_aware_resplit, nest_aware_split
 
 ttbc_fixes = {}
 

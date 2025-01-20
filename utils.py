@@ -102,3 +102,107 @@ def split_namespace(target):
     alias = m.group(1)
     alias = alias.lstrip(":").lower()
     return ALIAS_TO_NAMESPACE[alias], target.removeprefix(m.group(0))
+
+
+
+def get_nest_depth(text, opener, closer, start_depth=0):
+    """ Returns the level of depth inside ```start``` at the end of the line
+    opener and closer are the nest opening and closing strings
+    starting_depth, optional is the starting depth level
+
+    zero }} zero {{ one {{ two {{ three }} two }} one }} zero }} zero
+    """
+
+    if start_depth < 0:
+        raise ValueError("start_level cannot be negative")
+
+    depth = start_depth
+
+    first = True
+    for t in text.split(opener):
+        if first:
+            first = False
+            if not depth:
+                continue
+        else:
+            depth += 1
+
+        depth = max(0, depth - t.count(closer))
+
+    return depth
+
+def get_template_depth(text, start_depth=0):
+    """
+    Returns the depth of template templates at the end of the given line
+    zero }} zero {{ one {{ two {{ three }} two }} one }} zero }} zero
+    """
+
+    return get_nest_depth(text, "{{", "}}", start_depth=start_depth)
+
+def nest_aware_iterator(iterator, nests, delimiter=""):
+    results = []
+    items = []
+    depth = {}
+
+    for item in iterator:
+        items.append(item)
+        depth = { nest:get_nest_depth(item, nest[0], nest[1], depth.get(nest, 0)) for nest in nests }
+        if any(depth.values()):
+            continue
+
+        yield delimiter.join(items)
+        items = []
+
+    if len(items):
+        yield delimiter.join(items)
+
+def nest_aware_resplit(pattern, text, nests, flags=re.DOTALL):
+
+    if not pattern.startswith("("):
+        pattern = "(" + pattern + ")"
+
+    results = []
+    items = []
+    depth = {}
+
+    it = iter(re.split(pattern, text, flags))
+    for item in it:
+        delimiter = next(it,"")
+        items.append(item)
+        depth = { nest:get_nest_depth(item, nest[0], nest[1], depth.get(nest, 0)) for nest in nests }
+        if any(depth.values()):
+            items.append(delimiter)
+            continue
+
+        yield ("".join(items), delimiter)
+        items = []
+
+    if len(items):
+        yield (delimiter.join(items), "")
+
+def nest_aware_splitlines(text, nests, keepends=False):
+    return nest_aware_iterator(text.splitlines(keepends), nests)
+
+def nest_aware_split(delimiter, text, nests):
+    return nest_aware_iterator(text.split(delimiter), nests, delimiter)
+
+def nest_aware_index(delimiter, text, nests):
+    part = next(nest_aware_split(delimiter, text, nests), None)
+    if len(part)==len(text):
+        return -1
+
+    return len(part)
+
+def nest_aware_contains(delimiter, text, nests):
+    return nest_aware_index(delimiter, text, nests) != -1
+
+def template_aware_splitlines(text, keepends=False):
+    return nest_aware_iterator(text.splitlines(keepends), [("{{","}}")])
+
+def template_aware_split(delimiter, text):
+    return nest_aware_iterator(text.split(delimiter), [("{{","}}")], delimiter)
+
+def template_aware_resplit(pattern, text):
+    return nest_aware_resplit(pattern, text, [("{{","}}")])
+
+
