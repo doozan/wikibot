@@ -3,7 +3,6 @@ import re
 import unicodedata
 
 from autodooz.sections import ALL_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
-from autodooz.fix_es_forms import FormFixer
 from collections import defaultdict
 
 
@@ -75,6 +74,19 @@ TOP_SORT = {k:v for v,k in enumerate([
         "Han character", # Difers from WT:ELE order, but follows common practice in Translingual
     ], 1)}
 
+
+
+def is_spanish_form_header(text):
+    return bool(re.match(r"\s*{{(head|head-lite)\|es\|(past participle|[^|]* form[ |}])", text, re.MULTILINE)) \
+            or "{{es-past participle" in text
+
+def is_spanish_form(section):
+    wikiline = ""
+    # Skip leading empty lines (shouldn't exist, but just to be safe)
+    for wikiline in section.content_wikilines:
+        if wikiline.strip():
+            break
+    return is_spanish_form_header(wikiline)
 
 class SectionOrderFixer:
 
@@ -260,7 +272,7 @@ class SectionOrderFixer:
             sort_class = 0
             sort_item = 0
             if lemmas_before_forms:
-                if not FormFixer.is_form(item):
+                if not is_spanish_form(item):
                     sort_class = 0
                     sort_item = 0  # Lemmas remain in original order
                 else:
