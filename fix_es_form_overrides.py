@@ -49,6 +49,8 @@ class OverrideFixer():
 
     def is_simple_female_equivalent(self, custom, default, section):
         masculines = custom if custom and custom not in [ ["1"], ["+"] ] else default
+        if not masculines:
+            return False
         masculine = masculines[0]
         return not section._children and section.content_wikilines[1:] == ['', "# {{female equivalent of|es|" + masculine + "}}"]
 
