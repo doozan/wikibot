@@ -103,7 +103,7 @@ class BylineFixer():
                 for idx, line in enumerate(pos.headlines):
                     if not line:
                         continue
-                    if is_header(section, line):
+                    if is_header(line):
                         headline_idx.append(idx)
                     elif line and line[0] in "#*:":
                         sense_idx.append(idx)
