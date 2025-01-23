@@ -27,7 +27,8 @@ from autodooz.fix_t9n import T9nFixer
 from autodooz.sections import ALL_LANGS, ALL_LANG_IDS, ALL_POS
 from autodooz.wikilog import WikiLogger, BaseHandler
 from autodooz.wikilog_language import WikiByLanguage as BaseWikiByLanguage
-from enwiktionary_translations import TranslationTable, TranslationLine, UNKNOWN_LANGS, LANG_PARENTS
+from enwiktionary_sectionparser.utils import wiki_splitlines
+from enwiktionary_translations import TranslationTable, TranslationLine
 from enwiktionary_translations.language_aliases import language_aliases as LANG_ALIASES
 from enwiktionary_wordlist.all_forms import AllForms
 from enwiktionary_wordlist.wikiextract import WikiExtract
@@ -284,9 +285,12 @@ def main():
 #        if error != "text_outside_template":
 #            logger.add(error, page, pos, gloss, line, highlight)
 
-    count = 0
+    _count = 0
     max_val = 0
     pages_with_tables = set()
+
+    UNKNOWN_LANGS = defaultdict(lambda: defaultdict(int))
+    LANG_PARENTS = defaultdict(int)
 
     for article in WikiExtract.iter_articles_from_bz2(args.trans):
         text = article.text
@@ -297,10 +301,10 @@ def main():
         if pos not in ALL_POS:
             log("outside_pos", page, pos, None, None, path)
 
-        count += 1
-        if not count % 1000 and args.progress:
-            print(count, end = '\r', file=sys.stderr)
-        if args.limit and count > args.limit:
+        _count += 1
+        if not _count % 1000 and args.progress:
+            print(_count, end = '\r', file=sys.stderr)
+        if args.limit and _count > args.limit:
             break
 
 #        if page != "pie-eyed":
@@ -317,23 +321,26 @@ def main():
 #            max_page = pathstr
 #        continue
 
-        tables = list(TranslationTable.find_tables(text))
-        if not len(tables) and not re.search("{{\s*(trans-see|checktrans|see translation)", text):
+        wikilines = list(wiki_splitlines(text, return_state=True, match_templates=["multitrans"]))
+        state = wikilines.pop()
+
+        tables = fixer.get_tables(wikilines)
+        if not len(tables) and not re.search(r"{{\s*(trans-see|checktrans|see translation)", text):
             log("no_tables", page, pos, None, None)
-
-#            max_page = "X"
-
+            continue
 
         pages_with_tables.add(page)
         stats["sections_with_tables"] += 1
         for table_lines in tables:
-            table_lines = table_lines.splitlines()
-#            print(table_lines)
-#            exit()
-#            max_val += len(table_lines)
-#            continue
 
             table = TranslationTable(page, pos, table_lines, log_function=log)
+
+            for full_lang,maybe_lang_ids in sorted(table.UNKNOWN_LANGS.items()):
+                for maybe_lang_id, count in maybe_lang_ids.items():
+                    UNKNOWN_LANGS[full_lang][maybe_lang_id] += count
+
+            for full_lang, count in table.LANG_PARENTS.items():
+                LANG_PARENTS[full_lang] += 1
 
             stats["total_tables"] += 1
             seen = set()
@@ -395,6 +402,7 @@ def main():
 
     print(f"Total pages with tables: {stats['pages_with_tables']}")
     print(f"Total sections with tables: {stats['sections_with_tables']}")
+    print(f"Total tables: {stats['total_tables']}")
     total_lines = sum(stats["lang_entries"].values())
     print(f"Total language lines in tables: {total_lines}")
     print(f"Total translation entries: {stats['total_entries']}")

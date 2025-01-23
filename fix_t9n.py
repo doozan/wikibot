@@ -25,7 +25,7 @@ import re
 import sys
 
 from autodooz.sections import ALL_LANGS, ALL_LANG_IDS
-from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation, UNKNOWN_LANGS, LANG_PARENTS
+from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation
 from enwiktionary_wordlist.all_forms import AllForms
 from autodooz.utils import nest_aware_resplit, nest_aware_split
 
@@ -352,6 +352,44 @@ class T9nFixer():
             table.log("missing_bottom_template")
 
 
+    RE_TOP_TEMPLATES = r"{{\s*(" + "|".join(TranslationTable.TOP_TEMPLATES) + r")\s*[|}]"
+    RE_BOTTOM_TEMPLATES = r"{{\s*(" + "|".join(TranslationTable.BOTTOM_TEMPLATES) + r")\s*[|}]"
+    @classmethod
+    def is_table_start(cls, line):
+        line = re.sub("<!--.*-->", "", line)
+        return bool(re.search(cls.RE_TOP_TEMPLATES, line))
+
+    @classmethod
+    def is_table_end(cls, line):
+        line = re.sub("<!--.*-->", "", line)
+        return bool(re.search(cls.RE_BOTTOM_TEMPLATES, line))
+
+    def get_tables(self, wikilines):
+
+        tables = []
+
+        table_start = None
+        for i, line in enumerate(wikilines):
+            if self.is_table_start(line):
+                if table_start is not None:
+                    tables.append(wikilines[table_start:i+1])
+                table_start = i
+
+            elif self.is_table_end(line):
+                if table_start is not None:
+                    tables.append(wikilines[table_start:i+1])
+#                else:
+#                    self.warn("extra_bottom", section, wikiline)
+                table_start = None
+
+        if table_start is not None:
+            tables.append(wikilines[table_start:])
+
+        return tables
+
+
+
+
 class T9nFixRunner():
 
     """ Harness for running FormFixer from the fun_replace.py script """
@@ -389,6 +427,8 @@ class T9nFixRunner():
 
         return True
 
+
+
     def cleanup_tables(self, page_text, title, summary=None):
 
         if not self.can_handle_page(title):
@@ -405,19 +445,16 @@ class T9nFixRunner():
         for section in sections.ifilter_sections(matches="Translations"):
             pos = section.parent.title
 
-            tables = list(TranslationTable.find_tables(str(section)))
+            for table in self.fixer.get_tables(section.content_wikilines):
 
-            for table_text in tables:
+                table = TranslationTable(title, pos, table, log_function=lambda *x: x)
 
-                # TODO: rework TT() so it handles text instead of lines and doesn't require page, pos params
-                table_lines = table_text.splitlines()
-                table = TranslationTable(title, pos, table_lines, log_function=lambda *x: x)
-
+                old_text = str(table)
                 self.fixer.cleanup_table(table)
-
                 new_text =  str(table)
-                if table.fixes and new_text != table_text:
-                    replacements.append((table_text, new_text, table.fixes))
+
+                if table.fixes and new_text != old_text:
+                    replacements.append((old_text, new_text, table.fixes))
 
         if replacements:
             all_fixes = []
