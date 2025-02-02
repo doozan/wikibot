@@ -25,7 +25,7 @@ import re
 import sys
 
 from autodooz.sections import ALL_LANGS, ALL_LANG_IDS
-from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation
+from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation, get_tables
 from enwiktionary_wordlist.all_forms import AllForms
 from autodooz.utils import nest_aware_resplit, nest_aware_split
 
@@ -352,41 +352,6 @@ class T9nFixer():
             table.log("missing_bottom_template")
 
 
-    RE_TOP_TEMPLATES = r"{{\s*(" + "|".join(TranslationTable.TOP_TEMPLATES) + r")\s*[|}]"
-    RE_BOTTOM_TEMPLATES = r"{{\s*(" + "|".join(TranslationTable.BOTTOM_TEMPLATES) + r")\s*[|}]"
-    @classmethod
-    def is_table_start(cls, line):
-        line = re.sub("<!--.*-->", "", line)
-        return bool(re.search(cls.RE_TOP_TEMPLATES, line))
-
-    @classmethod
-    def is_table_end(cls, line):
-        line = re.sub("<!--.*-->", "", line)
-        return bool(re.search(cls.RE_BOTTOM_TEMPLATES, line))
-
-    def get_tables(self, wikilines):
-
-        tables = []
-
-        table_start = None
-        for i, line in enumerate(wikilines):
-            if self.is_table_start(line):
-                if table_start is not None:
-                    tables.append(wikilines[table_start:i+1])
-                table_start = i
-
-            elif self.is_table_end(line):
-                if table_start is not None:
-                    tables.append(wikilines[table_start:i+1])
-#                else:
-#                    self.warn("extra_bottom", section, wikiline)
-                table_start = None
-
-        if table_start is not None:
-            tables.append(wikilines[table_start:])
-
-        return tables
-
 
 
 
@@ -445,7 +410,7 @@ class T9nFixRunner():
         for section in sections.ifilter_sections(matches="Translations"):
             pos = section.parent.title
 
-            for table in self.fixer.get_tables(section.content_wikilines):
+            for table in get_tables(section.content_wikilines):
 
                 table = TranslationTable(title, pos, table, log_function=lambda *x: x)
 
