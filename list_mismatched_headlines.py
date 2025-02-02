@@ -125,10 +125,11 @@ HEAD_TEMPLATES = [
     "bcl-head",
     "grk-ita-head",
     "mh-head",
-    "za-head",
-    "tl-head",
+    "mvi-head",
     "ryu-head",
+    "tl-head",
     "xug-head",
+    "za-head",
 
     "brx-pos",
     "ha-pos",
