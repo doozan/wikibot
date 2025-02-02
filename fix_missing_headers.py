@@ -111,6 +111,8 @@ class HeaderFixer():
                         if headline_matches(line, headlines):
                             self.fix("stray_headline", section, "", f"added missing {section.title} header")
                             new_header = "="*section.level + section.title + "="*section.level
+                            if section.content_wikilines[i-1] != "":
+                                new_header = "\n" + new_header
                             fixes.append((new_header, i))
                         else:
                             self.warn("stray_headline_mismatched_templates", section, "", "\n".join(headlines + ["", line]))

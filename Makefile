@@ -590,7 +590,7 @@ $(LIST)template_stats: $(BUILDDIR)/template_data.json $(BUILDDIR)/template_count
 $(LIST)missing_headers: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   @echo "Running $@..."
 
->   $(LIST_MISSING_HEADERS) --wxt $< $(SAVE)
+>   $(LIST_MISSING_HEADERS) $< $(SAVE)
 >   touch $@
 
 # Fixes
