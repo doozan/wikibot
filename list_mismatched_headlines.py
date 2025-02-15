@@ -27,7 +27,6 @@ import sys
 
 from pywikibot import xmlreader
 from autodooz.utils import iter_wxt
-from autodooz.sections import ALL_POS, ALL_LANGS, ALL_LANG_IDS
 from autodooz.wikilog import WikiLogger, BaseHandler
 from autodooz.wikilog_language import WikiByLanguage, FileByLanguage
 from collections import defaultdict
@@ -48,7 +47,7 @@ def log(error, page, language, section, line, highlight=None):
         print(error, page, language, section, line)
 
     if error == "lang-mismatch":
-        error = f"Language id mismatch (id is not '{ALL_LANGS[language]}')"
+        error = f"Language id mismatch (id is not '{sectionparser.ALL_LANGS[language]}')"
     logger.add(error, page, language, section, line, highlight)
 
 # pass if the string appears in the headword template name
@@ -199,10 +198,10 @@ LANGUAGE_ALTS = {
 }
 
 def language_matches(lang_id, lang_name):
-    if lang_id not in ALL_LANG_IDS:
+    if lang_id not in sectionparser.ALL_LANG_IDS:
         return True
 
-    id_name = ALL_LANG_IDS[lang_id]
+    id_name = sectionparser.ALL_LANG_IDS[lang_id]
     if id_name == lang_name:
         return True
 
@@ -253,10 +252,10 @@ def is_header(line):
         splits = template.split("-")
 
         # Check for hyphenated language codes first
-        if len(splits) > 2 and "-".join(splits[:2]) in ALL_LANG_IDS:
+        if len(splits) > 2 and "-".join(splits[:2]) in sectionparser.ALL_LANG_IDS:
             return True
 
-        if splits[0] in ALL_LANG_IDS:
+        if splits[0] in sectionparser.ALL_LANG_IDS:
             return True
 
         # "inc-pra" uses "pra-" as a prefix; "gmq-pro" uses "gmq-"
@@ -299,11 +298,11 @@ def get_template_lang_id(line):
         splits = template.split("-")
 
         # Check for hyphenated language codes first
-        if len(splits) > 2 and "-".join(splits[:2]) in ALL_LANG_IDS:
+        if len(splits) > 2 and "-".join(splits[:2]) in sectionparser.ALL_LANG_IDS:
             return "-".join(splits[:2])
 
         # Fallback to unhyphenated language code
-        if splits[0] in ALL_LANG_IDS:
+        if splits[0] in sectionparser.ALL_LANG_IDS:
             return splits[0]
 
     # The first paramater of HEAD-like template is the language code
@@ -324,10 +323,10 @@ def process(args):
     if not entry:
         return res
 
-    for lang in entry.ifilter_sections(recursive=False, matches=lambda x: x.title in ALL_LANGS and x.title not in IGNORE_LANGS):
-        lang_id = ALL_LANGS.get(lang._topmost.title)
+    for lang in entry.ifilter_sections(recursive=False, matches=lambda x: x.title in sectionparser.ALL_LANGS and x.title not in IGNORE_LANGS):
+        lang_id = sectionparser.ALL_LANGS.get(lang._topmost.title)
 
-        for section in lang.ifilter_sections(matches=lambda x: x.title in ALL_POS and x.title not in IGNORE_POS):
+        for section in lang.ifilter_sections(matches=lambda x: x.title in sectionparser.ALL_POS and x.title not in IGNORE_POS):
 
             for line in section.content_wikilines:
                 # Skip wiki stuff that might be in the way of a template

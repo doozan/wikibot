@@ -4,7 +4,6 @@ import enwiktionary_sectionparser as sectionparser
 import mwparserfromhell
 import re
 
-from autodooz.sections import ALL_LANG_IDS, ALL_LANGS
 from enwiktionary_sectionparser.utils import wiki_resplit
 
 """ Converts bulleted lists of {{l}} items into {{col}} lists """
@@ -27,7 +26,7 @@ class ListToColFixer():
                 self._summary.append(f"/*{section.path}*/ {details}")
 
         lang, page = list(section.lineage)[-2:]
-        lang_id = ALL_LANGS[lang]
+        lang_id = sectionparser.ALL_LANGS[lang]
         self._log.append(("autofix_" + code, page, lang_id))
 
     def warn(self, code, section, details=None):
@@ -37,13 +36,13 @@ class ListToColFixer():
             return
 
         lang, page = list(section.lineage)[-2:]
-        lang_id = ALL_LANGS[lang]
+        lang_id = sectionparser.ALL_LANGS[lang]
         self._log.append((code, page, lang_id, details))
 
     def process_section(self, section, page):
         """ Returns True if the section was modified """
 
-        lang_id = ALL_LANGS[list(section.lineage)[-2]]
+        lang_id = sectionparser.ALL_LANGS[list(section.lineage)[-2]]
 
         # Convert list of possibly multi-line content_wikilines to a list of individual lines
         old_lines = []
@@ -551,7 +550,7 @@ class ListToColFixer():
             return [] if summary is None else text
 
         entry_changed = False
-        lang_names = [ALL_LANG_IDS[lang_id] for lang_id in options["lang_ids"]]
+        lang_names = [sectionparser.ALL_LANG_IDS[lang_id] for lang_id in options["lang_ids"]]
         for l2 in entry.filter_sections(matches=lambda x: x.title in lang_names, recursive=False):
 
             # Skip prefixes, suffixes, and afixes

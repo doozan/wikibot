@@ -5,17 +5,15 @@ import sys
 import enwiktionary_parser as wtparser
 import enwiktionary_templates as templates
 
-from autodooz.sections import ALL_LANG_IDS
 from enwiktionary_parser.wtnodes.wordsense import WordSense
 from enwiktionary_wordlist.utils import wiki_to_text
 from enwiktionary_wordlist.sense import Sense
 from enwiktionary_wordlist.word import Word
-from enwiktionary_parser.sections.pos import ALL_POS
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
 
 # Some pos entries have multiple titles, pick favorites
-POS_TO_TITLE = {v: k for k, v in ALL_POS.items()}
+POS_TO_TITLE = {v: k for k, v in sectionparser.ALL_POS.items()}
 POS_TO_TITLE.update({
     "adj": "Adjective",
     "adv": "Adverb",
@@ -417,7 +415,7 @@ class FormFixer():
             elif form_obj.formtype == "pp_fp":
                 return "# {{feminine plural of|es|" + form_obj.lemma + "}}"
             else:
-                raise ValueError("unexpected participle type", formtype, form_obj)
+                raise ValueError("unexpected participle type", form_obj.formtype, form_obj)
 
     def get_noun_gloss(self, form_obj):
         gender, plural = self.get_gender_plural(form_obj.formtype)
@@ -591,7 +589,7 @@ class FormFixer():
 
         for sense in wikt.filter_wordsenses():
             pos_title = re.sub("[ 1-9]+$", "", sense._parent._parent.name)
-            pos = ALL_POS[pos_title]
+            pos = sectionparser.ALL_POS[pos_title]
 
             gloss = wiki_to_text(str(sense.gloss), "title").lstrip("# ")
             if " of " not in gloss:
@@ -1056,7 +1054,7 @@ class FixRunner():
     """ Harness for running FormFixer from the fun_replace.py script """
 
     def __init__(self, lang_id, wordlist, allforms, **kwargs):
-        self.language = ALL_LANG_IDS[lang_id]
+        self.language = sectionparser.ALL_LANG_IDS[lang_id]
         self._fixer = None
         self._wordlist = None
         self._allforms = None

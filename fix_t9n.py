@@ -24,8 +24,7 @@ import os
 import re
 import sys
 
-from autodooz.sections import ALL_LANGS, ALL_LANG_IDS
-from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation, get_tables
+from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation
 from enwiktionary_wordlist.all_forms import AllForms
 from autodooz.utils import nest_aware_resplit, nest_aware_split
 
@@ -60,7 +59,7 @@ class T9nFixer():
                 else:
                     match = re.match("[ #*:]+(.*)", item)
                     if match:
-                        if match.group(1).strip() in ALL_LANGS:
+                        if match.group(1).strip() in sectionparser.ALL_LANGS:
                             fixes.append((i, item.rstrip() + ":"))
                             table.fixes.append("Appended : to bare language line")
 
@@ -83,7 +82,7 @@ class T9nFixer():
             return
 
         lang_id = match.group(2)
-        full_lang = ALL_LANG_IDS.get(lang_id)
+        full_lang = sectionparser.ALL_LANG_IDS.get(lang_id)
         if not full_lang:
             return
 
@@ -410,7 +409,7 @@ class T9nFixRunner():
         for section in sections.ifilter_sections(matches="Translations"):
             pos = section.parent.title
 
-            for table in get_tables(section.content_wikilines):
+            for table in TranslationTable.get_tables(section.content_wikilines):
 
                 table = TranslationTable(title, pos, table, log_function=lambda *x: x)
 
