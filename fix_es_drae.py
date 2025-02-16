@@ -57,9 +57,15 @@ class DraeFixer():
             text = text.replace("{{R:DRAE", "{{R:es:DRAE")
 
             if summary is not None:
-                summary.append("/*Spanish*/ renamed R:DRAE to R:esDRAE")
+                summary.append("/*Spanish*/ renamed R:DRAE to R:es:DRAE")
 
             return text
+
+
+        # Do nothing if it already exists on the page
+        if "{{R:es:DRAE" in text:
+            return text
+
 
         # Skip single letters
         if len(title) == 1:
@@ -90,7 +96,7 @@ class DraeFixer():
         # Remove DRAE line if it appears in References or See also
         remove_section = []
         for section in spanish.ifilter_sections(matches=lambda x: x.title in ["Further reading", "See also", "References"]):
-            section.content_lines = [l for l in section.content_wikilines if l != drae_line]
+            section.content_wikilines = [l for l in section.content_wikilines if l != drae_line]
             # IF the section is now empty, remove it
             if not section.content_wikilines:
                 remove_section.append(section)

@@ -6,6 +6,8 @@ from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
 from ..fix_es_drae import DraeFixer
 
+fixer = DraeFixer("../drae_data/drae.links")
+
 def test():
 
     text = """\
@@ -42,7 +44,6 @@ def test():
     title = "reproducción"
     summary = []
 
-    fixer = DraeFixer("../drae_data/drae.links")
     res = fixer.fix_missing_drae(text, title, summary)
 
     print(summary)
