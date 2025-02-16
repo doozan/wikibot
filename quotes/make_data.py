@@ -389,7 +389,7 @@ def apply_resolutions(all_values, filename):
 
 
 def contains_disallowed_word(text, source):
-    stripped = re.sub("[^\w\d\s]+", "", text)
+    stripped = re.sub(r"[^\w\d\s]+", "", text)
 
     words = [w.lower() for w in nest_aware_split(" ", stripped, NESTS)]
     res = any(w in disallowed_words[source] for w in words)
@@ -404,7 +404,7 @@ def is_filtered(v, source, all_filters):
         return True
 
     # Skip things that look like dates
-    if re.search("\d\d\d\d", v):
+    if re.search(r"\d\d\d\d", v):
         return True
 
     if v.startswith("'") or v.startswith('"'):
@@ -686,8 +686,8 @@ def old_load_items(self, filename, prefixes=None, postfixes=None, disallowed_ite
         return items
 
 
-journal_regex = re.compile(f"{QuoteParser.journal_prefix_regex}(?P<condensed>.*?){QuoteParser.journal_postfix_regex}$", re.IGNORECASE)
-publisher_regex = re.compile(f"{QuoteParser.publisher_prefix_regex}(?P<condensed>.*?){QuoteParser.publisher_postfix_regex}$", re.IGNORECASE)
+journal_regex = re.compile(rf"{QuoteParser.journal_prefix_regex}(?P<condensed>.*?){QuoteParser.journal_postfix_regex}$", re.IGNORECASE)
+publisher_regex = re.compile(rf"{QuoteParser.publisher_prefix_regex}(?P<condensed>.*?){QuoteParser.publisher_postfix_regex}$", re.IGNORECASE)
 
 def condense(v, p):
 

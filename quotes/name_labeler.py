@@ -1,7 +1,7 @@
 import re
 import sys
 
-from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit
+from autodooz.utils import nest_aware_split, nest_aware_resplit
 from .names import *
 
 allowed_lowercase_regex = r"^(" + "|".join(map(re.escape, allowed_lowercase_prefix)) + ")[A-Z]"

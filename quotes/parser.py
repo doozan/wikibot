@@ -3,9 +3,9 @@ import sys
 
 from autodooz.sections import ALL_LANGS
 from collections import namedtuple
-from enwiktionary_parser.utils import nest_aware_split, nest_aware_resplit
 from autodooz.quotes.name_labeler import NameLabeler
 from autodooz.quotes.names import *
+from autodooz.utils import nest_aware_split, nest_aware_resplit
 
 
 NESTS = (("[", "]"), ("{{", "}}"))
