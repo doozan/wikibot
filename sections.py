@@ -1,4 +1,5 @@
-from enwiktionary_sectionparser import ALL_POS, ALL_LANG_IDS, ALL_LANGS, ALT_LANGS
+from enwiktionary_sectionparser import ALL_POS
+from enwiktionary_templates import ALL_LANG_IDS, ALL_LANGS, ALT_LANGS
 
 # Sections that must be numbered when they appear more than once at the same level
 #
