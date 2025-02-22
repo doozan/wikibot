@@ -27,6 +27,7 @@ import sys
 from enwiktionary_translations.t9nparser import TranslationTable, TranslationLine, Translation
 from enwiktionary_wordlist.all_forms import AllForms
 from autodooz.utils import nest_aware_resplit, nest_aware_split
+from enwiktionary_templates import ALL_LANGS, ALL_LANG_IDS
 
 ttbc_fixes = {}
 
@@ -59,7 +60,7 @@ class T9nFixer():
                 else:
                     match = re.match("[ #*:]+(.*)", item)
                     if match:
-                        if match.group(1).strip() in sectionparser.ALL_LANGS:
+                        if match.group(1).strip() in ALL_LANGS:
                             fixes.append((i, item.rstrip() + ":"))
                             table.fixes.append("Appended : to bare language line")
 
@@ -82,7 +83,7 @@ class T9nFixer():
             return
 
         lang_id = match.group(2)
-        full_lang = sectionparser.ALL_LANG_IDS.get(lang_id)
+        full_lang = ALL_LANG_IDS.get(lang_id)
         if not full_lang:
             return
 

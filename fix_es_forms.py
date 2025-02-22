@@ -11,6 +11,7 @@ from enwiktionary_wordlist.sense import Sense
 from enwiktionary_wordlist.word import Word
 from enwiktionary_wordlist.wordlist import Wordlist
 from enwiktionary_wordlist.all_forms import AllForms
+from enwiktionary_templates import ALL_LANGS, ALL_LANG_IDS
 
 # Some pos entries have multiple titles, pick favorites
 POS_TO_TITLE = {v: k for k, v in sectionparser.ALL_POS.items()}
@@ -294,8 +295,8 @@ class FormFixer():
     def get_part_head(self, form_obj):
 
         if form_obj.formtype == "pp_ms":
-            if not form_obj.form.endswith("o"):
-                raise ValueError("Unexpected singular past participle")
+#            if not form_obj.form.endswith("o"):
+#                raise ValueError("Unexpected singular past participle", form_obj.form, form_obj.formtype, form_obj)
 
             conj_params = self.get_verb_conj_params(form_obj)
             impersonal = "|inv=1" if "only3s" in conj_params else ""
@@ -1054,7 +1055,7 @@ class FixRunner():
     """ Harness for running FormFixer from the fun_replace.py script """
 
     def __init__(self, lang_id, wordlist, allforms, **kwargs):
-        self.language = sectionparser.ALL_LANG_IDS[lang_id]
+        self.language = ALL_LANG_IDS[lang_id]
         self._fixer = None
         self._wordlist = None
         self._allforms = None
