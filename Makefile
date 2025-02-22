@@ -30,7 +30,7 @@ PYPATH := PYTHONPATH=$(PYENV)
 NGRAMDATA := ../ngram_data
 NGYEAR := 1950
 
-DUMP_LEMMAS := $(PYPATH) $(BUILDDIR)/enwiktionary_wordlist/scripts/dump_lemmas
+DUMP_LEMMAS := $(PYPATH) $(PYENV)/bin/dump_lemmas
 
 WIKI2TEXT := $(PYPATH) scripts/wiki2text
 WIKIGREP := $(PYPATH) scripts/wikigrep
