@@ -8,8 +8,9 @@ import os
 
 from collections import defaultdict
 import enwiktionary_sectionparser as sectionparser
-from autodooz.sections import WT_POS, WT_ELE, ALL_LANGS, COUNTABLE_SECTIONS
+from autodooz.sections import WT_ELE, ALL_LANGS, COUNTABLE_SECTIONS
 from autodooz.utils import iter_wxt
+from enwiktionary_sectionparser.sections import WT_POS
 
 PATTERN_SIMPLE_REFS = r"(?i)(<\s*references\s*/>|{{reflist}})"
 
