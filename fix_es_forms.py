@@ -132,6 +132,7 @@ class FormFixer():
         poslemmas = cls.remove_dup_refl_verbs(poslemmas, form, wordlist)
 
         declared_forms = []
+
         for poslemma in poslemmas:
             pos, lemma = poslemma.split("|")
 
@@ -144,33 +145,36 @@ class FormFixer():
                 genders = cls.get_word_genders(word)
                 for formtype in word.get_formtypes(form):
 
+                    form_pos = pos
+                    form_lemma = lemma
+
                     if pos == "v" and formtype in ["pp_ms", "pp_mp", "pp_fs", "pp_fp"]:
-                        pos = "part"
+                        form_pos = "part"
 
                         if formtype != "pp_ms":
                             idx = word.forms[formtype].index(form)
-                            lemma = word.forms["pp_ms"][idx]
+                            form_lemma = word.forms["pp_ms"][idx]
 
                     if not cls.can_handle_formtype(formtype):
                         continue
 
-                    if pos == "v":
+                    if form_pos == "v":
                         formtype = "smart_inflection"
 
                     # convert feminine plural of masculine noun to plural of feminine
-                    if pos == "n" and formtype == "fpl":
+                    if form_pos == "n" and formtype == "fpl":
                         new_lemma = cls.fpl_to_f(form, word)
 
                         if new_lemma:
-                            lemma = new_lemma
+                            form_lemma = new_lemma
                             genders = ["f"]
                             formtype = "pl"
 
                     # convert "pl" to "mpl" for words that have separate masculine/feminine forms
-                    elif pos not in ["n", "prop"] and formtype == "pl" and "fpl" in word.forms:
+                    elif form_pos not in ["n", "prop"] and formtype == "pl" and "fpl" in word.forms:
                         formtype = "mpl"
 
-                    item = DeclaredForm(form, pos, formtype, lemma, genders)
+                    item = DeclaredForm(form, form_pos, formtype, form_lemma, genders)
                     if item not in declared_forms:
                         declared_forms.append(item)
 
@@ -306,7 +310,7 @@ class FormFixer():
             g = form_obj.formtype[-2] + "-" + form_obj.formtype[-1]
             return "{{head|es|past participle form|g=" + g + "}}"
 
-        raise ValueError("Unexpected part formtype", formtype, form_obj)
+        raise ValueError("Unexpected part formtype", form_obj.formtype, form_obj)
 
     def get_noun_head(self, form_obj):
         gender, plural = self.get_gender_plural(form_obj.formtype)
@@ -374,12 +378,12 @@ class FormFixer():
 
         all_meta = []
         for word in words:
-            for meta in re.findall("{{es-conj[|]?[^<]*([^|}]*)", word.meta):
+            for meta in re.findall(r"{{es-(?:verb|conj)[|]?[^<]*([^|}]*)", word.meta):
                 if (meta == "" or "<" in meta) and meta not in all_meta:
                     all_meta.append(meta)
 
         if not all_meta:
-            raise ValueError("no meta", form_obj, words)
+            raise ValueError("no meta", form_obj, words, [w.meta for w in words])
 
         if len(all_meta) > 1:
             can_cache = False
