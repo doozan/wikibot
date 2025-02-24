@@ -64,9 +64,10 @@ class MissingTaxlinkFixer():
         },
 
         "default": {
-            "match_templates": ["col-auto", "col2", "col3", "col4", "col4", "der2", "der3", "der4", "der5", "ja-r/multi", "ja-r/args", "gl", "gloss", "coi", "syn", "ngd", "cog", "q", "syn of", "synonym of", "qual", "qualifier", "obs form", "obsolete form of", "suffix"],
+            "match_templates": ["col-auto", "col2", "col3", "col4", "col4", "der2", "der3", "der4", "der5", "ja-r/multi", "ja-r/args", "gl", "gloss", "coi", "syn", "ngd", "cog", "syn of", "synonym of", "obs form", "obsolete form of", "suffix"],
             "match_special_links": True,
         },
+
     }
 
     def __init__(self, local, external=None, profile="default", rename_local_taxlinks=False):
@@ -400,13 +401,19 @@ class MissingTaxlinkFixer():
                 #if section.title.endswith("nyms"):
                 #    continue
 
-                # Taxlinks flagged no_auto contain text like "Paris" or "Argentina" and should only
-                # replace matches inside Translingual, and not inside Translingual:Etymology
                 if taxon_data.no_auto:
-                    if "Translingual" not in section.path:
-                        continue
-                    if section.title == "Etymology":
-                        continue
+                    continue
+
+                    # The code below causes problems in pages like "🗳" where the translingual entry contains
+                    # links to the social network "Mastodon" that should not be converted to texlinks
+                    #
+                    # Taxlinks flagged no_auto contain text like "Paris" or "Argentina" and should only
+                    # replace matches inside Translingual, and not inside Translingual:Etymology
+
+                    #if "Translingual" not in section.path:
+                    #    continue
+                    #if section.title == "Etymology":
+                    #    continue
 
                 new = self.make_template(template_name, taxon_data)
                 fixes = []
