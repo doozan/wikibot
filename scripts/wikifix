@@ -160,7 +160,7 @@ def make_patches(all_fixes, text, title, path_filter, match_context, no_children
 
     page_fixes = all_fixes.get(title, []) # page-specific fixes
     if page_fixes:
-        return find_patches(fixes, text, title, path_filter, match_context, no_children, should_match=True)
+        return find_patches(page_fixes, text, title, path_filter, match_context, no_children, should_match=True)
 
     fixes = all_fixes.get(":fix:")
     if not fixes:
@@ -774,7 +774,7 @@ def init_fixes(requested_fixes, config):
             fix = config.wikifix[fix]
         except KeyError:
             pywikibot.output('Available predefined fixes are: {}'
-                             .format(', '.join(config.wikifix.keys())))
+                             .format(', '.join(sorted(config.wikifix.keys()))))
             exit(1)
 
         if not fix['fixes']:
@@ -900,10 +900,6 @@ def main():
         print("--read-only requires at least on of --log-matches or --log-fixes")
         exit(1)
 
-    if args.fix and args.load_matches:
-        print("--fix and --load-matches can't be combined")
-        exit(1)
-
     if (args.fix or args.load_fixes) and args.match:
         print("--fix can't be mixed with command-line search/replace options")
         exit(1)
@@ -922,7 +918,7 @@ def main():
 
     if args.load_matches:
         fixes = load_fixes(args.load_matches, args.load_fixes)
-        gen = ListPageGenerator(args.start, fixes.keys(), site)
+        gen = ListPageGenerator(fixes.keys(), args.start, site)
 
     if not fixes and not args.fix:
         generated_fixes = []
