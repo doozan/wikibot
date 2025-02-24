@@ -33,7 +33,7 @@ def main():
     page = pywikibot.Page(pywikibot.Link(args.page, site))
     text = page.text
 
-    match = re.search("<!--IGNORE.*?\n(.*?)\s*-->", text, re.DOTALL)
+    match = re.search(r"<!--IGNORE.*?\n(.*?)\s*-->", text, re.DOTALL)
     if not match:
         exit(1)
 

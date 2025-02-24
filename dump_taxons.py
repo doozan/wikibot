@@ -31,7 +31,7 @@ def process(args):
         if "taxon" not in section_str:
             continue
 
-        if re.search("\{\{\s*taxon\s*[|}]", section_str):
+        if re.search(r"\{\{\s*taxon\s*[|}]", section_str):
             if not section.path in ["English", "Translingual"]:
                 print("unexpected taxon", entry_title, section.path, file=sys.stderr)
 
