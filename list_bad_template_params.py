@@ -104,20 +104,7 @@ class WikiSaverBadParams(BaseHandler):
             return res
 
 
-        param_count = defaultdict(int)
-        for i in section_entries:
-            if not i.key:
-                continue
-            for k in i.key.split(", "):
-                param_count[k] += 1
-
-        if prev_section_entries:
-            res.append("")
-        res.append(f"===[[Template:{item.template_name}|{item.template_name}]]===")
-
-        summary = ""
-
-        SUMMARY_CUTOFF=20
+        SUMMARY_CUTOFF=30
         SUMMARY_LEN=10
 
         # Don't truncate some templates
@@ -125,11 +112,30 @@ class WikiSaverBadParams(BaseHandler):
         if any(item.template_name.startswith(f"{lang}-") or f":{lang}:" in item.template_name for lang in expanded_langs):
             SUMMARY_CUTOFF =  100
 
+        excess_entries = []
+        param_count = defaultdict(int)
+        for i, entry in enumerate(section_entries):
+            if not entry.key:
+                continue
+            params = entry.key.split(", ")
+            for p in params:
+                param_count[p] += 1
+
+            if all(param_count[p] > SUMMARY_LEN for p in params):
+                excess_entries.append(i)
+
+        if prev_section_entries:
+            res.append("")
+        res.append(f"===[[Template:{item.template_name}|{item.template_name}]]===")
+
+        summary = ""
+
         if count > SUMMARY_CUTOFF:
             summary = "(unhandled params: " + ", ".join(f"'{k}':{v}" for k,v in sorted(param_count.items(), key=lambda x: (x[1]*-1, x[0]))) + ")"
-            del section_entries[SUMMARY_LEN:]
+            for i in reversed(excess_entries):
+                del section_entries[i]
 
-        res.append(f"'''{count} uses with bad parameter{'s' if count>1 else ''}''' {summary} {f'(showing first {SUMMARY_LEN})' if count>SUMMARY_CUTOFF else ''}<br>")
+        res.append(f"'''{count} uses with bad parameter{'s' if count>1 else ''}''' {summary} {f'(showing first {SUMMARY_LEN} of each bad param)' if count>SUMMARY_CUTOFF else ''}<br>")
 
         return res
 
