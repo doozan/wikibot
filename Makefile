@@ -80,6 +80,7 @@ DUMP_TEMPLATE_USE := $(PYPATH) ./dump_template_use.py
 LIST_DEF_TEMPLATE_IN_ETY := $(PYPATH) ./list_def_template_in_ety.py
 DUMP_CAT := $(PYPATH) ./dump_cat.py
 LIST_MISSING_HEADERS := $(PYPATH) ./list_missing_headers.py
+LIST_MISSING_AUDIO := $(PYPATH) ./list_missing_audio.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
@@ -589,6 +590,13 @@ $(LIST)missing_headers: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   $(LIST_MISSING_HEADERS) $< $(SAVE)
 >   touch $@
 
+$(LIST)missing_audio: $(BUILDDIR)/en-en.enwikt.txt.bz2
+>   @echo "Running $@..."
+
+>   $(LIST_MISSING_AUDIO) $< $(SAVE)
+>   touch $@
+
+
 # Fixes
 $(FIX)fr_missing_tlfi:
 >   @
@@ -872,7 +880,7 @@ $(BUILDDIR)/.update_langs:
 >   date > $@
 
 # Lists that run in less that 30 minutes on single core
-fast_lists: $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_tlfi pt_with_synonyms)
+fast_lists: $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_tlfi pt_with_synonyms missing_audio)
 
 # Lists that take more than 30 minutes on single core
 slow_lists: $(patsubst %,$(LIST)%, section_header_errors section_level_errors section_order_errors sense_bylines unbalanced_delimiters missing_taxlinks t9n_problems convert_list_to_col es_missing_forms def_template_in_ety quote_with_bare_passage bare_ux missing_headers fr_missing_lemmas )
