@@ -42,13 +42,13 @@ def main():
 
 
 def get_included_text(text):
-    text = re.sub("<!--.*?-->", "", text, flags=re.DOTALL)
-    text = re.sub("<\s*noinclude\s*[/]\s*>", "", text, flags=re.DOTALL)
-    text = re.sub("<\s*noinclude\s*>.*?<\s*/\s*noinclude\s*>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    text = re.sub(r"<\s*noinclude\s*[/]\s*>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<\s*noinclude\s*>.*?<\s*/\s*noinclude\s*>", "", text, flags=re.DOTALL)
     text = re.sub(r"<\s*[/]?\s*includeonly\s*[/]?\s*>", "", text)
 
     if "onlyinclude" in text:
-        text = "".join(re.findall("<\s*onlyinclude\s*>(.*?)<\s*/\s*onlyinclude\s*>", text, flags=re.DOTALL))
+        text = "".join(re.findall("r<\s*onlyinclude\s*>(.*?)<\s*/\s*onlyinclude\s*>", text, flags=re.DOTALL))
 
     return text
 
@@ -59,19 +59,19 @@ def get_template_stats(args):
     entry_title = entry_title.removeprefix("Template:")
     entry_text = get_included_text(entry_text)
 
-    entry_text = re.sub("{{\s*(" + "|".join(MAGIC_COMMANDS) + ")\s*:", "", entry_text, flags=re.IGNORECASE)
+    entry_text = re.sub(r"{{\s*(" + "|".join(MAGIC_COMMANDS) + r")\s*:", "", entry_text, flags=re.IGNORECASE)
 
     if re.match(r"^\s*#REDIRECT", entry_text, re.IGNORECASE):
         return
 
-    used_modules = sorted(set(m.group(1).strip() for m in re.finditer("#invoke:(.*?)[|}]", entry_text, re.DOTALL)))
+    used_modules = sorted(set(m.group(1).strip() for m in re.finditer(r"#invoke:(.*?)[|}]", entry_text, re.DOTALL)))
 
     # if a module uses invoke, check if it's a pure Lua implementation or mixed
     if used_modules:
         if len(used_modules) > 1:
             template_type = "mixed"
         else:
-            if re.search("{{#(^invoke)|{{{[^{}]*?}}}", entry_text):
+            if re.search(r"{{#(^invoke)|{{{[^{}]*?}}}", entry_text):
                 template_type = "mixed"
             else:
                 template_type = "lua"
@@ -94,13 +94,13 @@ def get_template_stats(args):
             prev_text = stripped
             stripped = re.sub(r"\{\{\{[^{}]*", "", stripped)
         # strip {{#commands
-        stripped = re.sub("{{\s*#[^{}]*", "", stripped)
+        stripped = re.sub(r"{{\s*#[^{}]*", "", stripped)
 
         used_templates = []
-        for m in re.finditer("{{(.*?)[{<}|]", stripped, re.DOTALL):
+        for m in re.finditer(r"{{(.*?)[{<}|]", stripped, re.DOTALL):
             if not m.group(1):
                 continue
-            template_name = re.sub("<!--.*?-->", "", m.group(1)).strip()
+            template_name = re.sub(r"<!--.*?-->", "", m.group(1)).strip()
             if not template_name or "\n" in template_name:
                 continue
             if template_name not in used_templates and template_name not in MAGIC_WORDS:
