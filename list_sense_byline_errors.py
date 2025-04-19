@@ -20,11 +20,13 @@ class WikiSaverByError(BaseHandler):
         seen = set()
         for item in items:
             # Skip big pages for now
-            if item.error in ["headline_after_senses",
-                "headline_after_senses_no_children",
+            if item.error in [
+                #"headline_after_senses",
+                #"headline_after_senses_no_children",
                 "unhandled_byline",
-                "unhandled_byline_type"]:
-                continue
+                "unhandled_byline_type",
+                ]:
+                    continue
             if item not in seen:
                 seen.add(item)
                 count[item.error] += 1
@@ -83,9 +85,9 @@ class WikiSaverByLanguage(BaseHandler):
                 continue
             # Skip big pages for now
             if item.error in [
-#                "headline_after_senses",
-#                "headline_after_senses_no_children",
-#                "unhandled_byline",
+                #"headline_after_senses",
+                #"headline_after_senses_no_children",
+                "unhandled_byline",
                 "unhandled_byline_type",
                 ]:
                     continue
