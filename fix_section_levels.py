@@ -1,7 +1,10 @@
 import enwiktionary_sectionparser as sectionparser
+import re
 
 from autodooz.sections import ALL_POS, ALL_L3, ALL_LANGS, COUNTABLE_SECTIONS
 from collections import defaultdict
+
+EXTENDED_POS = ALL_POS.keys() | { "Abbreviations", "Han character", "Hanja", "Hanzi", "Kanji", "Symbol", "Cuneiform sign", "Sign values", "Suffix", "Definitions" }
 
 # L3 Sections that should never contain a child section with a title in ALL_L3
 # Allowed to have children with unknown titles like "Other conjugations" or "More references"
@@ -101,6 +104,13 @@ ADOPTABLE_POS_CHILDREN = ALWAYS_ADOPTABLE_POS_CHILDREN | {
 #    "Further reading",
     }
 
+ALLOW_MISSING_POS = {
+    '*': ['no entry'],
+    'Chinese': ['zh-see'],
+    'German': ['de-adj noun forms of'],
+    'Hokkien': ['zh-see'],
+    'Japanese': ['ja-see', 'ja-gv'],
+}
 
 class SectionLevelFixer():
 
@@ -523,6 +533,13 @@ class SectionLevelFixer():
 
                 for parent in all_countable:
                     self.pos_adopt_stray_children(parent)
+
+            if not any(lang.filter_sections(matches=lambda x: x.title in EXTENDED_POS)):
+                # Check for templates that generate POS headers or indicate that the POS headers are not necessary
+                allowed_templates = ALLOW_MISSING_POS['*'] + ALLOW_MISSING_POS.get(lang.title, [])
+                pattern = r"{{\s*" + "|".join(allowed_templates) + r"\s*([|]|}})"
+                if not re.search(pattern, str(lang)):
+                    self.warn("missing_pos", f"{lang.path}")
 
             self.pos_adopt_stray_children(lang)
             self.cleanup_nested_countable(lang)

@@ -28,6 +28,7 @@ ALL_ERRORS = {
     "circular_child": "Sections with an ancestor of the same name",
     "embedded_pronunciation_has_children": "Pronunciation with child sections",
     "empty_countable": "Empty countable section",
+    "missing_pos": "L2 without POS",
     "non_l2_language": "Language section is not L2",
     "pos_bad_lineage": "POS Section found outside its expected lineage",
     "countable_bad_lineage": "Countable section found outside its expected lineage",
