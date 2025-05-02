@@ -446,30 +446,40 @@ class SectionLevelFixer():
 
 
     def fix(self, reason, section, details):
-        self._changes.append(f"/*{section.path}*/ {details}")
-        self._log(reason, self.page_title, section.path, details)
+        if self._summary is not None:
+            self._summary.append(details)
+
+        self._log.append((reason, self.page_title, section.path, details))
 
     def warn(self, reason, details):
-        self._log(reason, self.page_title, None, details)
+        self._log.append((reason, self.page_title, None, details))
 
-    @staticmethod
-    def _log(reason, page, section_path, details):
-        print(page, reason, section_path, details)
+    def process(self, page_text, page_title, summary=None, options=None):
 
-    def process(self, page_text, page_title, summary=[], custom_args=None):
+        # This function runs in two modes: fix and report
+        #
+        # When summary is None, this function runs in 'report' mode and
+        # returns [(code, page, details)] for each fix or warning
+        #
+        # When run using wikifix, summary is not null and the function
+        # runs in 'fix' mode.
+        # summary will be appended with a description of any changes made
+        # and the function will return the modified page text
+
+        self._summary = summary
+        self._log = []
 
         self.page_title = page_title
-        self._changes = []
 
         entry = sectionparser.parse(page_text, page_title)
         if not entry:
-            return page_text
+            return page_text if summary is not None else self._log
 
         if not self.has_only_expected_children(entry, ALL_LANGS):
-            return page_text
+            return page_text if summary is not None else self._log
 
         if self.has_non_l2_language_section(entry):
-            return page_text
+            return page_text if summary is not None else self._log
 
         for lang in entry.filter_sections(recursive=False):
 
@@ -503,7 +513,7 @@ class SectionLevelFixer():
                             else:
                                 if "{{zh-see" in s.content_text or "{{ja-see" in s.content_text:
                                     self.warn("childless_countable", f"{s.path}")
-                            return page_text
+                            return page_text if summary is not None else self._log
 
                 elif len(all_countable) < 2:
                     continue
@@ -524,8 +534,4 @@ class SectionLevelFixer():
 
         self.fix_unexpected_lineage(entry)
 
-        if not self._changes:
-            return page_text
-
-        summary += self._changes
-        return str(entry)
+        return str(entry) if summary is not None else self._log
