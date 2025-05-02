@@ -48,7 +48,7 @@ def get_included_text(text):
     text = re.sub(r"<\s*[/]?\s*includeonly\s*[/]?\s*>", "", text)
 
     if "onlyinclude" in text:
-        text = "".join(re.findall("r<\s*onlyinclude\s*>(.*?)<\s*/\s*onlyinclude\s*>", text, flags=re.DOTALL))
+        text = "".join(re.findall(r"<\s*onlyinclude\s*>(.*?)<\s*/\s*onlyinclude\s*>", text, flags=re.DOTALL))
 
     return text
 
