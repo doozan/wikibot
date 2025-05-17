@@ -9,7 +9,6 @@ import os
 import re
 import sys
 
-import enwiktionary_sectionparser as sectionparser
 from autodooz.utils import iter_xml, iter_wxt, split_namespace
 
 def process(args):
