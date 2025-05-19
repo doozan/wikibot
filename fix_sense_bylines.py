@@ -7,6 +7,15 @@ import mwparserfromhell as mwparser
 
 from autodooz.sections import ALL_POS, COUNTABLE_SECTIONS, ALL_LANGS
 from .list_mismatched_headlines import is_header
+EXTENDED_POS = ALL_POS.keys() | { "Abbreviations", "Han character", "Hanja", "Hanzi", "Kanji", "Symbol", "Cuneiform sign", "Sign values", "Suffix", "Definitions", "Idioms", "Predicative", "Relative" }
+
+def multi(generator):
+    count = 0
+    for _ in generator:
+        count += 1
+        if count == 2:
+            return True
+    return False
 
 class BylineFixer():
 
@@ -30,13 +39,23 @@ class BylineFixer():
     def fix(self, code, section, location="", details=None):
         # When running tests, section will be empty
         if not section:
-            print("FIX:", code, section.path, location, details)
             return
 
-        if self._summary is not None:
-            self._summary.append(f"/*{section.path}*/ {location} {details}")
+        if isinstance(section, sectionparser.SectionParser):
+            page = section.page
+            path = ""
+            target = page
+        else:
+            page = section.page
+            path = section.path
 
-        self._log.append(("autofix_" + code, section.page, section.path, location, details))
+        if self._summary is not None:
+            if path:
+                self._summary.append(f"/*{path}*/ {location} {details}")
+            else:
+                self._summary.append(f"{location} {details}")
+
+        self._log.append(("autofix_" + code, page, path, location, details))
 
     def condense_summary(self, summary):
         prev_prefix = None
@@ -52,6 +71,8 @@ class BylineFixer():
 
     def warn(self, code, section, location="", details=None):
         self._log.append((code, section.page, section.path, location, details))
+
+
 
     def process(self, page_text, page, summary=None, options=None):
         # This function runs in two modes: fix and report
@@ -78,8 +99,34 @@ class BylineFixer():
         if not entry:
             return [] if summary is None else page_text
 
-        for section in entry.ifilter_sections(matches=lambda x: x.title != "Idiom" and x.title in ALL_POS \
-                and x.parent and (x.parent.title in COUNTABLE_SECTIONS or x.parent.title in ALL_LANGS)):
+        for section in entry.ifilter_sections():
+
+            # not a pos section
+            x = section
+            if x.title not in EXTENDED_POS:
+
+                if section.title in ["Related terms", "Derived terms", "Pronunciation", "Further reading", "References", "Usage notes", "See also"] and all((l.startswith("# ") and "{{lb" not in l) or l.strip() == "" for l in section.content_wikilines):
+                    for i, l in enumerate(section.content_wikilines):
+                        if l.startswith("#"):
+                            section.content_wikilines[i] = "*" + l[1:]
+                    self.fix("list_#_to_*", section, "", "converted # list to * list")
+                    entry_changed = True
+                    continue
+
+                # skip Etymology sections with multiple items
+                if section.title in ["Etymology", "Usage notes"] and multi(l for l in section.content_wikilines if l.startswith("# ")) and not any("{{lb" in l for l in section.content_wikilines):
+                    continue
+
+                for line in section.content_wikilines:
+                    if line.startswith("# "):
+                        self.warn("sense_outside_pos", section, "", line)
+                continue
+
+            if not (x.parent and (x.parent.title in COUNTABLE_SECTIONS or x.parent.title in ALL_LANGS)):
+                continue
+
+            if x.title not in ALL_POS and x.title != "Idioms":
+                continue
 
             # Navajo entries are a mess
             if section._topmost.title == "Navajo":
@@ -203,8 +250,7 @@ class BylineFixer():
                 continue
 
             new_pos_text = str(pos)
-            #if old_pos_text != new_pos_text or pos.changelog:  # include whitespace-only changes
-            if old_pos_text != new_pos_text:
+            if old_pos_text != new_pos_text or pos.changelog:
                 if pos.changelog:
                     self.fix("posparser", section, "", pos.changelog)
 
