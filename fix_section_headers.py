@@ -584,6 +584,9 @@ class SectionHeaderFixer():
         if not entry:
             return page_text if summary is not None else self._log
 
+        if entry.changelog:
+            self.fix("sectionparser", entry, entry.changelog)
+
         self.fix_section_titles(entry)
         self.fix_remove_pos_counters(entry)
         self.fix_bad_l2(entry)

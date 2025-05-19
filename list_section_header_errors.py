@@ -23,6 +23,7 @@ ALL_FIXES = {
     'missing_ref_target': "Missing <nowiki><references/></nowiki> tag",
     'not_plural': "Section title is plural but should be singular",
     'pos_counter': "Section has counter",
+    'sectionparser': "WT:NORM related cleanup",
 }
 
 ALL_ERRORS = {
