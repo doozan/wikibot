@@ -416,7 +416,7 @@ class SectionHeaderFixer():
     #        raise ValueError("First section is not L2")
 
         if self._adjust_level(2, entry._children):
-            self.fix("fix_level", None, "child level should be parent level+1")
+            self.fix("fix_level", entry, "child level should be parent level+1")
 
 
     def fix_bad_l2(self, entry):
@@ -539,32 +539,50 @@ class SectionHeaderFixer():
                         section.title = "Quotations"
 
     def fix(self, reason, section, details):
-        if section:
-            self._changes.append(f"/*{section.path}*/ {details}")
-            self._log(reason, self.page_title, section.path, details)
+
+        if isinstance(section, sectionparser.SectionParser):
+            page = section.page
+            path = ""
+            target = page
         else:
-            self._changes.append(details)
-            self._log(reason, self.page_title, None, details)
+            page = section.page
+            path = section.path
 
-    def warn(self, reason, details):
-        self._log(reason, self.page_title, None, details)
+        if self._summary is not None:
+            if path:
+                self._summary.append(f"/*{target}*/ {details}")
+            else:
+                self._summary.append(f"{details}")
 
-    @staticmethod
-    def _log(reason, page, section_path, details):
-        print(page, reason, section_path, details)
+        self._log.append((reason, page, path, details))
 
-    # called by wikifix to mass apply the above fixes
-    def process(self, page_text, page_title, summary=None, custom_args=None):
+    def warn(self, reason, section, details=None):
+        self._log.append((reason, self.page_title, None, details))
+
+    def process(self, page_text, page_title, summary=None, options=None):
+
+        # This function runs in two modes: fix and report
+        #
+        # When summary is None, this function runs in 'report' mode and
+        # returns [(code, page, details)] for each fix or warning
+        #
+        # When run using wikifix, summary is not null and the function
+        # runs in 'fix' mode.
+        # summary will be appended with a description of any changes made
+        # and the function will return the modified page text
+
+        self._summary = summary
+        self._log = []
+
 
         self.page_title = page_title
-        self._changes = []
 
         if ":" in page_title or "/" in page_title:
-            return page_text
+            return page_text if summary is not None else self._log
 
         entry = sectionparser.parse(page_text, page_title)
         if not entry:
-            return page_text
+            return page_text if summary is not None else self._log
 
         self.fix_section_titles(entry)
         self.fix_remove_pos_counters(entry)
@@ -574,30 +592,24 @@ class SectionHeaderFixer():
         self.add_missing_references(entry)
 
         # not safe to run unsupervised
-        if custom_args and custom_args.get("remove_empty"):
+        if options and options.get("remove_empty"):
             self.remove_empty_sections(entry)
 
         # not safe to run unsupervised
-        if custom_args and custom_args.get("fix_misnamed_further_reading"):
+        if options and options.get("fix_misnamed_further_reading"):
             spanish = next(entry.ifilter_sections(matches="Spanish"), None)
             if spanish:
                 self.rename_misnamed_further_reading(spanish)
                 self.split_bulky_references(spanish)
 
         # not safe to run unsupervised
-        if custom_args and custom_args.get("fix_misnamed_etymology"):
+        if options and options.get("fix_misnamed_etymology"):
             self.rename_misnamed_etymology(entry)
 
         # not safe to run unsupervised
-        if custom_args and custom_args.get("fix_misnamed_pronunciation"):
+        if options and options.get("fix_misnamed_pronunciation"):
             self.rename_misnamed_pronunciation(entry)
 
         self.fix_section_levels(entry)
 
-        if not self._changes:
-            return page_text
-
-        if summary is not None:
-            summary += self._changes
-
-        return str(entry)
+        return str(entry) if summary is not None else self._log

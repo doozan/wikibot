@@ -1,10 +1,12 @@
 #!/usr/bin/python3
 
 import pywikibot
+import multiprocessing
 import re
 import sys
 
 from autodooz.fix_section_headers import SectionHeaderFixer
+from autodooz.utils import iter_wxt
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import namedtuple
 
@@ -98,11 +100,14 @@ class FileSaver(WikiSaver):
 class Logger(WikiLogger):
     _paramtype = namedtuple("params", [ "error", "page", "section", "details" ])
 
-logger = Logger()
-def log(error, page, section, details):
-    logger.add(error, page, section, details)
+fixer = None
+def process(args):
+    # Needed to unpack args until Pool.istarprocess exists
+    return fixer.process(*args)
+#        fixer.process(page.text, page.title, None, {"remove_empty": True})
 
 def main():
+    global fixer
 
     import argparse
 
@@ -111,23 +116,29 @@ def main():
     parser.add_argument("--save", help="Save to wiktionary with specified commit message")
     parser.add_argument("--limit", type=int, help="Limit processing to first N articles")
     parser.add_argument("--progress", help="Display progress", action='store_true')
+    parser.add_argument("-j", help="run N jobs in parallel (default = # CPUs - 1", type=int)
     args = parser.parse_args()
 
-    from enwiktionary_wordlist.wikiextract import WikiExtractWithRev
-    parser = WikiExtractWithRev.iter_articles_from_bz2(args.wxt)
+    if not args.j:
+        args.j = multiprocessing.cpu_count()-1
 
     fixer = SectionHeaderFixer()
-    fixer._log = log
+    iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
 
-    count = 0
-    for page in parser:
-        count += 1
-        if count % 1000 == 0 and args.progress:
-            print(count, file=sys.stderr, end="\r")
-        if args.limit and count > args.limit:
-            break
+    iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
 
-        fixer.process(page.text, page.title, None, {"remove_empty": True})
+    if args.j > 1:
+        pool = multiprocessing.Pool(args.j)
+        iter_items = pool.imap_unordered(process, iter_entries, 100)
+    else:
+        iter_items = map(process, iter_entries)
+
+    logger = Logger()
+    for res in iter_items:
+        if not res:
+            continue
+        for error, page, section, details in res:
+            logger.add(error, page, section, details)
 
     if args.save:
         base_url = "User:JeffDoozan/lists/section_headers"
