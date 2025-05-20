@@ -192,7 +192,7 @@ class BylineFixer():
                 else:
 
                     if not sense_idx:
-                        self.warn("no_senses", section)
+                        self.warn("no_senses", section, "", str(pos))
 
                     elif not(headline_idx):
                         self.warn("missing_headline", section)
