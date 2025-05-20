@@ -192,7 +192,12 @@ class BylineFixer():
                 else:
 
                     if not sense_idx:
-                        self.warn("no_senses", section, "", str(pos))
+                        if ("Korean:" in section.path and ":Syllable" in section.path):
+                            pass
+                        elif (":Classifier" in section.path):
+                            pass
+                        else:
+                            self.warn("no_senses", section, "", str(pos))
 
                     elif not(headline_idx):
                         self.warn("missing_headline", section)
