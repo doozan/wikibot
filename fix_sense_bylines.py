@@ -316,7 +316,10 @@ class BylineFixer():
 #                parent._children.append(child)
 #                self.fix("stray_" + child._type, section, parent.name, "adopted stray " + child._type)
 #            else:
-                self.warn("mixed_sense_styles", section, "", "")
+                text = "\n".join(map(str,sense_list))
+                if len(text) > 512:
+                    text = text[:500] + "\n..."
+                self.warn("mixed_sense_styles", section, "", text)
                 return True
 
         for idx, sense in enumerate(sense_list, 1):
