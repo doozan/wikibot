@@ -351,7 +351,7 @@ class BylineFixer():
                 self.cleanup_sense_item(child, section)
 
 
-    ALL_LABELED_BYLINES = ["syn", "ant", "hyper", "hypo", "holo", "merq", "tropo", "comero", "cot", "parasyn", "perfect", "imperfect", "active", "midvoice", "alti", "co", "cot" ]
+    ALL_LABELED_BYLINES = ["syn", "ant", "hyper", "hypo", "holo", "mero", "tropo", "comero", "cot", "parasyn", "perfect", "imperfect", "active", "midvoice", "alti", "co", "cot" ]
     TYPE_DISALLOWED_CHILDREN = {
             k: ["syn", "ant", "hyper", "hypo", "holo", "merq", "tropo", "comero", "cot", "parasyn", "perfect", "imperfect", "active", "midvoice", "alti", "co", "cot", "quote", "ux" ]
             for k in ALL_LABELED_BYLINES }
