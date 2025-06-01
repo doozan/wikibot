@@ -550,7 +550,7 @@ class SectionHeaderFixer():
 
         if self._summary is not None:
             if path:
-                self._summary.append(f"/*{target}*/ {details}")
+                self._summary.append(f"/*{path}*/ {details}")
             else:
                 self._summary.append(f"{details}")
 
