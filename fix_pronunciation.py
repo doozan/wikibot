@@ -4,7 +4,7 @@ import multiprocessing
 import os
 import sys
 import mwparserfromhell as mwparser
-from autodooz.utils import template_aware_resplit
+from autodooz.utils import template_aware_resplit, template_aware_contains
 
 from enwiktionary_templates.utils import get_template_params
 
@@ -128,6 +128,8 @@ def parse_ipa(text):
     for k,v in to_merge.items():
         if any(re.match(f"^{k}[1-9]?$", str(p)) for p in params.keys()):
             return f"{k}_collision"
+        if template_aware_contains("=", v):
+            return f"{k}_value_contains_equal_sign"
         params[k] = v
 
 #    for q in unhandled_qualifiers:
@@ -474,7 +476,7 @@ class PronunciationFixer():
                     for pi in reversed(pop_lines):
                         pl = section.content_wikilines[pi]
                         # don't move lines that might be related to pronunciation
-                        if "MapOfAinuLanguage-" in pl or "pronunciation" in pl.lower() or "location" in pl.lower():
+                        if "MapOf" in pl or "pronunciation" in pl.lower() or "location" in pl.lower():
                             continue
                         move_to_pos.insert(0, section.content_wikilines.pop(pi))
 

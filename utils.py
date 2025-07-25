@@ -205,4 +205,7 @@ def template_aware_split(delimiter, text):
 def template_aware_resplit(pattern, text):
     return nest_aware_resplit(pattern, text, [("{{","}}")])
 
+def template_aware_contains(delimiter, text):
+    return nest_aware_contains(delimiter, text, [("{{","}}")])
+
 
