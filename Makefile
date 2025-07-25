@@ -894,14 +894,15 @@ $(FIX)missing_headers:
 
 $(BUILDDIR)/.update_langs:
 >   @echo "Updating languages"
->   ./scripts/scrape_languages.py > lang_ids.py
+>   cd ../enwiktionary_templates
+>   git pull
 >   date > $@
 
 # Lists that run in less that 30 minutes on single core
 fast_lists: $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_tlfi pt_with_synonyms missing_audio)
 
 # Lists that take more than 30 minutes on single core
-slow_lists: $(patsubst %,$(LIST)%, section_header_errors section_level_errors section_order_errors sense_bylines pronunciation_errors unbalanced_delimiters missing_taxlinks t9n_problems convert_list_to_col es_missing_forms def_template_in_ety quote_with_bare_passage bare_ux missing_headers fr_missing_lemmas )
+slow_lists: $(patsubst %,$(LIST)%, section_header_errors section_level_errors section_order_errors sense_bylines pronunciation_errors unbalanced_delimiters missing_taxlinks t9n_problems convert_list_to_col es_missing_forms def_template_in_ety quote_with_bare_passage bare_ux missing_headers fr_missing_lemmas mismatched_headlines )
 
 # not used with a corresponding "fix"
 slow_lists_no_fixes: $(patsubst %,$(LIST)%, local_taxons external_taxons possible_taxons taxons_with_redlinks section_stats )
