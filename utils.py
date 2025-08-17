@@ -180,6 +180,13 @@ def nest_aware_resplit(pattern, text, nests, flags=re.DOTALL):
     if len(items):
         yield (delimiter.join(items), "")
 
+def nest_aware_finditer(pattern, text, nests, flags=re.DOTALL):
+    for m in re.finditer(pattern, text, flags):
+        depth = { nest:get_nest_depth(text[:m.start()], nest[0], nest[1], 0) for nest in nests }
+        if any(depth.values()):
+            continue
+        yield m
+
 def nest_aware_splitlines(text, nests, keepends=False):
     return nest_aware_iterator(text.splitlines(keepends), nests)
 
@@ -196,6 +203,7 @@ def nest_aware_index(delimiter, text, nests):
 def nest_aware_contains(delimiter, text, nests):
     return nest_aware_index(delimiter, text, nests) != -1
 
+
 def template_aware_splitlines(text, keepends=False):
     return nest_aware_iterator(text.splitlines(keepends), [("{{","}}")])
 
@@ -208,4 +216,5 @@ def template_aware_resplit(pattern, text):
 def template_aware_contains(delimiter, text):
     return nest_aware_contains(delimiter, text, [("{{","}}")])
 
-
+def template_aware_finditer(pattern, text):
+    return nest_aware_finditer(pattern, text, [("{{","}}")])
