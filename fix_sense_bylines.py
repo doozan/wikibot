@@ -5,6 +5,10 @@ import os
 import sys
 import mwparserfromhell as mwparser
 
+
+from enwiktionary_sectionparser.posparser import ListItem
+from autodooz.section_to_links import section_to_links
+
 from autodooz.sections import ALL_POS, COUNTABLE_SECTIONS, ALL_LANGS
 from .list_mismatched_headlines import is_header
 EXTENDED_POS = ALL_POS.keys() | { "Abbreviations", "Han character", "Hanja", "Hanzi", "Kanji", "Symbol", "Cuneiform sign", "Sign values", "Suffix", "Definitions", "Idioms", "Predicative", "Relative" }
@@ -254,6 +258,11 @@ class BylineFixer():
             if failed:
                 continue
 
+            if section._topmost.title in ["Spanish", "Portuguese"]:
+                failed = self.merge_nym_sections(pos.senses, section)
+                if failed:
+                    continue
+
             new_pos_text = str(pos)
             if old_pos_text != new_pos_text or pos.changelog:
                 if pos.changelog:
@@ -271,6 +280,158 @@ class BylineFixer():
             return str(entry)
 
         return page_text
+
+
+    def get_insert_index(self, line_type, sense):
+
+        line_order = self.SORTABLE.index(line_type)
+        for idx, byline in enumerate(sense._children):
+            if byline._type not in self.SORTABLE or self.SORTABLE.index(byline._type) > line_order:
+                return idx
+
+        return len(sense._children)
+
+
+
+    def merge_nym_sections(self, sense_list, section):
+        """ Returns None on success, non-zero on error """
+
+        changes = []
+
+        # this must be sorted in the order of preference of the bylines
+        NYM_SECTIONS = {
+            "syn": "Synonyms",
+            "ant": "Antonyms"
+        }
+
+        for nym_type, section_title in NYM_SECTIONS.items():
+            nym_sections = [s for s in section.filter_sections() if s.title == section_title]
+            if not nym_sections:
+                continue
+
+            if len(nym_sections) > 1:
+                self.warn(f"multi_{nym_type}", section, "", "")
+                return -1
+
+
+            if any(c._type in ["sense", "unknown", "bad"] for sense in sense_list for c in sense._children):
+                self.warn("unmergable_unparsable_sense_list", section, "", "")
+                return -1
+
+
+            idx = 1
+            nym_section = nym_sections[0]
+            log = []
+            links = section_to_links(nym_section, log)
+            if not links:
+                for error, page, error_section, details in log:
+                    self.warn(f"sectionlist_{nym_type}_{error}", nym_section, "", details)
+                return -1
+
+            if any( "{" in link or "[" in link for titled_links in links.values() for link in titled_links ):
+                self.warn(f"unmergable_{nym_type}_complex_link", section, "", str(nym_section))
+
+
+            def find_matching_senses(link_sense, sense_list):
+                matches = []
+                pattern = r"\b" + re.escape(link_sense) + r"\b"
+                for i, sense in enumerate(sense_list):
+                    if re.search(pattern, sense.data):
+                        matches.append(i)
+
+                return matches
+
+            def match_links_to_senses(all_links, sense_list):
+
+                assert all_links
+                assert sense_list
+
+                if len(all_links.keys()) > len(sense_list):
+                    self.warn(f"unmergable_{nym_type}_more_values_than_targets", section, "", str(nym_section))
+                    return
+
+                if all_links.keys() == {None}:
+                    if len(sense_list) > 1:
+                        self.warn(f"untitled_list_with_multiple_senses", section, "", "")
+                        return
+                    return { 0: None }
+
+                if any(k is None for k in all_links.keys()):
+                    raise ValueError(f"KEYMISMATCH", links)
+                    return
+
+
+                matches = {}
+
+                for link_sense, links in all_links.items():
+                    matched_senses = find_matching_senses(link_sense, sense_list)
+                    if not matched_senses:
+                        if len(all_links.keys()) == len(sense_list) == 1:
+                            self.warn(f"single_title_does_not_match_single_sense", section, "", link_sense)
+                        else:
+                            self.warn(f"title_does_not_match_sense", section, "", link_sense)
+                        return
+
+                    if len(matched_senses) > 1:
+                        self.warn(f"title_matches_multiple_senses", section, "", link_sense)
+                        return
+
+                    sense = matched_senses[0]
+                    if sense in matches:
+                        self.warn(f"sense_matched_by_multiple_titles", section, "", link_sense)
+                        return
+
+                    matches[sense] = link_sense
+
+                return matches
+
+
+            lang, page = list(section.lineage)[-2:]
+
+
+            matches = match_links_to_senses(links, sense_list)
+            if not matches:
+                return
+
+            merge_type = f"merge_{nym_type}" if links.keys() == {None} else f"merge_{nym_type}_by_sense"
+
+            lang_id = ALL_LANGS[lang]
+            for sense_num, link_sense in matches.items():
+
+                nym_links = links[link_sense]
+                sense = sense_list[sense_num]
+
+                #  make sure there's not an existing nym line
+                if any(c._type == nym_type for c in sense._children):
+                    self.warn(f"sense_has_existing_{nym_type}", section, "", str(sense))
+                    return
+
+                if sum(len(l) for l in nym_links) > 150:
+                    self.warn(f"long_{nym_type}", nym_section, "", str("|".join(nym_links)))
+                    return
+
+                byline_idx = self.get_insert_index(nym_type, sense)
+                nymline = ListItem(sense, sense.prefix + ":", "{{" + nym_type + "|" + lang_id + "|" + "|".join(nym_links) + "}}" , nym_type)
+
+                changes.append((nym_type, merge_type, nym_section, byline_idx, sense, nymline))
+
+        if not changes:
+            return
+
+        removed = []
+        # since changes are buffered and inserted by index, when running with more than just "syn",
+        # take care to iterate in the reverse order of insertion to avoid conflicts
+        for insertion_order in reversed(NYM_SECTIONS.keys()):
+            for nym_type, merge_type, nym_section, byline_idx, sense, nymline in changes:
+                if nym_type != insertion_order:
+                    continue
+
+                sense._children.insert(byline_idx, nymline)
+                if nym_section not in removed:
+                    nym_section.parent._children.remove(nym_section)
+                    removed.append(nym_section)
+                self.fix(merge_type, nym_section, "", f"merged into sense bylines")
+
 
 
 

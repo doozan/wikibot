@@ -3,7 +3,7 @@ import enwiktionary_sectionparser as sectionparser
 
 fixer = BylineFixer()
 
-def test_fix_nym_with_bare_qualifier():
+def test_fix_nym():
 
 
     tests = [
@@ -16,6 +16,7 @@ def test_fix_nym_with_bare_qualifier():
         ["{{syn|en|Fox Harbour}} {{q|''historical''}}", "{{syn|en|Fox Harbour<qq:historical>}}"],
         ["{{syn|pl|niesamowity|niezwykły|wspaniały}}, {{syn|pl|Thesaurus:dobry}}", "{{syn|pl|niesamowity|niezwykły|wspaniały|Thesaurus:dobry}}"],
 
+#        ["{{syn|de|nym1}}, [[nym2]], [[nym3]]", "{{syn|de|nym1|nym2|nym3}}"],
     ]
 
 
@@ -86,6 +87,7 @@ expected = """
 """
 
 
+
 def test_add_missing_rfdef():
 
     # No change normal def
@@ -143,3 +145,139 @@ def test_add_missing_rfdef():
     summary = []
     res = fixer.process(text, "page", summary)
     assert res == expected
+
+
+
+
+def test_merge_nyms():
+
+    text = """\
+==English==
+
+===Noun===
+{{en-noun}}
+
+# {{lb|en|dated|now|offensive}} An Aboriginal person from [[Australia]] (descending from, or a member of, one of the [[indigenous]] [[people]](s) before British colonisation), [[Aboriginal]] [[Australian]].
+
+====Synonyms====
+* {{l|en|Aboriginal}}
+* {{l|en|Aboriginal people}}
+* {{l|en|Aboriginal Australian}} {{q|neutral term}}
+"""
+
+    expected = """\
+==English==
+
+===Noun===
+{{en-noun}}
+
+# {{lb|en|dated|now|offensive}} An Aboriginal person from [[Australia]] (descending from, or a member of, one of the [[indigenous]] [[people]](s) before British colonisation), [[Aboriginal]] [[Australian]].
+#: {{syn|en|Aboriginal|Aboriginal people|Aboriginal Australian<qq:neutral term>}}\
+"""
+
+    summary = []
+    res = fixer.process(text, "page", summary)
+    assert res == expected
+
+
+
+    text = """\
+==English==
+
+===Noun===
+{{en-noun}}
+
+# test
+#: {{syn|en|syns}}
+#: {{mero|en|mero}}
+
+====Antonyms====
+ * [[foo]]
+"""
+
+    expected = """\
+==English==
+
+===Noun===
+{{en-noun}}
+
+# test
+#: {{syn|en|syns}}
+#: {{ant|en|foo}}
+#: {{mero|en|mero}}\
+"""
+
+    summary = []
+    res = fixer.process(text, "page", summary)
+    assert res == expected
+
+
+def test_no_merge_nyms():
+
+    text = """\
+==Latin==
+
+===Noun===
+{{la-noun|aequālitās<3>}}
+
+# [[equality]], [[similarity]], [[uniformity]]
+# [[political]] equality
+# equality of [[age]]
+# [[evenness]], [[levelness]]
+
+====Synonyms====
+* {{sense|equality}} {{l|la|aequābilitās}}\
+"""
+
+    expected = text
+
+    summary = []
+    res = fixer.process(text, "page", summary)
+    assert res == expected
+
+
+    text = """\
+==Spanish==
+
+====Noun====
+{{es-noun|mf}}
+
+# [[baby]]
+#: {{syn|es|guagua<q:Andes>|nene|nena}}
+
+=====Synonyms=====
+See also [[Thesaurus:bebé]].\
+"""
+
+    expected = text
+
+    summary = []
+    res = fixer.process(text, "page", summary)
+    assert res == expected
+
+
+
+    text = """\
+==Portuguese==
+
+===Conjunction===
+{{head|pt|conjunction}}
+
+# {{senseid|pt|noun clause connector}} [[that]] {{gloss|connecting noun clause}}
+# {{senseid|pt|introduces a result}} [[that]] {{gloss|introducing the result of the main clause}}
+# {{senseid|pt|than}} [[than]] {{gloss|used in comparisons, to introduce the basis of comparison}}
+# {{senseid|pt|because}} {{lb|pt|only in subordinate clauses}} [[seeing as]]; [[since]]; [[for]]; [[because]] {{gloss|introduces explanatory clause}}
+#: {{syn|pt|porque}}
+# {{lb|pt|only in subordinate clauses}} [[and]] {{gloss|indicating the consequences of an action, often threateningly}}
+
+====Synonyms====
+* {{sense|than}} {{l|pt|do que}}
+* {{sense|because}} {{l|pt|por causa que}}, {{l|pt|porque}}\
+"""
+
+    expected = text
+
+    summary = []
+    res = fixer.process(text, "page", summary)
+    assert res == expected
+
