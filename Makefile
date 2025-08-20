@@ -391,44 +391,6 @@ $(LIST)es_mismatched_passages: $(BUILDDIR)/es-en.enwikt.txt.bz2
 >   $(RM) $@.wiki.base $@.with_passage
 >   mv $@.wiki $@
 
-$(LIST)es_with_synonyms: $(BUILDDIR)/es-en.enwikt.txt.bz2
->   @echo "Running $@..."
->   DEST="User:JeffDoozan/lists/es_with_synonyms"
->   SUMMARY="Entries with synonyms section"
-
->   $(WIKIGREP) $< "==\s*Synonyms\s*==" \
->   | cut -d ":" -f 1 \
->   | sort -u \
->   |  awk -F: '{ print "; [["$$0"#Spanish|"$$0"]]" }' \
->   > $@.wiki.base
-
->   COUNT=`wc -l $@.wiki.base | cut -d " " -f 1`
->   echo "$$SUMMARY as of $(DATETAG_PRETTY) ($$COUNT entries)" > $@.wiki
->   cat $@.wiki.base >> $@.wiki
-
->   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   $(RM) $@.wiki.base
->   mv $@.wiki $@
-
-$(LIST)pt_with_synonyms: $(BUILDDIR)/pt-en.enwikt.txt.bz2
->   @echo "Running $@..."
->   DEST="User:JeffDoozan/lists/Portuguese_with_Synonyms"
->   SUMMARY="Entries with synonyms section"
-
->   $(WIKIGREP) $< "==\s*Synonyms\s*==" \
->   | cut -d ":" -f 1 \
->   | sort -u \
->   |  awk -F: '{ print "; [["$$0"#Portuguese|"$$0"]]" }' \
->   > $@.wiki.base
-
->   COUNT=`wc -l $@.wiki.base | cut -d " " -f 1`
->   echo "$$SUMMARY as of $(DATETAG_PRETTY) ($$COUNT entries)" > $@.wiki
->   cat $@.wiki.base >> $@.wiki
-
->   $(PUT) -textonly -force "-title:$$DEST" -file:$@.wiki -summary:"Updated with $(DATETAG_PRETTY) data"
->   $(RM) $@.wiki.base
->   mv $@.wiki $@
-
 $(LIST)es_verbs_missing_type: $(BUILDDIR)/es-en.enwikt.data $(BUILDDIR)/es-en.enwikt.sortorder
 >   @echo "Running $@..."
 >   DEST="User:JeffDoozan/lists/es/verbs_missing_type"
@@ -468,12 +430,6 @@ $(LIST)es_split_verb_data: $(BUILDDIR)/es-en.enwikt.data
 >   @echo "Running $@..."
 
 >   $(LIST_SPLIT_VERB_DATA) $(SAVE) --lang es --dictionary $<
->   touch $@
-
-$(LIST)pt_split_verb_data: $(BUILDDIR)/pt-en.enwikt.data
->   @echo "Running $@..."
-
->   $(LIST_SPLIT_VERB_DATA) $(SAVE) --lang pt --dictionary $<
 >   touch $@
 
 $(LIST)section_header_errors: $(BUILDDIR)/all-en.enwikt.txt.bz2
@@ -615,31 +571,6 @@ $(FIX)fr_missing_tlfi:
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
 >   echo "Running fixer $@ on $$LINKS items from $$SRC..."
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
->   echo $$LINKS > $@
-
-# TODO: some sort of list maker to check if they can be auto fixed
-$(FIX)es_syns:
->   @
->   FIX="--fix es_simple_nyms"
->   SRC="User:JeffDoozan/lists/es_with_synonyms"
->   MAX=200
-
->   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
->   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
->   echo $$LINKS > $@
-
-$(FIX)pt_syns:
->   @
->   FIX="-fix:simple_nyms --lang:pt --wordlist:$(BUILDDIR)/pt-en.enwikt.data-full --sections:Synonyms"
->   SRC="User:JeffDoozan/lists/Portuguese_with_Synonyms"
->   MAX=100
-
->   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
->   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
->   echo "Running fixer $@ on $$LINKS items from $$SRC..."
->   $(FUN_REPLACE) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
 $(FIX)section_headers:
@@ -899,7 +830,7 @@ $(BUILDDIR)/.update_langs:
 >   date > $@
 
 # Lists that run in less that 30 minutes on single core
-fast_lists: $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_with_synonyms es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_tlfi pt_with_synonyms missing_audio)
+fast_lists: $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_tlfi missing_audio)
 
 # Lists that take more than 30 minutes on single core
 slow_lists: $(patsubst %,$(LIST)%, section_header_errors section_level_errors section_order_errors sense_bylines pronunciation_errors unbalanced_delimiters missing_taxlinks t9n_problems convert_list_to_col es_missing_forms def_template_in_ety quote_with_bare_passage bare_ux missing_headers fr_missing_lemmas mismatched_headlines )
@@ -914,9 +845,6 @@ autofixes: $(BUILDDIR)/.update_langs $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_co
 
 # Fixes that may make mistakes and need human supervision
 otherfixes: $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form template_params missing_taxlinks)
-
-# Fixes that need fun_replace and not wikifix
-oldfixes: $(patsubst %,$(FIX)%,es_syns pt_syns)
 
 allfixes: autofixes otherfixes oldfixes
 
