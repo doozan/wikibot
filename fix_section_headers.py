@@ -3,7 +3,8 @@
 import enwiktionary_sectionparser as sectionparser
 import re
 
-from autodooz.sections import ALL_LANGS, ALT_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
+from autodooz.sections import ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
+from enwiktionary_templates import ALL_LANGS, ALT_LANGS
 from collections import defaultdict
 from Levenshtein import distance as fuzzy_distance
 
@@ -481,7 +482,6 @@ class SectionHeaderFixer():
 
     def rename_misnamed_pronunciation(self, entry):
         for section in entry.ifilter_sections(matches = lambda x: x.title == "Etymology"):
-            print("scanning", section.path)
             if any("IPA" in wl and "IPAchar" not in wl and "IPAfont" not in wl for wl in section.content_wikilines):
                 self.fix("misnamed_pronunciation", section, "renamed to Pronunciation (manually reviewed)")
                 section.title = "Pronunciation"
