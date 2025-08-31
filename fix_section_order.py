@@ -52,7 +52,7 @@ BOTTOM_SORT = {k:v for v,k in enumerate([
     "Anagrams",
 ], 1)}
 
-# Categories that can be safely sorted the bottom
+# Categories that can be safely be forced all the way to the bottom
 BOTTOM_SORT_SAFE = {k:v for v,k in enumerate([
         "References",
         "Further reading",
@@ -60,7 +60,7 @@ BOTTOM_SORT_SAFE = {k:v for v,k in enumerate([
     ], 1)}
 
 
-# Categories that can be safely sorted the bottom
+# Categories that can be safely sorted to the top (above first POS)
 TOP_SORT = {k:v for v,k in enumerate([
         "Description",
         "Glyph origin",
@@ -126,7 +126,7 @@ class SectionOrderFixer:
         sorted_sections = sorted(entry._children, key=lambda x: self.get_language_key(x.title))
         if sorted_sections != entry._children:
             entry._children = sorted_sections
-            self.fix("l2_sort", None, "Sorted L2 languages per WT:ELE")
+            self.fix("l2_sort", None, "Sorted L2 languages per [[WT:ELE]]")
 
     @staticmethod
     def has_alt_before_pos(l3):
@@ -179,7 +179,7 @@ class SectionOrderFixer:
                 orig = list(l3._children)
                 l3._children.sort(key=lambda x: self.get_l3_sort_key(x, alt_first=alt_first, lemmas_before_forms=True))
                 if orig != l3._children:
-                    self.fix("l3_sort", l3, "sorted sections per WT:ELE with forms before lemmas")
+                    self.fix("l3_sort", l3, "sorted sections per [[WT:ELE]] with forms before lemmas")
 
             # Sort other languages in two passes to generate a more verbose summary
             else:
@@ -211,12 +211,12 @@ class SectionOrderFixer:
                         if x.title not in TOP_SORT and (not alt_first or x.title not in ["Alternative forms", "Alternative scripts"]):
                             break
                         top.append(x.title)
-                    self.fix("l3_sort", l3, "sorted " + "/".join(top) + " to top per WT:ELE")
+                    self.fix("l3_sort", l3, "sorted " + "/".join(top) + " to top per [[WT:ELE]]")
 
                 orig = list(l3._children)
                 l3._children.sort(key=lambda x: self.get_l3_sort_key_safe(x, alt_first=alt_first, lemmas_before_forms=False))
                 if orig != l3._children:
-                    self.fix("l3_sort", l3, "sorted References/Further reading/Anagrams to bottom per WT:ELE")
+                    self.fix("l3_sort", l3, "sorted References/Further reading/Anagrams to bottom per [[WT:ELE]]")
 
 
     def sort_pos_children(self, pos):
@@ -237,7 +237,7 @@ class SectionOrderFixer:
         orig = list(pos._children)
         pos._children.sort(key=lambda x: ALL_POS_CHILDREN.index(x.title))
         if orig != pos._children:
-            self.fix("pos_sort", pos, "sorted child sections per WT:ELE")
+            self.fix("pos_sort", pos, "sorted child sections per [[WT:ELE]]")
 
     @staticmethod
     def get_l3_sort_key_altforms(item, alt_first=False, lemmas_before_forms=False):
