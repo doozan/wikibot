@@ -35,7 +35,10 @@ class WikiSaver(BaseHandler):
             return "errors"
 
     def format_entry(self, entry, prev_entry):
-        return [f": [[{entry.page}|{entry.path}]] <nowiki>{entry.details}</nowiki>"]
+
+        data = entry.details.replace("__HIGHLIGHT__", '</nowiki><b><u>').replace("__/HIGHLIGHT__", '</u></b><nowiki>')
+
+        return [f": [[{entry.page}|{entry.path}]]\n <nowiki>{data}</nowiki>"]
 
     def get_section_header(self, base_path, page_name, section_entries, prev_section_entries, pages):
         res = []
@@ -82,6 +85,31 @@ delims = [
         )
     ]
 
+def highlight_unmatched(opener, closer, text):
+    depth = []
+    unmatched = []
+    for i, c in enumerate(text):
+        if c == opener:
+            depth.append(i)
+        if c == closer:
+            if depth:
+                depth.pop(0)
+            else:
+                unmatched.append(i)
+    unmatched += depth
+    for i in reversed(sorted(unmatched)):
+        text = text[:i] + "__HIGHLIGHT__" + text[i] + "__/HIGHLIGHT__" + text[i+1:]
+
+#    print("unmatched", unmatched)
+    return text
+
+
+#assert (res := highlight_unmatched("{", "}", "TEST{TEST")) == "TEST__HIGHLIGHT__{__/HIGHLIGHT__TEST", res
+#assert highlight_unmatched("{", "}", "TEST}TEST") == "TEST__HIGHLIGHT__}__/HIGHLIGHT__TEST"
+#assert highlight_unmatched("{", "}", "T{E}ST}TEST") == "T{E}ST__HIGHLIGHT__}__/HIGHLIGHT__TEST"
+#assert highlight_unmatched("{", "}", "TESTTEST{") == "TESTTEST__HIGHLIGHT__{__/HIGHLIGHT__"
+#assert highlight_unmatched("{", "}", "}TESTTEST") == "__HIGHLIGHT__}__/HIGHLIGHT__TESTTEST"
+
 def process_page(text, title, summary=None, options=None):
 
     log = []
@@ -98,29 +126,41 @@ def process_page(text, title, summary=None, options=None):
         return []
 
     for section in entry.filter_sections():
-        text = section.content_text
-        for openers, closers in delims:
+        for text in section.content_wikilines:
+            for openers, closers in delims:
 
-            opener = openers[0]
-            closer = closers[0]
+                opener = openers[0]
+                closer = closers[0]
 
-            open_count = text.count(opener)
-            close_count = text.count(closer)
+                open_count = text.count(opener)
+                close_count = text.count(closer)
 
-            all_open_count = sum(text.count(o) for o in openers)
-            all_close_count = sum(text.count(c) for c in closers)
+                all_open_count = sum(text.count(o) for o in openers)
+                all_close_count = sum(text.count(c) for c in closers)
 
-            if open_count != close_count and all_open_count != all_close_count:
+                if open_count != close_count and all_open_count != all_close_count:
 
-                language = list(section.lineage)[-2]
-                page = title + "#" + language
-                if open_count > close_count:
-                    log.append((f"extra_{opener}", page, title + ":" + section.path, f"{open_count}, {close_count}"))
-                else:
+                    language = list(section.lineage)[-2]
+                    page = title + "#" + language
+
+                    unmatched = opener if open_count > close_count else closer
+
                     # Navajo uses {{nv-theme-header}} plus |} to build tables
-                    if closer == "}" and language == "Navajo":# and (close_count - open_count == text.count("{{nv-theme-header}}") == text.count("\n|}")):
+                    if unmatched == "}" and language == "Navajo":# and (close_count - open_count == text.count("{{nv-theme-header}}") == text.count("\n|}")):
                         continue
-                    log.append((f"extra_{closer}", page, title + ":" + section.path, f"{close_count}, {open_count}"))
+
+                    highlighted = highlight_unmatched(opener[0], closer[0], text)
+
+                    # ignore ['''year''' style citations
+                    if unmatched == "[":
+                        if "{{quote-" in highlighted or highlighted.startswith("#* [") or highlighted.startswith("#* __HIGHLIGHT__[__/HIGHLIGHT__"):
+                            continue
+
+                    if unmatched == "]":
+                        if "{{quote-" in highlighted or (highlighted.startswith("#*: ") and highlighted.endswith("__HIGHLIGHT__]__/HIGHLIGHT__")):
+                            continue
+
+                    log.append((f"extra_{unmatched}", page, title + ":" + section.path, highlighted)) # f"{open_count}, {close_count}"))
 
     return log
 
@@ -141,8 +181,7 @@ def main():
     if not args.j:
         args.j = multiprocessing.cpu_count()-1
 
-    options = {}
-    iter_entries = iter_wxt(args.wxt, options, args.limit, args.progress)
+    iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
 
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)
