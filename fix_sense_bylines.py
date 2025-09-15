@@ -146,6 +146,19 @@ class BylineFixer():
 
             old_pos_text = str(pos)
 
+            for headline in pos.headlines:
+                stripped = re.sub(r"\[\[\s*(image|file)\s*:.*?\]\]", "", headline, flags=re.IGNORECASE)
+                if len(stripped) != len(headline) and "{{" in stripped:
+                    wiki = mwparser.parse(headline)
+                    replace = []
+                    stripped = headline
+                    for wikilink in wiki.ifilter_wikilinks(recursive=False):
+                        stripped = stripped.replace(str(wikilink), "", 1)
+                    for comment in wiki.ifilter_comments():
+                        stripped = stripped.replace(str(comment), "", 1)
+                    if "{{" in stripped:
+                        self.warn("file_in_headline", section, "", headline)
+
             if not pos.senses:
                 headline_idx = []
                 sense_idx = []
@@ -167,10 +180,10 @@ class BylineFixer():
 
                     #self.warn("empty_sense_list", section)
 
-                    # Special handling for garbage templates
+                    # Special handling for templates that generate headlines and senses
                     if ("ru-" in pos.headlines[-1] and "-alt" in pos.headlines[-1]) or \
                        ("ar-" in pos.headlines[-1] and ("-inf-" in pos.headlines[-1] or "-coll-" in pos.headlines[-1])) or \
-                       any(x in pos.headlines[-1] for x in ["ar-root", "ja-see", "zh-see", "ar-verb form", "ar-verb-form"]):
+                       any(x in pos.headlines[-1] for x in ["ar-root", "ja-see", "zh-see", "ar-verb form", "ar-verb-form", "fa-num-symbol"]):
                             continue
 
                     lang_id = ALL_LANGS.get(section._topmost.title)
@@ -328,8 +341,9 @@ class BylineFixer():
                     self.warn(f"sectionlist_{nym_type}_{error}", nym_section, "", details)
                 return -1
 
-            if any( "{" in link or "[" in link for titled_links in links.values() for link in titled_links ):
-                self.warn(f"unmergable_{nym_type}_complex_link", section, "", str(nym_section))
+            complex_links = [f"{title}:{link}" for title, titled_links in links.items() for link in titled_links if "{" in link or "[" in link]
+            if complex_links:
+                self.warn(f"unmergable_{nym_type}_complex_link", section, "", "; ".join(complex_links))
 
 
             def find_matching_senses(link_sense, sense_list):
@@ -347,7 +361,7 @@ class BylineFixer():
                 assert sense_list
 
                 if len(all_links.keys()) > len(sense_list):
-                    self.warn(f"unmergable_{nym_type}_more_values_than_targets", section, "", str(nym_section))
+                    self.warn(f"unmergable_{nym_type}_more_values_than_targets", section, "", "")
                     return
 
                 if all_links.keys() == {None}:
@@ -416,6 +430,10 @@ class BylineFixer():
                 changes.append((nym_type, merge_type, nym_section, byline_idx, sense, nymline))
 
         if not changes:
+            return
+
+        if any( section.filter_sections(matches=lambda x: x.title in [ "Hypernyms", "Hyponyms", "Meronyms", "Holonyms", "Troponyms" ] )):
+            self.warn("has_other_nyms", changes[0][2])
             return
 
         removed = []
@@ -589,8 +607,8 @@ class BylineFixer():
 
 
         elif update_style:
-            expected_style = self.TYPE_TO_STYLE[item._type]
-            if item.style != expected_style:
+            expected_style = self.TYPE_TO_STYLE.get(item._type)
+            if expected_style and item.style != expected_style:
                 self.fix("byline_style", section, item.name, f"fixed {item._type} style")
                 item.style = expected_style
                 item.prefix = item.parent.prefix + item.style
