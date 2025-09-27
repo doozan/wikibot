@@ -114,6 +114,13 @@ ALLOW_MISSING_POS = {
 
 class SectionLevelFixer():
 
+    def __init__(self):
+        # Only used when calling functions directly during unit testing
+        # all other uses should just call process() which will set these variables
+        self._summary = None
+        self._log = []
+        self.page_title = "test"
+
     def promote_embedded_peers(countable, lang, summary, page_title):
 
         sections = lang.filter_sections(recursive=False, matches=countable)
@@ -456,10 +463,21 @@ class SectionLevelFixer():
 
 
     def fix(self, reason, section, details):
-        if self._summary is not None:
-            self._summary.append(details)
+        if isinstance(section, sectionparser.SectionParser):
+            page = section.page
+            path = ""
+            target = page
+        else:
+            page = section.page
+            path = section.path
 
-        self._log.append((reason, self.page_title, section.path, details))
+        if self._summary is not None:
+            if path:
+                self._summary.append(f"/*{path}*/ {details}")
+            else:
+                self._summary.append(f"{details}")
+
+        self._log.append((reason, page, path, details))
 
     def warn(self, reason, details):
         self._log.append((reason, self.page_title, None, details))

@@ -995,11 +995,33 @@ def test_multi_adoptions():
 
 ===Proper noun===
 
-====Derived terms====
+===Mutation===
+
+===Derived terms===
+
+----
+
+==Welsh==
+
+===Etymology===
+
+===Proper noun===
 
 ===Mutation===
 
-----
+===Derived terms===\
+"""
+
+    result = """\
+==Manx==
+
+===Etymology===
+
+===Proper noun===
+
+====Derived terms====
+
+===Mutation===
 
 ==Welsh==
 
@@ -1010,30 +1032,6 @@ def test_multi_adoptions():
 ====Derived terms====
 
 ===Mutation===\
-"""
-
-    result = """\
-==Manx==
-
-===Etymology===
-
-===Proper noun===
-
-====Mutation====
-
-====Derived terms====
-
-----
-
-==Welsh==
-
-===Etymology===
-
-===Proper noun===
-
-====Mutation====
-
-====Derived terms====\
 """
 
 
@@ -1066,7 +1064,7 @@ def test_adopt_grandchildren():
 
 ====Usage notes====
 
-====See also====\
+===See also===\
 """
 
     summary = []

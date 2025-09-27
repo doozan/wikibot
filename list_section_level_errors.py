@@ -72,6 +72,9 @@ class WikiSaver(BaseHandler):
     def format_entry(self, entry, prev_entry):
         page = entry.page
         section = entry.section if entry.section else ""
+        if entry.error in ALL_FIXES:
+            return [f": [[{page}]]"]
+
         return [f": [[{page}]] {section} {entry.details}"]
 
     # Override display for unexpected_mixed_section
