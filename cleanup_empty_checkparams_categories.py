@@ -19,15 +19,20 @@ def replace_warn_with_error(template_name):
 
 def remove_category(category_name):
     page = pywikibot.Page(site, category_name)
-    assert page.text == "{{auto cat}}"
+    if page.text != "{{auto cat}}":
+        print("UNHANDLED TEXT (should be {{auto cat}})", category_name, [page.text])
+        return
+
     page.text = "{{d|empty category, no longer needed}}"
     page.save("empty category, no longer needed")
 
 def main():
-    gp_cat = pywikibot.Category(site, 'Category:Pages using bad params when calling a template')
+    gp_cat = pywikibot.Category(site, 'Category:Pages using invalid parameters when calling templates')
 
     empty_cats = []
     count = 0
+
+    print("XX")
 
     p_total =  gp_cat.categoryinfo["subcats"]
     for p_idx, p_cat in enumerate(gp_cat.subcategories(), 1):
@@ -35,19 +40,31 @@ def main():
         c_total =  p_cat.categoryinfo["subcats"]
         for c_idx, c_cat in enumerate(p_cat.subcategories(), 1):
             count += 1
-            c_cat_is_empty = not any(c_cat.subcategories()) and not any(p for p in c_cat.articles() if "Talk:" not in p.title() and "User:" not in p.title())
-            print(f"{count} {p_idx}/{p_total} {c_idx}/{c_total} ({len(empty_cats)} empty)", end = '\r', file=sys.stderr)
-            if c_cat_is_empty:
-                print("empty:", list(c_cat.articles()), c_cat.title())
-                empty_cats.append(c_cat.title())
-                m = re.search("^Category:Pages using bad params when calling (Template:.*)", c_cat.title())
-                if not m:
-                    continue
-                template_name = m.group(1)
-                if not replace_warn_with_error(template_name):
-                    print(f"Unable to auto-fix {template_name}")
-                    continue
-                remove_category(c_cat.title())
+
+            has_subcats = any(c_cat.subcategories())
+            if has_subcats:
+                print("has_subcats:", c_cat.title())
+
+            page_count = len(list(p for p in c_cat.articles() if "Talk:" not in p.title() and "User:" not in p.title()))
+            if page_count > 100:
+                print(page_count, c_cat.title().ljust(120))
+
+            if has_subcats or page_count:
+                print(f"{count} {p_idx}/{p_total} {c_idx}/{c_total} {str(p_cat).ljust(64)}", end = '\r', file=sys.stderr)
+                continue
+
+            print("empty:", list(c_cat.articles()), c_cat.title())
+
+            empty_cats.append(c_cat.title())
+            m = re.search("^Category:Pages using invalid parameters when calling (Template:.*)", c_cat.title())
+            if not m:
+                print("NO MATCH", c_cat.title())
+                continue
+            template_name = m.group(1)
+            if not replace_warn_with_error(template_name):
+                print(f"Unable to auto-fix {template_name}")
+                continue
+            remove_category(c_cat.title())
 
 
 if __name__ == "__main__":
