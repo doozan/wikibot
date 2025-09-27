@@ -13,7 +13,7 @@ ref_tags = ["<ref[ :>]", r'{{ja-pron\|[^}]*(acc_ref|accent_ref)'] #}} code foldi
 PATTERN_REF_TAGS = "(?i)(" + "|".join(ref_tags) + ")"
 
 # Tags that generate <references/>
-PATTERN_REFS = r"(?i)(<\s*references|{{reflist)"
+PATTERN_REFS = r"(?i)(<\s*references|{{\s*reflist|{{\s*references)"
 
 ety_templates = [
     "back-form",
@@ -265,7 +265,8 @@ class SectionHeaderFixer():
     def __init__(self):
         # Only used when calling functions directly during unit testing
         # all other uses should just call process() which will set these variables
-        self._changes = []
+        self._summary = None
+        self._log = []
         self.page_title = "test"
 
     def get_fixed_title(self, section, fixes):
