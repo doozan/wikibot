@@ -49,7 +49,7 @@ def get_module_stats(args):
     wiki_calls = "expandTemplate", "callParserFunction", "preprocess", "newParserValue", "newTemplateParserValue"
     used_wiki_calls = [f for f in wiki_calls if f in entry_text]
 
-    used_modules = sorted(set(m.group(1).removeprefix("Module:").replace("_", " ").rstrip("/") for m in re.finditer("""(?:require|require_when_needed)\s*\(\s*["']\s*(.+?)\s*["']""", entry_text)))
+    used_modules = sorted(set(m.group(1).removeprefix("Module:").replace("_", " ").rstrip("/") for m in re.finditer(r"""(?:require|require_when_needed)\s*\(\s*["']\s*(.+?)\s*["']""", entry_text)))
 
     # if no modules are detected inside require() or require_when_needed(), search for all strings with "Module:xx"
     # yields false positives and calls to module/data loads

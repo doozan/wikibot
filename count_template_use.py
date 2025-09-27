@@ -126,13 +126,13 @@ def process(args):
         while prev_text != entry_text:
             prev_text = entry_text
             entry_text = re.sub(r"\{\{\{[^{}]*", "", entry_text)
-        entry_text = re.sub("{{\s*#[^{}]*", "", entry_text)
+        entry_text = re.sub(r"{{\s*#[^{}]*", "", entry_text)
 
     template_count = defaultdict(int)
-    for m in re.finditer("{{(.*?)(?=[#{<}|])", entry_text, re.DOTALL):
+    for m in re.finditer(r"{{(.*?)(?=[#{<}|])", entry_text, re.DOTALL):
         if not m.group(1):
             continue
-        template_name = re.sub("<!--.*?-->", "", m.group(1)).strip()
+        template_name = re.sub(r"<!--.*?-->", "", m.group(1)).strip()
         if template_name and "\n" not in template_name:
             template_count[template_name] += 1
 
