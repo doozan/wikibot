@@ -23,7 +23,6 @@ BOTTOM_SORT = {k:v for v,k in enumerate([
     "Inflection",
     "Declension",
     "Conjugation",
-    "Mutation",
     "Quotations",
     "Alternative forms",
     "Alternative scripts",
@@ -44,9 +43,10 @@ BOTTOM_SORT = {k:v for v,k in enumerate([
     "Collocations",
     "Descendants",
     "Translations",
+    "See also",
+    "Mutation",
     "Statistics", # Not in WT:ELE, but used in 20k pages
     "Trivia",
-    "See also",
     "References",
     "Further reading",
     "Anagrams",
@@ -54,10 +54,10 @@ BOTTOM_SORT = {k:v for v,k in enumerate([
 
 # Categories that can be safely be forced all the way to the bottom
 BOTTOM_SORT_SAFE = {k:v for v,k in enumerate([
-        "References",
-        "Further reading",
-        "Anagrams",
-    ], 1)}
+    "References",
+    "Further reading",
+    "Anagrams",
+], 1)}
 
 
 # Categories that can be safely sorted to the top (above first POS)
@@ -75,6 +75,8 @@ TOP_SORT = {k:v for v,k in enumerate([
     ], 1)}
 
 
+ALL_SORTABLE = TOP_SORT.keys() | ALL_POS.keys() | BOTTOM_SORT.keys()
+
 
 def is_spanish_form_header(text):
     return bool(re.match(r"\s*{{(head|head-lite)\|es\|(past participle|[^|]* form[ |}])", text, re.MULTILINE)) \
@@ -91,8 +93,10 @@ def is_spanish_form(section):
 class SectionOrderFixer:
 
     def __init__(self):
-        # Only used for tests that call sort_* functions directly instead of using process()
-        self._changes = []
+        # Only used when calling functions directly during unit testing
+        # all other uses should just call process() which will set these variables
+        self._summary = None
+        self._log = []
         self.page_title = "test"
 
     @staticmethod
@@ -126,7 +130,7 @@ class SectionOrderFixer:
         sorted_sections = sorted(entry._children, key=lambda x: self.get_language_key(x.title))
         if sorted_sections != entry._children:
             entry._children = sorted_sections
-            self.fix("l2_sort", None, "Sorted L2 languages per [[WT:ELE]]")
+            self.fix("l2_sort", entry, "Sorted L2 languages per [[WT:ELE]]")
 
     @staticmethod
     def has_alt_before_pos(l3):
@@ -183,15 +187,21 @@ class SectionOrderFixer:
 
             # Sort other languages in two passes to generate a more verbose summary
             else:
-    #            orig = list(l3._children)
-    #            l3._children.sort(key=lambda x: self.get_l3_sort_key_altforms(x, alt_first=alt_first, lemmas_before_forms=False))
-    #            if orig != l3._children:
-    #                changes.append(f"/*{l3.path}*/ moved AltForms found before first POS to first section per WT:ELE")
-
                 orig = list(l3._children)
                 totals = defaultdict(int)
+                pos_count = 0
+                pos_is_contig = True # All of the POS sections are contiguous
+                prev_pos = False
                 for section in l3._children:
                     totals[section.title] += 1
+                    is_pos = section.title in ALL_POS
+
+                    if is_pos:
+                        if pos_count and not prev_pos:
+                            pos_is_contig = False
+                        pos_count += 1
+
+                    prev_pos = is_pos
 
                 has_dup = False
                 for title, count in totals.items():
@@ -204,19 +214,28 @@ class SectionOrderFixer:
                 if has_dup:
                     continue
 
-                l3._children.sort(key=lambda x: self.get_l3_topsort_key(x, alt_first=alt_first, lemmas_before_forms=False))
-                if orig != l3._children:
-                    top = []
-                    for x in l3._children:
-                        if x.title not in TOP_SORT and (not alt_first or x.title not in ["Alternative forms", "Alternative scripts"]):
-                            break
-                        top.append(x.title)
-                    self.fix("l3_sort", l3, "sorted " + "/".join(top) + " to top per [[WT:ELE]]")
 
-                orig = list(l3._children)
-                l3._children.sort(key=lambda x: self.get_l3_sort_key_safe(x, alt_first=alt_first, lemmas_before_forms=False))
-                if orig != l3._children:
-                    self.fix("l3_sort", l3, "sorted References/Further reading/Anagrams to bottom per [[WT:ELE]]")
+                # If all POS sections are contiguous (without other sections between them) and all of the sections are sortable, sort everything in one pass
+                if pos_is_contig and all(title in ALL_SORTABLE for title in totals.keys()):
+                    orig = list(l3._children)
+                    l3._children.sort(key=lambda x: self.get_l3_sort_key(x, alt_first=alt_first))
+                    if orig != l3._children:
+                        self.fix("l3_sort", l3, "sorted sections per [[WT:ELE]]")
+
+                else:
+                    l3._children.sort(key=lambda x: self.get_l3_topsort_key(x, alt_first=alt_first, lemmas_before_forms=False))
+                    if orig != l3._children:
+                        top = []
+                        for x in l3._children:
+                            if x.title not in TOP_SORT and (not alt_first or x.title not in ["Alternative forms", "Alternative scripts"]):
+                                break
+                            top.append(x.title)
+                        self.fix("l3_sort", l3, "sorted " + "/".join(top) + " to top per [[WT:ELE]]")
+
+                    orig = list(l3._children)
+                    l3._children.sort(key=lambda x: self.get_l3_sort_key_safe(x, alt_first=alt_first, lemmas_before_forms=False))
+                    if orig != l3._children:
+                        self.fix("l3_sort", l3, "sorted References/Further reading/Anagrams to bottom per [[WT:ELE]]")
 
 
     def sort_pos_children(self, pos):
@@ -240,13 +259,6 @@ class SectionOrderFixer:
             self.fix("pos_sort", pos, "sorted child sections per [[WT:ELE]]")
 
     @staticmethod
-    def get_l3_sort_key_altforms(item, alt_first=False, lemmas_before_forms=False):
-        if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
-            return (0, -1, item.title)
-
-        return (0,0,0)
-
-    @staticmethod
     def get_l3_sort_key_safe(item, alt_first=False, lemmas_before_forms=False):
         return (0, 0, BOTTOM_SORT_SAFE.get(item.title, 0))
 
@@ -266,7 +278,7 @@ class SectionOrderFixer:
         if item.title in TOP_SORT:
             sort_group = 0
             sort_class = 0
-            sort_item = str(TOP_SORT[item.title])
+            sort_item = TOP_SORT[item.title]
         elif item.title in ALL_POS:
             sort_group = 1
             sort_class = 0
@@ -306,29 +318,47 @@ class SectionOrderFixer:
         return valid
 
     def fix(self, reason, section, details):
-        if section:
-            self._changes.append(f"/*{section.path}*/ {details}")
-            self._log(reason, self.page_title, section.path, details)
+        if isinstance(section, sectionparser.SectionParser):
+            page = section.page
+            path = ""
         else:
-            self._changes.append(details)
-            self._log(reason, self.page_title, None, details)
+            page = section.page
+            path = section.path
+
+        if self._summary is not None:
+            if path:
+                self._summary.append(f"/*{path}*/ {details}")
+            else:
+                self._summary.append(f"{details}")
+
+        self._log.append((reason, page, path, details))
+
 
     def warn(self, reason, details):
-        self._log(reason, self.page_title, None, details)
-
-    @staticmethod
-    def _log(reason, page, section_path, details):
-        print(page, reason, section_path, details)
+        self._log.append((reason, self.page_title, None, details))
 
     # Sorts everything
-    def process(self, page_text, page_title, summary=[], custom_args=None):
+    def process(self, page_text, page_title, summary=None, options=None):
+
+        # This function runs in two modes: fix and report
+        #
+        # When summary is None, this function runs in 'report' mode and
+        # returns [(code, page, details)] for each fix or warning
+        #
+        # When run using wikifix, summary is not null and the function
+        # runs in 'fix' mode.
+        # summary will be appended with a description of any changes made
+        # and the function will return the modified page text
+
+        self._summary = summary
+        self._log = []
 
         self.page_title = page_title
         self._changes = []
 
         entry = sectionparser.parse(page_text, page_title)
         if not entry:
-            return page_text
+            return page_text if summary is not None else self._log
 
         self.sort_l2(entry)
 
@@ -341,9 +371,4 @@ class SectionOrderFixer:
             for section in all_pos:
                 self.sort_pos_children(section)
 
-        if not self._changes:
-            return page_text
-
-        summary += self._changes
-
-        return str(entry)
+        return str(entry) if summary is not None else self._log
