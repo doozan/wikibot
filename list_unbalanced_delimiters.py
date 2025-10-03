@@ -36,6 +36,10 @@ class WikiSaver(BaseHandler):
 
     def format_entry(self, entry, prev_entry):
 
+        if entry.details is None:
+            print("BAD", entry)
+            return []
+
         data = entry.details.replace("__HIGHLIGHT__", '</nowiki><b><u>').replace("__/HIGHLIGHT__", '</u></b><nowiki>')
 
         return [f": [[{entry.page}|{entry.path}]]\n <nowiki>{data}</nowiki>"]
@@ -112,10 +116,9 @@ def highlight_unmatched(opener, closer, text):
 
 def process_page(text, title, summary=None, options=None):
 
-    log = []
-
-    # Strip <nowiki>, <math>, <score> and HTML comments
-    text = re.sub(r"<\s*nowiki\s*>.*?<\s*/\s*nowiki\s*>", "", text, flags=re.DOTALL)
+    # Strip <mapframe>, <math>, <score> and HTML comments
+    #text = re.sub(r"<\s*nowiki\s*>.*?<\s*/\s*nowiki\s*>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<\s*mapframe(\s[^/>]*)?>.*?<\s*/\s*mapframe\s*>", "", text, flags=re.DOTALL)
     text = re.sub(r"<\s*math(\s[^/>]*)?>.*?<\s*/\s*math\s*>", "", text, flags=re.DOTALL)
     text = re.sub(r"<\s*score\s*?(\s[^>]*)?>.*?<\s*/\s*score\s*>", "", text, flags=re.DOTALL)
     text = re.sub("<!--.*?-->", "", text, flags=re.DOTALL)
@@ -124,6 +127,8 @@ def process_page(text, title, summary=None, options=None):
     if not entry:
         print("no entry", title)
         return []
+
+    log = []
 
     for section in entry.filter_sections():
         for text in section.content_wikilines:
@@ -151,11 +156,12 @@ def process_page(text, title, summary=None, options=None):
 
                     highlighted = highlight_unmatched(opener[0], closer[0], text)
 
-                    # ignore ['''year''' style citations
+                    # ignore quote templates and quotes that start with [ (used when quoting an alt form of the lemma)
                     if unmatched == "[":
                         if "{{quote-" in highlighted or highlighted.startswith("#* [") or highlighted.startswith("#* __HIGHLIGHT__[__/HIGHLIGHT__"):
                             continue
 
+                    # ignore quote templates and quotes that end with ] (used when quoting an alt form of the lemma)
                     if unmatched == "]":
                         if "{{quote-" in highlighted or (highlighted.startswith("#*: ") and highlighted.endswith("__HIGHLIGHT__]__/HIGHLIGHT__")):
                             continue
