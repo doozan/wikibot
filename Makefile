@@ -480,10 +480,10 @@ $(LIST)unbalanced_delimiters: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   $(LIST_UNBALANCED_DELIMITERS) $(SAVE) $^
 >   touch $@
 
-$(LIST)quote_with_bare_passage: $(BUILDDIR)/template_data.json $(BUILDDIR)/all-en.enwikt.txt.bz2
+$(LIST)quote_with_bare_passage: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/template_data.json $(BUILDDIR)/redirects.tsv
 >   @echo "Running $@..."
 
->   $(LIST_QUOTE_WITH_BARE_PASSAGE) $(SAVE) --json $^
+>   $(LIST_QUOTE_WITH_BARE_PASSAGE) $(SAVE) --wxt $< --templates $(word 2,$^) --redirects $(word 3,$^)
 >   touch $@
 
 $(LIST)sense_bylines: $(BUILDDIR)/all-en.enwikt.txt.bz2
@@ -736,7 +736,7 @@ $(FIX)%_list_to_col:
 >   $(WIKIFIX) -links:$$SRC $$FIX
 >   echo $$LINKS > $@
 
-$(FIX)quote_with_bare_passage: $(BUILDDIR)/template_data.json
+$(FIX)quote_with_bare_passage: $(BUILDDIR)/template_data.json $(BUILDDIR)/redirects.tsv
 >   SRC="User:JeffDoozan/lists/quote_with_bare_passage/fixes"
 >   FIX="--fix quote_with_bare_passage --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
 >   MAX=2000

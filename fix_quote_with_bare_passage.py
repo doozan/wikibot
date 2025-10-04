@@ -1,3 +1,4 @@
+import csv
 import enwiktionary_sectionparser as sectionparser
 import json
 import mwparserfromhell as mwparser
@@ -38,9 +39,12 @@ QUOTE_TEMPLATES = POSITION_PARAM.keys()
 from autodooz.sections import ALL_POS
 from collections import defaultdict
 
+def is_quote_header(text):
+    return bool(re.match(r"""^(?P<prefix>[#:*]+)\s*(?P<template>{{\s*(Q|RQ:|quote-).*}})\s*$""", text, re.DOTALL))
+
 class QuoteFixer():
 
-    def __init__(self, template_data):
+    def __init__(self, template_data, redirects):
         self._summary = None
         self._log = []
 
@@ -48,6 +52,10 @@ class QuoteFixer():
             _template_data = json.load(infile)
             self._templates = {k for k,v in _template_data["templates"].items() if k.startswith("RQ:") and \
                     ("passage" in v.get("params",[]) or "quote" in v.get("modules", [])) }
+
+        with open(redirects) as infile:
+            self._redirects = {x[0].removeprefix("Template:"):x[1].removeprefix("Template:") for x in csv.reader(infile, delimiter="\t") if x[0].startswith("Template:")}
+            print("LOADED", len(self._redirects), "redirects")
 
     def fix(self, code, section, details):
         # When running tests, section will be empty
@@ -91,21 +99,20 @@ class QuoteFixer():
             to_remove = []
             idx = 0
             for idx, wikiline in enumerate(section.content_wikilines):
-                m = re.match(r"""^(?P<prefix>[#:*]+)\s*(?P<template>{{\s*(Q|RQ:|quote-).*}})\s*$""", wikiline, re.DOTALL)
-                if not m:
+                # last line won't have trailing lines
+                if idx == len(section.content_wikilines):
                     continue
-                prefix = m.group('prefix')
-                template_text = m.group('template')
 
-                wiki = mwparser.parse(template_text)
+                if not is_quote_header(wikiline):
+                    continue
+
+                prefix = re.match(r"[#:*]+", wikiline).group(0)
+
+                wiki = mwparser.parse(wikiline)
                 t = next(wiki.ifilter_templates())
 
                 # Only operate on single templates without surrounding text
                 if str(t) != str(wikiline).lstrip("#*:").strip():
-                    continue
-
-                # No trailing lines = nothing to scan
-                if idx+1 >= len(section.content_wikilines):
                     continue
 
                 warn = lambda e, d: self.warn(e, section, d)
@@ -114,8 +121,12 @@ class QuoteFixer():
                     continue
                 offset, passage_params = res
 
-                # If quote already has text, no need to continue
                 template_name = re.sub("(<!--.*?-->)", "", str(t.name)).strip()
+
+                # resolve any redirects
+                template_name = self._redirects.get(template_name, template_name)
+
+                # If quote already has text, no need to continue
                 passage_param_names = ["passage", "text", "quote"]
                 if POSITION_PARAM.get(template_name):
                     passage_param_names.append(POSITION_PARAM.get(template_name))
@@ -138,7 +149,7 @@ class QuoteFixer():
                         continue
 
                 # For templates that don't support passage=, use {{quote}}
-                if template_name in self._templates or template_name in QUOTE_TEMPLATES and template_name != "Q":
+                if template_name in self._templates or template_name in QUOTE_TEMPLATES or template_name == "Q":
 
                     # {{Q}} uses param names that don't match {{quote-*}} and {{RQ:*}} templates
                     ALT_PARAM_NAMES = {

@@ -1,4 +1,4 @@
-from autodooz.fix_bare_quotes import QuoteFixer
+from autodooz.fix_bare_quotes import QuoteFixer, wikilines_to_quote_params
 from autodooz.quotes.parser import QuoteParser, Parsed, LINK
 from collections import defaultdict
 
@@ -1876,4 +1876,45 @@ def test_use_quote_after_unparsable():
     res = fixer.process(text, "test", [])
     assert res == text
 
+def test_wikilines_to_quote_params():
 
+    prefix = "#*"
+    warn = lambda e, d: print("warn:", [e, d])
+
+    wikilines = [
+        f"{prefix}: text",
+    ]
+    res = wikilines_to_quote_params(wikilines, prefix, warn, handle_ux_templates=True)
+    print(res)
+    assert res == (1, {'passage': 'text'})
+
+
+    wikilines = [
+        f"{prefix}: text",
+        f"{prefix}:: trans",
+    ]
+    res = wikilines_to_quote_params(wikilines, prefix, warn, handle_ux_templates=True)
+    print(res)
+    assert res == (2, {'passage': 'text', 'translation': 'trans'})
+
+    wikilines = [
+        "#*: {{quote|fr|test|trans}}",
+    ]
+    res = wikilines_to_quote_params(wikilines, prefix, warn, handle_ux_templates=True)
+    print(res)
+    assert res == (1, {'passage': 'test', 'translation': 'trans'})
+
+    wikilines = [
+        "#*: test",
+        "#*: {{quote|fr|test|trans}}",
+    ]
+    res = wikilines_to_quote_params(wikilines, prefix, warn, handle_ux_templates=True)
+    print(res)
+    assert res == None
+
+    wikilines = [
+        "#*: {{quote|fr|test|trans|unhandled=1}}",
+    ]
+    res = wikilines_to_quote_params(wikilines, prefix, warn, handle_ux_templates=True)
+    print(res)
+    assert res == None

@@ -12,7 +12,7 @@ from .quotes.names import *
 from enwiktionary_sectionparser.posparser import BARE_QUOTE_LINE_RX
 
 # Templates that can appear inside a passage
-ALLOWED_PASSAGE_TEMPLATES = {"...", "sic", "smallcaps", "w", "l", "lang"}
+ALLOWED_PASSAGE_TEMPLATES = {"...", "sic", "smallcaps", "w", "l", "lang", "mdash", "taxfmt", "taxlink", "'", "...", "sic", "vern", "small", "ndash"}
 
 # Templates that should never appear in a passage
 DISALLOWED_PASSAGE_TEMPLATES = {"audio"}
@@ -133,40 +133,41 @@ def get_passage(passage_wikilines, warn, handle_ux_templates):
 
     passage = "<br>".join(l.lstrip("#*:").strip() for l in passage_wikilines)
 
-    if "<math>" in passage:
-        warn("math_tag_in_passage", passage)
-        return
+#    if "<math>" in passage:
+#        warn("math_tag_in_passage", passage)
+#        return
 
     if "|" not in passage:
         return {"passage": passage}
 
     # Get all template names (without recursion)
     wiki = mwparser.parse(passage)
-    templates = [t.name.strip() for t in wiki.ifilter_templates(recursive=False)]
+    templates = wiki.filter_templates(recursive=False)
+    names = [t.name.strip() for t in templates]
 
     # If all templates are allowed, no further processing needed
-    if not set(templates) - ALLOWED_PASSAGE_TEMPLATES:
+    if not set(names) - ALLOWED_PASSAGE_TEMPLATES:
         return {"passage": passage}
 
     # Fail if not handling UX templates
     if not handle_ux_templates:
         return
 
-    if set(templates) & DISALLOWED_PASSAGE_TEMPLATES:
+    if set(names) & DISALLOWED_PASSAGE_TEMPLATES:
         return
 
+    t = templates[0]
     # verify that there is no text outside the template
-    t = next(wiki.ifilter_templates(recursive=False))
     if str(t) != passage.strip():
         warn("text_outside_ux_template_in_passage", passage)
         return
 
     # don't handle and don't log ja-usex as an error (quote- templates don't handle japanese)
-    if templates[0] in UNHANDLED_UX_TEMPLATES:
+    if names[0] in UNHANDLED_UX_TEMPLATES:
         return
 
     # if it's an expected UX template
-    if templates[0] not in ALLOWED_UX_TEMPLATES:
+    if names[0] not in ALLOWED_UX_TEMPLATES:
         warn("unhandled_template_in_passage", passage)
         return
 
@@ -363,9 +364,9 @@ class QuoteFixer():
                 self.warn("pipe_in_passage", section, passage)
             return
 
-        if "<math>" in passage:
-            self.warn("math_tag_in_passage", section, passage)
-            return
+#        if "<math>" in passage:
+#            self.warn("math_tag_in_passage", section, passage)
+#            return
 
         return passage, translation
 
