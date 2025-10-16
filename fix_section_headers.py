@@ -8,13 +8,6 @@ from enwiktionary_templates import ALL_LANGS, ALT_LANGS
 from collections import defaultdict
 from Levenshtein import distance as fuzzy_distance
 
-# Tags that generate a <ref> link
-ref_tags = ["<ref[ :>]", r'{{ja-pron\|[^}]*(acc_ref|accent_ref)'] #}} code folding fix
-PATTERN_REF_TAGS = "(?i)(" + "|".join(ref_tags) + ")"
-
-# Tags that generate <references/>
-PATTERN_REFS = r"(?i)(<\s*references|{{\s*reflist|{{\s*references)"
-
 ety_templates = [
     "back-form",
     "compound", "com",
@@ -35,6 +28,9 @@ ety_templates = [
     "univerbation",
 ]
 PATTERN_ETY_TEMPLATES = r"{{(" + "|".join(ety_templates) + r")\s*[|}]"
+
+# Tags that generate <references/>
+PATTERN_REFS = r"(?i)(<\s*references|{{\s*reflist|{{\s*references)"
 
 def get_fuzzy_matches(title, words, max_distance):
     #print(title, words, max_distance)
@@ -454,27 +450,6 @@ class SectionHeaderFixer():
                     self.fix("empty_section", section, "removed empty section")
                     section.parent._children.remove(section)
 
-    def add_missing_references(self, entry):
-
-        for section in entry._children:
-            if re.search(PATTERN_REF_TAGS, str(section)) and not re.search(PATTERN_REFS, str(section)):
-                ref_section = next(section.ifilter_sections(matches="References"), None)
-                if ref_section:
-                    ref_section.content_wikilines.insert(0, "<references/>")
-                    self.fix("missing_ref_target", ref_section, "added missing <references/>")
-                    continue
-
-                new_section = sectionparser.Section(entry, 3, "References")
-                new_section.add("<references/>")
-
-                # Anagrams is always the last section, otherwise References is the last
-                if section._children and section._children[-1].title == "Anagrams":
-                    section._children.insert(-1, new_section)
-                else:
-                    section._children.append(new_section)
-
-                self.fix("missing_ref_section", section, "added References section")
-
     def rename_misnamed_etymology(self, entry):
         for section in entry.ifilter_sections(matches = lambda x: x.title == "Pronunciation"):
             if re.search(PATTERN_ETY_TEMPLATES, section.content_text):
@@ -558,7 +533,7 @@ class SectionHeaderFixer():
         self._log.append((reason, page, path, details))
 
     def warn(self, reason, section, details=None):
-        self._log.append((reason, self.page_title, None, details))
+        self._log.append((reason, self.page_title, section, details))
 
     def process(self, page_text, page_title, summary=None, options=None):
 
@@ -593,7 +568,6 @@ class SectionHeaderFixer():
         self.fix_bad_l2(entry)
         self.rename_misnamed_references(entry)
         self.rename_misnamed_quotations(entry)
-        self.add_missing_references(entry)
 
         # not safe to run unsupervised
         if options and options.get("remove_empty"):

@@ -82,6 +82,7 @@ DUMP_CAT := $(PYPATH) ./dump_cat.py
 LIST_MISSING_HEADERS := $(PYPATH) ./list_missing_headers.py
 LIST_MISSING_AUDIO := $(PYPATH) ./list_missing_audio.py
 LIST_PRONUNCIATION_ERRORS := $(PYPATH) ./list_pronunciation_errors.py
+LIST_REFERENCES_ERRORS := $(PYPATH) ./list_references_errors.py
 
 EXTERNAL := ../..
 PUT := $(PYPATH) $(EXTERNAL)/put.py
@@ -559,6 +560,12 @@ $(LIST)pronunciation_errors: $(BUILDDIR)/all-en.enwikt.txt.bz2
 >   $(LIST_PRONUNCIATION_ERRORS) $(SAVE) $^
 >   touch $@
 
+$(LIST)references_errors: $(BUILDDIR)/all-en.enwikt.txt.bz2
+>   @echo "Running $@..."
+
+>   $(LIST_REFERENCES_ERRORS) $(SAVE) $^
+>   touch $@
+
 
 # Fixes
 $(FIX)fr_missing_tlfi:
@@ -573,11 +580,36 @@ $(FIX)fr_missing_tlfi:
 >   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
 >   echo $$LINKS > $@
 
+$(FIX)references:
+>   @
+>   SRC="User:JeffDoozan/lists/references/fixes"
+>   FIX="--fix references --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   MAX=500
+
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
+>   echo $$LINKS > $@
+
+$(FIX)check_references:
+>   @
+>   SRC="User:JeffDoozan/lists/references/errors"
+>   FIX="--fix references --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   MAX=500
+
+>   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
+>   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
+>   echo "Running fixer $@ on $$LINKS items from $$SRC..."
+>   $(WIKIFIX) -links:$$SRC $$FIX $(ALWAYS)
+>   echo $$LINKS > $@
+
+
 $(FIX)section_headers:
 >   @
 >   SRC="User:JeffDoozan/lists/section_headers/fixes"
->   FIX="--fix ele_cleanup --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=1500
+>   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   MAX=1000
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
@@ -588,8 +620,8 @@ $(FIX)section_headers:
 $(FIX)section_levels:
 >   @
 >   SRC="User:JeffDoozan/lists/section_levels/fixes"
->   FIX="--fix ele_cleanup --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=1500
+>   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   MAX=1900
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
@@ -600,8 +632,8 @@ $(FIX)section_levels:
 $(FIX)section_order:
 >   @
 >   SRC="User:JeffDoozan/lists/section_order/fixes"
->   FIX="--fix ele_cleanup --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
->   MAX=800
+>   FIX="--fix cleanup_sections --log-fixes $@.fixes --log-matches $@.matches --config etc/autodooz-fixes.py"
+>   MAX=850
 
 >   LINKS=`$(GETLINKS) $$SRC | sort -u | wc -l`
 >   [ $$LINKS -gt $$MAX ] && echo "Not running $@ too many links: $$LINKS > $$MAX" && exit 1
@@ -833,7 +865,7 @@ $(BUILDDIR)/.update_langs:
 fast_lists: $(patsubst %,$(LIST)%,es_drae_errors es_missing_drae es_forms_with_data es_maybe_forms es_missing_lemmas es_missing_ety es_untagged_demonyms es_duplicate_passages es_mismatched_passages es_verbs_missing_type ismo_ista es_coord_terms es_usually_plural es_split_verb_data es_drae_mismatched_genders es_form_overrides fr_missing_tlfi missing_audio)
 
 # Lists that take more than 30 minutes on single core
-slow_lists: $(patsubst %,$(LIST)%, section_header_errors section_level_errors section_order_errors sense_bylines pronunciation_errors unbalanced_delimiters missing_taxlinks t9n_problems convert_list_to_col es_missing_forms def_template_in_ety quote_with_bare_passage bare_ux missing_headers fr_missing_lemmas mismatched_headlines )
+slow_lists: $(patsubst %,$(LIST)%, section_header_errors section_level_errors section_order_errors sense_bylines pronunciation_errors references_errors unbalanced_delimiters missing_taxlinks t9n_problems convert_list_to_col es_missing_forms def_template_in_ety quote_with_bare_passage bare_ux missing_headers fr_missing_lemmas mismatched_headlines )
 
 # not used with a corresponding "fix"
 slow_lists_no_fixes: $(patsubst %,$(LIST)%, local_taxons external_taxons possible_taxons taxons_with_redlinks section_stats )
@@ -841,7 +873,7 @@ slow_lists_no_fixes: $(patsubst %,$(LIST)%, local_taxons external_taxons possibl
 lists: /var/local/wikt/wikt.sentences.tgz /var/local/wikt/spa.sentences.tgz fast_lists slow_lists slow_lists_no_fixes
 
 # Fixes that are safe to run automatically and without supervision
-autofixes: $(BUILDDIR)/.update_langs $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col quote_with_bare_passage bare_ux sense_bylines punc_refs missing_headers pronunciation)
+autofixes: $(BUILDDIR)/.update_langs $(patsubst %,$(FIX)%,fr_missing_tlfi t9n_consolidate_forms t9n_remove_gendertags es_drae_wrong es_drae_missing section_headers section_levels section_order es_form_overrides cs_list_to_col es_list_to_col mt_list_to_col pl_list_to_col zlw-opl_list_to_col quote_with_bare_passage bare_ux sense_bylines punc_refs missing_headers pronunciation references check_references)
 
 # Fixes that may make mistakes and need human supervision
 otherfixes: $(patsubst %,$(FIX)%,es_missing_entry es_missing_pos es_missing_sense es_unexpected_form template_params missing_taxlinks)
