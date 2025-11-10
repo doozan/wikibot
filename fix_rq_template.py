@@ -7,6 +7,7 @@ import sys
 import mwparserfromhell as mwparser
 
 from autodooz.sections import ALL_POS, COUNTABLE_SECTIONS, ALL_LANGS
+from autodooz.escape_template import escape, unescape, escape_triple_braces
 from .list_mismatched_headlines import is_header
 
 
@@ -18,10 +19,12 @@ def clean_value(t, key):
     text = re.sub(r"<!--.*?-->", "", unescape(str(t.get(key).value)))
     return text.strip()
 
-
+def get_param(t, param_name):
+    return [p for p in t.params if clean_name(p) == param_name][0]
 
 
 class RqTemplateFixer():
+    CONVERTABLE_TEMPLATES = ["quote-book", "quote-journal", "quote-text", "quote-web", "quote-av", "quote-song", "quote-video game"]
 
     def __init__(self, bad_template_file):
         self._summary = None
@@ -78,7 +81,7 @@ class RqTemplateFixer():
             print("SKIPPING KNOWN BAD TEMPLATE", page)
             return page_text if summary is not None else []
 
-        ALLOWED_INVOKE = [ "quote", "string", "reference information", "ugly hacks" ]
+        ALLOWED_INVOKE = [ "checkparams", "quote", "string", "reference information", "ugly hacks" ]
         invokes = [m.group(1).strip() for m in re.finditer("{{#invoke:(.*?)[|}]", page_text, re.DOTALL)]
         if not all(i in ALLOWED_INVOKE for i in invokes):
             print("Unhandled module call to", [i for i in invokes if i not in ALLOWED_INVOKE])
@@ -103,11 +106,21 @@ class RqTemplateFixer():
     @staticmethod
     def get_synonyms(text):
 
+        # if text is a simple if switch like {{#if:{{{param|}}}|{{{param}}}}}
+        # return [param]
         # if text is composed only of a list of synonymous variables, like
-        # "{{{text|{{{passage|{{{4|}}}}}}}}}", return the variable names
+        # "{{{text|{{{passage|{{{4|}}}}}}}}}"
+        # return [text, passage, 4]
         # otherwise, return None
 
         syns = []
+
+        pattern = r"^\s*⎨⎨#if:\s*⎨⎨⎨([a-zA-Z0-9 _-]+)\s*⌇\s*⎬⎬⎬\s*⌇\s*⎨⎨⎨(\1)⎬⎬⎬\s*⎬⎬\s*$"
+        m = re.match(pattern, text)
+        if m:
+            syns.append(m.group(1))
+            return syns
+
         pattern = r"^\s*⎨⎨⎨\s*([a-zA-Z0-9 _-]+)\s*⌇?\s*(.*?)\s*⎬⎬⎬\s*$"
         m = re.match(pattern, text)
 
@@ -127,6 +140,16 @@ class RqTemplateFixer():
                 to_remove.append(p)
 
         for p in to_remove:
+            m = re.search(r"\s+$", str(p.value))
+            if m:
+                prev = None
+                # preserve trailing newline when removing p2 p1=value|p2=value\n
+                for pp in template.params:
+                    if p == pp:
+                        if prev:
+                            prev.value = str(prev.value).rstrip() + m.group(0)
+                        break
+                    prev = pp
             template.remove(p)
 
         return bool(p)
@@ -160,6 +183,7 @@ class RqTemplateFixer():
 
         if str(t) != stripped:
             self.warn("text_outside_template", page)
+            return
             #print(stripped)
             #print("-----")
             #print(t)
@@ -176,6 +200,9 @@ class RqTemplateFixer():
             print("failed", [page, orig_name])
             exit()
 
+        # Strip HTML comment wrapped line breaks in {{# expressions
+        escaped = re.sub(r"\s*≺!--[-]*\s*\n(\s*[-]*--≻)(⌇|⎬⎬)", lambda m: f"\n{len(m.group(1))*' '}{m.group(2)}", escaped)
+        escaped = re.sub(r"⌇\s*≺!--[-]*\s*\n(\s*[-]*--≻)", lambda m: f"⌇\n{len(m.group(1))*' '}", escaped)
 
         wiki = mwparser.parse(escaped)
         try:
@@ -212,32 +239,55 @@ class RqTemplateFixer():
 
     def convert_template(self, page_text, page):
 
-        wiki = self.parse_single_template(page_text, page)
+        text = re.sub(r"^\{\{#invoke:checkparams\|(error|warn)\}\}<!-- Validate template parameters\s*-->", "", page_text)
+        leading_space = ""
+
+        wiki = self.parse_single_template(text, page)
         if not wiki:
             return page_text
         t = next(wiki.ifilter_templates(recursive=False))
 
         t_name = clean_name(t)
 
-        if t_name not in ["quote-book", "quote-journal", "quote-text", "quote-web", "quote-av", "quote-song", "quote-video game"]:
+        if t_name not in self.CONVERTABLE_TEMPLATES:
             self.warn("unhandled_template", page, t_name)
-            return
+            return page_text
+
+
+        # Detect if the first param is indented
+        m = re.search(r"^(<!--[-]*)?\s*\n(\s+)([-]*-->)?", str(t.params[0].name), flags=re.DOTALL)
+        if m:
+            leading_space = re.sub(r"[^\r\n\t ]+", " ", m.group(2))
+            print(f"LEADING SPACES in name", [t.params[0].name], [leading_space])
+        else:
+            m = re.search(r"(<!--[-]*)?\s*\n(\s+)([-]*-->)?$", str(t.params[0].value), flags=re.DOTALL)
+            if m:
+                print(f"LEADING SPACES in value", [t.params[0].value], [leading_space])
+                leading_space = re.sub(r"[^\r\n\t ]+", " ", m.group(2))
+
 
         # cleanup overzealous line break handling
         for p in t.params:
-            p.value = re.sub(r"≺!--\s*\n\s*--≻", "\n", str(p.value), flags=re.DOTALL)
+            m = re.search(r"<!--[-]*\s*\n(\s*)[-]*-->", str(p.name), flags=re.DOTALL)
+            if m:
+                p.name = str(p.name).replace(m.group(0), "")
+                p.value = str(p.value) + "\n"
 
+            m = re.search(r"<!--[-]*\s*(\n\s*)[-]*-->$", str(p.value), flags=re.DOTALL)
+            if m:
+                spaces = re.sub(r"[^\r\n\t ]+", " ", m.group(1))
+                p.value = str(p.value).replace(m.group(0), spaces)
 
-        if t.has("author") and  str(t.get("author").value).strip().startswith("w:"):
-            t.get("author").value = t.get("author").value.lstrip().removeprefix("w:")
+#        if t.has("author") and  str(t.get("author").value).strip().startswith("w:"):
+#            t.get("author").value = t.get("author").value.lstrip().removeprefix("w:")
 #            self.warn("authorlink", page, str(t.get("author")))
 #            return page_text
-
 
         parsed_params = [ clean_name(p) for p in t.params if clean_name(p) != "1" ]
         if any(p.isdigit() for p in parsed_params):
             self.warn("uses_positional_params", page, parsed_params)
             return page_text
+
 
         propagate_params = []
         remove_params = []
@@ -251,38 +301,50 @@ class RqTemplateFixer():
         if "pages" in parsed_params and "pages" not in propagate_params:
             self.warn("complex_pages", page, propagate_params)
         else:
-            if "page" in parsed_params and "page" not in propagate_params:
-                pageparams = self.get_synonyms(t.get("page").value.strip())
-#                if pageparams is None:
-#                    self.warn("page_param_not_syns", page)
-#                    return page_text
-
-                # If there are no aliases, don't generate pageparams
-                if pageparams and all(p in ["page", "pages"] for p in pageparams):
-                    pageparams = []
-
-                if pageparams:
-
+            if "page" in parsed_params:
+                # replace page = {{{page|}}  with pageparam = page
+                if "page" in propagate_params:
                     # using pageparams= implies "page" and "pages", so no need to include them
                     for k in ["page", "pages"]:
-                        if k in pageparams:
-                            pageparams.remove(k)
                         if k in parsed_params and k not in remove_params:
                             remove_params.append(k)
+                    pageparams = ["page"]
+
+                else:
+                    page_param = get_param(t, "page")
+                    pageparams = self.get_synonyms(page_param.value.strip())
+#                    if pageparams is None:
+#                        self.warn("page_param_not_syns", page)
+#                        return page_text
+
+                    # If there are no aliases, don't generate pageparams
+                    if pageparams and all(p in ["page", "pages"] for p in pageparams):
+                        pageparams = []
 
                     if pageparams:
-                        for k in ["page", "pages"] + pageparams:
-                            # only "page" can have complex values, everything else should be not declared or a simple propagate
-                            if k in parsed_params and k not in propagate_params and k != "page":
-                                self.warn("page_syn_has_other_use", page, k)
-                                return page_text
-                            if k in propagate_params:
-                                propagate_params.remove(k)
-                                if k not in remove_params:
-                                    remove_params.append(k)
+
+                        # using pageparams= implies "page" and "pages", so no need to include them
+                        for k in ["page", "pages"]:
+                            if k in pageparams:
+                                pageparams.remove(k)
+                            if k in parsed_params and k not in remove_params:
+                                remove_params.append(k)
+
+                        if pageparams:
+                            for k in ["page", "pages"] + pageparams:
+                                # only "page" can have complex values, everything else should be not declared or a simple propagate
+                                if k in parsed_params and k not in propagate_params and k != "page":
+                                    self.warn("page_syn_has_other_use", page, k)
+                                    return page_text
+                                if k in propagate_params:
+                                    propagate_params.remove(k)
+                                    if k not in remove_params:
+                                        remove_params.append(k)
 
 
-        assert not ("passage" in parsed_params and "text" in parsed_params)
+        if "passage" in parsed_params and "text" in parsed_params:
+            self.warn("passage_and_text", page)
+            return page_text
 
         textparams = []
         for k in ["passage", "text"]:
@@ -295,12 +357,13 @@ class RqTemplateFixer():
 
             # handle textparams= if it's a list of synonyms
             else:
+                param = get_param(t, k)
                 #print([k, t.get(k).value.strip()])
-                textparams = self.get_synonyms(t.get(k).value.strip())
+                textparams = self.get_synonyms(param.value.strip())
                 if textparams is None:
+                    print(param)
                     self.warn("text_param_not_syns", page, k)
-                    # TODO: uncomment
-#                    return page_text
+                    return page_text
 
                 if textparams:
 
@@ -348,9 +411,17 @@ class RqTemplateFixer():
             if replace_param:
                 remove_params.remove(clean_name(replace_param))
                 replace_param.name = name
-                replace_param.value = value + eol
+                m = re.search(r"\s*$", str(replace_param.value), flags=re.MULTILINE)
+                print("REPLACE1", replace_param.name, name, [sep_after_eq, value, m.group(0)])
+                replace_param.value = value + m.group(0)
+                print(replace_param)
             else:
-                t.add(name, value) # eol handled automatically by Template
+
+                prev_param = t.params[-1]
+                if not "\n" in str(prev_param.value) and not str(prev_param.name).strip().isdigit():
+                    prev_param.value = str(prev_param.value) + "\n" + leading_space
+                print("ADD", name, [sep_after_eq, value])
+                t.add(name, value + "\n" + spaces) # eol handled automatically by Template, space placeholder will be converted later
 
         if pageparams:
 
@@ -366,17 +437,26 @@ class RqTemplateFixer():
 
             if replace_param:
                 remove_params.remove(clean_name(replace_param))
+                m = re.search(r"\s*$", str(replace_param.value), flags=re.MULTILINE)
+                print(m.groups())
+                print("REPLACE2", replace_param.name, name, [sep_after_eq, value, m.group(0)])
                 replace_param.name = name
-                replace_param.value = value + eol
+                replace_param.value = value + m.group(0)
             else:
-                t.add(name, value) # eol handled automatically by Template
-
+                prev_param = t.params[-1]
+                if not "\n" in str(prev_param.value) and not str(prev_param.name).strip().isdigit():
+                    prev_param.value = str(prev_param.value) + "\n" + leading_space
+                print("ADD", name)
+                t.add(name, value)
 
         # remove the propagated params
         self.remove_params(t, remove_params)
 
         # strip out auto propagated params
-        propagate_params = [p for p in propagate_params if p not in ["brackets", "footer", "text", "passage"]]
+        auto_params = ["brackets", "footer", "text", "passage"]
+        if pageparams:
+            auto_params += ["page", "pages"]
+        propagate_params = [p for p in propagate_params if p not in auto_params]
 
         if propagate_params:
 
@@ -386,11 +466,11 @@ class RqTemplateFixer():
                     return page_text
 
             prev_param = t.params[-1]
-            if not "\n" in str(prev_param.value) and not str(prev_param.name).strip().isdigit():
-                prev_param.value = str(prev_param.value) + "\n"
+            prev_param.value = str(prev_param.value).rstrip() + "\n" + leading_space
             name = "propagateparams" + sep_before_eq
             value = sep_after_eq + ",".join(propagate_params) + "\n"
-            t.add(name, value, preserve_spacing=False)
+            print("ADD", name)
+            t.add(name, value, preserve_spacing=False) # space placeholder will be converted later
 
         allowparams = self.get_allowparams(unescape(str(wiki)), page)
         if allowparams is None:
@@ -399,26 +479,21 @@ class RqTemplateFixer():
 
         if allowparams:
             prev_param = t.params[-1]
-            if not "\n" in str(prev_param.value) and not str(prev_param.name).strip().isdigit():
-                prev_param.value = str(prev_param.value) + "\n"
+            prev_param.value = str(prev_param.value).rstrip() + "\n" + leading_space
             name = "allowparams" + sep_before_eq
             value = sep_after_eq + ",".join(allowparams) + "\n"
-            t.add(name, value, preserve_spacing=False)
-
+            print("ADD", name)
+            t.add(name, value, preserve_spacing=False) # space placeholder will be converted later
 
         template_name = clean_name(t)
-        assert template_name in ["quote-book", "quote-journal", "quote-text", "quote-web", "quote-av", "quote-song", "quote-video game"]
+        assert template_name in self.CONVERTABLE_TEMPLATES
 
         template_line = "" if clean_name(t) == "quote-book" else f"|template={clean_name(t)}\n"
 
         new_text = unescape(str(wiki))
-        new_text = new_text.replace(str(t.name), f"#invoke:quote|call_quote_template\n{template_line}")
+        new_text = new_text.replace(str(t.name) + "|", f"#invoke:quote|call_template\n{template_line}" + leading_space + "|")
 
-
-#        if len(allowparams) > 5 and len(new_text) < 3000 and ":pl:" not in page and "zlw-opl:" not in page:
-#            print(page)
-
-        self.fix("converted", page, "converted to Module:quote")
+        self.fix("converted", page, "converted to Module:quote to handle parameter checking and facilitate future enhancements")
         return new_text
 
 
@@ -483,7 +558,7 @@ class RqTemplateFixer():
 
         value = clean_value(template, key)
 
-        m = re.match(r"^([a-zA-Z0-9,_ -]*)$", value)
+        m = re.match(r"^([a-zA-Z0-9,_ -]*?)\s*$", value, flags=re.MULTILINE)
         if not m:
             print("NO MATCH", clean_name(template.get(key)), value)
             #print(text)
@@ -506,7 +581,7 @@ class RqTemplateFixer():
 
         wiki = self.parse_single_template(page_text, page)
         if not wiki:
-            return page_text
+            return
         t = next(wiki.ifilter_templates(recursive=False))
 
 
