@@ -70,11 +70,16 @@ INLINE_IPA_PARAMS = ["a", "q", "aa", "qq", "ref"]
 
 def parse_ipa(text):
 
-    # TODO: extract references
     res = extract_refs(text)
     if not res:
         return "unparsable_refs"
     remaining_text, refs = res
+
+    m = re.match(r"(.*?)((\s*<!--.*?-->)+)\s*$", remaining_text, flags=re.DOTALL)
+    trailing_comments = None
+    if m:
+        remaining_text = m.group(1)
+        trailing_comments = m.group(2)
 
     wiki = mwparser.parse(remaining_text)
     #if len(splits) == 1 and not any(str(t.name).strip() == "IPA" for t in wiki.ifilter_templates(recursive=False)):
@@ -91,7 +96,7 @@ def parse_ipa(text):
             if ipa:
                 return "multi_ipa"
             ipa = t
-        elif str(t.name).strip() in ["i", "q", "qual", "qualifier"]:
+        elif str(t.name).strip() in ["i", "lb", "q", "qual", "qualifier"]:
             if not len(t.params) == 1:
                 return "complex_qualifier"
 
@@ -138,6 +143,7 @@ def parse_ipa(text):
     if unhandled_qualifiers:
         return "unhandled_qualifier"
 
+    params["_trailing_comments"] = trailing_comments
     return params
 
 
@@ -209,6 +215,8 @@ def make_ipa_template(ipas):
 
     lang = None
     qualifiers = None
+    comments = []
+    nocount = []
     for ipa_params in ipas:
         if lang is None:
             lang = ipa_params[1]
@@ -216,24 +224,30 @@ def make_ipa_template(ipas):
             print("LANG_MISMATCH")
             return
 
-        try:
-            for ipa, mods in get_ipa_mods(ipa_params):
+        comment = ipa_params.pop("_trailing_comments", None)
+        if comment:
+            comments.append(comment)
+        nocount.append(ipa_params.pop("nocount", None))
 
-                if qualifiers is None:
-                    qualifiers = mods.keys()
-                else:
-                    if mods.keys() != qualifiers:
-                        return #"ambig_merged_param"
+        for ipa, mods in get_ipa_mods(ipa_params):
 
-                param = ipa
-                for k,v in mods.items():
-                    param += f"<{k}:{v}>"
-                params.append(param)
-        except Exception as e:
-            print("MISMATCH", e)
-            return
+            if qualifiers is None:
+                qualifiers = mods.keys()
+            else:
+                if mods.keys() != qualifiers:
+                    return #"ambig_merged_param"
 
-    return "{{IPA|" + lang + "|" + "|".join(params) + "}}"
+            param = ipa
+            for k,v in mods.items():
+                param += f"<{k}:{v}>"
+            params.append(param)
+
+    if all(n for n in nocount):
+        params.append("nocount=1")
+    elif any(n for n in nocount):
+        raise ValueError("mismatched nocount")
+
+    return "{{IPA|" + lang + "|" + "|".join(params) + "}}" + "".join(comments)
 
 
 class PronunciationFixer():
@@ -311,10 +325,7 @@ class PronunciationFixer():
 
         for section in entry.ifilter_sections():
 
-            # not a pos section
-            x = section
-
-            if x.title == "Pronunciation":
+            if section.title == "Pronunciation":
                 pop_lines = []
                 for i, line in enumerate(section.content_wikilines):
                     l = line.strip()
@@ -354,7 +365,7 @@ class PronunciationFixer():
                     if not first_template:
                         if "{{" not in l or "}}" not in l:
                             self.warn("text", section, "", line)
-                            continue
+                        continue
 
                     if len(list(t for t in wiki.filter_templates(recursive=False) if str(t.name).strip() == "IPA")) > 1:
                         ipas = parse_ipa_list(l)
@@ -364,7 +375,12 @@ class PronunciationFixer():
                             self.warn("multi_ipa_" + ipas, section, "", line)
                             continue
 
-                        ipa_template = make_ipa_template(ipas)
+                        try:
+                            ipa_template = make_ipa_template(ipas)
+                        except Exception as e:
+                            print("MISMATCH", section.page, section.path, e)
+                            continue
+
                         if not ipa_template:
                             self.warn("unmergable_multi_ipa", section, "", line)
                             continue
@@ -377,10 +393,18 @@ class PronunciationFixer():
                         continue
 
                     remaining_text = l.replace(str(first_template), "", 1)
-                    is_single_template = remaining_text.strip().strip(",.;:()}* ").strip() == ""
+                    remaining_text = remaining_text.strip().strip(",.;:()}* ").strip()
+                    remaining_text = re.sub(r"(\s*<!--.*?-->)+\s*$", "", remaining_text, flags=re.DOTALL)
+                    is_single_template = remaining_text == ""
 
                     # entire line is a single template, no cleanup needed
                     if is_single_template:
+
+                        if first_template is None:
+                            print("=="*40, section.page, section.path)
+                            print(section)
+                            print("XXX", [l])
+                            raise ValueError("bad stuff")
 
                         t = str(first_template.name).strip()
                         if not prefix and t in ["IPA", "rhyme", "rhymes", "homophones", "hmp", "homophone", "hyphenation", "hyph", "audio"]:
@@ -447,7 +471,12 @@ class PronunciationFixer():
 #                            self.warn("ipa_with_multi_ref", section, "", line)
 #                        else:
 
-                        ipa_template = make_ipa_template([res])
+                        try:
+                            ipa_template = make_ipa_template([res])
+                        except Exception as e:
+                            print("MISMATCH", section.page, section.path, e)
+                            continue
+
                         if not ipa_template:
                             self.warn("unmergable_single_ipa", section, "", line)
                             continue
@@ -479,18 +508,22 @@ class PronunciationFixer():
                         if "MapOf" in pl or "pronunciation" in pl.lower() or "location" in pl.lower():
                             continue
                         move_to_pos.insert(0, section.content_wikilines.pop(pi))
+                        move_from = section
 
                     # trim trailing empty lines
                     while section.content_wikilines and section.content_wikilines[-1].strip() == "":
                         section.content_wikilines.pop()
                 continue
 
-            elif x.title in EXTENDED_POS and move_to_pos:
+            elif section.title in EXTENDED_POS and move_to_pos:
 
                 pos = sectionparser.parse_pos(section)
                 if not pos or not pos.senses:
                     self.warn("wikipedia_before_unparsable_pos", section, "", "")
                     continue
+
+                self.warn("misplaced_lines", section, "", "")
+                continue
 
                 pos.headlines = move_to_pos + pos.headlines
                 move_to_pos = []
