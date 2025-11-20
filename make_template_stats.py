@@ -82,7 +82,7 @@ def main():
 
 {{| class="wikitable sortable"
 |-
-!Template!!type!!count!!pages!!x!!modules included!!templates invoked""")
+!Template!!type!!count!!pages!!pc!!modules included!!templates invoked""")
 
     def print_footer():
         print("|}")
@@ -99,6 +99,7 @@ def main():
         return included + child_included
 
     print(f"; {len(templates):,} total templates")
+    print(f"pc = parameter checking")
     min_count = 100000
     print_header(f">{min_count:,}")
     for template, data in sorted(templates.items(), key=lambda x: (x[1]["count"]*-1, x[0])):
