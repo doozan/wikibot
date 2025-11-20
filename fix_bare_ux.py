@@ -4,14 +4,7 @@ import sys
 
 from autodooz.sections import ALL_POS, ALL_LANGS
 
-def is_sentence(text):
-    return bool(re.match(r"^\W*[A-Z].*[.?!]\W*$", text))
-    #return text.count(" ") > 5 and not any(c in text for c in "-=—,;") and text.strip("'")[0] in "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
-
-def is_italic(text):
-    # Returns True if entire string is enclosed in '' italic wikimarkup
-    ital = "(?<!')(?:'{2}|'{5})(?!')"
-    return re.match(fr"{ital}.*{ital}$", text) and not re.search(ital, text[2:-2])
+from enwiktionary_sectionparser.posparser import is_sentence, is_italic, strip_italics
 
 def get_inline_ux(text):
     m = re.match(r"{{lang[|].*?[|]([^|{}]+)}} — ([A-Za-z\"',;.?! ]+)$", text)
@@ -29,6 +22,7 @@ def strip_wikilinks(text):
 def strip_templates(text):
     if not text:
         return text
+
     return re.sub(r"{{[^{]*}}", "", text)
 
 class BareUxFixer():
@@ -180,7 +174,7 @@ class BareUxFixer():
                         template_name = "ux"
 
                         assert is_italic(item.data)
-                        passage = item.data[2:-2].strip()
+                        passage = strip_italics(item.data).strip()
 
                         translation = None
                         if item._children:
