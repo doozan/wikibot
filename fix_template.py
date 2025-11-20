@@ -35,12 +35,21 @@ def get_section_fixes(section_path, all_fixes):
 
     return fixes
 
+def name_matches(template, match):
+    template_name = str(template.name).strip()
+    if "name_regex" in match:
+        matches = bool(re.search(match["name_regex"], template_name, flags=re.DOTALL))
+        return bool(re.search(match["name_regex"], template_name, flags=re.DOTALL))
+    if "name" in match:
+        return template_name == match["name"]
+    raise ValueError("no name match specified")
+
 def get_template_changes(template, wiki_context, fixes):
 
     for fix in fixes:
         for match in fix["templates"]:
             tmpl = match["template"]
-            if not str(template.name).strip() == tmpl["name"]:
+            if not name_matches(template, tmpl):
                 continue
 
             context_pattern = tmpl.get("context_regex")
@@ -72,6 +81,9 @@ def get_template_changes(template, wiki_context, fixes):
             if wikitext and wikitext.strip() and wikitext.strip() == str(template).strip():
                 return match["changes"]
 
+            # no filtering, just match by template name
+            #return match["changes"]
+
 
 
 def apply_template_changes(t, changes, summary):
@@ -79,11 +91,17 @@ def apply_template_changes(t, changes, summary):
     t_name = str(t.name).strip()
 
     for change in changes:
-        assert change.keys() == {"action", "summary"}
+        assert "action" in change
+        assert change.keys() - {"action", "summary"} == set()
         action, *values = change["action"]
         if action == "rename_template":
             assert len(values) == 1
             new_name = values[0]
+            t.name = new_name
+        if action == "rename_template_regex":
+            assert len(values) == 2
+            new_name = re.sub(values[0], values[1], str(t.name))
+            assert new_name != str(t.name)
             t.name = new_name
         elif action == "remove":
             assert len(values) == 1
@@ -105,6 +123,17 @@ def apply_template_changes(t, changes, summary):
                 assert not t.has(new)
                 k = t.get(old)
                 k.name = str(k.name).replace(old, new)
+                if not new.isdigit():
+                    k.showkey = True
+                if new == "1":
+                    k.showkey = False
+
+        elif action == "set":
+            assert len(values) == 2
+            name, new_value = values
+            if t.has(name):
+                k = t.get(name)
+                k.value = str(k.value).replace(str(k.value).strip(), new_value)
 
         elif action == "regex_sub":
             # "regex_sub" is processed later
@@ -112,9 +141,10 @@ def apply_template_changes(t, changes, summary):
         else:
             raise ValueError("Unsupported action", action, change)
 
-        message = "[[T:" + t_name + "|{{" + t_name + "}}]] - " + change["summary"]
-        if message not in summary:
-            summary.append(message)
+        if "summary" in change:
+            message = "[[T:" + t_name + "|{{" + t_name + "}}]] - " + change["summary"]
+            if message not in summary:
+                summary.append(message)
 
 
 def fix_templates(entry_text, entry_title, summary, all_fixes):
