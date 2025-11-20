@@ -142,7 +142,7 @@ def expand_templates(section):
         'format': 'json'
     }
     path = "{}/api.php".format(site.scriptpath())
-    if len(text) > 7330:
+    if len(text) > 7000:
         print("long text", len(text))
         return None
 
