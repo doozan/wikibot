@@ -71,7 +71,7 @@ def get_template_stats(args):
         if len(used_modules) > 1:
             template_type = "mixed"
         else:
-            if re.search(r"{{#(^invoke)|{{{[^{}]*?}}}", entry_text):
+            if re.search(r"{{#(^invoke)|{{{[^{}]*?}}}|{{[^#{}][^{}]*?}}", entry_text):
                 template_type = "mixed"
             else:
                 template_type = "lua"
