@@ -49,7 +49,7 @@ PATTERN_MAYBE_REFS = r"\{\{\s*(" + "|".join(maybe_ref_templates) + r")\s*[|}]"
 always_ref_templates = ["U:de:separated", "U:la:month", "U:la:distributive numeral", "U:hu:stimulus-subject verbs", "U:de:unadapted", "ref", "refn", "U:en:illegal person",
                         "U:en:HM and HMG", "U:hu:purpose-solid", "U:hu:unmarked possessive not written as solid", "hu-ref-semivowel", "ux:tpw:Barbosa 1956", "U:mi:cardinal directions",
                         "U:de:Du", "U:de:dass", "U:la:month", "pl-freq 1990", "ryu-OG", "RQ:Pyramid Texts", "U:hu:abbrev-full-last", "U:hu:abbrev-full-last", "sia-infl-dem",
-                        "sia-infl-dem", "yi-infl-note", "ajp-usg-Ci-Cu", "U:Nkoo:RTL digits", "Khaisan letters" ]
+                        "sia-infl-dem", "yi-infl-note", "ajp-usg-Ci-Cu", "U:Nkoo:RTL digits", "Khaisan letters", "U:de:-ed participle" ]
 PATTERN_ALWAYS_REFS = r"\{\{\s*(" + "|".join(always_ref_templates) + r")\s*[|}]"
 
 
