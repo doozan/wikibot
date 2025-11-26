@@ -12,6 +12,7 @@ import urllib
 from Levenshtein import distance
 from autodooz.escape_template import escape, unescape
 from autodooz.magic_words import MAGIC_WORDS, MAGIC_COMMANDS
+from autodooz.dump_templates import ALLOWED_INVOKE
 
 IGNORE_TEMPLATES = [
 ]
@@ -107,7 +108,6 @@ def escape_url(text):
     #return site + "?" + urllib.parse.quote(params)
 
 
-ALLOWED_MODULES = { "string", "ugly hacks", "italics", "checkparams" }
 class ParamFixer():
 
     def __init__(self, template_data, redirects, allpages=None):
@@ -121,7 +121,7 @@ class ParamFixer():
 
         with open(template_data) as f:
             _template_data = json.load(f)
-            self._templates = {k:v.get("params", []) for k,v in _template_data["templates"].items() if v["type"] in ["static", "wiki", "mixed"] and not set(v.get("modules", [])) - ALLOWED_MODULES }
+            self._templates = {k:v.get("params", []) for k,v in _template_data["templates"].items() if v["type"] in ["static", "wiki", "mixed"] and not set(v.get("modules", [])) - ALLOWED_INVOKE }
 #            self._templates |= {k:[] for k in ["suffix", "der", "der2", "der3", "der4", "rel2", "rel3", "rel4", "col-auto", "inflection of", "mention", "link", "taxon"] }
             print("LOADED", len(self._templates), "templates")
 

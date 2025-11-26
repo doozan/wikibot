@@ -7,12 +7,12 @@ import os
 import re
 import sys
 
-from autodooz.fix_rq_template import RqTemplateFixer
 from autodooz.magic_words import MAGIC_WORDS
 from autodooz.utils import iter_wxt, iter_xml
 from collections import defaultdict
 from pywikibot import xmlreader
 
+ALLOWED_INVOKE = { "checkparams", "string", "reference information", "ugly hacks", "foreign numerals", "string/templates", "languages/templates" }
 
 def main():
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
@@ -32,24 +32,23 @@ def main():
         args.j = multiprocessing.cpu_count()-1
 
     if args.wxt:
-        iter_entries = iter_wxt(args.wxt, args.limit, args.progress, title_matches=lambda x: x.startswith("Template:")
+        iter_entries = iter_wxt(args.wxt, args.limit, args.progress, title_matches=lambda x: x.startswith("Template:"))
     else:
-        iter_entries = iter_xml(args.xml, args.limit, args.progress, title_matches=lambda x: x.startswith("Template:")
+        iter_entries = iter_xml(args.xml, args.limit, args.progress, title_matches=lambda x: x.startswith("Template:"))
 
     dump_template_args(iter_entries, args.target)
 
 
 def get_included_text(text):
-    text = re.sub("<!--.*?-->", "", text, flags=re.DOTALL)
-    text = re.sub("<\s*noinclude\s*[/]\s*>", "", text, flags=re.DOTALL)
-    text = re.sub("<\s*noinclude\s*>.*?<\s*/\s*noinclude\s*>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    text = re.sub(r"<\s*noinclude\s*[/]\s*>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<\s*noinclude\s*>.*?<\s*/\s*noinclude\s*>", "", text, flags=re.DOTALL)
     text = re.sub(r"<\s*[/]?\s*includeonly\s*[/]?\s*>", "", text)
     return text
 
 
-invoke_count = defaultdict(int)
+#invoke_count = defaultdict(int)
 
-fixer = None
 def get_allowed_params(args):
 
     entry_text, entry_title = args
@@ -59,10 +58,9 @@ def get_allowed_params(args):
     if re.match(r"^\s*#REDIRECT", entry_text, re.IGNORECASE):
         return
 
-    ALLOWED_INVOKE = [ "string", "ugly hacks", "italics", "checkparams" ]
     invokes = [m.group(1).strip() for m in re.finditer("#invoke:(.*?)[|}]", entry_text, re.DOTALL)]
-    for i in invokes:
-        invoke_count[i] += 1
+    #for i in invokes:
+    #    invoke_count[i] += 1
     if not all(i in ALLOWED_INVOKE for i in invokes):
         return entry_title, None
 
@@ -77,8 +75,6 @@ def get_allowed_params(args):
 
 
 def dump_template_args(iter_entries, filename):
-    global fixer
-    fixer = RqTemplateFixer(None)
     iter_items = map(get_allowed_params, iter_entries)
 
     templates = {}

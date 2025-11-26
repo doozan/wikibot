@@ -6,9 +6,12 @@ import os
 import sys
 import mwparserfromhell as mwparser
 
+from autodooz.dump_templates import ALLOWED_INVOKE
 from autodooz.sections import ALL_POS, COUNTABLE_SECTIONS, ALL_LANGS
 from autodooz.escape_template import escape, unescape, escape_triple_braces
 from .list_mismatched_headlines import is_header
+
+ALLOWED_INVOKE.add("quote")
 
 def get_target(name):
     return {
@@ -96,7 +99,6 @@ class RqTemplateFixer():
             print("SKIPPING KNOWN BAD TEMPLATE", page)
             return page_text if summary is not None else []
 
-        ALLOWED_INVOKE = [ "checkparams", "quote", "string", "reference information", "ugly hacks", "foreign numerals" ]
         invokes = [m.group(1).strip() for m in re.finditer("{{#invoke:(.*?)[|}]", page_text, re.DOTALL)]
         unhandled = [i for i in invokes if i not in ALLOWED_INVOKE]
         if unhandled:
