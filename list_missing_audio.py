@@ -10,7 +10,7 @@ from autodooz.utils import iter_wxt
 from autodooz.wikilog import WikiLogger, BaseHandler
 from collections import defaultdict, namedtuple
 
-MIN_COUNT = 10
+MIN_COUNT = 24
 
 class WikiSaver(BaseHandler):
 
@@ -31,8 +31,8 @@ class WikiSaver(BaseHandler):
 
         if prev_section_entries:
             res.append("")
-        res.append(f"English terms missing audio, sorted by number of derived terms")
-        res.append(f"; {count} item{'s' if count>1 else ''} with at least {MIN_COUNT} derived terms")
+        res.append(f"English terms missing audio, sorted by number of translations")
+        res.append(f"; {count} item{'s' if count>1 else ''} with at least {MIN_COUNT} translations")
         return res
 
 
@@ -83,6 +83,20 @@ def count_derived_terms(text, title):
     return count
 
 
+def count_translations(text, title):
+    wikt = sectionparser.parse(text, title)
+    if not wikt:
+        print("UNPARSABLE", title)
+        return
+
+    count = 0
+    for section in wikt.ifilter_sections(matches="Translations"):
+        section_str = str(section)
+        count += section_str.count("\n*")
+
+    return count
+
+
 fixer = None
 def process(args):
 
@@ -91,7 +105,8 @@ def process(args):
     if has_audio(text):
         return
 
-    return (title, count_derived_terms(text, title))
+    #return (title, count_derived_terms(text, title))
+    return (title, count_translations(text, title))
 
 def main():
     global fixer
@@ -106,7 +121,7 @@ def main():
     if not args.j:
         args.j = multiprocessing.cpu_count()-1
 
-    iter_entries = iter_wxt(args.wxt, args.limit, args.progress)
+    iter_entries = iter_wxt(args.wxt, args.limit, args.progress, title_matches=lambda x: "/translations" not in x, text_matches=lambda x: "==English==" in x and "===Translations===" in x and "{{translation only}}" not in x and "{{phrasebook|en" not in x)
 
     if args.j > 1:
         pool = multiprocessing.Pool(args.j)
