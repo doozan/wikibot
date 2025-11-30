@@ -122,7 +122,7 @@ class BylineFixer():
                     continue
 
                 for line in section.content_wikilines:
-                    if line.startswith("# "):
+                    if line.startswith("# ") and section.title not in ["Collocations", "Synonyms", "Verb root", "Infinitive", "Holonyms", "Meronyms", "Coordinate terms", "Hypernyms"]:
                         self.warn("sense_outside_pos", section, "", line)
                 continue
 
@@ -250,8 +250,10 @@ class BylineFixer():
                         self.warn("unparsable_sense_list", section, "", text)
                     continue
 
-            failed = self.fix_stray_formatting(pos.senses, section)
-            if failed:
+            if self.has_stray_formatting(pos.senses, section):
+                continue
+
+            if self.has_mixed_subsenses(pos.senses, section):
                 continue
 
             failed = self.fix_sense_list_levels(pos.senses, section)
@@ -452,16 +454,28 @@ class BylineFixer():
 
 
 
+    def has_mixed_subsenses(self, sense_list, section):
+        """ Returns true if mixed subsenses (## plus #: or #*) found, otherwise False """
+        for idx, sense in enumerate(sense_list, 1):
+            if any(c.prefix.endswith("#") for c in sense._children) and not all(c.prefix.endswith("#") for c in sense._children):
+                self.warn("mixed_subsenses_and_peers", section, f"sense{idx}")
+                return True
 
-    def fix_stray_formatting(self, sense_list, section):
-        """ Returns None on success, non-zero on error """
+            if self.has_mixed_subsenses(sense._children, section):
+                return True
+
+
+    def has_stray_formatting(self, sense_list, section):
+        """ Returns true if stray formatting found, otherwise False """
 
         for idx, sense in enumerate(sense_list, 1):
             if sense.data and sense.data[0] in ":*#":
                 self.warn("duplicate_formatting", section, f"sense{idx}", f"{sense.prefix} {sense.data}")
+                return True
 
 #            if hasattr(sense, "_children"):
-            self.fix_stray_formatting(sense._children, section)
+            if self.has_stray_formatting(sense._children, section):
+                return True
 
 
     def fix_sense_list_order(self, sense_list, section):
@@ -695,6 +709,8 @@ class BylineFixer():
             return
 
         template = templates.pop(0)
+        while template.name.strip() in ["anchor", "sense"]:
+            template = templates.pop(0)
 
         # Only add qualifiers to single syn templates
         if extra_qualifiers and templates:
@@ -704,7 +720,10 @@ class BylineFixer():
 
         if templates:
             # Handle extra qualifier templates
-            if len(templates) == 1 and templates[0].name.strip() in ["i", "q", "qual", "qualifier", "gloss", "lb"]:
+            if len(templates) == 1 and templates[0].name.strip() in ["attn"]:
+                pass
+
+            elif len(templates) == 1 and templates[0].name.strip() in ["i", "q", "qual", "qualifier", "gloss", "lb"]:
 
                 q_template = templates[0]
 
@@ -734,18 +753,25 @@ class BylineFixer():
             else:
                 lang_id = template.get(1).strip()
                 mergeable_templates = sectionparser.PosParser.TYPE_TO_TEMPLATES[template_type] + ["l", "l-line"]
-                if all(t.name.strip() in mergeable_templates and t.get(1).strip() == lang_id for t in templates):
-                    for t in templates:
-                        if len(t.params) != 2:
-                            return
-                        extra_nyms.append(t.get(2).strip())
-                        replacements.append((str(t), ""))
-                    #replacements.append((full_extra, ""))
-
-                else:
+                unhandled = [t for t in templates if t.name.strip() not in mergeable_templates]
+                if unhandled:
                     if section:
                         self.warn(f"complex_{template_type}_unhandled_template", section, "sense" + byline.name[1:], str(byline))
                     return
+
+                lang_mismatch = [t for t in templates if t.get(1).strip() != lang_id and t.name.strip() not in ["sense", "anchor"]]
+                if lang_mismatch:
+                    if section:
+                        self.warn(f"{template_type}_lang_mismatch", section, "sense" + byline.name[1:], str(byline))
+                    return
+
+                for t in templates:
+                    if len(t.params) != 2:
+                        return
+                    extra_nyms.append(t.get(2).strip())
+                    replacements.append((str(t), ""))
+                #replacements.append((full_extra, ""))
+
 
 #        if template_type == "ux" and len(extra_qualifiers) == 1:
 #            old = str(template) # + extra_data
