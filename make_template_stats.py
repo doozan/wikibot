@@ -61,7 +61,7 @@ def main():
 
         elif template_data["type"] == "mixed":
             mods = template_data.get("modules", [])
-            if "parameters" in mods:
+            if any(m in mods for m in ["parameters", "checkparams", "quote"]):
                 checks_params = "Y"
             elif any("parameters" in modules.get(m, {}).get("submodules", []) for m in mods):
                 checks_params = "?"
