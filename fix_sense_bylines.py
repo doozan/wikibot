@@ -136,6 +136,10 @@ class BylineFixer():
             if section._topmost.title == "Navajo":
                 continue
 
+            # Uses suffixusex as gloss
+            if page == "-u" and section._topmost.title == "Icelandic":
+                continue
+
             pos = sectionparser.parse_pos(section)
             if not pos:
                 continue
