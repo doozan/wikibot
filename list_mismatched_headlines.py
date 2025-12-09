@@ -35,6 +35,7 @@ from enwiktionary_templates import ALL_LANGS, ALL_LANG_IDS
 from collections import namedtuple
 
 import enwiktionary_sectionparser as sectionparser
+import mwparserfromhell as mwparser
 
 
 class Logger(WikiLogger):
@@ -65,7 +66,7 @@ POS_TEMPLATES = {
     "determiner": ["-det"],
     "diacritical mark": ["diacritic"],
     "interjection": ["-int"],
-    "noun": ["-noun", "-plural noun", "-npf", "-verbal noun"],
+    "noun": ["-noun", "-plural noun", "-npf", "-verbal noun", "ko-dv"],
     "number": ['-number', '-numeral'],
     "numeral": ["-num", "-card"],
     "ordinal number": ["-ordinal"],
@@ -74,14 +75,14 @@ POS_TEMPLATES = {
     "postposition": ["-post"],
     "prefix": ["-pref"],
     "preposition": ["-prep"],
-    "prepositional phrase": ["-pp", "-prep phrase", "-prepositional phrase"],
+    "prepositional phrase": ["-pp", "-prep phrase", "-prepositional phrase", "-prepphr"],
     "pronoun": ["-pron", "-prpr", "-ppron", "-personal pronoun"],
     "proper noun": ["-prop", "ro-name", "-noun", "-plural proper noun", "-prpn", "-proper noun", "-given name", "taxoninfl"],
     "proverb": ["-proverb", "-phrase", "-prov"],
     "romanization": ["-rom", "cmn-pinyin", "yue-jyut", "-tr"],
     "transliteration": ["-tr"],
     "suffix": ["-suff", "-ending", "suff="],
-    "verb": ["-verb", "-pp", "-past", "-aux", "-inf", "en-phrasal verb", "-mutverb", "-present", "-part"],
+    "verb": ["-verb", "-pp", "-past", "-aux", "-inf", "en-phrasal verb", "-mutverb", "-present", "-part", "ja-vp"],
 }
 
 # pass if the string appears anywhere in the headword line
@@ -115,48 +116,33 @@ POS_HEADWORDS = {
     "verb": ["verb", "past participle", "gerund", "present participle", "infinitive", "participle form", "passive participles", "kok-pos|v", "participle"],
 }
 
+POS_ALIASES = {
+    "adjective": ["a", "af"],
+    "conjunction": ["conj"],
+    "contraction": ["cont"],
+    "determiner": ["det"],
+    "noun": ["n", "nf"],
+    "particle": ["pcl"],
+    "preposition": ["prep"],
+    "proper noun": ["pn", "pnf"],
+    "phrase": ["phr"],
+    "symbol": ["sym"],
+    "verb": ["v", "vf"],
+}
+
 # Templates that act like {{head}} and will contain keywords parameters to define the POS
+# templates that end with "-pos" or "-head" are handled automatically
 HEAD_TEMPLATES = [
     "h",
     "head",
     "head-lite",
 
-    "az-head",
-    "bcl-head",
-    "grk-ita-head",
-    "mh-head",
-    "mvi-head",
-    "ryu-head",
-    "tl-head",
-    "xug-head",
-    "za-head",
-
-    "brx-pos",
-    "ha-pos",
-    "hi-pos",
-    "ig-pos",
-    "it-pos",
-    "ja-pos",
-    "kok-pos",
-    "ko-pos",
-    "nsk-pos",
-    "nup-pos",
-    "oj-pos",
-    "pa-pos",
-    "ru-pos",
-    "pa-pos",
-    "ru-pos",
     "ru-adj-alt-ё",
     "ru-noun-alt-ё",
     "ru-pos-alt-ё",
     "ru-verb-alt-ё",
     "ru-proper noun-alt-ё",
-    "ryu-pos",
-    "tt-pos",
-    "ur-pos",
-    "vi-pos",
-    "yo-pos",
-    "et-nom"
+    "et-nom",
 
     "crk-cans",
     "crk-form",
@@ -238,7 +224,7 @@ def is_pre_header(line):
         if template and template.lower() in IGNORE_TEMPLATES:
             return True
 
-def is_header(line):
+def is_header(line, lang_name):
 
     template = get_template_name(line)
     if not template:
@@ -263,22 +249,32 @@ def is_header(line):
         if splits[0] in { "pra", "gmq" }:
             return True
 
+        # proto languages use lang codes that aren't in ALL_LANG_IDS
+        if lang_name.startswith("Proto-"):
+            return True
+
     return False
 
 def header_matches(line, section):
     pos_templates = POS_TEMPLATES.get(section.title.lower(), [section.title.lower()])
     pos_line_matches = POS_LINE_MATCHES.get(section.title.lower(), [])
     pos_headwords = POS_HEADWORDS.get(section.title.lower(), [section.title.lower()])
+    pos_aliases = POS_ALIASES.get(section.title.lower(), [])
 
     # We only need to match the template name, the parameters are unimportant
     template = get_template_name(line).lower()
 
     # if this is a head-like template, check that a matching word appears on the headword line
-    if template in HEAD_TEMPLATES:
+    if template in HEAD_TEMPLATES or template.endswith("-head") or template.endswith("-pos"):
         if any(pos for pos in pos_headwords if pos in line):
             return True
         if any(alt for alt in GLOBAL_HEADWORDS if alt in line):
             return True
+        wiki = mwparser.parse(line)
+        template = next(wiki.ifilter_templates())
+        for p in template.params:
+            if str(p.name).isdigit() and str(p.value.strip()) in pos_aliases:
+                return True
 
     # Verify that template matches the allowed pos templates
     elif any(pos in template for pos in pos_templates):
@@ -325,7 +321,8 @@ def process(args):
         return res
 
     for lang in entry.ifilter_sections(recursive=False, matches=lambda x: x.title in ALL_LANGS and x.title not in IGNORE_LANGS):
-        lang_id = ALL_LANGS.get(lang._topmost.title)
+        lang_name = lang._topmost.title
+        lang_id = ALL_LANGS.get(lang_name)
 
         for section in lang.ifilter_sections(matches=lambda x: x.title in sectionparser.ALL_POS and x.title not in IGNORE_POS):
 
@@ -339,7 +336,7 @@ def process(args):
 
                 # Find the first template
                 if line.startswith("{{"):
-                    if not is_header(line):
+                    if not is_header(line, lang_name):
                         res.append(("Missing headline", title, lang.title, section.title, line))
                         break
 
