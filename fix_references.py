@@ -27,6 +27,7 @@ conditional_ref_templates = {
     "inh+":     (r"ref\d*",     "ref" ),
     "uder":     (r"ref\d*",     "ref" ),
     "syn":      (r"ref\d*",     "ref" ),
+    "alti":     (r"ref\d*",     "ref" ),
     "audio":    (r"ref\d*",     "ref" ),
     "etydate":  (r"ref[n]?\d*", ),
     "defdate":  (r"ref[n]?\d*", ),
