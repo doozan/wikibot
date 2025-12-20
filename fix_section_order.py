@@ -19,10 +19,10 @@ BOTTOM_SORT = {k:v for v,k in enumerate([
     "Definitions",
 
     "Usage notes",
-    "Reconstruction notes",
     "Inflection",
     "Declension",
     "Conjugation",
+    "Reconstruction notes",
     "Quotations",
     "Alternative forms",
     "Alternative scripts",
