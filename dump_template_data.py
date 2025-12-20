@@ -81,6 +81,12 @@ def get_template_stats(args):
     #used_params = list({m.group(1):1 for m in re.finditer(r"\{\{\{\s*([a-zA-Z0-9. +/_-]+?)[|}]", entry_text)}.keys())
     used_params = list({m.group(1).strip():1 for m in re.finditer(r"\{\{\{\s*([^=|{}<>]+?)[|}]", entry_text)}.keys())
 
+    if "checkparams" in used_modules:
+        m = re.search(r"\#invoke:checkparams[|](?:warn|error)[|](.*?)}}", entry_text)
+        if m:
+            extra_params = [i.strip() for i in m.group(1).split(",")]
+            used_params += extra_params
+
     # filter out PAGENAME, etc
     used_params = [p for p in used_params if p not in MAGIC_WORDS]
 
