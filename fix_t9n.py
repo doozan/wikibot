@@ -184,8 +184,8 @@ class T9nFixer():
                 continue
             elif k.startswith("g"):
                 gender_keys.append(k)
-            elif k not in ["ts", "sc", "tr", "alt", "lit", "id"]:
-                raise ValueError("complex_keys", item)
+            elif k not in ["ts", "sc", "tr", "alt", "lit", "id", "t"]:
+                raise ValueError("complex_keys", item.params)
 
         genders = {}
         for k in gender_keys:
