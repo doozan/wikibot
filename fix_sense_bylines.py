@@ -133,7 +133,8 @@ class BylineFixer():
                 continue
 
             # Navajo entries are a mess
-            if section._topmost.title == "Navajo":
+            lang_name = section._topmost.title
+            if lang_name == "Navajo":
                 continue
 
             # Uses suffixusex as gloss
@@ -171,7 +172,7 @@ class BylineFixer():
                 for idx, line in enumerate(pos.headlines):
                     if not line:
                         continue
-                    if is_header(line):
+                    if is_header(line, lang_name):
                         headline_idx.append(idx)
                     elif line and line[0] in "#*:":
                         sense_idx.append(idx)
