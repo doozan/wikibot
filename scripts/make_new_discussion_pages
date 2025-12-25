@@ -78,6 +78,7 @@ def main():
         args.start = ((datetime.now().year - 2023) * 12) + (datetime.now().month-1)
 
     site = pywikibot.Site()
+    site.login()
 
     failed = False
     src_date = offset_to_date(args.start)
