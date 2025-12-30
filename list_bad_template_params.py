@@ -67,25 +67,23 @@ class WikiSaverBadParams(BaseHandler):
                 f"; {TOTAL_COUNT:,} total template calls checked",
                 ]
 
-        param_count = defaultdict(int)
-        for section_entries in page_sections:
-            for i in section_entries:
-                if i.error != "bad_param":
-                    continue
-                for k in i.key.split(", "):
-                    if k.isdigit():
-                        continue
-                    param_count[k] += 1
+        #param_count = defaultdict(int)
+        #for section_entries in page_sections:
+        #    for i in section_entries:
+        #        if i.error != "bad_param":
+        #            continue
+        #        for k in i.key.split(", "):
+        #            if k.isdigit():
+        #                continue
+        #            param_count[k] += 1
 
-        summary = ", ".join(f"'{k}':{v}" for k,v in sorted(param_count.items(), key=lambda x: (x[1]*-1, x[0])) if v>1)
-        #summary = summary.replace("|", "&vert;").replace("{", "&lbrace;").replace("[", "&lbrack;").replace("://", "<nowiki/>://")
-        summary = "<nowiki>" + summary + "</nowiki>"
-        res += ["===Unhandled param names used more than once===", summary]
+        #summary = ", ".join(f"'{k}':{v}" for k,v in sorted(param_count.items(), key=lambda x: (x[1]*-1, x[0])) if v>1)
+        #summary = "<nowiki>" + summary + "</nowiki>"
+        #res += ["===Unhandled param names used more than once===", summary]
 
-        summary = ", ".join(k for k,v in sorted(param_count.items()) if v==1)
-        #summary = summary.replace("|", "&vert;").replace("{", "&lbrace;").replace("[", "&lbrack;").replace("://", "<nowiki/>://")
-        summary = "<nowiki>" + summary + "</nowiki>"
-        res += ["===Unhandled param names used once===", summary]
+        #summary = ", ".join(k for k,v in sorted(param_count.items()) if v==1)
+        #summary = "<nowiki>" + summary + "</nowiki>"
+        #res += ["===Unhandled param names used once===", summary]
         return res
 
 
