@@ -29,3 +29,27 @@ def test_get_nest_depth():
     assert get_nest_depth("{{test{{test}}}", "{{", "}}") == 1
     assert get_nest_depth("{{test{{test}}}}", "{{", "}}") == 0
 
+def test_nest_aware_split():
+    test = utils.nest_aware_split
+    assert list(test(",", "(a,(b,(c))),d,(e,f)", [("(",")")])) == ['(a,(b,(c)))', 'd', '(e,f)']
+
+    assert list(test("(", "(a,(b,(c))),d,(e,f)", [("(",")")])) == ['', 'a,(b,(c))),d,', 'e,f)']
+
+def test_nest_aware_find():
+    nest_aware_find = utils.nest_aware_find
+    assert nest_aware_find(",", "(a,b),c,d", [("<",">")]) == 2
+    assert nest_aware_find(",", "(a,b),c,d", [("(",")")]) == 5
+
+def test_nest_aware_rfind():
+    nest_aware_rfind = utils.nest_aware_rfind
+    text = "a, b, (c, d)"
+    assert text.rfind(",") == 8
+    assert nest_aware_rfind(",", text, [("<",">")]) == 8
+    assert nest_aware_rfind(",", text, [("(",")")]) == 4
+
+    assert text.rfind(", ") == 8
+    assert nest_aware_rfind(", ", text, [("<",">")]) == 8
+    assert nest_aware_rfind(", ", text, [("(",")")]) == 4
+
+    assert nest_aware_rfind("(", text, [("(",")")]) == 6
+    assert nest_aware_rfind("(", "foo(bar(test))", [("(",")")]) == 3

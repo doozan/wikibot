@@ -106,7 +106,7 @@ def split_namespace(target):
 
 
 def get_nest_depth(text, opener, closer, start_depth=0):
-    """ Returns the level of depth inside ```start``` at the end of the line
+    """ Returns the nested depth of the last character in ```text```
     opener and closer are the nest opening and closing strings
     starting_depth, optional is the starting depth level
 
@@ -120,10 +120,9 @@ def get_nest_depth(text, opener, closer, start_depth=0):
 
     first = True
     for t in text.split(opener):
+        # The first part comes before the opener and does not increase the depth
         if first:
             first = False
-            if not depth:
-                continue
         else:
             depth += 1
 
@@ -144,9 +143,16 @@ def nest_aware_iterator(iterator, nests, delimiter=""):
     items = []
     depth = {}
 
+    first = True
     for item in iterator:
         items.append(item)
-        depth = { nest:get_nest_depth(item, nest[0], nest[1], depth.get(nest, 0)) for nest in nests }
+
+        # prepend the delimiter to the item text in case the delimiter contains nest markers
+        text = item if first else delimiter + item
+        first = False
+
+        depth = { nest:get_nest_depth(text, nest[0], nest[1], depth.get(nest, 0)) for nest in nests }
+
         if any(depth.values()):
             continue
 
@@ -193,15 +199,23 @@ def nest_aware_splitlines(text, nests, keepends=False):
 def nest_aware_split(delimiter, text, nests):
     return nest_aware_iterator(text.split(delimiter), nests, delimiter)
 
-def nest_aware_index(delimiter, text, nests):
+def nest_aware_find(delimiter, text, nests):
     part = next(nest_aware_split(delimiter, text, nests), None)
     if len(part)==len(text):
         return -1
 
     return len(part)
 
+def nest_aware_rfind(delimiter, text, nests):
+    parts = list(nest_aware_split(delimiter, text, nests))
+    if len(parts) == 1 and not parts[0].startswith(text):
+        return -1
+
+    part = parts[-1]
+    return len(text) - len(part) - len(delimiter)
+
 def nest_aware_contains(delimiter, text, nests):
-    return nest_aware_index(delimiter, text, nests) != -1
+    return nest_aware_find(delimiter, text, nests) != -1
 
 
 def template_aware_splitlines(text, keepends=False):
