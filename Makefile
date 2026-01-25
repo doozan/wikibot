@@ -309,7 +309,7 @@ $(LIST)es_missing_drae: $(BUILDDIR)/es-en.enwikt.allforms.csv
 >   $(GETIGNORE) "$$DEST" > $@.ignore
 >
 >   $(LIST_MISSING_DRAE) \
->       --min-use 2400 \
+>       --min-use 2000 \
 >       --wikt $(BUILDDIR)/es-en.enwikt.allforms.csv \
 >       --drae $(DRAEDATA)/drae.allforms.csv \
 >       --drae-links $(DRAEDATA)/drae.links \
@@ -527,7 +527,7 @@ $(LIST)taxons_with_redlinks: $(BUILDDIR)/taxons.txt.bz2 $(BUILDDIR)/all-en.enwik
 $(BUILDDIR)/def_templates.tsv:
 >   @echo "Running $@..."
 
->   $(DUMP_CAT) --subcats "Definition templates" > $@
+>   $(DUMP_CAT) --subcats "Definition templates" | grep -v User: | grep -v taxlink | grep -v taxfmt > $@
 
 $(LIST)def_template_in_ety: $(BUILDDIR)/all-en.enwikt.txt.bz2 $(BUILDDIR)/redirects.tsv $(BUILDDIR)/def_templates.tsv
 >   @echo "Running $@..."
