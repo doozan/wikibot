@@ -367,6 +367,31 @@ class PronunciationFixer():
                             self.warn("text", section, "", line)
                         continue
 
+                    if first_template.name.strip() in ["hyphenation", "hyph"]:
+                        first_param = str(first_template.get(1).value).strip()
+                        lang_id = ALL_LANGS.get(section._topmost.title)
+                        if first_param != lang_id:
+                            if page.lower().startswith(first_param):
+                                self.fix("hyph_missing_lang_id", section, "", "added missing lang_id to {{hyph}}")
+                                old_template = str(first_template)
+                                first_template.name = str(first_template.name) + f"|{lang_id}"
+                                line = line.replace(old_template, str(first_template))
+                                section.content_wikilines[i] = line
+                                entry_changed = True
+                                continue
+                            else:
+                                self.warn("hyph_wrong_lang_id", section, "", f"{line} (expected '{lang_id}')")
+
+                        # if the page name happens to start with the expected lang id,
+                        # make sure that the second param also looks correct
+                        elif (
+                                page.lower().startswith(lang_id)
+                                and not str(first_template.get(2).value.lower()).strip().startswith(lang_id)
+                                and not page.startswith(str(first_template.get(2).value).strip())
+                        ):
+                            self.warn("hyph_maybe_missing_lang_id", section, "", line)
+
+
                     if len(list(t for t in wiki.filter_templates(recursive=False) if str(t.name).strip() == "IPA")) > 1:
                         ipas = parse_ipa_list(l)
                         if isinstance(ipas, str):
@@ -533,6 +558,7 @@ class PronunciationFixer():
                 entry_changed = True
 
                 self.fix("misplaced_lines", section, "", "moved floating elements from Pronunciation to POS")
+
 
         if move_to_pos:
             self.warn("misplaced_lines_without_pos", move_from, "", "\n".join(move_to_pos))
