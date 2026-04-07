@@ -66,6 +66,7 @@ POS_TEMPLATES = {
     "determiner": ["-det"],
     "diacritical mark": ["diacritic"],
     "interjection": ["-int"],
+    "letter": ["letter"],
     "noun": ["-noun", "-plural noun", "-npf", "-verbal noun", "ko-dv"],
     "number": ['-number', '-numeral'],
     "numeral": ["-num", "-card"],
@@ -147,7 +148,10 @@ HEAD_TEMPLATES = [
     "crk-cans",
     "crk-form",
 
+    "hy-h",
 ]
+
+ALL_TEMPLATES = set(HEAD_TEMPLATES + [t for ts in POS_TEMPLATES.values() for t in ts])
 
 # Words that can appear in {{head}} to make a valid headline for any POS
 GLOBAL_HEADWORDS = [
@@ -230,7 +234,7 @@ def is_header(line, lang_name):
     if not template:
         return False
 
-    if template in { "h", "head", "head-lite", "diacritic", "taxoninfl" }:
+    if template in ALL_TEMPLATES:
         return True
 
     template = template.lower()
