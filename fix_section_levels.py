@@ -217,8 +217,7 @@ class SectionLevelFixer():
         idx = new_parent._children.index(old_parent) + 1
         child.reparent(new_parent, idx)
 
-
-    def move_single_pronunciation(self, lang):
+    def move_or_adopt_single_pronunciation(self, lang):
         ps = lang.filter_sections(matches="Pronunciation")
 
         etys = lang.filter_sections(recursive=False, matches="Etymology")
@@ -226,12 +225,17 @@ class SectionLevelFixer():
             return
 
         # If multiple etymologies,
-        # and only one Pronunciation section,
-        # and the Pronunciation section is between the first and second Etymologies
-        # move the Pronunciation before the Etys
+        # and only one L3 Pronunciation section,
         ps = lang.filter_sections(matches="Pronunciation")
         if len(ps) == 1:
             section = ps[0]
+
+            # allow "Usage notes" as a child
+            section_has_unexpected_children = any(s.title != "Usage notes" for s in section._children)
+            if section_has_unexpected_children and any(s.title == "Usage notes" for s in section._children):
+                self.warn("embedded_pronunciation_has_children", f"{section.path} has Usage notes plus other child sections, ignoring")
+                return
+
             if section.level == 3:
                 section_idx = lang._children.index(section)
                 first_ety = etys[0]
@@ -240,18 +244,43 @@ class SectionLevelFixer():
                 second_ety = etys[1]
                 second_ety_idx = lang._children.index(second_ety)
 
-                if second_ety_idx > section_idx > first_ety_idx:
-
-                    if all(s.title != "Usage notes" for s in section._children):
-                        self.promote_children(section)
-                    elif any(s.title != "Usage notes" for s in section._children):
-                        # Don't move Pronunciation sections with both Usage notes and other children
-                        # TODO: manually review these, or just promote everything that's not "Usage notes"
-                        self.warn("embedded_pronunciation_has_children", f"{section.path} has Usage notes plus other child sections, ignoring")
+                # if the Pronunciation section is between the first and second Etymologies
+                # and the first etymology don't have any children
+                # and the pronunciation doesn't have any unexpected children,
+                # move the Pronunciation before the Etys
+                if ( (second_ety_idx > section_idx > first_ety_idx)
+                    and first_ety._children == []
+                    and not section_has_unexpected_children):
+                        section.reparent(lang, first_ety_idx)
+                        self.fix("misplaced_pronunciation", lang, "moved single Pronuncation before multiple Etymologies")
                         return
 
-                    section.reparent(lang, first_ety_idx)
-                    self.fix("autofix_misplaced_pronunciation", lang, "moved single Pronuncation before multiple Etymologies")
+                # if Pronunciation has children and the previous ety doesn't but all other etys do
+                # the pronunciation can be adopted by the previous ety
+                prev_ety = None
+                next_ety = None
+                for ety in etys:
+                    ety_idx = lang._children.index(ety)
+                    if ety_idx > section_idx:
+                        next_ety = ety
+                        break
+                    prev_ety = ety
+
+                # if Pronunciation has children and the previous ety doesn't but all other etys do,
+                # assume it's an attempt to insert a pronunciation in a specific etymology.
+                # adopt the pronunciation and promote children to peers
+                if ( section_has_unexpected_children
+                    and prev_ety and next_ety and prev_ety.count is not None
+                    and all((ety == prev_ety and ety._children == []) or (ety != prev_ety and ety._children != []) for ety in etys) ):
+
+                        section.reparent(prev_ety)
+                        self.promote_children(section)
+
+                        self.fix("pronunciation_level", first_ety, f"adopted Pronunciation")
+                        return
+
+                if prev_ety:
+                    self.warn("stray_pronunciation", f"{section.path} cannot be automatically moved or adopted")
 
 
     def cleanup_nested_countable(self, lang):
@@ -516,7 +545,7 @@ class SectionLevelFixer():
 
             self.promote_children_of_childless_sections(lang)
 
-            self.move_single_pronunciation(lang)
+            self.move_or_adopt_single_pronunciation(lang)
 
             all_countable_titles = []
             for countable in lang.filter_sections(recursive=False, matches=lambda x: x.title in COUNTABLE_SECTIONS):
