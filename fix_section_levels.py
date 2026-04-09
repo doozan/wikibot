@@ -141,7 +141,7 @@ class SectionLevelFixer():
         if len(sections) == 1:
             section = sections[0]
             if section.count:
-                self.fix("autofix_unneeded_counter", section, "removed counter")
+                self.fix("unneeded_counter", section, "removed counter")
                 section.count = None
 
         elif len(sections) > 1:
@@ -155,7 +155,7 @@ class SectionLevelFixer():
             for count, section in enumerate(sections, 1):
                 count = str(count)
                 if section.count != count:
-                    self.fix("autofix_wrong_counter", section, f"renamed to {section.title} {count}")
+                    self.fix("wrong_counter", section, f"renamed to {section.title} {count}")
                     section.count = count
 
     def fix_numbering(self, entry):
@@ -196,7 +196,7 @@ class SectionLevelFixer():
         if not section._children:
             return
 
-        self.fix("autofix_unwanted_children", section, "promoted all child sections to siblings")
+        self.fix("unwanted_children", section, "promoted all child sections to siblings")
 
         new_parent = section.parent
         index = section.parent._children.index(section)
@@ -314,7 +314,7 @@ class SectionLevelFixer():
         changed = False
         for section in entry.filter_sections(matches=lambda x: x.title in ALL_LANGS):
             if section.level != 2: # and section._children:
-                self.fix("autofix_misplaced_language", section, "moved non-l2 language to L2")
+                self.fix("misplaced_language", section, "moved non-l2 language to L2")
                 section.reparent(entry)
                 changed = True
 
@@ -356,7 +356,7 @@ class SectionLevelFixer():
                     self.warn("countable_bad_lineage", section.path)
 
         for section, child in reversed(reparent):
-            self.fix("autofix_pos_inside_pos", child, f"promoted in place")
+            self.fix("pos_inside_pos", child, f"promoted in place")
             self.promote_child_in_place(section, child)
 
 
@@ -382,7 +382,7 @@ class SectionLevelFixer():
                 continue
 
             self.promote_children(section)
-            self.fix("autofix_misplaced_anagrams", section, f"moved to end of {new_parent.path}")
+            self.fix("misplaced_anagrams", section, f"moved to end of {new_parent.path}")
             section.reparent(new_parent)
 
 
@@ -462,7 +462,7 @@ class SectionLevelFixer():
                     break
 
             adoptions = [child.path for child in children]
-            self.fix("autofix_stray_child", new_parent, f"adopted {', '.join(adoptions)}")
+            self.fix("stray_child", new_parent, f"adopted {', '.join(adoptions)}")
 
             for child in children:
                 old_path = child.path
@@ -487,7 +487,7 @@ class SectionLevelFixer():
             # Translations shouldn't have any children, promote them to siblings before moving the translation
             self.promote_children(section)
 
-            self.fix("autofix_misplaced_translation", section, f"moved to {new_parent.path}")
+            self.fix("misplaced_translation", section, f"moved to {new_parent.path}")
             section.reparent(new_parent)
 
 
@@ -506,7 +506,7 @@ class SectionLevelFixer():
             else:
                 self._summary.append(f"{details}")
 
-        self._log.append((reason, page, path, details))
+        self._log.append(("autofix_" + reason, page, path, details))
 
     def warn(self, reason, details):
         self._log.append((reason, self.page_title, None, details))

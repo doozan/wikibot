@@ -43,16 +43,16 @@ ALL_TITLES = ALL_ERRORS | ALL_FIXES
 class WikiSaver(BaseHandler):
 
     def sort_items(self, items):
-        return sorted(items, key=lambda x: (x.error in ALL_FIXES, x.error, x.page))
+        return sorted(items, key=lambda x: ("autofix" not in x.error, x.error, x.page))
 
     def is_new_section(self, item, prev_item):
         return prev_item and prev_item.error != item.error
 
     def is_new_page(self, page_sections, section_entries):
-        return page_sections[0][0].error not in ALL_FIXES
+        return page_sections and "autofix" not in page_sections[-1][-1].error
 
     def page_name(self, page_sections, prev):
-        if page_sections[0][0].error in ALL_FIXES:
+        if page_sections[0][0].error.startswith("autofix"):
             return "fixes"
         else:
             return page_sections[0][0].error
