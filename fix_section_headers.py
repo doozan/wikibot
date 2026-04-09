@@ -515,6 +515,28 @@ class SectionHeaderFixer():
                         self.fix("misnamed_quotations", section, "renamed to Quotations")
                         section.title = "Quotations"
 
+    def rename_misnamed_alt_forms(self, entry):
+
+        def is_empty(line):
+            return not line
+
+        def is_alt_line(line):
+            return line.lstrip("*#: ").startswith("{{alt|")
+
+        for l2 in entry.ifilter_sections(recursive=False):
+            # only look at the first section
+            section = next(l2.ifilter_sections(), None)
+            if not section:
+                continue
+
+            if section.title in ["Alternative forms", "Alternative scripts", "Alternative reconstruction"]:
+                continue
+
+            if (all(is_alt_line(line) or is_empty(line) for line in section.content_wikilines)
+                and any(is_alt_line(line) for line in section.content_wikilines)):
+                    self.fix("misnamed_alt_forms", section, "renamed to Alternative forms")
+                    section.title = "Alternative forms"
+
     def fix(self, reason, section, details):
 
         if isinstance(section, sectionparser.SectionParser):
@@ -569,6 +591,7 @@ class SectionHeaderFixer():
         self.fix_bad_l2(entry)
         self.rename_misnamed_references(entry)
         self.rename_misnamed_quotations(entry)
+        self.rename_misnamed_alt_forms(entry)
 
         # not safe to run unsupervised
         if options and options.get("remove_empty"):
