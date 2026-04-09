@@ -568,7 +568,7 @@ class SectionLevelFixer():
                             if not s.content_text:
                                 self.warn("empty_countable", f"{s.path}")
                             else:
-                                if "{{zh-see" in s.content_text or "{{ja-see" in s.content_text:
+                                if not ("{{zh-see" in s.content_text or "{{ja-see" in s.content_text):
                                     self.warn("childless_countable", f"{s.path}")
                             return page_text if summary is not None else self._log
 
