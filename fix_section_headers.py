@@ -26,6 +26,7 @@ ety_templates = [
     #"interfixsee",
     "blend",
     "univerbation",
+    "rfe",
 ]
 PATTERN_ETY_TEMPLATES = r"{{(" + "|".join(ety_templates) + r")\s*[|}]"
 
