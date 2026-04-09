@@ -459,7 +459,7 @@ class SectionHeaderFixer():
 
     def rename_misnamed_pronunciation(self, entry):
         for section in entry.ifilter_sections(matches = lambda x: x.title == "Etymology"):
-            if any("IPA" in wl and "IPAchar" not in wl and "IPAfont" not in wl for wl in section.content_wikilines):
+            if any("-pr|" in wl or "-pr}}" in wl or ("IPA" in wl and "IPAchar" not in wl and "IPAfont" not in wl) for wl in section.content_wikilines):
                 self.fix("misnamed_pronunciation", section, "renamed to Pronunciation (manually reviewed)")
                 section.title = "Pronunciation"
 
