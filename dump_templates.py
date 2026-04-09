@@ -12,7 +12,7 @@ from autodooz.utils import iter_wxt, iter_xml
 from collections import defaultdict
 from pywikibot import xmlreader
 
-ALLOWED_INVOKE = { "checkparams", "string", "reference information", "ugly hacks", "foreign numerals", "string/templates", "languages/templates" }
+ALLOWED_INVOKE = { "checkparams", "string", "reference information", "ugly hacks", "foreign numerals", "string/templates", "languages/templates", "zh" }
 
 def main():
     parser = argparse.ArgumentParser(description="Find errors in sense lists")
