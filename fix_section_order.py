@@ -5,6 +5,7 @@ import unicodedata
 from autodooz.sections import ALL_LANGS, ALL_L3, ALL_POS, ALL_POS_CHILDREN, COUNTABLE_SECTIONS
 from collections import defaultdict
 
+IGNORE_LANGS = ["Middle Low German"]
 
 #NONSTANDARD_OTHER = {
 #    "Transliteration",
@@ -159,6 +160,9 @@ class SectionOrderFixer:
     def sort_l3(self, language):
 
         if language.title not in ALL_LANGS:
+            return
+
+        if language.title in IGNORE_LANGS:
             return
 
         if not self.has_only_expected_children(language, ALL_L3):
