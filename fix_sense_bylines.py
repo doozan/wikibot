@@ -188,7 +188,7 @@ class BylineFixer():
                     # Special handling for templates that generate headlines and senses
                     if ("ru-" in pos.headlines[-1] and "-alt" in pos.headlines[-1]) or \
                        ("ar-" in pos.headlines[-1] and ("-inf-" in pos.headlines[-1] or "-coll-" in pos.headlines[-1])) or \
-                       any(x in pos.headlines[-1] for x in ["ar-root", "ja-see", "zh-see", "ar-verb form", "ar-verb-form", "fa-num-symbol"]):
+                       any(x in pos.headlines[-1] for x in ["ar-root", "ja-see", "zh-see", "ar-verb form", "ar-verb-form", "fa-num-symbol", "eu-verb form"]):
                             continue
 
                     lang_id = ALL_LANGS.get(section._topmost.title)
