@@ -171,7 +171,8 @@ IGNORE_TEMPLATES = {
     'rfd', 'rfdef', 'rfi', 'rfm', 'rfm', 'rfq', 'rfquote', 'rfref', 'rfv', 'root',
     'seecites', 'slim-wikipedia', 'stroke order', 'swp', 'taxlink', 'taxon',
     'tea room', 'vi-readings', 'wiki', 'wikibooks', 'wikipedia', 'wikiquote', 'wikisource',
-    'wikispecies', 'wikiversity', 'wikiversity lecture', 'wikivoyage', 'wp', 'zodiac'
+    'wikispecies', 'wikiversity', 'wikiversity lecture', 'wikivoyage', 'wp', 'zodiac',
+    'wikidata lexeme'
 }
 
 # Ignore lines that match [[LINK:*]]]
