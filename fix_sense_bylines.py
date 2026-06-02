@@ -188,14 +188,15 @@ class BylineFixer():
                     # Special handling for templates that generate headlines and senses
                     if ("ru-" in pos.headlines[-1] and "-alt" in pos.headlines[-1]) or \
                        ("ar-" in pos.headlines[-1] and ("-inf-" in pos.headlines[-1] or "-coll-" in pos.headlines[-1])) or \
-                       any(x in pos.headlines[-1] for x in ["ar-root", "ja-see", "zh-see", "ar-verb form", "ar-verb-form", "fa-num-symbol", "eu-verb form"]):
+                       any(x in pos.headlines[-1] for x in ["ar-root", "ja-see", "zh-see", "ar-verb form", "ar-verb-form", "fa-num-symbol", "eu-verb form", "rif-verb form"]):
                             continue
 
-                    lang_id = ALL_LANGS.get(section._topmost.title)
-                    section.content_wikilines.append("")
-                    section.content_wikilines.append("# {{rfdef|" + lang_id + "}}")
-                    pos = sectionparser.parse_pos(section)
-                    self.fix("missing_rfdef", section, "", "added rfdef to empty POS")
+                    # disable rfdef handling - not fun to maintain the allowlist
+                    # lang_id = ALL_LANGS.get(section._topmost.title)
+                    # section.content_wikilines.append("")
+                    # section.content_wikilines.append("# {{rfdef|" + lang_id + "}}")
+                    # pos = sectionparser.parse_pos(section)
+                    # self.fix("missing_rfdef", section, "", "added rfdef to empty POS")
 
 #                elif not sense_idx and len(headline_idx) and len(unhandled_idx):
 #                        # Headline followed by lines that are missing #
