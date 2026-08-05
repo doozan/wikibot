@@ -152,7 +152,8 @@ def process_page(text, title, summary=None, options=None):
 
                     # Navajo uses {{nv-theme-header}} plus |} to build tables
                     # Lower Tanana does something similar
-                    if unmatched == "}" and language in ["Navajo", "Lower Tanana"]:# and (close_count - open_count == text.count("{{nv-theme-header}}") == text.count("\n|}")):
+                    # also Ahtna
+                    if unmatched == "}" and language in ["Navajo", "Lower Tanana", "Ahtna"]:# and (close_count - open_count == text.count("{{nv-theme-header}}") == text.count("\n|}")):
                         continue
 
                     highlighted = highlight_unmatched(opener[0], closer[0], text)
