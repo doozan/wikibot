@@ -501,6 +501,10 @@ class BylineFixer():
     def fix_sense_list_prefix(self, sense_list, section):
         """ Returns None on success, non-zero on error """
 
+        if not sense_list:
+            self.warn("empty_sense_list", section, "", "")
+            return
+
         style = sense_list[0].style
         if not all(s.style == style for s in sense_list):
 
