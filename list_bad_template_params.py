@@ -51,7 +51,12 @@ class WikiSaverBadParams(BaseHandler):
         data = data.replace("\n", "<br>")
         data = data.replace("|", "&vert;").replace("{", "&lbrace;").replace("[", "&lbrack;").replace("://", "<nowiki/>://")
 
+        # make template name a link for "other" templates
+        if section_lines == [] or section_lines[1] == "===Other templates===":
+            data = re.sub(r"^(&lbrace;&lbrace;\s*)(.*?)(\s*&vert;)", r"\1[[T:\2|\2]]\3", data)
+
         details = f"bad param '{entry.key}'"
+
 
         if any(entry.page.startswith(prefix) for prefix in ["Template:"]):
             return [f"{details} on [[{entry.page}]]"]
@@ -102,8 +107,8 @@ class WikiSaverBadParams(BaseHandler):
             return res
 
 
-        SUMMARY_CUTOFF=30
-        SUMMARY_LEN=10
+        SUMMARY_CUTOFF=50
+        SUMMARY_LEN=50
 
         # Don't truncate some templates
         expanded_langs = [ "el" ]
