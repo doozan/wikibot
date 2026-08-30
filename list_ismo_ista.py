@@ -42,7 +42,7 @@ class WikiSaver(BaseHandler):
     def page_header(self, base_path, page_name, page_sections, pages):
         return [f"{sum(map(len, page_sections))} items"]
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         page = entry.page
         language = "Spanish"
         return [f": [[{page}#{language}|{page}]]"]

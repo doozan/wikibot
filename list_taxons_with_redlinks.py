@@ -67,7 +67,7 @@ class WikiSaver(BaseHandler):
         res.append(f"; {count} item{'s' if count>1 else ''}")
         return res
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         return [f"; [[{entry.page}]]: {entry.details}"]
 
 class FileSaver(WikiSaver):

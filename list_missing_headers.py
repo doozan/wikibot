@@ -29,7 +29,7 @@ class WikiSaver(BaseHandler):
         # only two pages, autofixes and errors
         return page_sections[-1][-1].error.startswith("autofix") and not section_entries[0].error.startswith("autofix")
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         if "autofix" in entry.error:
             return [f": [[{entry.page}]] {entry.section} {entry.location}"]
 

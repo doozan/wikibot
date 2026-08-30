@@ -146,14 +146,14 @@ class BaseHandler():
 
         prev_entry = None
         for entry in section_entries:
-            res += self.format_entry(entry, prev_entry)
+            res += self.format_entry(entry, prev_entry, res)
             prev_entry = entry
 
         res += self.get_section_footer(base_path, page_name, section_entries, prev_section_entries, pages, res)
 
         return res
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         return str(entry)
 
     def make_page(self, base_path, page_name, page_sections, pages):

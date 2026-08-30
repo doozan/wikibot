@@ -45,7 +45,7 @@ class WikiSaverBadParams(BaseHandler):
     def page_name(self, page_sections, prev):
         return FIX_PATH + "/errors"
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
 
         data = entry.bad_data.replace("<BAD>", '<span style="color:red">').replace("</BAD>", '</span>')
         data = data.replace("\n", "<br>")
@@ -172,7 +172,7 @@ class WikiSaver(BaseHandler):
         else:
             return FIX_PATH + "/other_errors"
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
 
         if entry.error == "unparsable":
             return [f": [[{entry.page}]]"]

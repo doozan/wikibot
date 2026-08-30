@@ -49,7 +49,7 @@ class WikiSaver(BaseHandler):
     def page_header(self, base_path, page_name, page_sections, pages):
         return [f"Spanish forms with extra data: {sum(map(len, page_sections))} items"]
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         e = entry
         language = "Spanish"
 

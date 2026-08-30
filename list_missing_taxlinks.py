@@ -45,7 +45,7 @@ class WikiSaver(BaseHandler):
         else:
             return FIX_PATH + "/errors"
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
 
         if "autofix" in entry.error:
             if prev_entry and entry.page == prev_entry.page:

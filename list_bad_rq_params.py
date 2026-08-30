@@ -40,7 +40,7 @@ class WikiSaver(BaseHandler):
         else:
             return FIX_PATH + "/errors"
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
 
         data = str(entry.template_data).replace(entry.bad_data, '<span style="color:red">' + entry.bad_data + '</span>', 1)
         data = data.replace("|", "&vert;").replace("{", "&lbrace;").replace("[", "&lbrack;").replace("://", "<nowiki/>://")

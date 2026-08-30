@@ -52,7 +52,7 @@ class WikiSaver(BaseHandler):
     def page_header(self, base_path, page_name, page_sections, pages):
         return [f"{sum(map(len, page_sections))} items"]
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         return [f": [[{entry.page}]] {entry.path}"]
 
     def get_section_header(self, base_path, page_name, section_entries, prev_section_entries, pages):

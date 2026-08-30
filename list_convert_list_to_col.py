@@ -39,7 +39,7 @@ class WikiSaver(BaseHandler):
         else:
             return f"{item.lang_id}/der_rel_terms/errors"
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         if entry.details:
             return [f": [[{entry.page}]] <nowiki>{entry.details}</nowiki>"]
         return [f": [[{entry.page}]]"]

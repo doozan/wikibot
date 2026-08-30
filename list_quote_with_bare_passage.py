@@ -34,7 +34,7 @@ class WikiSaver(BaseHandler):
         else:
             return "quote_with_bare_passage/errors"
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         lang, _, _ = entry.section.partition(":")
         if entry.details:
             return [f": [[{entry.page}#{lang}|{entry.page}]] {entry.section}\n<pre>{entry.details}</pre>"]

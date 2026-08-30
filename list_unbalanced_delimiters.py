@@ -34,7 +34,7 @@ class WikiSaver(BaseHandler):
         else:
             return "errors"
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
 
         if entry.details is None:
             print("BAD", entry)

@@ -83,7 +83,7 @@ class WikiSaver(BaseHandler):
             return []
         return ["</pre>"]
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         if prev_entry and prev_entry.name == entry.name:
             return []
         return [f"{self.count[(entry.source, entry.name)]}: {entry.name}"]

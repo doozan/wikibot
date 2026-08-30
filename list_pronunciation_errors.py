@@ -54,7 +54,7 @@ class WikiSaver(BaseHandler):
         else:
             return "pronunciation/errors"
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         if "autofix" in entry.error:
             return [f": [[{entry.page}]] {entry.section} {entry.location}"]
 

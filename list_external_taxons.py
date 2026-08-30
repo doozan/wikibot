@@ -44,7 +44,7 @@ class WikiSaver(BaseHandler):
         else:
             return FIX_PATH + "/errors"
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         return [f": {entry.details}"]
 
     def get_section_header(self, base_path, page_name, section_entries, prev_section_entries, pages):

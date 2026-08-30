@@ -82,7 +82,7 @@ class WikiByLanguage(BaseWikiByLanguage):
 
     _indextype = namedtuple("index_items", [ "link", "entries", "errors" ])
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         e = entry
         lines = [f": [[{e.page}#Translations|{e.page}]] ({e.section}: {e.gloss})"]
 
@@ -176,7 +176,7 @@ class WikiByError(BaseHandler):
             return page_lines[:limit] + [f"Page truncated to {limit} lines"]
         return page_lines
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         e = entry
         lines = [f": [[{e.page}#Translations|{e.page}]]:{e.section}:{e.gloss}"]
 

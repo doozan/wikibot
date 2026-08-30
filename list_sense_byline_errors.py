@@ -51,7 +51,7 @@ class WikiSaverByError(BaseHandler):
             return "sense_bylines/errors"
             #return "sense_bylines/" + page_sections[0][0].error
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         if "autofix" in entry.error:
             return [f": [[{entry.page}]] {entry.section} {entry.location}"]
 
@@ -113,7 +113,7 @@ class WikiSaverByLanguage(BaseHandler):
         return "sense_bylines/errors_by_language"
         #return "sense_bylines/" + page_sections[0][0].error
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         if entry.details:
             return [f": [[{entry.page}#{entry.language}|{entry.page}]] {entry.section} {entry.location}\n<pre>{entry.details}</pre>"]
         else:

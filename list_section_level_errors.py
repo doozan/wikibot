@@ -69,7 +69,7 @@ class WikiSaver(BaseHandler):
 
         return res
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
         page = entry.page
         section = entry.section if entry.section else ""
         if entry.error in ALL_FIXES:

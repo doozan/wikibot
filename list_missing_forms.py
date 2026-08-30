@@ -65,7 +65,7 @@ class WikiSaver(BaseHandler):
         header = self.error_header.get(page_name, page_name)
         return [f"{header}: {count} item{'' if count==1 else 's'}"]
 
-    def format_entry(self, entry, prev_entry):
+    def format_entry(self, entry, prev_entry, section_lines):
 
         autofix = entry.error.endswith("_autofix")
         error = entry.error[:-len("_autofix")] if autofix else entry.error
