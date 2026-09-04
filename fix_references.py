@@ -63,6 +63,9 @@ def generates_references(text):
         #print("has <ref>")
         return 2
 
+    if "<ref:" in text:
+        return 2
+
     m = re.search(PATTERN_ALWAYS_REFS, text, flags=re.DOTALL)
     if m:
         #print("MATCH", m.group(0))
