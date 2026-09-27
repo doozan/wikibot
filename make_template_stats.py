@@ -52,18 +52,19 @@ def main():
             module_data = modules[module_name]
             module_data["is_template_module"] = 1
 
-            if "parameters" in module_data.get("modules", []):
+            if any(m in ["parameters", "parameter utilities"] for m in module_data.get("modules", [])):
                 checks_params = "Y"
-            elif "parameters" in module_data.get("submodules", []):
+            elif any(m in ["parameters", "parameter utilities"] for m in module_data.get("submodules", [])):
                 checks_params = "?"
             else:
                 checks_params = "N"
 
         elif template_data["type"] == "mixed":
             mods = template_data.get("modules", [])
-            if any(m in mods for m in ["parameters", "checkparams", "quote"]):
+            param_mods = ["parameters", "parameter utilities", "checkparams", "quote"]
+            if any(m in param_mods for m in mods):
                 checks_params = "Y"
-            elif any("parameters" in modules.get(m, {}).get("submodules", []) for m in mods):
+            elif any(sm in param_mods for m in mods for sm in modules.get(m, {}).get("submodules", []) ):
                 checks_params = "?"
             else:
                 checks_params = "N"
@@ -110,7 +111,7 @@ def main():
         if count < min_count:
             if min_count > 1:
                 prev_min_count = min_count
-                if min_count <= 4:
+                if min_count <= 8:
                     break
                 if min_count==1000:
                     min_count = 512
