@@ -14,6 +14,7 @@ IGNORE_LANGS = ["Middle Low German"]
 #    "Cuneiform sign",
 #}
 
+ALT_FORM_KEYS = ["Alternative forms", "Alternative scripts", "Alternative reconstructions"]
 
 # Sections that will be at the very bottom, ranked as they appear here
 BOTTOM_SORT = {k:v for v,k in enumerate([
@@ -136,12 +137,11 @@ class SectionOrderFixer:
     @staticmethod
     def has_alt_before_pos(l3):
         for c in l3.ifilter_sections(recursive=False):
-            if c.title in ["Alternative forms", "Alternative scripts"]:
+            if c.title in ALT_FORM_KEYS:
                 return True
             elif c.title in ALL_POS:
                 return False
         return False
-
 
     # L3 can be either the full language entry or, if there are countable sections, each countable sections
     #
@@ -268,7 +268,7 @@ class SectionOrderFixer:
 
     @staticmethod
     def get_l3_topsort_key(item, alt_first=False, lemmas_before_forms=False):
-        if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
+        if alt_first and item.title in ALT_FORM_KEYS:
             return (0, -1, item.title)
 
         return (0, 0, TOP_SORT.get(item.title, 999))
@@ -276,7 +276,7 @@ class SectionOrderFixer:
     @staticmethod
     def get_l3_sort_key(item, alt_first=False, lemmas_before_forms=False):
 
-        if alt_first and item.title in ["Alternative forms", "Alternative scripts"]:
+        if alt_first and item.title in ALT_FORM_KEYS:
             return (0, -1, item.title)
 
         if item.title in TOP_SORT:
