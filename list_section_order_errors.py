@@ -17,7 +17,7 @@ ALL_FIXES = {
 }
 
 ALL_ERRORS = {
-    "dup_sections": "Duplicate L3 sections",
+    "dup_sections": "Duplicate sections",
     "unexpected_child": "Unexpected child section",
 }
 

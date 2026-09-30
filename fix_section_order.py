@@ -181,65 +181,56 @@ class SectionOrderFixer:
             # per WT:ETE, "Alternative forms" must be the first item IFF it appears before a POS item
             # Otherwise, it can be sorted below the POS according to the normal sort order
             alt_first = self.has_alt_before_pos(l3)
+            lemmas_before_forms = language.title == "Spanish"
 
-            # Spanish can sort all of the section in one go
-            if language.title == "Spanish":
+            orig = list(l3._children)
+            totals = defaultdict(int)
+            pos_count = 0
+            pos_is_contig = True # All of the POS sections are contiguous
+            prev_pos = False
+            for section in l3._children:
+                totals[section.title] += 1
+                is_pos = section.title in ALL_POS
+
+                if is_pos:
+                    if pos_count and not prev_pos:
+                        pos_is_contig = False
+                    pos_count += 1
+
+                prev_pos = is_pos
+
+            has_dup = False
+            for title, count in totals.items():
+                if count > 1 and (title in BOTTOM_SORT_SAFE or title in TOP_SORT):
+                    if title not in COUNTABLE_SECTIONS:
+                        self.warn("dup_sections", f"{l3.path} has {count} {title} sections")
+                    has_dup = True
+            # Don't sort sections with double items
+            if has_dup:
+                continue
+
+
+            # If all POS sections are contiguous (without other sections between them) and all of the sections are sortable, sort everything in one pass
+            if pos_is_contig and all(title in ALL_SORTABLE for title in totals.keys()):
                 orig = list(l3._children)
-                l3._children.sort(key=lambda x: self.get_l3_sort_key(x, alt_first=alt_first, lemmas_before_forms=True))
+                l3._children.sort(key=lambda x: self.get_l3_sort_key(x, alt_first=alt_first))
                 if orig != l3._children:
-                    self.fix("l3_sort", l3, "sorted sections per [[WT:ELE]] with forms before lemmas")
+                    self.fix("l3_sort", l3, "sorted sections per [[WT:ELE]]")
 
-            # Sort other languages in two passes to generate a more verbose summary
             else:
+                l3._children.sort(key=lambda x: self.get_l3_topsort_key(x, alt_first=alt_first, lemmas_before_forms=False))
+                if orig != l3._children:
+                    top = []
+                    for x in l3._children:
+                        if x.title not in TOP_SORT and (not alt_first or x.title not in ALT_FORM_KEYS):
+                            break
+                        top.append(x.title)
+                    self.fix("l3_sort", l3, "sorted " + "/".join(top) + " to top per [[WT:ELE]]")
+
                 orig = list(l3._children)
-                totals = defaultdict(int)
-                pos_count = 0
-                pos_is_contig = True # All of the POS sections are contiguous
-                prev_pos = False
-                for section in l3._children:
-                    totals[section.title] += 1
-                    is_pos = section.title in ALL_POS
-
-                    if is_pos:
-                        if pos_count and not prev_pos:
-                            pos_is_contig = False
-                        pos_count += 1
-
-                    prev_pos = is_pos
-
-                has_dup = False
-                for title, count in totals.items():
-                    if count > 1 and (title in BOTTOM_SORT_SAFE or title in TOP_SORT):
-                        # Multi countables shouldn't be sorted, but don't need to produce a warning
-                        if title not in COUNTABLE_SECTIONS:
-                            self.warn("dup_sections", f"{l3.path} has {count} {title} sections")
-                        has_dup = True
-                # Don't sort sections with double items
-                if has_dup:
-                    continue
-
-
-                # If all POS sections are contiguous (without other sections between them) and all of the sections are sortable, sort everything in one pass
-                if pos_is_contig and all(title in ALL_SORTABLE for title in totals.keys()):
-                    orig = list(l3._children)
-                    l3._children.sort(key=lambda x: self.get_l3_sort_key(x, alt_first=alt_first))
-                    if orig != l3._children:
-                        self.fix("l3_sort", l3, "sorted sections per [[WT:ELE]]")
-
-                else:
-                    l3._children.sort(key=lambda x: self.get_l3_topsort_key(x, alt_first=alt_first, lemmas_before_forms=False))
-                    if orig != l3._children:
-                        top = []
-                        for x in l3._children:
-                            if x.title not in TOP_SORT and (not alt_first or x.title not in ["Alternative forms", "Alternative scripts"]):
-                                break
-                            top.append(x.title)
-                        self.fix("l3_sort", l3, "sorted " + "/".join(top) + " to top per [[WT:ELE]]")
-
-                    orig = list(l3._children)
-                    l3._children.sort(key=lambda x: self.get_l3_sort_key_safe(x, alt_first=alt_first, lemmas_before_forms=False))
-                    if orig != l3._children:
-                        self.fix("l3_sort", l3, "sorted References/Further reading/Anagrams to bottom per [[WT:ELE]]")
+                l3._children.sort(key=lambda x: self.get_l3_sort_key_safe(x, alt_first=alt_first, lemmas_before_forms=False))
+                if orig != l3._children:
+                    self.fix("l3_sort", l3, "sorted References/Further reading/Anagrams to bottom per [[WT:ELE]]")
 
 
     def sort_pos_children(self, pos):
@@ -249,9 +240,17 @@ class SectionOrderFixer:
             raise ValueError("unexpected POS, refusing to sort", pos.title)
 
         can_sort = True
+
+        totals = defaultdict(int)
         for child in pos._children:
+            totals[child.title] += 1
             if child.title not in ALL_POS_CHILDREN:
                 self.warn("unexpected_child", f"{pos.path} has unexpected child {child.title}")
+                can_sort = False
+
+        for title, count in totals.items():
+            if count > 1:
+                self.warn("dup_sections", f"{pos.path} has {count} {title} sections")
                 can_sort = False
 
         if not can_sort:
@@ -334,9 +333,6 @@ class SectionOrderFixer:
                 self._summary.append(f"/*{path}*/ {details}")
             else:
                 self._summary.append(f"{details}")
-
-        self._log.append((reason, page, path, details))
-
 
     def warn(self, reason, details):
         self._log.append((reason, self.page_title, None, details))
