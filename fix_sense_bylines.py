@@ -122,7 +122,7 @@ class BylineFixer():
                     continue
 
                 for line in section.content_wikilines:
-                    if line.startswith("# ") and section.title not in ["Collocations", "Synonyms", "Verb root", "Infinitive", "Holonyms", "Meronyms", "Coordinate terms", "Hypernyms"]:
+                    if line.startswith("# ") and section.title not in ["Collocations", "Synonyms", "Verb root", "Infinitive", "Holonyms", "Meronyms", "Coordinate terms", "Hypernyms", "Declension"]:
                         self.warn("sense_outside_pos", section, "", line)
                 continue
 
