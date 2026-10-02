@@ -502,7 +502,7 @@ class BylineFixer():
         """ Returns None on success, non-zero on error """
 
         if not sense_list:
-            self.warn("empty_sense_list", section, "", "")
+            #self.warn("empty_sense_list", section, "", "")
             return
 
         style = sense_list[0].style
