@@ -332,7 +332,9 @@ class SectionOrderFixer:
             if path:
                 self._summary.append(f"/*{path}*/ {details}")
             else:
-                self._summary.append(f"{details}")
+                self._summary.append(details)
+
+        self._log.append((reason, page, path, details))
 
     def warn(self, reason, details):
         self._log.append((reason, self.page_title, None, details))
