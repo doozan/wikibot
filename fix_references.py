@@ -229,6 +229,7 @@ class ReferenceFixer():
 
 
     def cleanup_references(self, entry):
+        page_html = None
 
         all_l2 = entry.filter_sections(recursive=False)
         for section in all_l2:
@@ -240,19 +241,24 @@ class ReferenceFixer():
             displays_refs = shows_references(text)
 
             if displays_refs and not uses_refs:
-
                 if self._summary is None:
                     self.warn("check_ref", section.path)
                 else:
+                    if not page_html:
+                        page_html = get_page_html(section.page)
 
-                    html = get_page_html(section.page)
-                    if not has_references(html):
+                    # First, check if the page itself has any generated references
+                    # if not, no need to check the individual sections
+                    if not has_references(page_html):
                         self.remove_ref(section)
 
                     else:
+                        # If the page has references and there's only one L2
                         if len(all_l2) == 1:
                             print("NEEDS REF", section.page)
                             self.warn("needed_ref", section.path)
+
+                        # otherwise, check each L2 individually
                         else:
                             wiki = expand_templates(section)
                             if wiki is not None:
