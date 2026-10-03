@@ -195,7 +195,7 @@ def get_page_html(pagename):
     return r.text
 
 def has_references(html):
-    return '<div class="mw-references-wrap">' in html
+    return any(t in html for t in ['<div class="mw-references-wrap">', '<div class="reflist">'])
 
 
 class ReferenceFixer():
