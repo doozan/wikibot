@@ -142,6 +142,7 @@ def expand_templates(section):
     params = {
         'action': 'expandtemplates',
         'prop': 'wikitext',
+        'title': pagename,
         'text': text, #urllib.parse.quote(text),
         'format': 'json'
     }
